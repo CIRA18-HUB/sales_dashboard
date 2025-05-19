@@ -1,0 +1,9 @@
+# 替换原有的requirements.txt
+streamlit==1.31.0
+pandas==2.0.3
+numpy==1.26.0
+plotly==5.15.0
+scipy==1.11.3
+openpyxl==3.1.2
+matplotlib==3.7.1
+seaborn==0.12.2
