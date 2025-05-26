@@ -39,21 +39,57 @@ st.markdown("""
     .stDeployButton {display: none;}
     .stDecoration {display: none;}
     
+    /* 强力隐藏侧边栏顶部应用名称 */
+    section[data-testid="stSidebar"] > div:first-child > div:first-child > div:first-child > div:first-child {
+        display: none !important;
+        height: 0 !important;
+        overflow: hidden !important;
+    }
+    
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"]:first-of-type {
+        display: none !important;
+    }
+    
+    section[data-testid="stSidebar"] > div > div:first-child > div:first-child {
+        padding-top: 0 !important;
+    }
+    
     /* 全局样式 */
     .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
+    /* 确保整个页面都是紫色背景 */
+    [data-testid="stAppViewContainer"] {
+        background: transparent;
+    }
+    
+    [data-testid="stHeader"] {
+        background: transparent;
+    }
+    
+    .main {
+        background: transparent;
     }
     
     /* 主容器紫色渐变背景 */
     .main {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: transparent;
         min-height: 100vh;
         position: relative;
         overflow: hidden;
     }
     
+    /* 为整个视窗添加紫色背景 */
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
     /* 动态波纹背景 */
-    .main::before {
+    .stApp::before {
         content: '';
         position: fixed;
         top: 0;
