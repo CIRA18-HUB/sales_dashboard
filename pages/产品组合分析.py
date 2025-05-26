@@ -408,11 +408,11 @@ def load_real_data():
         
         # 4. 加载4月促销活动数据
         try:
-            april_promo_data = pd.read_excel('这是涉及到4月份做的促销活动.xlsx')
+            april_promo_data = pd.read_excel('这是涉及到在4月份做的促销活动.xlsx')
             data_dict['april_promo_data'] = april_promo_data
             st.success(f"✅ 成功加载4月促销数据: {len(april_promo_data)}条记录")
         except Exception as e:
-            st.warning(f"⚠️ 这是涉及到4月份做的促销活动.xlsx 加载失败: {str(e)}")
+            st.warning(f"⚠️ 这是涉及到在4月份做的促销活动.xlsx 加载失败: {str(e)}")
         
         # 5. 加载客户数据
         try:
@@ -438,23 +438,23 @@ def load_real_data():
         except Exception as e:
             st.warning(f"⚠️ 单价.xlsx 加载失败: {str(e)}")
         
-        # 8. 加载产品代码数据
+        # 8. 加载仪表盘产品代码数据
         try:
-            with open('仅表盒产品代码.txt', 'r', encoding='utf-8') as f:
-                box_products = [line.strip() for line in f.readlines() if line.strip()]
-            data_dict['box_products'] = box_products
-            st.success(f"✅ 成功加载盒装产品代码: {len(box_products)}个")
+            with open('仪表盘产品代码.txt', 'r', encoding='utf-8') as f:
+                dashboard_products = [line.strip() for line in f.readlines() if line.strip()]
+            data_dict['dashboard_products'] = dashboard_products
+            st.success(f"✅ 成功加载仪表盘产品代码: {len(dashboard_products)}个")
         except Exception as e:
-            st.warning(f"⚠️ 仅表盒产品代码.txt 加载失败: {str(e)}")
+            st.warning(f"⚠️ 仪表盘产品代码.txt 加载失败: {str(e)}")
         
-        # 9. 加载新品代码数据
+        # 9. 加载仪表盘新品代码数据
         try:
-            with open('仅表盒新品代码.txt', 'r', encoding='utf-8') as f:
+            with open('仪表盘新品代码.txt', 'r', encoding='utf-8') as f:
                 new_products = [line.strip() for line in f.readlines() if line.strip()]
             data_dict['new_products'] = new_products
-            st.success(f"✅ 成功加载新品代码: {len(new_products)}个")
+            st.success(f"✅ 成功加载仪表盘新品代码: {len(new_products)}个")
         except Exception as e:
-            st.warning(f"⚠️ 仅表盒新品代码.txt 加载失败: {str(e)}")
+            st.warning(f"⚠️ 仪表盘新品代码.txt 加载失败: {str(e)}")
         
         # 10. 加载星品&新品KPI代码
         try:
@@ -601,13 +601,25 @@ def calculate_bcg_data(data_dict):
                 product_col = col
                 break
         
+        # 优先寻找销售额列，如果没有则寻找可计算销售额的列
         for col in sales_data.columns:
-            if col in ['销售额', '金额', '销量']:
+            if col in ['销售额', '金额']:
                 sales_col = col
                 break
         
+        # 如果没有直接的销售额列，检查是否有单价和箱数列可以计算
+        if sales_col is None:
+            if '单价' in sales_data.columns and '箱数' in sales_data.columns:
+                # 计算销售额 = 单价 * 箱数
+                sales_data['计算销售额'] = sales_data['单价'] * sales_data['箱数']
+                sales_col = '计算销售额'
+                st.info("💡 通过单价×箱数计算得到销售额")
+            elif '销量' in sales_data.columns:
+                sales_col = '销量'
+        
         if product_col is None or sales_col is None:
             st.warning(f"⚠️ 数据列名识别失败: 产品列={product_col}, 销售列={sales_col}")
+            st.info("📊 可用列名: " + ", ".join(sales_data.columns.tolist()))
             return []
         
         # 按产品聚合数据
