@@ -167,9 +167,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 紫色配色方案
+# 紫色配色方案 - 与主页面保持一致
 COLOR_SCHEME = {
-    'gradient_purple': ['#9333EA', '#7C3AED'],
+    'gradient_purple': ['#667eea', '#764ba2'],
     'gradient_pink': ['#EC4899', '#BE185D'],
     'gradient_orange': ['#F59E0B', '#DC2626'],
     'gradient_blue': ['#3B82F6', '#1E40AF'],
@@ -370,21 +370,21 @@ if metrics is None:
 
 # 紫色主题的plotly布局模板
 plotly_layout_template = dict(
-    plot_bgcolor='rgba(139, 92, 246, 0.05)',
-    paper_bgcolor='rgba(139, 92, 246, 0.1)',
+    plot_bgcolor='rgba(255, 255, 255, 0.05)',
+    paper_bgcolor='rgba(255, 255, 255, 0.1)',
     font=dict(color='white'),
     title_font=dict(color='white', size=16),
     xaxis=dict(gridcolor='rgba(255, 255, 255, 0.1)', zerolinecolor='rgba(255, 255, 255, 0.2)'),
     yaxis=dict(gridcolor='rgba(255, 255, 255, 0.1)', zerolinecolor='rgba(255, 255, 255, 0.2)'),
-    hoverlabel=dict(bgcolor='rgba(139, 92, 246, 0.9)', font_color='white', font_size=14),
-    colorway=['#9333EA', '#EC4899', '#F59E0B', '#10B981', '#3B82F6']
+    hoverlabel=dict(bgcolor='rgba(102, 126, 234, 0.9)', font_color='white', font_size=14),
+    colorway=['#667eea', '#EC4899', '#F59E0B', '#10B981', '#3B82F6']
 )
 
 # 页面标题 - 使用彩色标题
 colored_header(
     label="📦 库存预警仪表盘",
     description="智能库存风险监控与促销决策支持系统",
-    color_name="violet-70"
+    color_name="blue-70"
 )
 
 # 加载动画
@@ -469,9 +469,9 @@ with tab1:
     
     # 应用样式
     style_metric_cards(
-        background_color="rgba(139, 92, 246, 0.2)",
-        border_left_color="#9333EA",
-        border_color="rgba(139, 92, 246, 0.3)",
+        background_color="rgba(255, 255, 255, 0.95)",
+        border_left_color="#667eea",
+        border_color="rgba(255, 255, 255, 0.3)",
         box_shadow=True
     )
     
@@ -821,7 +821,7 @@ with tab3:
             name='下限',
             line=dict(color='rgba(0,0,0,0)'),
             fill='tonexty',
-            fillcolor='rgba(147, 51, 234, 0.2)',
+            fillcolor='rgba(102, 126, 234, 0.2)',
             showlegend=False,
             hoverinfo='skip'
         ))
@@ -984,7 +984,7 @@ with tab4:
         
         fig_radar = go.Figure()
         
-        colors = ['#9333EA', '#EC4899', '#F59E0B', '#10B981', '#3B82F6']
+        colors = ['#667eea', '#EC4899', '#F59E0B', '#10B981', '#3B82F6']
         for i, region in enumerate(region_stats['所属区域'].unique()):
             region_data = region_stats[region_stats['所属区域'] == region]
             
@@ -1019,7 +1019,7 @@ with tab4:
                 angularaxis=dict(
                     gridcolor='rgba(255,255,255,0.1)'
                 ),
-                bgcolor='rgba(139, 92, 246, 0.05)'
+                bgcolor='rgba(255, 255, 255, 0.05)'
             ),
             showlegend=True,
             title="区域综合绩效雷达图",
@@ -1126,7 +1126,7 @@ with tab5:
         name='累计库存',
         line=dict(color=COLOR_SCHEME['gradient_purple'][0], width=3),
         fill='tonexty',
-        fillcolor='rgba(147, 51, 234, 0.1)',
+        fillcolor='rgba(102, 126, 234, 0.1)',
         hovertemplate='月份: %{x|%Y-%m}<br>累计库存: %{y:,.0f}箱<extra></extra>'
     ))
     
