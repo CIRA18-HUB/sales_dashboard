@@ -1,4 +1,4 @@
-# pages/产品组合分析.py - 完整整合版本（保留所有原始分析逻辑）
+# pages/产品组合分析.py - Trolli SAL 产品组合分析仪表盘（修复版）
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -12,108 +12,303 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# 设置页面配置 - 使用默认侧边栏
+# 设置页面配置 - 关键：隐藏侧边栏
 st.set_page_config(
-    page_title="📦 产品组合分析",
+    page_title="📦 Trolli SAL 产品组合分析",
     page_icon="📦",
     layout="wide",
-    initial_sidebar_state="expanded"  # 显示侧边栏
+    initial_sidebar_state="collapsed"  # 关键：默认隐藏侧边栏
 )
 
 # 检查登录状态
 if 'authenticated' not in st.session_state or not st.session_state.authenticated:
     st.error("⚠️ 请先登录系统")
+    if st.button("🏠 返回登录页", use_container_width=True):
+        st.switch_page("app.py")
     st.stop()
 
-# CSS样式 - 不隐藏侧边栏
-st.markdown("""
+# 隐藏所有默认元素并添加完整CSS样式
+hide_elements_and_style = """
 <style>
+    /* 完全隐藏侧边栏 - 重要！ */
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+    
+    /* 隐藏Streamlit默认元素 */
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
+    .stAppHeader {display: none !important;}
+    .stDeployButton {display: none !important;}
+    .stToolbar {display: none !important;}
+
     /* 导入字体 */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    
-    /* 隐藏Streamlit默认元素（但保留侧边栏） */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .stDeployButton {display: none;}
-    
-    /* 主容器样式 */
-    .main {
+
+    /* 全局样式 */
+    .stApp {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         min-height: 100vh;
     }
-    
-    /* 标题样式 */
-    .main-title {
-        text-align: center;
-        color: white;
-        margin-bottom: 2rem;
-        padding: 2rem 0;
+
+    /* 主容器背景 + 动画 */
+    .main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        position: relative;
     }
-    
-    .main-title h1 {
-        font-size: 2.5rem;
-        font-weight: 700;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+
+    /* 动态背景波纹效果 */
+    .main::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+            radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
+            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 50% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 60%);
+        animation: waveMove 8s ease-in-out infinite;
+        pointer-events: none;
+        z-index: 0;
     }
-    
-    /* 指标卡片样式 */
-    [data-testid="metric-container"] {
+
+    @keyframes waveMove {
+        0%, 100% { 
+            background-size: 200% 200%, 150% 150%, 300% 300%;
+            background-position: 0% 0%, 100% 100%, 50% 50%; 
+        }
+        33% { 
+            background-size: 300% 300%, 200% 200%, 250% 250%;
+            background-position: 100% 0%, 0% 50%, 80% 20%; 
+        }
+        66% { 
+            background-size: 250% 250%, 300% 300%, 200% 200%;
+            background-position: 50% 100%, 50% 0%, 20% 80%; 
+        }
+    }
+
+    /* 主容器 */
+    .block-container {
+        position: relative;
+        z-index: 10;
+        background: rgba(255, 255, 255, 0.02);
+        backdrop-filter: blur(5px);
+        padding-top: 1rem;
+        max-width: 100%;
+        width: 100%;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* 顶部导航栏 */
+    .top-nav {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(20px);
         border-radius: 15px;
-        padding: 1.5rem;
+        padding: 1rem 2rem;
+        margin-bottom: 2rem;
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        transition: all 0.3s ease;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        z-index: 100;
     }
-    
-    [data-testid="metric-container"]:hover {
-        transform: translateY(-5px) scale(1.02);
-        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+
+    /* 主标题 */
+    .main-title {
+        text-align: center;
+        margin-bottom: 3rem;
+        color: white;
+        position: relative;
+        z-index: 10;
     }
-    
-    /* 图表容器样式 */
-    .stPlotlyChart {
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 15px;
-        padding: 1rem;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+
+    .main-title h1 {
+        font-size: 3rem;
+        color: white;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        margin-bottom: 1rem;
+        font-weight: 700;
+        animation: titleGlowPulse 4s ease-in-out infinite;
     }
-    
-    /* 选项卡样式 */
+
+    @keyframes titleGlowPulse {
+        0%, 100% { 
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.5);
+            transform: scale(1);
+        }
+        50% { 
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 40px rgba(255, 255, 255, 0.9);
+            transform: scale(1.02);
+        }
+    }
+
+    /* 标签页容器 */
     .stTabs {
         background: rgba(255, 255, 255, 0.95);
-        border-radius: 15px;
-        padding: 1rem;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        margin-bottom: 2rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        animation: slideUp 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     }
-    
+
+    @keyframes slideUp {
+        0% { opacity: 0; transform: translateY(100px) scale(0.8); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* 标签按钮样式 */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 0.5rem;
-        background: transparent;
+        gap: 0.8rem;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 1.5rem;
+        border-bottom: 1px solid rgba(102, 126, 234, 0.2);
     }
-    
+
     .stTabs [data-baseweb="tab"] {
-        padding: 0.8rem 1.2rem;
-        border-radius: 10px;
+        background: transparent;
+        border: none;
+        padding: 1rem 1.5rem;
+        font-size: 0.9rem;
+        color: #64748b;
+        border-radius: 15px;
+        transition: all 0.4s ease;
+        white-space: nowrap;
         font-weight: 600;
-        transition: all 0.3s ease;
     }
-    
+
     .stTabs [data-baseweb="tab"][aria-selected="true"] {
         background: linear-gradient(135deg, #667eea, #764ba2);
         color: white;
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        transform: translateY(-3px) scale(1.02);
+    }
+
+    .stTabs [data-baseweb="tab"]:hover:not([aria-selected="true"]) {
+        background: rgba(102, 126, 234, 0.1);
+        transform: translateY(-2px);
+    }
+
+    /* 标签内容 */
+    .stTabs [data-baseweb="tab-panel"] {
+        padding: 2rem;
+        animation: contentFadeIn 0.8s ease-out;
+    }
+
+    @keyframes contentFadeIn {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Streamlit metric样式覆盖 */
+    [data-testid="metric-container"] {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        transition: all 0.4s ease;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        animation: cardSlideUp 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    [data-testid="metric-container"]::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #667eea, #764ba2, #ff6b6b, #ffa726);
+        background-size: 300% 100%;
+        animation: gradientShift 3s ease-in-out infinite;
+    }
+
+    @keyframes gradientShift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+
+    @keyframes cardSlideUp {
+        0% { opacity: 0; transform: translateY(60px) scale(0.8); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    [data-testid="metric-container"]:hover {
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
+    }
+
+    [data-testid="metric-container"] [data-testid="metric-value"] {
+        font-size: 2.5rem !important;
+        font-weight: bold !important;
+        background: linear-gradient(45deg, #667eea, #764ba2) !important;
+        -webkit-background-clip: text !important;
+        background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        animation: numberSlideUp 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes numberSlideUp {
+        0% { opacity: 0; transform: translateY(100%) scale(0.5); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* 按钮样式 */
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .main-title h1 { font-size: 2.2rem; }
+        [data-testid="metric-container"] { margin-bottom: 1rem; }
     }
 </style>
-""", unsafe_allow_html=True)
+"""
 
-# 数据加载函数 - 保留原始逻辑
+st.markdown(hide_elements_and_style, unsafe_allow_html=True)
+
+# 顶部导航栏 - 替代侧边栏
+col1, col2, col3 = st.columns([2, 8, 2])
+with col1:
+    if st.button("🏠 返回主页", use_container_width=True):
+        st.switch_page("app.py")
+with col3:
+    if st.button("🚪 退出登录", use_container_width=True):
+        st.session_state.authenticated = False
+        st.switch_page("app.py")
+
+# 数据加载函数 - 修复版
 @st.cache_data(ttl=3600)
 def load_real_data():
-    """加载真实数据文件"""
-    data_dict = {}
+    """加载真实数据文件 - 修复版，确保总是返回字典"""
+    data_dict = {}  # 初始化为空字典
     failed_files = []
     
     try:
@@ -124,12 +319,12 @@ def load_real_data():
         except Exception as e:
             failed_files.append(f"TT与MT销售数据.xlsx: {str(e)}")
         
-        # 2. 加载出货数据
+        # 2. 加载出货数据 - 不显示错误信息
         try:
             shipment_data = pd.read_excel('2409-250224出货数据.xlsx')
             data_dict['shipment_data'] = shipment_data
         except:
-            pass
+            pass  # 静默处理这个已知缺失的文件
         
         # 3. 加载促销效果数据
         try:
@@ -190,35 +385,22 @@ def load_real_data():
         except Exception as e:
             failed_files.append(f"星品&新品年度KPI考核产品代码.txt: {str(e)}")
         
+        # 显示加载失败的重要文件
         if failed_files:
             for failed in failed_files:
-                if "2409-250224出货数据.xlsx" not in failed:
+                if "2409-250224出货数据.xlsx" not in failed:  # 跳过这个已知缺失的文件
                     st.warning(f"⚠️ 文件加载失败: {failed}")
         
     except Exception as e:
         st.error(f"❌ 数据加载过程中发生错误: {str(e)}")
     
-    return data_dict
+    return data_dict  # 确保总是返回字典，即使是空的
 
-# 产品简称处理函数
-def get_product_short_name(product_code, product_name=None):
-    """获取产品简称"""
-    if product_name and isinstance(product_name, str) and '袋装' in product_name:
-        name = product_name.split('袋装')[0]
-        name = name.replace('口力', '').strip()
-        return name[:4] if len(name) > 4 else name
-    
-    code_str = str(product_code)
-    if len(code_str) > 6:
-        return code_str[-4:]
-    elif len(code_str) > 3:
-        return code_str[-3:]
-    return code_str
-
-# 计算关键指标函数 - 保留原始逻辑
+# 计算关键指标函数
 def calculate_key_metrics(data_dict):
     """基于真实数据计算关键业务指标"""
     try:
+        # 默认指标值
         metrics = {
             'total_sales': 0,
             'new_product_ratio': 0,
@@ -229,6 +411,7 @@ def calculate_key_metrics(data_dict):
             'penetration_rate': 0
         }
         
+        # 检查数据完整性
         if not data_dict or 'sales_data' not in data_dict:
             return metrics
         
@@ -239,26 +422,31 @@ def calculate_key_metrics(data_dict):
         new_products = data_dict.get('new_products', [])
         kpi_products = data_dict.get('kpi_products', [])
         
+        # 确保有必要的列
         required_cols = ['产品代码', '单价（箱）', '求和项:数量（箱）']
         missing_cols = [col for col in required_cols if col not in sales_data.columns]
         if missing_cols:
             st.warning(f"⚠️ 销售数据缺少必要列: {missing_cols}")
             return metrics
         
+        # 计算销售额
         sales_data_copy = sales_data.copy()
         sales_data_copy['销售额'] = sales_data_copy['单价（箱）'] * sales_data_copy['求和项:数量（箱）']
         
+        # 1. 计算总销售额
         total_sales = sales_data_copy['销售额'].sum()
         if total_sales <= 0:
             return metrics
         
         metrics['total_sales'] = total_sales
         
+        # 2. 计算新品占比
         if new_products:
             new_product_sales = sales_data_copy[sales_data_copy['产品代码'].isin(new_products)]['销售额'].sum()
             new_product_ratio = (new_product_sales / total_sales * 100)
             metrics['new_product_ratio'] = new_product_ratio
         
+        # 3. 计算星品占比
         if kpi_products and new_products:
             star_products = [p for p in kpi_products if p not in new_products]
             if star_products:
@@ -266,10 +454,12 @@ def calculate_key_metrics(data_dict):
                 star_product_ratio = (star_product_sales / total_sales * 100)
                 metrics['star_product_ratio'] = star_product_ratio
         
+        # 4. 计算总占比和其他指标
         metrics['total_star_new_ratio'] = metrics['new_product_ratio'] + metrics['star_product_ratio']
         metrics['kpi_rate'] = (metrics['total_star_new_ratio'] / 20) * 100 if metrics['total_star_new_ratio'] > 0 else 0
         metrics['jbp_status'] = "达标" if metrics['total_star_new_ratio'] >= 20 else "未达标"
         
+        # 5. 计算渗透率
         if '客户代码' in sales_data_copy.columns:
             total_customers = sales_data_copy['客户代码'].nunique()
             if total_customers > 0 and new_products:
@@ -290,7 +480,7 @@ def calculate_key_metrics(data_dict):
             'penetration_rate': 0
         }
 
-# BCG矩阵数据计算 - 保留原始逻辑
+# BCG矩阵数据计算
 def calculate_bcg_data(data_dict):
     """基于真实数据计算BCG矩阵数据"""
     try:
@@ -305,10 +495,12 @@ def calculate_bcg_data(data_dict):
         kpi_products = data_dict.get('kpi_products', [])
         star_products = [p for p in kpi_products if p not in new_products] if kpi_products and new_products else []
         
+        # 计算销售额
         sales_data_copy = sales_data.copy()
         if '销售额' not in sales_data_copy.columns:
             sales_data_copy['销售额'] = sales_data_copy['单价（箱）'] * sales_data_copy['求和项:数量（箱）']
         
+        # 按产品聚合数据
         product_sales = sales_data_copy.groupby('产品代码')['销售额'].sum().reset_index()
         product_sales = product_sales[product_sales['销售额'] > 0]
         total_sales = product_sales['销售额'].sum()
@@ -322,8 +514,10 @@ def calculate_bcg_data(data_dict):
             product_code = row['产品代码']
             product_sales_amount = row['销售额']
             
+            # 计算市场份额
             market_share = (product_sales_amount / total_sales * 100)
             
+            # 基于产品类型设定增长率
             if product_code in new_products:
                 growth_rate = min(market_share * 5 + 30, 80)
             elif product_code in star_products:
@@ -331,6 +525,7 @@ def calculate_bcg_data(data_dict):
             else:
                 growth_rate = max(market_share * 2 - 5, -10)
             
+            # 确定BCG分类
             share_threshold = 1.5
             growth_threshold = 20
             
@@ -343,7 +538,7 @@ def calculate_bcg_data(data_dict):
             else:
                 category = 'dog'
             
-            product_name = get_product_short_name(product_code)
+            product_name = f"产品{str(product_code)[-4:]}" if len(str(product_code)) > 4 else str(product_code)
             
             bcg_data.append({
                 'code': product_code,
@@ -354,6 +549,7 @@ def calculate_bcg_data(data_dict):
                 'category': category
             })
         
+        # 按销售额排序，取前20个产品
         bcg_data = sorted(bcg_data, key=lambda x: x['sales'], reverse=True)[:20]
         
         return bcg_data
@@ -362,7 +558,7 @@ def calculate_bcg_data(data_dict):
         st.error(f"❌ BCG数据计算失败: {str(e)}")
         return []
 
-# 创建BCG矩阵图表 - 保留原始逻辑并增强悬停信息
+# 创建BCG矩阵图表
 def create_bcg_matrix(bcg_data):
     """创建BCG矩阵图表"""
     if not bcg_data:
@@ -381,27 +577,6 @@ def create_bcg_matrix(bcg_data):
         category_data = [p for p in bcg_data if p['category'] == category]
         
         if category_data:
-            # 准备详细的悬停信息
-            customdata = []
-            for p in category_data:
-                # 策略建议
-                if p['category'] == 'star':
-                    strategy = "明星产品：加大投入，扩大市场"
-                elif p['category'] == 'question':
-                    strategy = "问号产品：选择性投资，观察潜力"
-                elif p['category'] == 'cow':
-                    strategy = "现金牛：维持现状，贡献利润"
-                else:
-                    strategy = "瘦狗产品：考虑淘汰或重新定位"
-                
-                customdata.append([
-                    p['code'],  # 完整产品代码
-                    f"{p['sales']:,.0f}",  # 销售额
-                    strategy,  # 策略建议
-                    f"{p['share']:.2f}",  # 市场份额
-                    f"{p['growth']:.1f}"  # 增长率
-                ])
-            
             fig.add_trace(go.Scatter(
                 x=[p['share'] for p in category_data],
                 y=[p['growth'] for p in category_data],
@@ -418,29 +593,21 @@ def create_bcg_matrix(bcg_data):
                     'cow': '🐄 现金牛产品',
                     'dog': '🐕 瘦狗产品'
                 }[category],
-                text=[p['name'] for p in category_data],
+                text=[p['name'][:8] for p in category_data],
                 textposition='middle center',
                 textfont=dict(size=9, color='white', family='Inter'),
-                customdata=customdata,
-                hovertemplate="""
-                <b>%{text}</b><br>
-                <b>产品代码：</b>%{customdata[0]}<br>
-                <b>市场份额：</b>%{customdata[3]}%<br>
-                <b>增长率：</b>%{customdata[4]}%<br>
-                <b>销售额：</b>¥%{customdata[1]}<br>
-                <br>
-                <b>策略建议：</b><br>
-                %{customdata[2]}
-                <extra></extra>
-                """
+                hovertemplate='<b>%{text}</b><br>市场份额: %{x:.2f}%<br>增长率: %{y:.1f}%<br>销售额: ¥%{customdata}<extra></extra>',
+                customdata=[f"{p['sales']:,.0f}" for p in category_data]
             ))
     
+    # 计算图表范围
     all_shares = [p['share'] for p in bcg_data]
     all_growth = [p['growth'] for p in bcg_data]
     max_share = max(all_shares) + 1 if all_shares else 10
     max_growth = max(all_growth) + 10 if all_growth else 60
     min_growth = min(all_growth) - 5 if all_growth else -10
     
+    # 分界线位置
     share_threshold = np.median(all_shares) if all_shares else 1.5
     growth_threshold = np.median(all_growth) if all_growth else 20
     
@@ -463,6 +630,7 @@ def create_bcg_matrix(bcg_data):
         height=600,
         font=dict(family='Inter'),
         shapes=[
+            # 分界线
             dict(type='line', x0=share_threshold, x1=share_threshold, y0=min_growth, y1=max_growth, 
                  line=dict(dash='dot', color='#667eea', width=3)),
             dict(type='line', x0=0, x1=max_share, y0=growth_threshold, y1=growth_threshold,
@@ -478,13 +646,14 @@ def create_bcg_matrix(bcg_data):
     
     return fig
 
-# 创建促销有效性图表 - 保留原始逻辑
+# 创建促销有效性图表
 def create_promotion_chart(data_dict):
     """创建促销有效性图表"""
     try:
         if not data_dict:
             return None
             
+        # 优先使用4月促销数据
         promo_data = data_dict.get('april_promo_data')
         if promo_data is None or promo_data.empty:
             promo_data = data_dict.get('promotion_data')
@@ -492,6 +661,7 @@ def create_promotion_chart(data_dict):
         if promo_data is None or promo_data.empty:
             return None
         
+        # 查找销量相关列
         sales_col = None
         for col in promo_data.columns:
             if any(keyword in str(col) for keyword in ['销量', '数量', '箱数', '销售额']):
@@ -499,11 +669,13 @@ def create_promotion_chart(data_dict):
                 break
         
         if sales_col is None and len(promo_data.columns) > 1:
+            # 假设第二列是销量数据
             sales_col = promo_data.columns[1]
         
         if sales_col is None:
             return None
         
+        # 查找产品相关列
         product_col = None
         for col in promo_data.columns:
             if any(keyword in str(col) for keyword in ['产品', '商品']):
@@ -513,12 +685,14 @@ def create_promotion_chart(data_dict):
         if product_col is None:
             product_col = promo_data.columns[0]
         
+        # 聚合数据
         promo_summary = promo_data.groupby(product_col)[sales_col].sum().reset_index()
         promo_summary = promo_summary.sort_values(sales_col, ascending=False).head(10)
         
         if promo_summary.empty:
             return None
         
+        # 计算有效性
         median_sales = promo_summary[sales_col].median()
         promo_summary['is_effective'] = promo_summary[sales_col] > median_sales
         
@@ -557,7 +731,7 @@ def create_promotion_chart(data_dict):
         st.error(f"❌ 促销图表创建失败: {str(e)}")
         return None
 
-# 创建星品新品达成分析 - 保留原始逻辑
+# 创建星品新品达成分析
 def create_achievement_analysis(data_dict, key_metrics):
     """创建星品新品达成分析"""
     try:
@@ -600,13 +774,14 @@ def create_achievement_analysis(data_dict, key_metrics):
             height=400
         )
         
-        # 月度趋势
+        # 尝试创建月度趋势（如果有月度数据）
         fig2 = None
         if '发运月份' in sales_data.columns or '月份' in sales_data.columns:
             date_col = '发运月份' if '发运月份' in sales_data.columns else '月份'
             sales_data_copy = sales_data.copy()
             sales_data_copy['销售额'] = sales_data_copy['单价（箱）'] * sales_data_copy['求和项:数量（箱）']
             
+            # 计算每月的占比
             monthly_data = []
             for month in sales_data_copy[date_col].unique():
                 month_data = sales_data_copy[sales_data_copy[date_col] == month]
@@ -632,258 +807,12 @@ def create_achievement_analysis(data_dict, key_metrics):
         st.error(f"❌ 达成分析创建失败: {str(e)}")
         return None, None
 
-# 新增：产品生命力指数分析
-def calculate_product_vitality(sales_data, product_code):
-    """计算产品生命力指数"""
-    try:
-        product_data = sales_data[sales_data['产品代码'] == product_code].copy()
-        if product_data.empty:
-            return {'sales_growth': 0, 'customer_retention': 0, 'new_customer': 0, 
-                    'region_expansion': 0, 'seasonal_stability': 0, 'total_score': 0}
-        
-        # 销量增长趋势
-        if '发运月份' in product_data.columns:
-            monthly_sales = product_data.groupby('发运月份')['求和项:数量（箱）'].sum()
-            if len(monthly_sales) > 1:
-                growth_rate = (monthly_sales.iloc[-1] - monthly_sales.iloc[0]) / monthly_sales.iloc[0] * 100
-                sales_growth = min(max(growth_rate + 50, 0), 100)
-            else:
-                sales_growth = 50
-        else:
-            sales_growth = 50
-        
-        # 客户复购率
-        if '客户代码' in product_data.columns:
-            customer_purchases = product_data.groupby('客户代码').size()
-            retention_rate = (customer_purchases[customer_purchases > 1].count() / customer_purchases.count()) * 100
-            customer_retention = min(retention_rate * 2, 100)
-        else:
-            customer_retention = 50
-        
-        # 新客获取能力
-        new_customer = min(np.random.uniform(40, 80), 100)
-        
-        # 区域扩张速度
-        if '所属区域' in product_data.columns:
-            region_count = product_data['所属区域'].nunique()
-            region_expansion = min(region_count * 20, 100)
-        else:
-            region_expansion = 50
-        
-        # 季节稳定性
-        if '发运月份' in product_data.columns:
-            monthly_sales = product_data.groupby('发运月份')['求和项:数量（箱）'].sum()
-            if len(monthly_sales) > 1:
-                cv = monthly_sales.std() / monthly_sales.mean()
-                seasonal_stability = max(100 - cv * 100, 0)
-            else:
-                seasonal_stability = 50
-        else:
-            seasonal_stability = 50
-        
-        total_score = (sales_growth * 0.3 + customer_retention * 0.25 + 
-                      new_customer * 0.2 + region_expansion * 0.15 + 
-                      seasonal_stability * 0.1)
-        
-        return {
-            'sales_growth': sales_growth,
-            'customer_retention': customer_retention,
-            'new_customer': new_customer,
-            'region_expansion': region_expansion,
-            'seasonal_stability': seasonal_stability,
-            'total_score': total_score
-        }
-    except:
-        return {'sales_growth': 0, 'customer_retention': 0, 'new_customer': 0, 
-                'region_expansion': 0, 'seasonal_stability': 0, 'total_score': 0}
-
-# 新增：创建产品生命力雷达图
-def create_product_vitality_radar(data_dict):
-    """创建产品生命力雷达图"""
-    sales_data = data_dict.get('sales_data')
-    if sales_data is None or sales_data.empty:
-        return None
-    
-    sales_data['销售额'] = sales_data.get('单价（箱）', 100) * sales_data.get('求和项:数量（箱）', 1)
-    top_products = sales_data.groupby('产品代码')['销售额'].sum().nlargest(10).index.tolist()
-    
-    fig = go.Figure()
-    
-    categories = ['销量增长', '客户复购', '新客获取', '区域扩张', '季节稳定']
-    
-    for i, product in enumerate(top_products[:5]):
-        vitality = calculate_product_vitality(sales_data, product)
-        
-        values = [
-            vitality['sales_growth'],
-            vitality['customer_retention'],
-            vitality['new_customer'],
-            vitality['region_expansion'],
-            vitality['seasonal_stability']
-        ]
-        
-        product_info = sales_data[sales_data['产品代码'] == product].iloc[0] if not sales_data[sales_data['产品代码'] == product].empty else {}
-        product_name = get_product_short_name(product, product_info.get('产品名称', ''))
-        
-        fig.add_trace(go.Scatterpolar(
-            r=values,
-            theta=categories,
-            fill='toself',
-            name=product_name,
-            hovertemplate="""
-            <b>%{fullData.name}</b><br>
-            产品代码: """ + product + """<br>
-            %{theta}: %{r:.1f}分<br>
-            综合得分: """ + f"{vitality['total_score']:.1f}" + """分
-            <extra></extra>
-            """
-        ))
-    
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                visible=True,
-                range=[0, 100]
-            )),
-        showlegend=True,
-        title="产品生命力指数分析（TOP5产品）",
-        height=500
-    )
-    
-    return fig
-
-# 新增：产品势能动态分析
-def create_product_momentum_analysis(data_dict):
-    """创建产品势能动态分析"""
-    sales_data = data_dict.get('sales_data')
-    if sales_data is None or sales_data.empty:
-        return None
-    
-    if '发运月份' not in sales_data.columns:
-        return None
-    
-    sales_data['销售额'] = sales_data.get('单价（箱）', 100) * sales_data.get('求和项:数量（箱）', 1)
-    
-    # 获取TOP产品
-    top_products = sales_data.groupby('产品代码')['销售额'].sum().nlargest(10).index.tolist()
-    
-    # 准备数据
-    data_for_plot = []
-    for product in top_products:
-        product_data = sales_data[sales_data['产品代码'] == product]
-        monthly_sales = product_data.groupby('发运月份')['销售额'].sum().reset_index()
-        
-        for _, row in monthly_sales.iterrows():
-            product_name = get_product_short_name(product)
-            data_for_plot.append({
-                '月份': row['发运月份'],
-                '产品': product_name,
-                '销售额': row['销售额']
-            })
-    
-    if not data_for_plot:
-        return None
-    
-    df_plot = pd.DataFrame(data_for_plot)
-    
-    # 创建动态面积图
-    fig = px.area(df_plot, x='月份', y='销售额', color='产品',
-                  title='产品势能动态演变图',
-                  labels={'销售额': '销售额（元）', '月份': '月份'})
-    
-    fig.update_layout(
-        height=500,
-        hovermode='x unified'
-    )
-    
-    return fig
-
-# 新增：产品组合协同网络分析
-def create_product_synergy_network(data_dict):
-    """创建产品组合协同网络图"""
-    sales_data = data_dict.get('sales_data')
-    if sales_data is None or sales_data.empty or '客户代码' not in sales_data.columns:
-        return None
-    
-    # 找出经常一起购买的产品
-    customer_products = sales_data.groupby(['客户代码', '产品代码']).size().reset_index()
-    
-    # 计算产品关联度
-    product_pairs = []
-    products = customer_products['产品代码'].unique()[:20]
-    
-    for i, prod1 in enumerate(products):
-        for prod2 in products[i+1:]:
-            customers1 = set(customer_products[customer_products['产品代码'] == prod1]['客户代码'])
-            customers2 = set(customer_products[customer_products['产品代码'] == prod2]['客户代码'])
-            common_customers = len(customers1 & customers2)
-            
-            if common_customers > 0:
-                association = common_customers / min(len(customers1), len(customers2))
-                
-                product_pairs.append({
-                    'source': get_product_short_name(prod1),
-                    'target': get_product_short_name(prod2),
-                    'value': association,
-                    'common_customers': common_customers
-                })
-    
-    product_pairs = sorted(product_pairs, key=lambda x: x['value'], reverse=True)[:30]
-    
-    if product_pairs:
-        nodes = list(set([p['source'] for p in product_pairs] + [p['target'] for p in product_pairs]))
-        
-        edge_trace = []
-        for pair in product_pairs:
-            if pair['source'] in nodes and pair['target'] in nodes:
-                x0, y0 = np.random.rand(2)
-                x1, y1 = np.random.rand(2)
-                
-                edge_trace.append(go.Scatter(
-                    x=[x0, x1, None],
-                    y=[y0, y1, None],
-                    mode='lines',
-                    line=dict(width=pair['value'] * 5, color='rgba(125, 125, 125, 0.5)'),
-                    hoverinfo='none'
-                ))
-        
-        node_trace = go.Scatter(
-            x=np.random.rand(len(nodes)),
-            y=np.random.rand(len(nodes)),
-            mode='markers+text',
-            text=nodes,
-            textposition="top center",
-            marker=dict(
-                size=30,
-                color='lightblue',
-                line=dict(width=2, color='white')
-            ),
-            hovertemplate="""
-            <b>%{text}</b><br>
-            <extra></extra>
-            """
-        )
-        
-        fig = go.Figure(data=edge_trace + [node_trace])
-        
-        fig.update_layout(
-            title="产品组合协同网络",
-            showlegend=False,
-            height=600,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-        )
-        
-        return fig
-    
-    return None
-
 # 主函数
 def main():
     # 页面标题
     st.markdown("""
     <div class="main-title">
-        <h1>📦 产品组合分析</h1>
+        <h1>📦 Trolli SAL 产品组合分析仪表盘</h1>
     </div>
     """, unsafe_allow_html=True)
     
@@ -891,23 +820,24 @@ def main():
     with st.spinner("🔄 正在加载真实数据文件..."):
         data_dict = load_real_data()
         
+        # 修复：确保data_dict不为None且有数据
         if not data_dict or len(data_dict) == 0:
             st.error("❌ 没有成功加载任何数据文件，无法进行分析")
             st.info("💡 请确保所有数据文件都在正确的位置")
+            if st.button("🏠 返回主页", key="error_return"):
+                st.switch_page("app.py")
             return
             
         key_metrics = calculate_key_metrics(data_dict)
         bcg_data = calculate_bcg_data(data_dict)
     
-    # 创建标签页 - 完整版本
+    # 创建标签页
     tabs = st.tabs([
         "📊 总览",
-        "🌟 产品生命力",
         "🎯 BCG矩阵", 
-        "🚀 产品势能",
-        "🔗 协同网络",
+        "🚀 促销分析",
         "📈 达成分析",
-        "💡 促销分析",
+        "🔗 关联分析",
         "📍 漏铺分析",
         "📅 季节性"
     ])
@@ -916,6 +846,7 @@ def main():
     with tabs[0]:
         st.markdown("### 📊 核心业务指标")
         
+        # 创建4列布局显示关键指标
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -946,6 +877,7 @@ def main():
                 delta="购买新品客户比例"
             )
         
+        # 第二行指标
         col5, col6, col7, col8 = st.columns(4)
         
         with col5:
@@ -970,6 +902,7 @@ def main():
             )
         
         with col8:
+            # 计算数据覆盖率
             available_files = len([k for k, v in data_dict.items() if v is not None and (isinstance(v, pd.DataFrame) and not v.empty or isinstance(v, list) and v)])
             total_files = 10
             coverage_rate = (available_files / total_files * 100)
@@ -979,27 +912,8 @@ def main():
                 delta=f"{available_files}/{total_files}个文件"
             )
     
-    # 标签页2: 产品生命力指数（新增）
+    # 标签页2: BCG产品矩阵
     with tabs[1]:
-        st.markdown("### 🌟 产品生命力指数分析")
-        
-        fig = create_product_vitality_radar(data_dict)
-        if fig:
-            st.plotly_chart(fig, use_container_width=True)
-            
-            with st.expander("📖 指标说明"):
-                st.markdown("""
-                - **销量增长**: 产品销量的月度增长趋势
-                - **客户复购**: 重复购买该产品的客户比例
-                - **新客获取**: 新客户选择该产品的能力
-                - **区域扩张**: 产品在不同区域的覆盖程度
-                - **季节稳定**: 销量的季节性波动程度
-                """)
-        else:
-            st.warning("⚠️ 数据不足，无法生成生命力指数分析")
-    
-    # 标签页3: BCG产品矩阵
-    with tabs[2]:
         st.markdown("### 🎯 BCG产品矩阵分析")
         
         if bcg_data:
@@ -1007,8 +921,10 @@ def main():
             if fig:
                 st.plotly_chart(fig, use_container_width=True, key="bcg_matrix")
                 
+                # JBP符合度分析
                 st.markdown("### 📊 JBP符合度分析")
                 
+                # 计算各类产品占比
                 total_sales = sum(p['sales'] for p in bcg_data)
                 cow_sales = sum(p['sales'] for p in bcg_data if p['category'] == 'cow')
                 star_question_sales = sum(p['sales'] for p in bcg_data if p['category'] in ['star', 'question'])
@@ -1044,6 +960,7 @@ def main():
                         delta="符合标准" if dog_status == "✓" else "需要调整"
                     )
                 
+                # 总体评估
                 overall_conforming = cow_status == "✓" and star_status == "✓" and dog_status == "✓"
                 if overall_conforming:
                     st.success("🎉 总体评估：符合JBP计划标准 ✓")
@@ -1052,30 +969,24 @@ def main():
         else:
             st.error("❌ 没有足够的数据生成BCG矩阵")
     
-    # 标签页4: 产品势能动态（新增）
+    # 标签页3: 促销活动有效性
+    with tabs[2]:
+        st.markdown("### 🚀 促销活动有效性分析")
+        
+        fig = create_promotion_chart(data_dict)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True, key="promotion_chart")
+            
+            st.info("""
+            📊 **数据来源：** 基于真实促销活动数据文件  
+            🎯 **分析逻辑：** 销量超过中位数为有效，低于中位数为无效  
+            💡 **提示：** 悬停在柱状图上可查看详细数据
+            """)
+        else:
+            st.warning("⚠️ 促销数据不足或格式不正确，无法生成图表")
+    
+    # 标签页4: 星品&新品达成分析
     with tabs[3]:
-        st.markdown("### 🚀 产品势能动态分析")
-        
-        fig = create_product_momentum_analysis(data_dict)
-        if fig:
-            st.plotly_chart(fig, use_container_width=True)
-            st.info("💡 势能分析帮助识别产品发展拐点，及时调整策略")
-        else:
-            st.warning("⚠️ 数据不足，无法生成势能分析")
-    
-    # 标签页5: 产品协同网络（新增）
-    with tabs[4]:
-        st.markdown("### 🔗 产品组合协同网络")
-        
-        fig = create_product_synergy_network(data_dict)
-        if fig:
-            st.plotly_chart(fig, use_container_width=True)
-            st.info("💡 连线越粗表示产品关联度越高，可用于组合销售策略制定")
-        else:
-            st.warning("⚠️ 数据不足，无法生成协同网络分析")
-    
-    # 标签页6: 星品&新品达成分析
-    with tabs[5]:
         st.markdown("### 📈 星品&新品总占比达成分析")
         
         fig1, fig2 = create_achievement_analysis(data_dict, key_metrics)
@@ -1086,6 +997,7 @@ def main():
         if fig2:
             st.plotly_chart(fig2, use_container_width=True)
         
+        # 显示详细信息
         col1, col2 = st.columns(2)
         
         with col1:
@@ -1107,32 +1019,50 @@ def main():
             else:
                 st.warning("未找到完整的产品代码数据")
     
-    # 标签页7: 促销活动有效性
-    with tabs[6]:
-        st.markdown("### 💡 促销活动有效性分析")
+    # 标签页5: 产品关联分析
+    with tabs[4]:
+        st.markdown("### 🔗 产品关联分析")
         
-        fig = create_promotion_chart(data_dict)
-        if fig:
-            st.plotly_chart(fig, use_container_width=True, key="promotion_chart")
-            
-            st.info("""
-            📊 **数据来源：** 基于真实促销活动数据文件  
-            🎯 **分析逻辑：** 销量超过中位数为有效，低于中位数为无效  
-            💡 **提示：** 悬停在柱状图上可查看详细数据
-            """)
-        else:
-            st.warning("⚠️ 促销数据不足或格式不正确，无法生成图表")
+        try:
+            if 'sales_data' in data_dict and 'customer_data' in data_dict:
+                sales_data = data_dict['sales_data']
+                if '客户代码' in sales_data.columns and '产品代码' in sales_data.columns:
+                    # 创建客户-产品购买矩阵
+                    customer_product = sales_data.groupby(['客户代码', '产品代码'])['求和项:数量（箱）'].sum().reset_index()
+                    
+                    # 找出购买多个产品的客户
+                    customer_counts = customer_product.groupby('客户代码')['产品代码'].nunique()
+                    multi_product_customers = customer_counts[customer_counts > 1].index
+                    
+                    if len(multi_product_customers) > 0:
+                        st.info(f"📊 发现 {len(multi_product_customers)} 个客户购买了多种产品")
+                        
+                        # 简单的关联分析示例
+                        st.markdown("#### 🎯 产品组合购买TOP10")
+                        # 这里可以进一步实现关联规则挖掘
+                        sample_data = customer_product[customer_product['客户代码'].isin(multi_product_customers)].head(10)
+                        st.dataframe(sample_data)
+                    else:
+                        st.warning("⚠️ 未发现购买多种产品的客户")
+                else:
+                    st.warning("⚠️ 销售数据缺少必要的列")
+            else:
+                st.warning("⚠️ 缺少必要的数据文件")
+        except Exception as e:
+            st.error(f"❌ 关联分析失败: {str(e)}")
     
-    # 标签页8: 漏铺市分析
-    with tabs[7]:
+    # 标签页6: 漏铺市分析
+    with tabs[5]:
         st.markdown("### 📍 漏铺市分析")
         
         try:
             if 'sales_data' in data_dict:
                 sales_data = data_dict['sales_data']
                 if '所属区域' in sales_data.columns:
+                    # 分析产品在各区域的覆盖情况
                     region_product = sales_data.groupby(['所属区域', '产品代码']).size().reset_index(name='覆盖数')
                     
+                    # 计算每个区域的产品覆盖率
                     all_products = sales_data['产品代码'].unique()
                     all_regions = sales_data['所属区域'].unique()
                     
@@ -1149,6 +1079,7 @@ def main():
                     
                     coverage_df = pd.DataFrame(coverage_data)
                     
+                    # 创建覆盖率图表
                     fig = px.bar(coverage_df, x='区域', y='覆盖率', 
                                 title='各区域产品覆盖率分析',
                                 color='覆盖率',
@@ -1156,6 +1087,7 @@ def main():
                     fig.update_layout(height=400)
                     st.plotly_chart(fig, use_container_width=True)
                     
+                    # 显示详细数据
                     st.dataframe(coverage_df)
                 else:
                     st.warning("⚠️ 销售数据缺少区域信息")
@@ -1164,8 +1096,8 @@ def main():
         except Exception as e:
             st.error(f"❌ 漏铺分析失败: {str(e)}")
     
-    # 标签页9: 季节性分析
-    with tabs[8]:
+    # 标签页7: 季节性分析
+    with tabs[6]:
         st.markdown("### 📅 季节性分析")
         
         try:
@@ -1173,6 +1105,7 @@ def main():
                 sales_data = data_dict['sales_data']
                 date_col = None
                 
+                # 查找日期列
                 for col in ['发运月份', '月份', '日期']:
                     if col in sales_data.columns:
                         date_col = col
@@ -1182,17 +1115,21 @@ def main():
                     sales_data_copy = sales_data.copy()
                     sales_data_copy['销售额'] = sales_data_copy['单价（箱）'] * sales_data_copy['求和项:数量（箱）']
                     
+                    # 按月份汇总
                     monthly_sales = sales_data_copy.groupby(date_col)['销售额'].sum().reset_index()
                     monthly_sales = monthly_sales.sort_values(date_col)
                     
+                    # 创建趋势图
                     fig = px.line(monthly_sales, x=date_col, y='销售额', 
                                  title='月度销售趋势分析',
                                  markers=True)
                     fig.update_layout(height=400)
                     st.plotly_chart(fig, use_container_width=True)
                     
+                    # 计算环比增长
                     monthly_sales['环比增长'] = monthly_sales['销售额'].pct_change() * 100
                     
+                    # 显示统计信息
                     col1, col2, col3 = st.columns(3)
                     with col1:
                         st.metric("最高销售月份", 
@@ -1220,3 +1157,5 @@ if __name__ == "__main__":
     except Exception as e:
         st.error(f"❌ 应用程序发生错误: {str(e)}")
         st.info("💡 请检查数据文件是否完整，或联系管理员")
+        if st.button("🏠 返回主页", key="main_error_return"):
+            st.switch_page("app.py")
