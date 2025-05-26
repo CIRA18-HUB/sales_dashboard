@@ -18,7 +18,7 @@ st.set_page_config(
     page_title="📦 Trolli SAL 产品组合分析",
     page_icon="📦",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"  # 隐藏侧边栏
 )
 
 # 检查登录状态
@@ -97,62 +97,31 @@ hide_elements_and_style = """
         max-width: 100%;
     }
 
-    /* 侧边栏美化 */
-    .stSidebar {
-        background: rgba(255, 255, 255, 0.95) !important;
-        backdrop-filter: blur(20px);
-        border-right: 1px solid rgba(255, 255, 255, 0.2);
-        animation: slideInLeft 0.8s ease-out;
-    }
-
-    @keyframes slideInLeft {
-        from { transform: translateX(-100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-
-    /* 侧边栏标题 */
-    .stSidebar .stMarkdown h3 {
-        color: #2d3748;
-        font-weight: 600;
-        text-align: center;
-        padding: 1rem 0;
-        margin-bottom: 1rem;
-        border-bottom: 2px solid rgba(102, 126, 234, 0.2);
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        animation: titlePulse 3s ease-in-out infinite;
-    }
-
-    @keyframes titlePulse {
-        0%, 100% { transform: scale(1); filter: brightness(1); }
-        50% { transform: scale(1.05); filter: brightness(1.2); }
-    }
-
-    /* 侧边栏按钮 */
-    .stSidebar .stButton > button {
-        width: 100%;
+    /* 顶部导航按钮样式 */
+    .stButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        border-radius: 15px;
-        padding: 1rem 1.2rem;
         color: white;
-        text-align: left;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        border: none;
+        border-radius: 12px;
+        padding: 0.7rem 1.5rem;
         font-size: 0.95rem;
-        font-weight: 500;
-        position: relative;
-        overflow: hidden;
-        cursor: pointer;
-        font-family: inherit;
+        font-weight: 600;
+        transition: all 0.3s ease;
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        font-family: 'Inter', sans-serif;
     }
-
-    .stSidebar .stButton > button:hover {
+    
+    .stButton > button:hover {
         background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
-        transform: translateX(8px) scale(1.02);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* 确保主内容区占满全屏 */
+    .main .block-container {
+        max-width: 100% !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
     }
 
     /* 主标题 */
@@ -485,12 +454,14 @@ def load_real_data():
         
         # 显示加载失败的文件
         if failed_files:
+            # 只显示关键错误，不影响页面正常运行
             for failed in failed_files:
-                st.warning(f"⚠️ 文件加载失败: {failed}")
+                if "2409-250224出货数据.xlsx" not in failed:  # 跳过已知缺失的文件
+                    st.warning(f"⚠️ 文件加载失败: {failed}")
         
         if not data_dict:
             st.error("❌ 没有成功加载任何数据文件，请检查文件路径和格式")
-            st.stop()
+            return {}
         
         return data_dict
     
@@ -1345,27 +1316,29 @@ def main():
     
     # 加载数据
     with st.spinner("🔄 正在加载真实数据文件..."):
-        data_dict = load_real_data()
+        # 检查是否有必要的数据进行分析
         if not data_dict:
             st.error("❌ 没有可用的数据，无法进行分析")
+            st.info("请确保以下数据文件存在：TT与MT销售数据.xlsx, 仪表盘产品代码.txt, 仪表盘新品代码.txt 等")
             return
             
         key_metrics = calculate_key_metrics(data_dict)
         if key_metrics is None:
-            st.error("❌ 关键指标计算失败，无法进行分析")
+            st.error("❌ 关键指标计算失败，数据可能不完整")
+            st.info("请检查销售数据文件是否包含必要的列：产品代码、单价（箱）、求和项:数量（箱）")
             return
             
         bcg_data = calculate_bcg_data(data_dict)
     
-    # 创建标签页
+    # 创建标签页 - 确保所有7个标签都显示
     tabs = st.tabs([
-        "📊 产品情况总览",
-        "🎯 BCG产品矩阵", 
-        "🚀 促销活动有效性",
-        "📈 星品新品达成",
-        "🔗 产品关联分析",
-        "📍 漏铺市分析",
-        "📅 季节性分析"
+        "📊 总览",
+        "🎯 BCG矩阵", 
+        "🚀 促销有效性",
+        "📈 达成分析",
+        "🔗 产品关联",
+        "📍 漏铺分析",
+        "📅 季节性"
     ])
     
     # 标签页1: 产品情况总览
@@ -1517,7 +1490,7 @@ def main():
     
     # 标签页4: 星品&新品总占比达成分析
     with tabs[3]:
-        st.markdown("### 📈 星品&新品总占比达成分析")
+        st.markdown("### 📈 星品&新品达成分析")
         
         # 创建达成情况仪表盘
         col1, col2, col3 = st.columns(3)
