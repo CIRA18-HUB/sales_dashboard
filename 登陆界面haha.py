@@ -353,7 +353,53 @@ main_css = """
         box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
     }
     
-    /* 顶部退出按钮样式 */
+    /* 导航按钮特殊样式 */
+    .stButton > button[data-testid="baseButton-secondary"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 0.8rem 1.5rem !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+        margin-top: 1rem !important;
+    }
+    
+    .stButton > button[data-testid="baseButton-secondary"]:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%) !important;
+        transform: translateY(-3px) scale(1.02) !important;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+    }
+    
+    /* 顶部按钮和导航按钮区分 */
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* 下拉选择框样式 */
+    .stSelectbox > div > div {
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid rgba(102, 126, 234, 0.3);
+        border-radius: 8px;
+    }
+    
+    /* 成功/错误消息样式 */
     .stButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -430,6 +476,39 @@ if not st.session_state.authenticated:
 
 # 顶部操作栏
 col1, col2, col3 = st.columns([1, 6, 1])
+with col1:
+    # 快速导航下拉菜单
+    page_options = {
+        "🏠 欢迎页面": "welcome",
+        "📦 产品组合分析": "product",
+        "📊 预测库存分析": "inventory", 
+        "👥 客户依赖分析": "customer",
+        "🎯 销售达成分析": "sales"
+    }
+    selected_page = st.selectbox("快速导航", options=list(page_options.keys()), index=0, label_visibility="collapsed")
+    
+    if page_options[selected_page] != "welcome":
+        if page_options[selected_page] == "product":
+            try:
+                st.switch_page("pages/产品组合分析.py")
+            except:
+                st.info("📦 产品组合分析页面")
+        elif page_options[selected_page] == "inventory":
+            try:
+                st.switch_page("pages/预测库存分析.py")
+            except:
+                st.info("📊 预测库存分析页面")
+        elif page_options[selected_page] == "customer":
+            try:
+                st.switch_page("pages/客户依赖分析.py")
+            except:
+                st.info("👥 客户依赖分析页面")
+        elif page_options[selected_page] == "sales":
+            try:
+                st.switch_page("pages/销售达成分析.py")
+            except:
+                st.info("🎯 销售达成分析页面")
+
 with col3:
     if st.button("🚪 退出登录", use_container_width=True):
         st.session_state.authenticated = False
@@ -495,9 +574,19 @@ with col4:
     </div>
     """, unsafe_allow_html=True)
 
-# 功能模块介绍
+# 功能模块介绍 - 可点击导航版本
 st.markdown("<br><br>", unsafe_allow_html=True)
 
+# 添加导航提示
+st.markdown("""
+<div style="text-align: center; margin-bottom: 2rem;">
+    <h3 style="color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); font-size: 1.5rem;">
+        💡 点击下方按钮进入对应分析页面
+    </h3>
+</div>
+""", unsafe_allow_html=True)
+
+# 第一行：产品组合分析 和 预测库存分析
 col1, col2 = st.columns(2)
 
 with col1:
@@ -511,17 +600,12 @@ with col1:
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class="feature-card">
-        <span class="feature-icon">👥</span>
-        <h3 class="feature-title">客户依赖分析</h3>
-        <p class="feature-description">
-            深入分析客户依赖度、风险评估、客户价值分布，识别关键客户群体，制定客户维护和风险控制策略。
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    # 导航按钮
+    if st.button("🚀 进入产品组合分析", key="product_nav", use_container_width=True):
+        try:
+            st.switch_page("pages/产品组合分析.py")
+        except:
+            st.info("📦 正在跳转到产品组合分析页面...")
 
 with col2:
     st.markdown("""
@@ -534,8 +618,37 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("<br>", unsafe_allow_html=True)
+    # 导航按钮
+    if st.button("🚀 进入预测库存分析", key="inventory_nav", use_container_width=True):
+        try:
+            st.switch_page("pages/预测库存分析.py")
+        except:
+            st.info("📊 正在跳转到预测库存分析页面...")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# 第二行：客户依赖分析 和 销售达成分析  
+col3, col4 = st.columns(2)
+
+with col3:
+    st.markdown("""
+    <div class="feature-card">
+        <span class="feature-icon">👥</span>
+        <h3 class="feature-title">客户依赖分析</h3>
+        <p class="feature-description">
+            深入分析客户依赖度、风险评估、客户价值分布，识别关键客户群体，制定客户维护和风险控制策略。
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
+    # 导航按钮
+    if st.button("🚀 进入客户依赖分析", key="customer_nav", use_container_width=True):
+        try:
+            st.switch_page("pages/客户依赖分析.py")
+        except:
+            st.info("👥 正在跳转到客户依赖分析页面...")
+
+with col4:
     st.markdown("""
     <div class="feature-card">
         <span class="feature-icon">🎯</span>
@@ -545,6 +658,13 @@ with col2:
         </p>
     </div>
     """, unsafe_allow_html=True)
+    
+    # 导航按钮
+    if st.button("🚀 进入销售达成分析", key="sales_nav", use_container_width=True):
+        try:
+            st.switch_page("pages/销售达成分析.py")
+        except:
+            st.info("🎯 正在跳转到销售达成分析页面...")
 
 # 更新提示和导航
 st.markdown("""
