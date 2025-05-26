@@ -13,6 +13,38 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# 注入JavaScript来强制隐藏侧边栏标题
+st.markdown("""
+<script>
+    // 等待DOM加载完成
+    window.addEventListener('DOMContentLoaded', (event) => {
+        // 查找并隐藏侧边栏标题
+        const checkAndHide = () => {
+            const sidebarTitle = document.querySelector('[data-testid="stSidebar"] .element-container:first-child');
+            if (sidebarTitle && sidebarTitle.textContent.includes('登陆界面haha')) {
+                sidebarTitle.style.display = 'none';
+            }
+            
+            // 备用方法
+            const headers = document.querySelectorAll('[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3');
+            headers.forEach(header => {
+                if (header.textContent.includes('登陆界面haha')) {
+                    header.parentElement.parentElement.style.display = 'none';
+                }
+            });
+        };
+        
+        // 立即执行一次
+        checkAndHide();
+        
+        // 延迟执行以确保元素加载
+        setTimeout(checkAndHide, 100);
+        setTimeout(checkAndHide, 500);
+        setTimeout(checkAndHide, 1000);
+    });
+</script>
+""", unsafe_allow_html=True)
+
 # 初始化会话状态
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
@@ -52,6 +84,25 @@ st.markdown("""
     
     section[data-testid="stSidebar"] > div > div:first-child > div:first-child {
         padding-top: 0 !important;
+    }
+    
+    /* 额外的选择器来隐藏应用名称 */
+    .css-1544g2n {
+        padding-top: 0 !important;
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] > [style*="gap"] > div:first-child {
+        display: none !important;
+    }
+    
+    /* 隐藏第一个包含"登陆界面haha"的元素 */
+    section[data-testid="stSidebar"] .element-container:first-child {
+        display: none !important;
+    }
+    
+    /* 使用属性选择器精确定位 */
+    [data-testid="stSidebar"] [kind="header"] {
+        display: none !important;
     }
     
     /* 全局样式 */
@@ -722,43 +773,49 @@ def update_dynamic_stats():
         return True
     return False
 
-# 侧边栏
-with st.sidebar:
-    st.markdown("### 📊 Trolli SAL")
-    st.markdown("#### 🏠 主要功能")
-    
-    if st.button("🏠 欢迎页面", use_container_width=True):
-        st.session_state.current_page = "welcome"
-    
-    st.markdown("---")
-    st.markdown("#### 📈 分析模块")
-    
-    if st.button("📦 产品组合分析", use_container_width=True):
-        st.switch_page("pages/产品组合分析.py")
-    
-    if st.button("📊 预测库存分析", use_container_width=True):
-        st.switch_page("pages/预测库存分析.py")
-    
-    if st.button("👥 客户依赖分析", use_container_width=True):
-        st.switch_page("pages/客户依赖分析.py")
-    
-    if st.button("🎯 销售达成分析", use_container_width=True):
-        st.switch_page("pages/销售达成分析.py")
-    
-    st.markdown("---")
-    st.markdown("#### 👤 用户信息")
-    st.markdown("""
-    <div class="user-info">
-        <strong>管理员</strong>
-        cira
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    if st.button("🚪 退出登录", use_container_width=True):
-        st.session_state.authenticated = False
-        st.rerun()
+# 侧边栏 - 只在登录后显示
+if st.session_state.authenticated:
+    with st.sidebar:
+        st.markdown("### 📊 Trolli SAL")
+        st.markdown("#### 🏠 主要功能")
+        
+        if st.button("🏠 欢迎页面", use_container_width=True):
+            st.session_state.current_page = "welcome"
+        
+        st.markdown("---")
+        st.markdown("#### 📈 分析模块")
+        
+        if st.button("📦 产品组合分析", use_container_width=True):
+            st.switch_page("pages/产品组合分析.py")
+        
+        if st.button("📊 预测库存分析", use_container_width=True):
+            st.switch_page("pages/预测库存分析.py")
+        
+        if st.button("👥 客户依赖分析", use_container_width=True):
+            st.switch_page("pages/客户依赖分析.py")
+        
+        if st.button("🎯 销售达成分析", use_container_width=True):
+            st.switch_page("pages/销售达成分析.py")
+        
+        st.markdown("---")
+        st.markdown("#### 👤 用户信息")
+        st.markdown("""
+        <div class="user-info">
+            <strong>管理员</strong>
+            cira
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        if st.button("🚪 退出登录", use_container_width=True):
+            st.session_state.authenticated = False
+            st.rerun()
+else:
+    # 登录前隐藏侧边栏内容
+    with st.sidebar:
+        st.markdown("### 📊 Trolli SAL")
+        st.markdown("请先登录系统")
 
 # 登录界面
 if not st.session_state.authenticated:
