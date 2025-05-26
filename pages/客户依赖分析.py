@@ -1,4 +1,4 @@
-# pages/客户依赖分析.py
+# pages/客户依赖分析.py - 修复版本
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -43,74 +43,143 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
 
 # 加载Lottie动画
 def load_lottie_url(url: str):
-    r = requests.get(url)
-    if r.status_code != 200:
+    try:
+        r = requests.get(url)
+        if r.status_code != 200:
+            return None
+        return r.json()
+    except:
         return None
-    return r.json()
 
-# 自定义CSS样式
+# 增强版CSS样式 - 参考app.py的动画效果
 st.markdown("""
 <style>
-    /* 主背景渐变 */
+    /* 导入字体 */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    /* 主背景渐变 - 与主页保持一致 */
     .stApp {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     }
     
-    /* 度量卡片样式 */
+    /* 动态背景波纹效果 */
+    .stApp::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: 
+            radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+        animation: waveMove 8s ease-in-out infinite;
+        pointer-events: none;
+        z-index: 0;
+    }
+    
+    @keyframes waveMove {
+        0%, 100% { 
+            background-position: 0% 0%, 100% 100%;
+            opacity: 0.8;
+        }
+        50% { 
+            background-position: 100% 100%, 0% 0%;
+            opacity: 1;
+        }
+    }
+    
+    /* 标题动画效果 */
+    .main-header h1 {
+        animation: titleGlow 3s ease-in-out infinite;
+    }
+    
+    @keyframes titleGlow {
+        0%, 100% { 
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 255, 255, 0.4);
+            transform: scale(1);
+        }
+        50% { 
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 25px rgba(255, 255, 255, 0.8);
+            transform: scale(1.02);
+        }
+    }
+    
+    /* 度量卡片样式 - 增强悬停效果 */
     div[data-testid="metric-container"] {
         background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.3);
         padding: 1.5rem;
         border-radius: 15px;
         box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
-        backdrop-filter: blur(10px);
-        transition: all 0.3s ease;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     div[data-testid="metric-container"]:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 40px rgba(31, 38, 135, 0.25);
+        transform: translateY(-8px) scale(1.05);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.25);
         background: rgba(255, 255, 255, 1);
     }
     
-    /* 标签页样式 */
+    /* 数字动画效果 */
+    div[data-testid="metric-container"] [data-testid="metric-value"] {
+        font-weight: bold;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: numberPulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes numberPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    
+    /* 标签页样式 - 增强版 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.95);
         padding: 0.5rem;
         border-radius: 15px;
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(20px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     }
     
     .stTabs [data-baseweb="tab"] {
         border-radius: 10px;
-        padding: 0.5rem 1.5rem;
+        padding: 0.8rem 1.5rem;
         background: transparent;
         color: #4a5568;
         font-weight: 600;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     .stTabs [data-baseweb="tab"]:hover {
         background: rgba(102, 126, 234, 0.1);
         color: #667eea;
+        transform: translateY(-2px);
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea, #764ba2);
+        background: linear-gradient(135deg, #667eea, #764ba2) !important;
         color: white !important;
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        transform: translateY(-2px);
     }
     
-    /* 容器样式 */
+    /* 容器样式 - 动画增强 */
     .main-container {
         background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
         border-radius: 20px;
         padding: 2rem;
         margin: 1rem 0;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        backdrop-filter: blur(10px);
         animation: fadeInUp 0.6s ease-out;
+        border: 1px solid rgba(255, 255, 255, 0.3);
     }
     
     @keyframes fadeInUp {
@@ -124,22 +193,22 @@ st.markdown("""
         }
     }
     
-    /* 图表容器 */
+    /* 图表容器 - 悬停效果增强 */
     .plot-container {
         background: white;
         border-radius: 15px;
         padding: 1.5rem;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         margin: 1rem 0;
-        transition: all 0.3s ease;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     .plot-container:hover {
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(102, 126, 234, 0.15);
+        transform: translateY(-4px) scale(1.01);
     }
     
-    /* 洞察卡片 */
+    /* 洞察卡片 - 动画增强 */
     .insight-card {
         background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
         border-left: 4px solid #667eea;
@@ -147,6 +216,12 @@ st.markdown("""
         padding: 1.5rem;
         margin: 1rem 0;
         animation: slideInLeft 0.8s ease-out;
+        transition: all 0.3s ease;
+    }
+    
+    .insight-card:hover {
+        transform: translateX(10px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
     }
     
     @keyframes slideInLeft {
@@ -160,31 +235,37 @@ st.markdown("""
         }
     }
     
-    /* 增强按钮样式 */
+    /* 增强按钮样式 - 与主页一致 */
     .stButton > button {
-        background: linear-gradient(135deg, #667eea, #764ba2);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
         border-radius: 10px;
         padding: 0.8rem 2rem;
         font-weight: 600;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
     
     .stButton > button:hover {
-        background: linear-gradient(135deg, #5a6fd8, #6b4f9a);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
     }
     
-    /* 信息提示样式 */
+    /* 信息提示样式 - 动画增强 */
     .info-tooltip {
         position: relative;
         display: inline-block;
         cursor: help;
         color: #667eea;
         font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .info-tooltip:hover {
+        color: #764ba2;
+        transform: scale(1.1);
     }
     
     .info-tooltip:hover::after {
@@ -205,8 +286,53 @@ st.markdown("""
     }
     
     @keyframes tooltipFadeIn {
-        from { opacity: 0; transform: translateX(-50%) translateY(10px); }
-        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        from { 
+            opacity: 0; 
+            transform: translateX(-50%) translateY(10px); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateX(-50%) translateY(0); 
+        }
+    }
+    
+    /* 图标动画 */
+    .animated-icon {
+        display: inline-block;
+        animation: iconBounce 2s ease-in-out infinite;
+    }
+    
+    @keyframes iconBounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+    }
+    
+    /* 数据卡片特殊样式 */
+    .value-card {
+        text-align: center;
+        padding: 1rem;
+        background: linear-gradient(135deg, var(--card-color, #667eea) 0%, var(--card-color-end, #764ba2) 100%);
+        border-radius: 10px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .value-card:hover {
+        transform: translateY(-5px) scale(1.05);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+    
+    .value-card h2 {
+        margin: 0;
+        font-size: 2rem;
+        animation: numberPulse 2s ease-in-out infinite;
+    }
+    
+    .value-card p {
+        margin: 0;
+        opacity: 0.9;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -658,13 +784,22 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
 
 # 主应用逻辑
 def main():
+    # 侧边栏返回按钮
+    with st.sidebar:
+        if st.button("🏠 返回主页", use_container_width=True):
+            st.switch_page("app.py")
+        
+        if st.button("🚪 退出登录", use_container_width=True):
+            st.session_state.authenticated = False
+            st.switch_page("app.py")
+    
     # 标题和动画
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("""
-        <div style="text-align: center;">
+        <div class="main-header" style="text-align: center;">
             <h1 style="color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
-                👥 客户依赖分析
+                <span class="animated-icon">👥</span> 客户依赖分析
             </h1>
             <p style="color: rgba(255,255,255,0.9); font-size: 1.2rem;">
                 深入洞察客户关系，识别业务风险，优化客户组合策略
@@ -677,14 +812,14 @@ def main():
             lottie_url = "https://assets5.lottiefiles.com/packages/lf20_qp1q7mct.json"
             lottie_json = load_lottie_url(lottie_url)
             if lottie_json:
-                st_lottie(lottie_json, height=200, key="customer_analysis")
+                st_lottie(lottie_json, height=200, key="customer_analysis_lottie")
     
     # 加载数据
-    with st.spinner('正在加载数据...'):
+    with st.spinner('🔄 正在加载数据...'):
         metrics, customer_status, sales_data, monthly_data = load_and_process_data()
     
     if metrics is None:
-        st.error("数据加载失败，请检查数据文件是否存在。")
+        st.error("❌ 数据加载失败，请检查数据文件是否存在。")
         return
     
     # 创建高级图表
@@ -748,7 +883,7 @@ def main():
             box_shadow=True
         )
     
-    # 标签页内容
+    # 标签页内容 - 添加唯一的key
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "📊 总览仪表盘", 
         "❤️ 客户健康分析", 
@@ -780,13 +915,13 @@ def main():
             metrics['risk_customers']
         ), unsafe_allow_html=True)
         
-        # 显示关键图表
+        # 显示关键图表 - 添加唯一key
         col1, col2 = st.columns(2)
         with col1:
-            st.plotly_chart(charts['health'], use_container_width=True)
+            st.plotly_chart(charts['health'], use_container_width=True, key="overview_health_chart")
         with col2:
             if 'trend' in charts:
-                st.plotly_chart(charts['trend'], use_container_width=True)
+                st.plotly_chart(charts['trend'], use_container_width=True, key="overview_trend_chart")
         
         st.markdown("</div>", unsafe_allow_html=True)
     
@@ -800,12 +935,17 @@ def main():
                 description="评估客户整体健康度，识别风险客户群体",
                 color_name="blue-70"
             )
+        else:
+            st.markdown("""
+            <h3 style='color: #667eea; margin-bottom: 0.5rem;'>客户健康状况分析</h3>
+            <p style='color: #718096; margin-bottom: 1.5rem;'>评估客户整体健康度，识别风险客户群体</p>
+            """, unsafe_allow_html=True)
         
-        # 显示健康度仪表盘
-        st.plotly_chart(charts['health'], use_container_width=True)
+        # 显示健康度仪表盘 - 添加唯一key
+        st.plotly_chart(charts['health'], use_container_width=True, key="health_tab_chart")
         
         # 客户状态明细
-        if st.checkbox("显示客户状态明细"):
+        if st.checkbox("显示客户状态明细", key="health_detail_checkbox"):
             status_summary = customer_status['状态'].value_counts()
             
             fig_status = go.Figure()
@@ -824,7 +964,7 @@ def main():
                 showlegend=False
             )
             
-            st.plotly_chart(fig_status, use_container_width=True)
+            st.plotly_chart(fig_status, use_container_width=True, key="health_status_detail_chart")
         
         st.markdown("</div>", unsafe_allow_html=True)
     
@@ -838,12 +978,17 @@ def main():
                 description="识别高风险区域，制定风险分散策略",
                 color_name="orange-70"
             )
+        else:
+            st.markdown("""
+            <h3 style='color: #f39c12; margin-bottom: 0.5rem;'>区域风险集中度分析</h3>
+            <p style='color: #718096; margin-bottom: 1.5rem;'>识别高风险区域，制定风险分散策略</p>
+            """, unsafe_allow_html=True)
         
         if 'risk' in charts:
-            st.plotly_chart(charts['risk'], use_container_width=True)
+            st.plotly_chart(charts['risk'], use_container_width=True, key="risk_tab_chart")
             
             # 显示风险区域详情
-            if st.checkbox("显示区域风险详情"):
+            if st.checkbox("显示区域风险详情", key="risk_detail_checkbox"):
                 risk_regions = metrics['region_stats'][
                     metrics['region_stats']['最大客户依赖度'] > 30
                 ].sort_values('最大客户依赖度', ascending=False)
@@ -851,8 +996,8 @@ def main():
                 if not risk_regions.empty:
                     st.warning(f"⚠️ 发现{len(risk_regions)}个高风险区域（依赖度>30%）")
                     
-                    for _, region in risk_regions.iterrows():
-                        with st.expander(f"{region['区域']}区域 - 依赖度{region['最大客户依赖度']:.1f}%"):
+                    for idx, (_, region) in enumerate(risk_regions.iterrows()):
+                        with st.expander(f"{region['区域']}区域 - 依赖度{region['最大客户依赖度']:.1f}%", expanded=False):
                             col1, col2, col3 = st.columns(3)
                             with col1:
                                 st.metric("最大客户", region['最大客户'])
@@ -866,6 +1011,8 @@ def main():
                                 st.markdown("**TOP3客户贡献：**")
                                 for i, customer in enumerate(region['TOP3客户']):
                                     st.markdown(f"{i+1}. {customer['name']}: ¥{customer['sales']/10000:.1f}万 ({customer['percentage']:.1f}%)")
+        else:
+            st.info("暂无区域风险数据")
         
         st.markdown("</div>", unsafe_allow_html=True)
     
@@ -879,9 +1026,14 @@ def main():
                 description="监控客户目标完成进度，识别需要支持的客户",
                 color_name="green-70"
             )
+        else:
+            st.markdown("""
+            <h3 style='color: #00aa00; margin-bottom: 0.5rem;'>目标达成情况分析</h3>
+            <p style='color: #718096; margin-bottom: 1.5rem;'>监控客户目标完成进度，识别需要支持的客户</p>
+            """, unsafe_allow_html=True)
         
         if 'target' in charts:
-            st.plotly_chart(charts['target'], use_container_width=True)
+            st.plotly_chart(charts['target'], use_container_width=True, key="target_tab_chart")
             
             # 达成率分布
             achievement_df = metrics['customer_achievement_details']
@@ -908,7 +1060,9 @@ def main():
                     showlegend=False
                 )
                 
-                st.plotly_chart(fig_dist, use_container_width=True)
+                st.plotly_chart(fig_dist, use_container_width=True, key="target_distribution_chart")
+        else:
+            st.info("暂无目标达成数据")
         
         st.markdown("</div>", unsafe_allow_html=True)
     
@@ -922,6 +1076,11 @@ def main():
                 description="基于RFM模型的客户价值分层和策略建议",
                 color_name="violet-70"
             )
+        else:
+            st.markdown("""
+            <h3 style='color: #9b59b6; margin-bottom: 0.5rem;'>RFM客户价值分析</h3>
+            <p style='color: #718096; margin-bottom: 1.5rem;'>基于RFM模型的客户价值分层和策略建议</p>
+            """, unsafe_allow_html=True)
         
         # 客户价值分布
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -937,15 +1096,15 @@ def main():
         for col, (label, value, color) in zip([col1, col2, col3, col4, col5], value_metrics):
             with col:
                 st.markdown(f"""
-                <div style='text-align: center; padding: 1rem; background: {color}20; border-radius: 10px; border: 2px solid {color};'>
-                    <h2 style='color: {color}; margin: 0;'>{value}</h2>
-                    <p style='margin: 0; font-weight: 600;'>{label}</p>
+                <div class='value-card' style='--card-color: {color}; --card-color-end: {color}dd;'>
+                    <h2>{value}</h2>
+                    <p>{label}</p>
                 </div>
                 """, unsafe_allow_html=True)
         
-        # 显示RFM 3D散点图
+        # 显示RFM 3D散点图 - 添加唯一key
         if 'rfm' in charts:
-            st.plotly_chart(charts['rfm'], use_container_width=True)
+            st.plotly_chart(charts['rfm'], use_container_width=True, key="rfm_3d_chart")
         
         # 客户策略建议
         st.markdown("""
@@ -967,6 +1126,7 @@ def main():
     st.markdown("""
     <div style='text-align: center; color: rgba(255,255,255,0.8); margin-top: 3rem; padding: 2rem 0; border-top: 1px solid rgba(255,255,255,0.2);'>
         <p>Trolli SAL | 客户依赖分析 | 数据更新时间: {}</p>
+        <p style='font-size: 0.9rem; opacity: 0.8;'>每周四17:00刷新数据 | 将枯燥数据变好看</p>
     </div>
     """.format(datetime.now().strftime('%Y-%m-%d %H:%M')), unsafe_allow_html=True)
 
