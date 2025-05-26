@@ -1,0 +1,24 @@
+# Streamlit Cloud 部署依赖文件 - Trolli SAL 项目
+# 核心框架
+streamlit>=1.28.0
+
+# 数据处理
+pandas>=2.0.0
+numpy>=1.24.0
+openpyxl>=3.1.0  # Excel文件读取
+
+# 数据可视化
+plotly>=5.15.0
+
+# 文件处理
+pathlib2>=2.3.7
+
+# 系统工具
+python-dateutil>=2.8.0
+
+# 可选的动画增强组件（如果需要可取消注释）
+# streamlit-lottie>=0.0.5
+# streamlit-option-menu>=0.3.6
+# streamlit-card>=0.0.61
+# streamlit-toggle-switch>=1.0.2
+# streamlit-extras>=0.3.0
