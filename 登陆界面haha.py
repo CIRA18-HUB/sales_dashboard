@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="Trolli SAL",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed"  # 隐藏侧边栏
+    initial_sidebar_state="expanded"  # 改为展开侧边栏
 )
 
 # 初始化会话状态
@@ -26,7 +26,7 @@ if 'stats_initialized' not in st.session_state:
 if 'current_page' not in st.session_state:
     st.session_state.current_page = "welcome"
 
-# 隐藏Streamlit默认元素 - 修复版
+# 隐藏Streamlit默认元素 - 修复版（不隐藏侧边栏）
 hide_streamlit_style = """
 <style>
     /* 隐藏Streamlit默认元素，但保留侧边栏 */
@@ -42,12 +42,7 @@ hide_streamlit_style = """
         max-width: 100%;
     }
     
-    /* 隐藏侧边栏 */
-    section[data-testid="stSidebar"] {
-        display: none !important;
-    }
-    
-    /* 确保主内容区占满全屏 */
+    /* 确保主内容区占满宽度 */
     .main .block-container {
         max-width: 100% !important;
         padding-left: 1rem !important;
@@ -400,25 +395,6 @@ main_css = """
     }
     
     /* 成功/错误消息样式 */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        font-size: 0.9rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-    }
-    
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-    }
-    
-    /* 成功/错误消息样式 */
     .stSuccess, .stError {
         border-radius: 10px;
         padding: 1rem;
@@ -472,44 +448,10 @@ if not st.session_state.authenticated:
     
     st.stop()
 
-# 主页面 - 全屏版本（无侧边栏）
+# 主页面
 
-# 顶部操作栏
-col1, col2, col3 = st.columns([1, 6, 1])
-with col1:
-    # 快速导航下拉菜单
-    page_options = {
-        "🏠 欢迎页面": "welcome",
-        "📦 产品组合分析": "product",
-        "📊 预测库存分析": "inventory", 
-        "👥 客户依赖分析": "customer",
-        "🎯 销售达成分析": "sales"
-    }
-    selected_page = st.selectbox("快速导航", options=list(page_options.keys()), index=0, label_visibility="collapsed")
-    
-    if page_options[selected_page] != "welcome":
-        if page_options[selected_page] == "product":
-            try:
-                st.switch_page("pages/产品组合分析.py")
-            except:
-                st.info("📦 产品组合分析页面")
-        elif page_options[selected_page] == "inventory":
-            try:
-                st.switch_page("pages/预测库存分析.py")
-            except:
-                st.info("📊 预测库存分析页面")
-        elif page_options[selected_page] == "customer":
-            try:
-                st.switch_page("pages/客户依赖分析.py")
-            except:
-                st.info("👥 客户依赖分析页面")
-        elif page_options[selected_page] == "sales":
-            try:
-                st.switch_page("pages/销售达成分析.py")
-            except:
-                st.info("🎯 销售达成分析页面")
-
-with col3:
+# 侧边栏退出登录按钮
+with st.sidebar:
     if st.button("🚪 退出登录", use_container_width=True):
         st.session_state.authenticated = False
         st.session_state.current_page = "welcome"
@@ -684,9 +626,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 自动刷新机制（可选，可能导致性能问题）
-# if st.session_state.authenticated:
-#     # 每3秒刷新一次数据
-#     time.sleep(0.1)
-#     if is_updated:
-#         st.rerun()
+# 自动刷新机制 - 已恢复
+if st.session_state.authenticated:
+    # 每3秒刷新一次数据
+    time.sleep(0.1)
+    if is_updated:
+        st.rerun()
