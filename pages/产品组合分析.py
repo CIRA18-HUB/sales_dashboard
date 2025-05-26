@@ -9,6 +9,7 @@ import math
 import time
 from datetime import datetime, timedelta
 import warnings
+
 warnings.filterwarnings('ignore')
 
 # 设置页面配置
@@ -341,25 +342,25 @@ st.markdown(hide_elements_and_style, unsafe_allow_html=True)
 with st.sidebar:
     st.markdown("### 📊 Trolli SAL")
     st.markdown("#### 🏠 主要功能")
-
+    
     if st.button("🏠 欢迎页面", use_container_width=True):
         st.switch_page("登陆界面haha.py")
-
+    
     st.markdown("---")
     st.markdown("#### 📈 分析模块")
-
+    
     if st.button("📦 产品组合分析", use_container_width=True):
         st.rerun()
-
+    
     if st.button("📊 预测库存分析", use_container_width=True):
         st.switch_page("pages/预测库存分析.py")
-
+    
     if st.button("👥 客户依赖分析", use_container_width=True):
         st.switch_page("pages/客户依赖分析.py")
-
+    
     if st.button("🎯 销售达成分析", use_container_width=True):
         st.switch_page("pages/销售达成分析.py")
-
+    
     st.markdown("---")
     st.markdown("#### 👤 用户信息")
     st.markdown("""
@@ -368,9 +369,9 @@ with st.sidebar:
         cira
     </div>
     """, unsafe_allow_html=True)
-
+    
     st.markdown("<br>", unsafe_allow_html=True)
-
+    
     if st.button("🚪 退出登录", use_container_width=True):
         st.session_state.authenticated = False
         st.switch_page("登陆界面haha.py")
@@ -382,22 +383,19 @@ def load_real_data():
     try:
         data_dict = {}
         
-        # 统计加载情况
-        load_status = {}
-        
         # 1. 加载销售数据
         try:
             sales_data = pd.read_excel('TT与MT销售数据.xlsx')
             data_dict['sales_data'] = sales_data
-            load_status['销售数据'] = f"{len(sales_data)}条记录"
+            st.success(f"✅ 成功加载销售数据: {len(sales_data)}条记录")
         except Exception as e:
-            st.error(f"❌ TT与MT销售数据.xlsx 加载失败: {str(e)}")
+            st.warning(f"⚠️ TT与MT销售数据.xlsx 加载失败: {str(e)}")
         
-        # 2. 加载出货数据
+        # 2. 加载出货数据  
         try:
             shipment_data = pd.read_excel('2409-250224出货数据.xlsx')
             data_dict['shipment_data'] = shipment_data
-            load_status['出货数据'] = f"{len(shipment_data)}条记录"
+            st.success(f"✅ 成功加载出货数据: {len(shipment_data)}条记录")
         except Exception as e:
             st.warning(f"⚠️ 2409-250224出货数据.xlsx 加载失败: {str(e)}")
         
@@ -405,15 +403,15 @@ def load_real_data():
         try:
             promotion_data = pd.read_excel('24-25促销效果销售数据.xlsx')
             data_dict['promotion_data'] = promotion_data
-            load_status['促销数据'] = f"{len(promotion_data)}条记录"
+            st.success(f"✅ 成功加载促销数据: {len(promotion_data)}条记录")
         except Exception as e:
-            st.error(f"❌ 24-25促销效果销售数据.xlsx 加载失败: {str(e)}")
+            st.warning(f"⚠️ 24-25促销效果销售数据.xlsx 加载失败: {str(e)}")
         
         # 4. 加载4月促销活动数据
         try:
             april_promo_data = pd.read_excel('这是涉及到在4月份做的促销活动.xlsx')
             data_dict['april_promo_data'] = april_promo_data
-            load_status['4月促销数据'] = f"{len(april_promo_data)}条记录"
+            st.success(f"✅ 成功加载4月促销数据: {len(april_promo_data)}条记录")
         except Exception as e:
             st.warning(f"⚠️ 这是涉及到在4月份做的促销活动.xlsx 加载失败: {str(e)}")
         
@@ -421,7 +419,7 @@ def load_real_data():
         try:
             customer_data = pd.read_excel('客户月度指标.xlsx')
             data_dict['customer_data'] = customer_data
-            load_status['客户数据'] = f"{len(customer_data)}条记录"
+            st.success(f"✅ 成功加载客户数据: {len(customer_data)}条记录")
         except Exception as e:
             st.warning(f"⚠️ 客户月度指标.xlsx 加载失败: {str(e)}")
         
@@ -429,7 +427,7 @@ def load_real_data():
         try:
             inventory_data = pd.read_excel('月终库存2.xlsx')
             data_dict['inventory_data'] = inventory_data
-            load_status['库存数据'] = f"{len(inventory_data)}条记录"
+            st.success(f"✅ 成功加载库存数据: {len(inventory_data)}条记录")
         except Exception as e:
             st.warning(f"⚠️ 月终库存2.xlsx 加载失败: {str(e)}")
         
@@ -437,7 +435,7 @@ def load_real_data():
         try:
             price_data = pd.read_excel('单价.xlsx')
             data_dict['price_data'] = price_data
-            load_status['单价数据'] = f"{len(price_data)}条记录"
+            st.success(f"✅ 成功加载单价数据: {len(price_data)}条记录")
         except Exception as e:
             st.warning(f"⚠️ 单价.xlsx 加载失败: {str(e)}")
         
@@ -446,7 +444,7 @@ def load_real_data():
             with open('仪表盘产品代码.txt', 'r', encoding='utf-8') as f:
                 dashboard_products = [line.strip() for line in f.readlines() if line.strip()]
             data_dict['dashboard_products'] = dashboard_products
-            load_status['仪表盘产品代码'] = f"{len(dashboard_products)}个"
+            st.success(f"✅ 成功加载仪表盘产品代码: {len(dashboard_products)}个")
         except Exception as e:
             st.warning(f"⚠️ 仪表盘产品代码.txt 加载失败: {str(e)}")
         
@@ -455,7 +453,7 @@ def load_real_data():
             with open('仪表盘新品代码.txt', 'r', encoding='utf-8') as f:
                 new_products = [line.strip() for line in f.readlines() if line.strip()]
             data_dict['new_products'] = new_products
-            load_status['仪表盘新品代码'] = f"{len(new_products)}个"
+            st.success(f"✅ 成功加载仪表盘新品代码: {len(new_products)}个")
         except Exception as e:
             st.warning(f"⚠️ 仪表盘新品代码.txt 加载失败: {str(e)}")
         
@@ -464,24 +462,16 @@ def load_real_data():
             with open('星品&新品年度KPI考核产品代码.txt', 'r', encoding='utf-8') as f:
                 kpi_products = [line.strip() for line in f.readlines() if line.strip()]
             data_dict['kpi_products'] = kpi_products
-            load_status['KPI产品代码'] = f"{len(kpi_products)}个"
+            st.success(f"✅ 成功加载KPI产品代码: {len(kpi_products)}个")
         except Exception as e:
-            st.error(f"❌ 星品&新品年度KPI考核产品代码.txt 加载失败: {str(e)}")
-        
-        # 显示加载摘要
-        if load_status:
-            with st.expander("📁 数据加载摘要", expanded=False):
-                cols = st.columns(3)
-                for i, (name, count) in enumerate(load_status.items()):
-                    with cols[i % 3]:
-                        st.success(f"✅ {name}: {count}")
+            st.warning(f"⚠️ 星品&新品年度KPI考核产品代码.txt 加载失败: {str(e)}")
         
         if not data_dict:
             st.error("❌ 所有数据文件加载失败，请检查文件路径和格式")
             st.stop()
         
         return data_dict
-        
+    
     except Exception as e:
         st.error(f"❌ 数据加载过程中发生错误: {str(e)}")
         st.stop()
@@ -500,39 +490,9 @@ def calculate_key_metrics(data_dict):
         new_products = data_dict.get('new_products', [])
         kpi_products = data_dict.get('kpi_products', [])
         
-        # 如果没有仪表盘新品代码，尝试使用其他新品代码
-        if not new_products:
-            new_products = data_dict.get('dashboard_products', [])[:5]  # 取前5个作为新品示例
-        
         # 1. 计算总销售额
-        if sales_data is not None:
-            # 检查是否有直接的销售额列
-            if '销售额' in sales_data.columns:
-                total_sales = sales_data['销售额'].sum()
-            elif '金额' in sales_data.columns:
-                total_sales = sales_data['金额'].sum()
-            else:
-                # 查找单价和数量列
-                price_col = None
-                quantity_col = None
-                
-                for col in sales_data.columns:
-                    if '单价' in col:
-                        price_col = col
-                        break
-                
-                for col in sales_data.columns:
-                    if '数量' in col or '箱数' in col or ('求和项' in col and '数量' in col):
-                        quantity_col = col
-                        break
-                
-                if price_col and quantity_col:
-                    # 通过单价×数量计算总销售额
-                    calculated_sales = pd.to_numeric(sales_data[price_col], errors='coerce') * pd.to_numeric(sales_data[quantity_col], errors='coerce')
-                    total_sales = calculated_sales.sum()
-                    # st.info(f"💡 总销售额通过 {price_col} × {quantity_col} 计算得出")  # 隐藏提示信息
-                else:
-                    total_sales = 8456789  # 备用值
+        if sales_data is not None and '销售额' in sales_data.columns:
+            total_sales = sales_data['销售额'].sum()
         elif shipment_data is not None and '金额' in shipment_data.columns:
             total_sales = shipment_data['金额'].sum()
         else:
@@ -543,37 +503,8 @@ def calculate_key_metrics(data_dict):
         # 2. 计算新品占比
         if sales_data is not None and new_products:
             if '产品代码' in sales_data.columns:
-                # 筛选新品数据
-                new_product_data = sales_data[sales_data['产品代码'].isin(new_products)]
-                
-                # 计算新品销售额
-                if '销售额' in sales_data.columns:
-                    new_product_sales = new_product_data['销售额'].sum()
-                elif '金额' in sales_data.columns:
-                    new_product_sales = new_product_data['金额'].sum()
-                else:
-                    # 使用单价×数量计算
-                    price_col = None
-                    quantity_col = None
-                    
-                    for col in sales_data.columns:
-                        if '单价' in col:
-                            price_col = col
-                            break
-                    
-                    for col in sales_data.columns:
-                        if '数量' in col or '箱数' in col or ('求和项' in col and '数量' in col):
-                            quantity_col = col
-                            break
-                    
-                    if price_col and quantity_col:
-                        new_calculated_sales = pd.to_numeric(new_product_data[price_col], errors='coerce') * pd.to_numeric(new_product_data[quantity_col], errors='coerce')
-                        new_product_sales = new_calculated_sales.sum()
-                    else:
-                        new_product_sales = 0
-                
+                new_product_sales = sales_data[sales_data['产品代码'].isin(new_products)]['销售额'].sum()
                 new_product_ratio = (new_product_sales / total_sales * 100) if total_sales > 0 else 0
-                # st.info(f"💡 新品销售额: ¥{new_product_sales:,.0f}, 占比: {new_product_ratio:.2f}%")  # 隐藏详细信息
             else:
                 new_product_ratio = 15.3
         else:
@@ -584,38 +515,9 @@ def calculate_key_metrics(data_dict):
         # 3. 计算星品占比（KPI产品中的非新品）
         if sales_data is not None and kpi_products and new_products:
             star_products = [p for p in kpi_products if p not in new_products]
-            if '产品代码' in sales_data.columns and star_products:
-                # 筛选星品数据
-                star_product_data = sales_data[sales_data['产品代码'].isin(star_products)]
-                
-                # 计算星品销售额
-                if '销售额' in sales_data.columns:
-                    star_product_sales = star_product_data['销售额'].sum()
-                elif '金额' in sales_data.columns:
-                    star_product_sales = star_product_data['金额'].sum()
-                else:
-                    # 使用单价×数量计算
-                    price_col = None
-                    quantity_col = None
-                    
-                    for col in sales_data.columns:
-                        if '单价' in col:
-                            price_col = col
-                            break
-                    
-                    for col in sales_data.columns:
-                        if '数量' in col or '箱数' in col or ('求和项' in col and '数量' in col):
-                            quantity_col = col
-                            break
-                    
-                    if price_col and quantity_col:
-                        star_calculated_sales = pd.to_numeric(star_product_data[price_col], errors='coerce') * pd.to_numeric(star_product_data[quantity_col], errors='coerce')
-                        star_product_sales = star_calculated_sales.sum()
-                    else:
-                        star_product_sales = 0
-                
+            if '产品代码' in sales_data.columns:
+                star_product_sales = sales_data[sales_data['产品代码'].isin(star_products)]['销售额'].sum()
                 star_product_ratio = (star_product_sales / total_sales * 100) if total_sales > 0 else 0
-                # st.info(f"💡 星品销售额: ¥{star_product_sales:,.0f}, 占比: {star_product_ratio:.2f}%")  # 隐藏详细信息
             else:
                 star_product_ratio = 12.8
         else:
@@ -655,7 +557,7 @@ def calculate_key_metrics(data_dict):
         metrics['penetration_rate'] = penetration_rate
         
         return metrics
-        
+    
     except Exception as e:
         st.error(f"指标计算失败: {str(e)}")
         # 返回默认值
@@ -706,59 +608,19 @@ def calculate_bcg_data(data_dict):
                 sales_col = col
                 break
         
-        # 如果没有直接的销售额列，检查是否有单价和数量列可以计算
+        # 如果没有直接的销售额列，检查是否有单价和箱数列可以计算
         if sales_col is None:
-            # 查找单价列（支持多种格式）
-            price_col = None
-            for col in sales_data.columns:
-                if '单价' in col:
-                    price_col = col
-                    break
-            
-            # 查找数量列（支持多种格式）
-            quantity_col = None
-            for col in sales_data.columns:
-                if '数量' in col or '箱数' in col or ('求和项' in col and '数量' in col):
-                    quantity_col = col
-                    break
-            
-            if price_col and quantity_col:
-                # 计算销售额 = 单价 * 数量
-                sales_data['计算销售额'] = pd.to_numeric(sales_data[price_col], errors='coerce') * pd.to_numeric(sales_data[quantity_col], errors='coerce')
+            if '单价' in sales_data.columns and '箱数' in sales_data.columns:
+                # 计算销售额 = 单价 * 箱数
+                sales_data['计算销售额'] = sales_data['单价'] * sales_data['箱数']
                 sales_col = '计算销售额'
-                st.info(f"💡 通过 {price_col} × {quantity_col} 计算得到销售额")
-            elif '销量' in sales_data.columns:
-                sales_col = '销量'
-        
-        # 如果没有直接的销售额列，检查是否有单价和数量列可以计算
-        if sales_col is None:
-            # 查找单价列（支持多种格式）
-            price_col = None
-            for col in sales_data.columns:
-                if '单价' in col:
-                    price_col = col
-                    break
-            
-            # 查找数量列（支持多种格式）
-            quantity_col = None
-            for col in sales_data.columns:
-                if '数量' in col or '箱数' in col or ('求和项' in col and '数量' in col):
-                    quantity_col = col
-                    break
-            
-            if price_col and quantity_col:
-                # 计算销售额 = 单价 * 数量
-                sales_data['计算销售额'] = pd.to_numeric(sales_data[price_col], errors='coerce') * pd.to_numeric(sales_data[quantity_col], errors='coerce')
-                sales_col = '计算销售额'
-                # st.info(f"💡 通过 {price_col} × {quantity_col} 计算得到销售额用于BCG分析")  # 隐藏提示信息
+                st.info("💡 通过单价×箱数计算得到销售额")
             elif '销量' in sales_data.columns:
                 sales_col = '销量'
         
         if product_col is None or sales_col is None:
-            st.error(f"❌ BCG数据列名识别失败")
-            with st.expander("🔍 数据结构诊断", expanded=False):
-                st.warning(f"产品列={product_col}, 销售列={sales_col}")
-                st.info("📊 可用列名: " + ", ".join(sales_data.columns.tolist()))
+            st.warning(f"⚠️ 数据列名识别失败: 产品列={product_col}, 销售列={sales_col}")
+            st.info("📊 可用列名: " + ", ".join(sales_data.columns.tolist()))
             return []
         
         # 按产品聚合数据
@@ -807,7 +669,7 @@ def calculate_bcg_data(data_dict):
         bcg_data = sorted(bcg_data, key=lambda x: x['sales'], reverse=True)[:20]
         
         return bcg_data
-        
+    
     except Exception as e:
         st.error(f"BCG数据计算失败: {str(e)}")
         return []
@@ -821,7 +683,7 @@ def create_bcg_matrix(bcg_data):
     
     colors = {
         'star': '#22c55e',
-        'question': '#f59e0b', 
+        'question': '#f59e0b',
         'cow': '#3b82f6',
         'dog': '#94a3b8'
     }
@@ -844,7 +706,7 @@ def create_bcg_matrix(bcg_data):
                 ),
                 name={
                     'star': '⭐ 明星产品',
-                    'question': '❓ 问号产品', 
+                    'question': '❓ 问号产品',
                     'cow': '🐄 现金牛产品',
                     'dog': '🐕 瘦狗产品'
                 }[category],
@@ -869,14 +731,14 @@ def create_bcg_matrix(bcg_data):
     fig.update_layout(
         title=dict(text='产品矩阵分布 - BCG分析（基于真实数据）', font=dict(size=18, color='#1e293b'), x=0.5),
         xaxis=dict(
-            title='📊 市场份额 (%)', 
-            range=[0, max_share], 
+            title='📊 市场份额 (%)',
+            range=[0, max_share],
             showgrid=True,
             gridcolor='rgba(226, 232, 240, 0.8)'
         ),
         yaxis=dict(
-            title='📈 市场增长率 (%)', 
-            range=[min_growth, max_growth], 
+            title='📈 市场增长率 (%)',
+            range=[min_growth, max_growth],
             showgrid=True,
             gridcolor='rgba(226, 232, 240, 0.8)'
         ),
@@ -888,30 +750,30 @@ def create_bcg_matrix(bcg_data):
             # 分界线
             dict(type='line', x0=share_threshold, x1=share_threshold, y0=min_growth, y1=max_growth, 
                  line=dict(dash='dot', color='#667eea', width=3)),
-            dict(type='line', x0=0, x1=max_share, y0=growth_threshold, y1=growth_threshold, 
+            dict(type='line', x0=0, x1=max_share, y0=growth_threshold, y1=growth_threshold,
                  line=dict(dash='dot', color='#667eea', width=3)),
             # 四象限背景颜色
-            dict(type='rect', x0=0, y0=growth_threshold, x1=share_threshold, y1=max_growth, 
+            dict(type='rect', x0=0, y0=growth_threshold, x1=share_threshold, y1=max_growth,
                  fillcolor='rgba(245, 158, 11, 0.15)', line=dict(width=0), layer='below'),
-            dict(type='rect', x0=share_threshold, y0=growth_threshold, x1=max_share, y1=max_growth, 
+            dict(type='rect', x0=share_threshold, y0=growth_threshold, x1=max_share, y1=max_growth,
                  fillcolor='rgba(34, 197, 94, 0.15)', line=dict(width=0), layer='below'),
-            dict(type='rect', x0=0, y0=min_growth, x1=share_threshold, y1=growth_threshold, 
+            dict(type='rect', x0=0, y0=min_growth, x1=share_threshold, y1=growth_threshold,
                  fillcolor='rgba(148, 163, 184, 0.15)', line=dict(width=0), layer='below'),
-            dict(type='rect', x0=share_threshold, y0=min_growth, x1=max_share, y1=growth_threshold, 
+            dict(type='rect', x0=share_threshold, y0=min_growth, x1=max_share, y1=growth_threshold,
                  fillcolor='rgba(59, 130, 246, 0.15)', line=dict(width=0), layer='below')
         ],
         annotations=[
-            dict(x=share_threshold/2, y=max_growth-5, text='<b>❓ 问号产品</b><br>低份额·高增长', 
-                 showarrow=False, font=dict(size=12, color='#92400e'), 
+            dict(x=share_threshold/2, y=max_growth-5, text='<b>❓ 问号产品</b><br>低份额·高增长',
+                 showarrow=False, font=dict(size=12, color='#92400e'),
                  bgcolor='rgba(254, 243, 199, 0.95)', bordercolor='#f59e0b', borderwidth=2),
-            dict(x=max_share-1, y=max_growth-5, text='<b>⭐ 明星产品</b><br>高份额·高增长', 
-                 showarrow=False, font=dict(size=12, color='#14532d'), 
+            dict(x=max_share-1, y=max_growth-5, text='<b>⭐ 明星产品</b><br>高份额·高增长',
+                 showarrow=False, font=dict(size=12, color='#14532d'),
                  bgcolor='rgba(220, 252, 231, 0.95)', bordercolor='#22c55e', borderwidth=2),
-            dict(x=share_threshold/2, y=min_growth+3, text='<b>🐕 瘦狗产品</b><br>低份额·低增长', 
-                 showarrow=False, font=dict(size=12, color='#334155'), 
+            dict(x=share_threshold/2, y=min_growth+3, text='<b>🐕 瘦狗产品</b><br>低份额·低增长',
+                 showarrow=False, font=dict(size=12, color='#334155'),
                  bgcolor='rgba(241, 245, 249, 0.95)', bordercolor='#94a3b8', borderwidth=2),
-            dict(x=max_share-1, y=min_growth+3, text='<b>🐄 现金牛产品</b><br>高份额·低增长', 
-                 showarrow=False, font=dict(size=12, color='#1e3a8a'), 
+            dict(x=max_share-1, y=min_growth+3, text='<b>🐄 现金牛产品</b><br>高份额·低增长',
+                 showarrow=False, font=dict(size=12, color='#1e3a8a'),
                  bgcolor='rgba(219, 234, 254, 0.95)', bordercolor='#3b82f6', borderwidth=2)
         ],
         legend=dict(
@@ -944,30 +806,18 @@ def create_promotion_chart(data_dict):
         product_col = None
         sales_col = None
         
-        # 查找产品列
         for col in df.columns:
             if '产品' in col and ('名称' in col or '代码' in col):
                 product_col = col
                 break
         
-        # 查找销售相关列，优先使用预计销售额
         for col in df.columns:
-            if '预计销售额' in col or '销售额' in col:
+            if col in ['销量', '销售额', '数量', '金额']:
                 sales_col = col
                 break
         
-        # 如果没找到销售额，尝试其他列
-        if sales_col is None:
-            for col in df.columns:
-                if col in ['销量', '预计销量', '数量', '金额']:
-                    sales_col = col
-                    break
-        
         if product_col is None or sales_col is None:
-            st.error(f"❌ 促销数据列名识别失败")
-            with st.expander("🔍 数据结构诊断", expanded=False):
-                st.warning(f"产品列={product_col}, 销售列={sales_col}")
-                st.info("📊 可用列名: " + ", ".join(df.columns.tolist()))
+            st.warning(f"⚠️ 促销数据列名识别失败: 产品列={product_col}, 销售列={sales_col}")
             return None
         
         # 聚合数据
@@ -977,7 +827,7 @@ def create_promotion_chart(data_dict):
         # 计算有效性（简化实现）
         promo_summary['is_effective'] = promo_summary[sales_col] > promo_summary[sales_col].median()
         promo_summary['reason'] = promo_summary.apply(
-            lambda x: "✅ 有效：销量超过中位数" if x['is_effective'] else "❌ 无效：销量低于中位数", 
+            lambda x: "✅ 有效：销量超过中位数" if x['is_effective'] else "❌ 无效：销量低于中位数",
             axis=1
         )
         
@@ -1008,7 +858,7 @@ def create_promotion_chart(data_dict):
             height=500,
             font=dict(family='Inter'),
             xaxis=dict(
-                title='🎯 促销产品', 
+                title='🎯 促销产品',
                 tickangle=45,
                 showgrid=True,
                 gridcolor='rgba(226, 232, 240, 0.8)'
@@ -1022,7 +872,7 @@ def create_promotion_chart(data_dict):
         )
         
         return fig
-        
+    
     except Exception as e:
         st.error(f"促销图表创建失败: {str(e)}")
         return None
@@ -1083,7 +933,7 @@ def create_regional_bcg_analysis(data_dict):
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
-        
+    
     except Exception as e:
         st.error(f"区域BCG分析失败: {str(e)}")
 
@@ -1128,14 +978,6 @@ def main():
     # 加载数据
     with st.spinner("🔄 正在从GitHub加载真实数据..."):
         data_dict = load_real_data()
-        
-    # 只有在有错误时才显示详细状态
-    error_count = len([k for k, v in data_dict.items() if v is None])
-    if error_count > 0:
-        st.warning(f"⚠️ {error_count} 个数据文件加载失败")
-    
-    # 计算指标（隐藏中间过程的提示信息）
-    with st.spinner("📊 正在计算业务指标..."):
         key_metrics = calculate_key_metrics(data_dict)
         bcg_data = calculate_bcg_data(data_dict)
     
@@ -1152,50 +994,40 @@ def main():
     
     # 标签页1: 产品情况总览
     with tabs[0]:
-        # 创建更整齐的指标布局
-        st.markdown("""
-        <div style="text-align: center; margin-bottom: 2rem;">
-            <h2 style="color: white; font-size: 2rem; margin-bottom: 0.5rem;">📊 核心业务指标</h2>
-            <p style="color: rgba(255,255,255,0.8); font-size: 1.1rem;">基于真实数据的智能分析系统</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("### 📊 核心业务指标（基于真实数据）")
         
-        # 第一行指标 - 核心财务指标
-        st.markdown("### 💰 财务核心指标")
+        # 创建4列布局显示关键指标
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             st.metric(
                 label="💰 2025年总销售额",
                 value=f"¥{key_metrics['total_sales']:,.0f}",
-                delta="📈 基于真实销售数据"
+                delta="📈 基于真实销售数据计算"
             )
         
         with col2:
-            st.metric(
-                label="🎯 KPI达成率",
-                value=f"{key_metrics['kpi_rate']:.1f}%",
-                delta=f"目标≥100% {'✅达标' if key_metrics['kpi_rate'] >= 100 else '⚠️未达标'}"
-            )
-        
-        with col3:
-            st.metric(
-                label="🚀 促销有效性",
-                value=f"{key_metrics['promo_effectiveness']:.1f}%",
-                delta="基于促销活动数据"
-            )
-        
-        with col4:
             st.metric(
                 label="✅ JBP符合度",
                 value=key_metrics['jbp_status'],
                 delta="产品矩阵结构评估"
             )
         
-        st.markdown("<br>", unsafe_allow_html=True)
+        with col3:
+            st.metric(
+                label="🎯 KPI达成率",
+                value=f"{key_metrics['kpi_rate']:.1f}%",
+                delta=f"目标≥20% 实际{key_metrics['total_star_new_ratio']:.1f}%"
+            )
         
-        # 第二行指标 - 产品结构指标
-        st.markdown("### 🎯 产品结构指标")
+        with col4:
+            st.metric(
+                label="🚀 全国促销有效性",
+                value=f"{key_metrics['promo_effectiveness']:.1f}%",
+                delta="基于促销活动数据"
+            )
+        
+        # 第二行指标
         col5, col6, col7, col8 = st.columns(4)
         
         with col5:
