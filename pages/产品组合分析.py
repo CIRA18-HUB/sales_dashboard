@@ -8,6 +8,7 @@ import numpy as np
 import math
 import time
 from datetime import datetime, timedelta
+from itertools import combinations
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -344,7 +345,8 @@ with st.sidebar:
     st.markdown("#### 🏠 主要功能")
     
     if st.button("🏠 返回主页", use_container_width=True):
-        st.switch_page("app.py")
+        st.session_state.switch_to_home = True
+        st.rerun()
     
     st.markdown("---")
     st.markdown("#### 📈 分析模块")
@@ -353,22 +355,16 @@ with st.sidebar:
         st.rerun()
     
     if st.button("📊 预测库存分析", use_container_width=True):
-        try:
-            st.switch_page("pages/预测库存分析.py")
-        except:
-            st.info("📊 预测库存分析页面开发中...")
+        st.session_state.switch_to_inventory = True
+        st.rerun()
     
     if st.button("👥 客户依赖分析", use_container_width=True):
-        try:
-            st.switch_page("pages/客户依赖分析.py")
-        except:
-            st.info("👥 客户依赖分析页面开发中...")
+        st.session_state.switch_to_customer = True
+        st.rerun()
     
     if st.button("🎯 销售达成分析", use_container_width=True):
-        try:
-            st.switch_page("pages/销售达成分析.py")
-        except:
-            st.info("🎯 销售达成分析页面开发中...")
+        st.session_state.switch_to_sales = True
+        st.rerun()
     
     st.markdown("---")
     st.markdown("#### 👤 用户信息")
@@ -383,7 +379,28 @@ with st.sidebar:
     
     if st.button("🚪 退出登录", use_container_width=True):
         st.session_state.authenticated = False
+        st.session_state.switch_to_home = True
+        st.rerun()
+
+# 检查页面跳转状态
+if 'switch_to_home' in st.session_state and st.session_state.switch_to_home:
+    st.session_state.switch_to_home = False
+    try:
         st.switch_page("app.py")
+    except Exception as e:
+        st.error(f"❌ 返回主页失败: {str(e)}")
+
+if 'switch_to_inventory' in st.session_state and st.session_state.switch_to_inventory:
+    st.session_state.switch_to_inventory = False
+    st.info("📊 预测库存分析页面开发中...")
+
+if 'switch_to_customer' in st.session_state and st.session_state.switch_to_customer:
+    st.session_state.switch_to_customer = False
+    st.info("👥 客户依赖分析页面开发中...")
+
+if 'switch_to_sales' in st.session_state and st.session_state.switch_to_sales:
+    st.session_state.switch_to_sales = False
+    st.info("🎯 销售达成分析页面开发中...")
 
 # 数据加载函数 - 仅基于真实数据
 @st.cache_data(ttl=3600)  # 缓存1小时
@@ -757,9 +774,455 @@ def create_bcg_matrix(bcg_data):
     
     return fig
 
-# 创建促销有效性图表
-def create_promotion_chart(data_dict):
-    """创建促销有效性图表"""
+# 月度趋势分析图表
+def create_monthly_trend_chart(sales_data, data_dict):
+    """创建星品新品月度趋势分析图表"""
+    try:
+        new_products = data_dict.get('new_products', [])
+        kpi_products = data_dict.get('kpi_products', [])
+        star_products = [p for p in kpi_products if p not in new_products]
+        
+        # 计算销售额
+        sales_data_copy = sales_data.copy()
+        sales_data_copy['销售额'] = sales_data_copy['单价（箱）'] * sales_data_copy['求和项:数量（箱）']
+        
+        # 按月份和产品类型聚合
+        monthly_data = []
+        for month in sales_data_copy['发运月份'].unique():
+            month_data = sales_data_copy[sales_data_copy['发运月份'] == month]
+            total_sales = month_data['销售额'].sum()
+            
+            if total_sales > 0:
+                new_sales = month_data[month_data['产品代码'].isin(new_products)]['销售额'].sum()
+                star_sales = month_data[month_data['产品代码'].isin(star_products)]['销售额'].sum()
+                
+                new_ratio = (new_sales / total_sales * 100)
+                star_ratio = (star_sales / total_sales * 100)
+                total_ratio = new_ratio + star_ratio
+                
+                monthly_data.append({
+                    'month': month,
+                    'new_ratio': new_ratio,
+                    'star_ratio': star_ratio,
+                    'total_ratio': total_ratio
+                })
+        
+        if not monthly_data:
+            return None
+            
+        df = pd.DataFrame(monthly_data).sort_values('month')
+        
+        fig = go.Figure()
+        
+        fig.add_trace(go.Scatter(
+            x=df['month'],
+            y=df['new_ratio'],
+            mode='lines+markers',
+            name='🌟 新品占比',
+            line=dict(color='#f59e0b', width=3),
+            marker=dict(size=8)
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=df['month'],
+            y=df['star_ratio'],
+            mode='lines+markers',
+            name='⭐ 星品占比',
+            line=dict(color='#3b82f6', width=3),
+            marker=dict(size=8)
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=df['month'],
+            y=df['total_ratio'],
+            mode='lines+markers',
+            name='🎯 总占比',
+            line=dict(color='#10b981', width=4),
+            marker=dict(size=10)
+        ))
+        
+        # 添加目标线
+        fig.add_hline(y=20, line_dash="dot", line_color="red", 
+                     annotation_text="目标线 20%", annotation_position="right")
+        
+        fig.update_layout(
+            title='星品&新品月度趋势分析',
+            xaxis_title='月份',
+            yaxis_title='占比 (%)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(248, 250, 252, 1)',
+            height=400,
+            font=dict(family='Inter')
+        )
+        
+        return fig
+    except Exception as e:
+        st.error(f"月度趋势分析失败: {str(e)}")
+        return None
+
+# 区域达成分析图表
+def create_regional_achievement_chart(sales_data, data_dict):
+    """创建区域达成分析图表"""
+    try:
+        new_products = data_dict.get('new_products', [])
+        kpi_products = data_dict.get('kpi_products', [])
+        star_products = [p for p in kpi_products if p not in new_products]
+        
+        # 计算销售额
+        sales_data_copy = sales_data.copy()
+        sales_data_copy['销售额'] = sales_data_copy['单价（箱）'] * sales_data_copy['求和项:数量（箱）']
+        
+        # 按区域聚合
+        regional_data = []
+        for region in sales_data_copy['所属区域'].unique():
+            region_data = sales_data_copy[sales_data_copy['所属区域'] == region]
+            total_sales = region_data['销售额'].sum()
+            
+            if total_sales > 0:
+                new_sales = region_data[region_data['产品代码'].isin(new_products)]['销售额'].sum()
+                star_sales = region_data[region_data['产品代码'].isin(star_products)]['销售额'].sum()
+                total_ratio = ((new_sales + star_sales) / total_sales * 100)
+                
+                regional_data.append({
+                    'region': region,
+                    'total_ratio': total_ratio,
+                    'achievement': '达标' if total_ratio >= 20 else '未达标'
+                })
+        
+        if not regional_data:
+            return None
+            
+        df = pd.DataFrame(regional_data).sort_values('total_ratio', ascending=False)
+        
+        colors = ['#10b981' if x == '达标' else '#ef4444' for x in df['achievement']]
+        
+        fig = go.Figure(data=[
+            go.Bar(
+                x=df['region'],
+                y=df['total_ratio'],
+                marker_color=colors,
+                text=[f"{val:.1f}%" for val in df['total_ratio']],
+                textposition='outside'
+            )
+        ])
+        
+        fig.add_hline(y=20, line_dash="dot", line_color="red", 
+                     annotation_text="目标线 20%", annotation_position="right")
+        
+        fig.update_layout(
+            title='各区域星品&新品占比达成情况',
+            xaxis_title='区域',
+            yaxis_title='占比 (%)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(248, 250, 252, 1)',
+            height=400,
+            font=dict(family='Inter')
+        )
+        
+        return fig
+    except Exception as e:
+        st.error(f"区域达成分析失败: {str(e)}")
+        return None
+
+# 产品关联分析
+def create_product_association_analysis(sales_data):
+    """创建产品关联分析图表"""
+    try:
+        # 计算销售额
+        sales_data_copy = sales_data.copy()
+        sales_data_copy['销售额'] = sales_data_copy['单价（箱）'] * sales_data_copy['求和项:数量（箱）']
+        
+        # 按客户和产品聚合，创建客户-产品矩阵
+        customer_product = sales_data_copy.groupby(['客户代码', '产品代码'])['销售额'].sum().reset_index()
+        
+        # 计算产品间的共现频率
+        from itertools import combinations
+        
+        # 获取每个客户购买的产品列表
+        customer_products = customer_product.groupby('客户代码')['产品代码'].apply(list).to_dict()
+        
+        # 计算产品对的共现次数
+        product_pairs = {}
+        for customer, products in customer_products.items():
+            if len(products) > 1:
+                for pair in combinations(products, 2):
+                    pair_key = tuple(sorted(pair))
+                    product_pairs[pair_key] = product_pairs.get(pair_key, 0) + 1
+        
+        # 获取最常见的产品对
+        if product_pairs:
+            top_pairs = sorted(product_pairs.items(), key=lambda x: x[1], reverse=True)[:10]
+            
+            # 创建网络图数据
+            nodes = set()
+            edges = []
+            
+            for (prod1, prod2), count in top_pairs:
+                nodes.add(prod1)
+                nodes.add(prod2)
+                edges.append({'source': prod1, 'target': prod2, 'weight': count})
+            
+            # 创建散点图显示关联强度
+            pairs_df = pd.DataFrame([
+                {'产品对': f"{pair[0]}-{pair[1]}", '共现次数': count}
+                for pair, count in top_pairs
+            ])
+            
+            fig = go.Figure(data=[
+                go.Bar(
+                    x=pairs_df['产品对'],
+                    y=pairs_df['共现次数'],
+                    marker_color='#667eea',
+                    text=pairs_df['共现次数'],
+                    textposition='outside'
+                )
+            ])
+            
+            fig.update_layout(
+                title='产品关联度分析 - 客户共同购买频次',
+                xaxis_title='产品对',
+                yaxis_title='共现次数',
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(248, 250, 252, 1)',
+                height=400,
+                font=dict(family='Inter'),
+                xaxis={'tickangle': 45}
+            )
+            
+            return fig
+        else:
+            return None
+    except Exception as e:
+        st.error(f"产品关联分析失败: {str(e)}")
+        return None
+
+# 产品共现矩阵
+def create_product_cooccurrence_matrix(sales_data):
+    """创建产品共现矩阵"""
+    try:
+        # 获取销量最高的前10个产品
+        sales_data_copy = sales_data.copy()
+        sales_data_copy['销售额'] = sales_data_copy['单价（箱）'] * sales_data_copy['求和项:数量（箱）']
+        
+        top_products = sales_data_copy.groupby('产品代码')['销售额'].sum().nlargest(10).index.tolist()
+        
+        # 筛选数据
+        filtered_data = sales_data_copy[sales_data_copy['产品代码'].isin(top_products)]
+        
+        # 按客户聚合产品
+        customer_products = filtered_data.groupby('客户代码')['产品代码'].apply(set).to_dict()
+        
+        # 创建共现矩阵
+        matrix_data = []
+        for prod1 in top_products:
+            row = []
+            for prod2 in top_products:
+                if prod1 == prod2:
+                    cooccurrence = 0
+                else:
+                    # 计算两个产品在同一客户中出现的次数
+                    cooccurrence = sum(1 for products in customer_products.values() 
+                                     if prod1 in products and prod2 in products)
+                row.append(cooccurrence)
+            matrix_data.append(row)
+        
+        # 创建DataFrame
+        matrix_df = pd.DataFrame(matrix_data, index=top_products, columns=top_products)
+        return matrix_df
+    except Exception as e:
+        st.error(f"共现矩阵计算失败: {str(e)}")
+        return None
+
+# 覆盖分析
+def create_coverage_analysis(sales_data, data_dict):
+    """创建区域产品覆盖分析"""
+    try:
+        # 计算各区域的产品覆盖情况
+        region_coverage = []
+        
+        all_products = set(sales_data['产品代码'].unique())
+        dashboard_products = set(data_dict.get('dashboard_products', []))
+        
+        for region in sales_data['所属区域'].unique():
+            region_data = sales_data[sales_data['所属区域'] == region]
+            region_products = set(region_data['产品代码'].unique())
+            
+            # 计算覆盖率
+            if dashboard_products:
+                coverage_rate = len(region_products & dashboard_products) / len(dashboard_products) * 100
+            else:
+                coverage_rate = len(region_products) / len(all_products) * 100
+            
+            region_coverage.append({
+                'region': region,
+                'coverage_rate': coverage_rate,
+                'product_count': len(region_products)
+            })
+        
+        df = pd.DataFrame(region_coverage).sort_values('coverage_rate', ascending=False)
+        
+        fig = go.Figure(data=[
+            go.Bar(
+                x=df['region'],
+                y=df['coverage_rate'],
+                marker_color='#3b82f6',
+                text=[f"{val:.1f}%" for val in df['coverage_rate']],
+                textposition='outside',
+                hovertemplate='<b>%{x}</b><br>覆盖率: %{y:.1f}%<br>产品数: %{customdata}<extra></extra>',
+                customdata=df['product_count']
+            )
+        ])
+        
+        fig.update_layout(
+            title='各区域产品覆盖率分析',
+            xaxis_title='区域',
+            yaxis_title='覆盖率 (%)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(248, 250, 252, 1)',
+            height=400,
+            font=dict(family='Inter')
+        )
+        
+        return fig
+    except Exception as e:
+        st.error(f"覆盖分析失败: {str(e)}")
+        return None
+
+# 漏铺产品识别
+def identify_missing_products(sales_data, data_dict):
+    """识别各区域的漏铺产品"""
+    try:
+        dashboard_products = data_dict.get('dashboard_products', [])
+        if not dashboard_products:
+            return None
+        
+        missing_data = []
+        
+        for region in sales_data['所属区域'].unique():
+            region_data = sales_data[sales_data['所属区域'] == region]
+            region_products = set(region_data['产品代码'].unique())
+            
+            # 找出该区域缺失的重点产品
+            missing_products = set(dashboard_products) - region_products
+            
+            for product in missing_products:
+                missing_data.append({
+                    '区域': region,
+                    '漏铺产品': product,
+                    '建议': '重点推广'
+                })
+        
+        if missing_data:
+            return pd.DataFrame(missing_data)
+        else:
+            return None
+    except Exception as e:
+        st.error(f"漏铺产品识别失败: {str(e)}")
+        return None
+
+# 季节性分析
+def create_seasonal_analysis(sales_data):
+    """创建季节性销售分析"""
+    try:
+        # 计算销售额
+        sales_data_copy = sales_data.copy()
+        sales_data_copy['销售额'] = sales_data_copy['单价（箱）'] * sales_data_copy['求和项:数量（箱）']
+        
+        # 按月份聚合
+        monthly_sales = sales_data_copy.groupby('发运月份')['销售额'].sum().reset_index()
+        monthly_sales = monthly_sales.sort_values('发运月份')
+        
+        # 计算月度环比增长率
+        monthly_sales['growth_rate'] = monthly_sales['销售额'].pct_change() * 100
+        
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        
+        # 添加销售额柱状图
+        fig.add_trace(
+            go.Bar(
+                x=monthly_sales['发运月份'],
+                y=monthly_sales['销售额'],
+                name='月度销售额',
+                marker_color='#3b82f6',
+                yaxis='y'
+            ),
+            secondary_y=False
+        )
+        
+        # 添加增长率折线图
+        fig.add_trace(
+            go.Scatter(
+                x=monthly_sales['发运月份'],
+                y=monthly_sales['growth_rate'],
+                mode='lines+markers',
+                name='环比增长率',
+                line=dict(color='#ef4444', width=3),
+                marker=dict(size=8),
+                yaxis='y2'
+            ),
+            secondary_y=True
+        )
+        
+        # 设置标题和轴标签
+        fig.update_layout(
+            title='月度销售趋势与季节性分析',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(248, 250, 252, 1)',
+            height=400,
+            font=dict(family='Inter')
+        )
+        
+        fig.update_xaxes(title_text="月份")
+        fig.update_yaxes(title_text="销售额", secondary_y=False)
+        fig.update_yaxes(title_text="增长率 (%)", secondary_y=True)
+        
+        return fig
+    except Exception as e:
+        st.error(f"季节性分析失败: {str(e)}")
+        return None
+
+# 月度热力图
+def create_monthly_heatmap(sales_data):
+    """创建月度销售热力图"""
+    try:
+        # 计算销售额
+        sales_data_copy = sales_data.copy()
+        sales_data_copy['销售额'] = sales_data_copy['单价（箱）'] * sales_data_copy['求和项:数量（箱）']
+        
+        # 获取销量前10的产品
+        top_products = sales_data_copy.groupby('产品代码')['销售额'].sum().nlargest(10).index.tolist()
+        
+        # 创建产品-月份销售矩阵
+        pivot_data = sales_data_copy[sales_data_copy['产品代码'].isin(top_products)].pivot_table(
+            index='产品代码',
+            columns='发运月份',
+            values='销售额',
+            aggfunc='sum',
+            fill_value=0
+        )
+        
+        fig = go.Figure(data=go.Heatmap(
+            z=pivot_data.values,
+            x=pivot_data.columns,
+            y=[f"产品{str(prod)[-4:]}" for prod in pivot_data.index],
+            colorscale='Blues',
+            hovertemplate='产品: %{y}<br>月份: %{x}<br>销售额: %{z:,.0f}<extra></extra>'
+        ))
+        
+        fig.update_layout(
+            title='产品月度销售热力图',
+            xaxis_title='月份',
+            yaxis_title='产品',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(248, 250, 252, 1)',
+            height=500,
+            font=dict(family='Inter')
+        )
+        
+        return fig
+    except Exception as e:
+        st.error(f"热力图创建失败: {str(e)}")
+        return None
     try:
         # 优先使用4月促销数据
         promo_data = data_dict.get('april_promo_data')
@@ -850,6 +1313,26 @@ def create_promotion_chart(data_dict):
     except Exception as e:
         st.error(f"❌ 促销图表创建失败: {str(e)}")
         return None
+
+# 检查页面跳转状态 - 必须在主内容之前
+if 'switch_to_home' in st.session_state and st.session_state.switch_to_home:
+    st.session_state.switch_to_home = False
+    try:
+        st.switch_page("app.py")
+    except Exception as e:
+        st.error(f"❌ 返回主页失败: {str(e)}")
+
+if 'switch_to_inventory' in st.session_state and st.session_state.switch_to_inventory:
+    st.session_state.switch_to_inventory = False
+    st.info("📊 预测库存分析页面：功能开发中，敬请期待...")
+
+if 'switch_to_customer' in st.session_state and st.session_state.switch_to_customer:
+    st.session_state.switch_to_customer = False
+    st.info("👥 客户依赖分析页面：功能开发中，敬请期待...")
+
+if 'switch_to_sales' in st.session_state and st.session_state.switch_to_sales:
+    st.session_state.switch_to_sales = False
+    st.info("🎯 销售达成分析页面：功能开发中，敬请期待...")
 
 # 主函数
 def main():
@@ -1032,43 +1515,108 @@ def main():
         else:
             st.error("❌ 促销数据不足或格式不正确，无法生成图表")
     
-    # 标签页4-7: 其他分析模块
+    # 标签页4: 星品&新品总占比达成分析
     with tabs[3]:
         st.markdown("### 📈 星品&新品总占比达成分析")
         
-        # 显示实际的星品新品分析
-        col1, col2 = st.columns(2)
+        # 创建达成情况仪表盘
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("#### 🌟 新品表现分析")
-            new_products = data_dict.get('new_products', [])
-            if new_products:
-                st.write(f"新品代码数量: {len(new_products)}个")
-                st.write(f"新品销售占比: {key_metrics['new_product_ratio']:.1f}%")
-            else:
-                st.warning("未找到新品代码数据")
+            # 目标vs实际
+            target_ratio = 20.0  # 目标20%
+            actual_ratio = key_metrics['total_star_new_ratio']
+            achievement_rate = (actual_ratio / target_ratio * 100)
+            
+            st.metric(
+                label="🎯 目标达成率",
+                value=f"{achievement_rate:.1f}%",
+                delta=f"目标{target_ratio}% 实际{actual_ratio:.1f}%"
+            )
         
         with col2:
-            st.markdown("#### ⭐ 星品表现分析")
-            kpi_products = data_dict.get('kpi_products', [])
-            if kpi_products:
-                star_count = len([p for p in kpi_products if p not in new_products])
-                st.write(f"星品代码数量: {star_count}个")
-                st.write(f"星品销售占比: {key_metrics['star_product_ratio']:.1f}%")
-            else:
-                st.warning("未找到KPI产品代码数据")
+            st.metric(
+                label="🌟 新品贡献",
+                value=f"{key_metrics['new_product_ratio']:.1f}%",
+                delta=f"{len(data_dict.get('new_products', []))}个新品"
+            )
+        
+        with col3:
+            st.metric(
+                label="⭐ 星品贡献", 
+                value=f"{key_metrics['star_product_ratio']:.1f}%",
+                delta=f"{len(data_dict.get('kpi_products', [])) - len(data_dict.get('new_products', []))}个星品"
+            )
+        
+        # 趋势分析图表
+        sales_data = data_dict.get('sales_data')
+        if sales_data is not None and '发运月份' in sales_data.columns:
+            # 按月份分析星品新品占比趋势
+            monthly_analysis = create_monthly_trend_chart(sales_data, data_dict)
+            if monthly_analysis:
+                st.plotly_chart(monthly_analysis, use_container_width=True)
+        
+        # 区域达成分析
+        if sales_data is not None and '所属区域' in sales_data.columns:
+            regional_achievement = create_regional_achievement_chart(sales_data, data_dict)
+            if regional_achievement:
+                st.plotly_chart(regional_achievement, use_container_width=True)
     
+    # 标签页5: 产品关联分析
     with tabs[4]:
         st.markdown("### 🔗 产品关联分析")
-        st.info("🚧 该模块需要更多历史数据支持，将基于购物篮分析提供产品关联规则...")
+        
+        sales_data = data_dict.get('sales_data')
+        if sales_data is not None and '客户代码' in sales_data.columns and '产品代码' in sales_data.columns:
+            # 基于客户购买行为的关联分析
+            association_chart = create_product_association_analysis(sales_data)
+            if association_chart:
+                st.plotly_chart(association_chart, use_container_width=True)
+            
+            # 产品共现矩阵
+            co_occurrence = create_product_cooccurrence_matrix(sales_data)
+            if co_occurrence is not None:
+                st.markdown("#### 📊 产品共现分析")
+                st.dataframe(co_occurrence, use_container_width=True)
+        else:
+            st.warning("⚠️ 需要客户和产品数据进行关联分析")
     
+    # 标签页6: 漏铺市分析 
     with tabs[5]:
         st.markdown("### 📍 漏铺市分析")
-        st.info("🚧 该模块需要区域覆盖数据支持，将识别各区域产品覆盖空白和机会...")
+        
+        sales_data = data_dict.get('sales_data')
+        if sales_data is not None:
+            # 区域产品覆盖分析
+            coverage_analysis = create_coverage_analysis(sales_data, data_dict)
+            if coverage_analysis:
+                st.plotly_chart(coverage_analysis, use_container_width=True)
+            
+            # 漏铺产品识别
+            missing_products = identify_missing_products(sales_data, data_dict)
+            if missing_products:
+                st.markdown("#### 🔍 漏铺产品识别")
+                st.dataframe(missing_products, use_container_width=True)
+        else:
+            st.warning("⚠️ 需要销售数据进行漏铺分析")
     
+    # 标签页7: 季节性分析
     with tabs[6]:
         st.markdown("### 📅 季节性分析")
-        st.info("🚧 该模块需要时间序列数据支持，将展示产品的季节性销售特征和趋势...")
+        
+        sales_data = data_dict.get('sales_data')
+        if sales_data is not None and '发运月份' in sales_data.columns:
+            # 季节性趋势分析
+            seasonal_chart = create_seasonal_analysis(sales_data)
+            if seasonal_chart:
+                st.plotly_chart(seasonal_chart, use_container_width=True)
+            
+            # 月度销售热力图
+            heatmap_chart = create_monthly_heatmap(sales_data)
+            if heatmap_chart:
+                st.plotly_chart(heatmap_chart, use_container_width=True)
+        else:
+            st.warning("⚠️ 需要时间序列数据进行季节性分析")
 
 if __name__ == "__main__":
     main()
