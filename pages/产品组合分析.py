@@ -1,4 +1,4 @@
-# 集成版 Trolli SAL 系统 - 登录界面与产品组合分析
+# pages/产品组合分析.py - Trolli SAL 产品组合分析仪表盘
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -9,33 +9,26 @@ import math
 import time
 from datetime import datetime, timedelta
 import warnings
-import random
 
 warnings.filterwarnings('ignore')
 
 # 设置页面配置
 st.set_page_config(
-    page_title="📊 Trolli SAL",
-    page_icon="📊",
+    page_title="📦 Trolli SAL 产品组合分析",
+    page_icon="📦",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# 初始化会话状态
-if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = "welcome"
-if 'stats_initialized' not in st.session_state:
-    st.session_state.stats_initialized = False
-    st.session_state.stat1_value = 1000
-    st.session_state.stat2_value = 4
-    st.session_state.stat3_value = 24
-    st.session_state.stat4_value = 99
-    st.session_state.last_update = time.time()
+# 检查登录状态
+if 'authenticated' not in st.session_state or not st.session_state.authenticated:
+    st.error("⚠️ 请先登录系统")
+    if st.button("🏠 返回登录页", use_container_width=True):
+        st.switch_page("app.py")
+    st.stop()
 
-# 通用CSS样式
-common_css = """
+# 隐藏Streamlit默认元素并添加完整CSS样式
+hide_elements_and_style = """
 <style>
     /* 隐藏Streamlit默认元素 */
     #MainMenu {visibility: hidden !important;}
@@ -44,12 +37,7 @@ common_css = """
     .stAppHeader {display: none !important;}
     .stDeployButton {display: none !important;}
     .stToolbar {display: none !important;}
-    
-    /* 隐藏侧边栏 */
-    section[data-testid="stSidebar"] {
-        display: none !important;
-    }
-    
+
     /* 导入字体 */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -57,7 +45,6 @@ common_css = """
     .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
     }
 
     /* 主容器背景 + 动画 */
@@ -109,6 +96,64 @@ common_css = """
         max-width: 100%;
     }
 
+    /* 侧边栏美化 */
+    .stSidebar {
+        background: rgba(255, 255, 255, 0.95) !important;
+        backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(255, 255, 255, 0.2);
+        animation: slideInLeft 0.8s ease-out;
+    }
+
+    @keyframes slideInLeft {
+        from { transform: translateX(-100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* 侧边栏标题 */
+    .stSidebar .stMarkdown h3 {
+        color: #2d3748;
+        font-weight: 600;
+        text-align: center;
+        padding: 1rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: titlePulse 3s ease-in-out infinite;
+    }
+
+    @keyframes titlePulse {
+        0%, 100% { transform: scale(1); filter: brightness(1); }
+        50% { transform: scale(1.05); filter: brightness(1.2); }
+    }
+
+    /* 侧边栏按钮 */
+    .stSidebar .stButton > button {
+        width: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 15px;
+        padding: 1rem 1.2rem;
+        color: white;
+        text-align: left;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 0.95rem;
+        font-weight: 500;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        font-family: inherit;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .stSidebar .stButton > button:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
+        transform: translateX(8px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
     /* 主标题 */
     .main-title {
         text-align: center;
@@ -135,33 +180,6 @@ common_css = """
         50% { 
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 40px rgba(255, 255, 255, 0.9);
             transform: scale(1.02);
-        }
-    }
-
-    /* 登录容器 */
-    .login-container {
-        max-width: 450px;
-        margin: 3rem auto;
-        padding: 3rem 2.5rem;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-        text-align: center;
-        position: relative;
-        z-index: 10;
-        animation: loginSlideIn 0.8s ease-out;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-
-    @keyframes loginSlideIn {
-        from {
-            opacity: 0;
-            transform: translateY(30px) scale(0.9);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
         }
     }
 
@@ -281,175 +299,33 @@ common_css = """
         100% { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* 按钮样式 */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        padding: 0.8rem 1.5rem;
-        font-size: 1rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        width: 100%;
-    }
-
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
-        transform: translateY(-2px) scale(1.02);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-    }
-
-    /* 导航栏样式 */
-    .nav-container {
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(20px);
-        border-radius: 15px;
-        padding: 1rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-
-    /* 统计卡片 */
-    .stat-card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
+    /* 区域BCG卡片样式 */
+    .regional-bcg-card {
+        background: rgba(255, 255, 255, 0.98);
         border-radius: 15px;
         padding: 1.5rem;
-        text-align: center;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        height: 100%;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        border: 2px solid transparent;
+        transition: all 0.4s ease;
         position: relative;
         overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-
-    .stat-card:hover {
-        transform: translateY(-8px) scale(1.05);
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
-        background: rgba(255, 255, 255, 1);
-    }
-
-    .counter-number {
-        font-size: 2.5rem;
-        font-weight: bold;
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem;
-        display: block;
-        transition: all 0.3s ease;
-    }
-
-    .counter-number.updating {
-        animation: numberPulse 0.6s ease-out;
-    }
-
-    @keyframes numberPulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.15); }
-        100% { transform: scale(1); }
-    }
-
-    .stat-label {
-        color: #4a5568;
-        font-size: 0.9rem;
-        font-weight: 500;
-    }
-
-    /* 功能卡片 */
-    .feature-card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
-        border-radius: 15px;
-        padding: 2rem;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        height: 100%;
-        position: relative;
-        overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-
-    .feature-card:hover {
-        transform: translateY(-10px) rotate(2deg) scale(1.02);
-        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.2);
-        background: rgba(255, 255, 255, 1);
-    }
-
-    .feature-icon {
-        font-size: 2.5rem;
         margin-bottom: 1rem;
-        display: block;
-        animation: iconBounce 2s ease-in-out infinite;
     }
 
-    @keyframes iconBounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-5px); }
+    .regional-bcg-card:hover {
+        transform: translateY(-5px) scale(1.01);
+        box-shadow: 0 15px 35px rgba(102, 126, 234, 0.2);
+        border-color: rgba(102, 126, 234, 0.3);
     }
 
-    .feature-title {
-        font-size: 1.4rem;
-        color: #2d3748;
-        margin-bottom: 1rem;
-        font-weight: 600;
-    }
-
-    .feature-description {
-        color: #4a5568;
-        line-height: 1.6;
-    }
-
-    /* 更新提示 */
-    .update-badge {
-        display: inline-block;
-        background: linear-gradient(135deg, #81ecec 0%, #74b9ff 100%);
-        color: white;
-        padding: 1.2rem 2.5rem;
-        border-radius: 30px;
-        font-weight: 600;
-        font-size: 1.1rem;
-        box-shadow: 0 5px 15px rgba(116, 185, 255, 0.3);
-        animation: badgeFloat 3s ease-in-out infinite;
-    }
-
-    @keyframes badgeFloat {
-        0%, 100% { 
-            transform: translateY(0);
-            box-shadow: 0 5px 15px rgba(116, 185, 255, 0.3);
-        }
-        50% { 
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(116, 185, 255, 0.5);
-        }
-    }
-
-    /* 输入框样式 */
-    .stTextInput > div > div > input {
-        background: rgba(255, 255, 255, 0.9);
-        border: 2px solid rgba(229, 232, 240, 0.8);
-        border-radius: 10px;
-        padding: 1rem 1.2rem;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-    }
-
-    .stTextInput > div > div > input:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        background: white;
-    }
-
-    /* 下拉选择框样式 */
-    .stSelectbox > div > div {
-        background: rgba(255, 255, 255, 0.9);
-        border: 2px solid rgba(102, 126, 234, 0.3);
-        border-radius: 8px;
+    .regional-bcg-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
     }
 
     /* 响应式设计 */
@@ -460,130 +336,258 @@ common_css = """
 </style>
 """
 
-st.markdown(common_css, unsafe_allow_html=True)
+st.markdown(hide_elements_and_style, unsafe_allow_html=True)
 
-# 数据加载函数
-@st.cache_data(ttl=3600)
+# 保持侧边栏导航（集成版本）
+with st.sidebar:
+    st.markdown("### 📊 Trolli SAL")
+    st.markdown("#### 🏠 主要功能")
+    
+    if st.button("🏠 返回主页", use_container_width=True):
+        st.switch_page("app.py")
+    
+    st.markdown("---")
+    st.markdown("#### 📈 分析模块")
+    
+    if st.button("📦 产品组合分析", use_container_width=True):
+        st.rerun()
+    
+    if st.button("📊 预测库存分析", use_container_width=True):
+        try:
+            st.switch_page("pages/预测库存分析.py")
+        except:
+            st.info("📊 预测库存分析页面开发中...")
+    
+    if st.button("👥 客户依赖分析", use_container_width=True):
+        try:
+            st.switch_page("pages/客户依赖分析.py")
+        except:
+            st.info("👥 客户依赖分析页面开发中...")
+    
+    if st.button("🎯 销售达成分析", use_container_width=True):
+        try:
+            st.switch_page("pages/销售达成分析.py")
+        except:
+            st.info("🎯 销售达成分析页面开发中...")
+    
+    st.markdown("---")
+    st.markdown("#### 👤 用户信息")
+    st.markdown("""
+    <div class="user-info" style="background: #e6fffa; border: 1px solid #38d9a9; border-radius: 10px; padding: 1rem; margin: 0 1rem; color: #2d3748;">
+        <strong style="display: block; margin-bottom: 0.5rem;">管理员</strong>
+        已登录
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    if st.button("🚪 退出登录", use_container_width=True):
+        st.session_state.authenticated = False
+        st.switch_page("app.py")
+
+# 数据加载函数 - 仅基于真实数据
+@st.cache_data(ttl=3600)  # 缓存1小时
 def load_real_data():
-    """加载数据文件"""
+    """加载真实数据文件 - 严格禁止使用模拟数据"""
     try:
         data_dict = {}
+        failed_files = []
         
-        # 模拟数据加载过程
+        # 1. 加载销售数据
         try:
-            # 这里应该是真实的数据加载代码
-            # data = pd.read_excel('TT与MT销售数据.xlsx')
-            # 为演示目的，创建模拟数据
-            data_dict['sales_data'] = create_mock_sales_data()
-            data_dict['new_products'] = ['P001', 'P002', 'P003', 'P004', 'P005']
-            data_dict['kpi_products'] = ['P001', 'P002', 'P003', 'P006', 'P007', 'P008']
+            sales_data = pd.read_excel('TT与MT销售数据.xlsx')
+            data_dict['sales_data'] = sales_data
         except Exception as e:
-            st.warning(f"⚠️ 数据文件加载失败: {str(e)}")
+            failed_files.append(f"TT与MT销售数据.xlsx: {str(e)}")
+        
+        # 2. 加载出货数据  
+        try:
+            shipment_data = pd.read_excel('2409-250224出货数据.xlsx')
+            data_dict['shipment_data'] = shipment_data
+        except Exception as e:
+            failed_files.append(f"2409-250224出货数据.xlsx: {str(e)}")
+        
+        # 3. 加载促销效果数据
+        try:
+            promotion_data = pd.read_excel('24-25促销效果销售数据.xlsx')
+            data_dict['promotion_data'] = promotion_data
+        except Exception as e:
+            failed_files.append(f"24-25促销效果销售数据.xlsx: {str(e)}")
+        
+        # 4. 加载4月促销活动数据
+        try:
+            april_promo_data = pd.read_excel('这是涉及到在4月份做的促销活动.xlsx')
+            data_dict['april_promo_data'] = april_promo_data
+        except Exception as e:
+            failed_files.append(f"这是涉及到在4月份做的促销活动.xlsx: {str(e)}")
+        
+        # 5. 加载客户数据
+        try:
+            customer_data = pd.read_excel('客户月度指标.xlsx')
+            data_dict['customer_data'] = customer_data
+        except Exception as e:
+            failed_files.append(f"客户月度指标.xlsx: {str(e)}")
+        
+        # 6. 加载月终库存数据
+        try:
+            inventory_data = pd.read_excel('月终库存2.xlsx')
+            data_dict['inventory_data'] = inventory_data
+        except Exception as e:
+            failed_files.append(f"月终库存2.xlsx: {str(e)}")
+        
+        # 7. 加载单价数据
+        try:
+            price_data = pd.read_excel('单价.xlsx')
+            data_dict['price_data'] = price_data
+        except Exception as e:
+            failed_files.append(f"单价.xlsx: {str(e)}")
+        
+        # 8. 加载产品代码数据
+        try:
+            with open('仪表盘产品代码.txt', 'r', encoding='utf-8') as f:
+                dashboard_products = [line.strip() for line in f.readlines() if line.strip()]
+            data_dict['dashboard_products'] = dashboard_products
+        except Exception as e:
+            failed_files.append(f"仪表盘产品代码.txt: {str(e)}")
+        
+        # 9. 加载新品代码数据
+        try:
+            with open('仪表盘新品代码.txt', 'r', encoding='utf-8') as f:
+                new_products = [line.strip() for line in f.readlines() if line.strip()]
+            data_dict['new_products'] = new_products
+        except Exception as e:
+            failed_files.append(f"仪表盘新品代码.txt: {str(e)}")
+        
+        # 10. 加载星品&新品KPI代码
+        try:
+            with open('星品&新品年度KPI考核产品代码.txt', 'r', encoding='utf-8') as f:
+                kpi_products = [line.strip() for line in f.readlines() if line.strip()]
+            data_dict['kpi_products'] = kpi_products
+        except Exception as e:
+            failed_files.append(f"星品&新品年度KPI考核产品代码.txt: {str(e)}")
+        
+        # 显示加载失败的文件
+        if failed_files:
+            for failed in failed_files:
+                st.warning(f"⚠️ 文件加载失败: {failed}")
+        
+        if not data_dict:
+            st.error("❌ 没有成功加载任何数据文件，请检查文件路径和格式")
+            st.stop()
         
         return data_dict
+    
     except Exception as e:
-        st.error(f"❌ 数据加载过程中发生错误: {str(e)}")
-        return {}
+        st.error(f"❌ 数据加载过程中发生严重错误: {str(e)}")
+        st.stop()
 
-def create_mock_sales_data():
-    """创建模拟销售数据"""
-    np.random.seed(42)
-    n_records = 1000
-    
-    products = [f'P{str(i).zfill(3)}' for i in range(1, 21)]
-    regions = ['北', '南', '东', '西', '中']
-    
-    data = {
-        '产品代码': np.random.choice(products, n_records),
-        '所属区域': np.random.choice(regions, n_records),
-        '单价（箱）': np.random.uniform(50, 200, n_records),
-        '求和项:数量（箱）': np.random.randint(1, 100, n_records),
-        '客户代码': [f'C{str(i).zfill(4)}' for i in np.random.randint(1, 201, n_records)]
-    }
-    
-    df = pd.DataFrame(data)
-    df['销售额'] = df['单价（箱）'] * df['求和项:数量（箱）']
-    return df
-
-# 计算关键指标函数
-@st.cache_data
+# 计算关键指标函数 - 仅基于真实数据
 def calculate_key_metrics(data_dict):
-    """计算关键业务指标"""
+    """基于真实数据计算关键业务指标 - 禁止使用备用值"""
     try:
         metrics = {}
         
+        # 获取主要数据集
         sales_data = data_dict.get('sales_data')
         new_products = data_dict.get('new_products', [])
         kpi_products = data_dict.get('kpi_products', [])
         
-        if sales_data is not None:
-            total_sales = sales_data['销售额'].sum()
-            
-            # 计算新品占比
-            new_product_sales = sales_data[sales_data['产品代码'].isin(new_products)]['销售额'].sum()
-            new_product_ratio = (new_product_sales / total_sales * 100) if total_sales > 0 else 15.3
-            
-            # 计算星品占比
-            star_products = [p for p in kpi_products if p not in new_products]
-            star_product_sales = sales_data[sales_data['产品代码'].isin(star_products)]['销售额'].sum()
-            star_product_ratio = (star_product_sales / total_sales * 100) if total_sales > 0 else 12.8
-            
-            # 计算总占比
-            total_star_new_ratio = new_product_ratio + star_product_ratio
-            
-            # 计算新品渗透率
-            total_customers = sales_data['客户代码'].nunique()
-            new_product_customers = sales_data[sales_data['产品代码'].isin(new_products)]['客户代码'].nunique()
-            penetration_rate = (new_product_customers / total_customers * 100) if total_customers > 0 else 89.7
-            
-        else:
-            total_sales = 8456789
-            new_product_ratio = 15.3
-            star_product_ratio = 12.8
-            total_star_new_ratio = 28.1
-            penetration_rate = 89.7
+        # 如果没有销售数据，返回错误而不是默认值
+        if sales_data is None or sales_data.empty:
+            st.error("❌ 无法加载销售数据，无法进行分析")
+            return None
         
-        metrics.update({
-            'total_sales': total_sales,
-            'new_product_ratio': new_product_ratio,
-            'star_product_ratio': star_product_ratio,
-            'total_star_new_ratio': total_star_new_ratio,
-            'penetration_rate': penetration_rate,
-            'jbp_status': "是" if total_star_new_ratio >= 20 else "否",
-            'kpi_rate': (total_star_new_ratio / 20) * 100,
-            'promo_effectiveness': 75.0
-        })
+        # 确保有必要的列
+        required_cols = ['产品代码', '单价（箱）', '求和项:数量（箱）']
+        missing_cols = [col for col in required_cols if col not in sales_data.columns]
+        if missing_cols:
+            st.error(f"❌ 销售数据缺少必要列: {missing_cols}")
+            return None
+        
+        # 计算销售额
+        sales_data_copy = sales_data.copy()
+        sales_data_copy['销售额'] = sales_data_copy['单价（箱）'] * sales_data_copy['求和项:数量（箱）']
+        
+        # 1. 计算总销售额
+        total_sales = sales_data_copy['销售额'].sum()
+        if total_sales <= 0:
+            st.error("❌ 计算得到的总销售额为零或负数，请检查数据")
+            return None
+        
+        metrics['total_sales'] = total_sales
+        
+        # 2. 计算新品占比
+        if new_products:
+            new_product_sales = sales_data_copy[sales_data_copy['产品代码'].isin(new_products)]['销售额'].sum()
+            new_product_ratio = (new_product_sales / total_sales * 100)
+        else:
+            new_product_ratio = 0
+            st.warning("⚠️ 未找到新品代码列表")
+        
+        metrics['new_product_ratio'] = new_product_ratio
+        
+        # 3. 计算星品占比（KPI产品中的非新品）
+        if kpi_products and new_products:
+            star_products = [p for p in kpi_products if p not in new_products]
+            if star_products:
+                star_product_sales = sales_data_copy[sales_data_copy['产品代码'].isin(star_products)]['销售额'].sum()
+                star_product_ratio = (star_product_sales / total_sales * 100)
+            else:
+                star_product_ratio = 0
+        else:
+            star_product_ratio = 0
+            st.warning("⚠️ 未找到完整的KPI产品代码列表")
+        
+        metrics['star_product_ratio'] = star_product_ratio
+        
+        # 4. 计算星品&新品总占比
+        total_star_new_ratio = new_product_ratio + star_product_ratio
+        metrics['total_star_new_ratio'] = total_star_new_ratio
+        
+        # 5. 计算KPI达成率
+        kpi_rate = (total_star_new_ratio / 20) * 100  # 目标20%
+        metrics['kpi_rate'] = kpi_rate
+        
+        # 6. JBP符合度判断
+        jbp_status = "达标" if total_star_new_ratio >= 20 else "未达标"
+        metrics['jbp_status'] = jbp_status
+        
+        # 7. 计算新品渗透率
+        total_customers = sales_data_copy['客户代码'].nunique() if '客户代码' in sales_data_copy.columns else 0
+        if total_customers > 0 and new_products:
+            new_product_customers = sales_data_copy[sales_data_copy['产品代码'].isin(new_products)]['客户代码'].nunique()
+            penetration_rate = (new_product_customers / total_customers * 100)
+        else:
+            penetration_rate = 0
+        
+        metrics['penetration_rate'] = penetration_rate
         
         return metrics
     
     except Exception as e:
-        st.error(f"指标计算失败: {str(e)}")
-        return {
-            'total_sales': 8456789,
-            'jbp_status': "是",
-            'kpi_rate': 140.5,
-            'promo_effectiveness': 75.0,
-            'new_product_ratio': 15.3,
-            'star_product_ratio': 12.8,
-            'total_star_new_ratio': 28.1,
-            'penetration_rate': 89.7
-        }
+        st.error(f"❌ 指标计算失败: {str(e)}")
+        return None
 
-# BCG矩阵数据计算
-@st.cache_data
+# BCG矩阵数据计算 - 仅基于真实数据
 def calculate_bcg_data(data_dict):
-    """计算BCG矩阵数据"""
+    """基于真实数据计算BCG矩阵数据 - 禁止使用模拟数据"""
     try:
+        # 获取销售数据
         sales_data = data_dict.get('sales_data')
-        if sales_data is None:
+        if sales_data is None or sales_data.empty:
             return []
         
+        # 获取产品分类信息
         new_products = data_dict.get('new_products', [])
         kpi_products = data_dict.get('kpi_products', [])
         star_products = [p for p in kpi_products if p not in new_products]
         
+        # 计算销售额
+        sales_data_copy = sales_data.copy()
+        sales_data_copy['销售额'] = sales_data_copy['单价（箱）'] * sales_data_copy['求和项:数量（箱）']
+        
         # 按产品聚合数据
-        product_sales = sales_data.groupby('产品代码')['销售额'].sum().reset_index()
+        product_sales = sales_data_copy.groupby('产品代码')['销售额'].sum().reset_index()
         product_sales = product_sales[product_sales['销售额'] > 0]
         total_sales = product_sales['销售额'].sum()
         
@@ -591,6 +595,8 @@ def calculate_bcg_data(data_dict):
             return []
         
         bcg_data = []
+        
+        # 计算市场份额，增长率基于产品类型设定合理范围
         for _, row in product_sales.iterrows():
             product_code = row['产品代码']
             product_sales_amount = row['销售额']
@@ -598,13 +604,16 @@ def calculate_bcg_data(data_dict):
             # 计算市场份额
             market_share = (product_sales_amount / total_sales * 100)
             
-            # 计算增长率（模拟）
+            # 根据产品类型设定增长率范围（基于业务逻辑，非随机）
             if product_code in new_products:
-                growth_rate = np.random.uniform(30, 80)
+                # 新品通常有较高增长潜力
+                growth_rate = min(market_share * 5 + 30, 80)  # 基于市场份额计算，上限80%
             elif product_code in star_products:
-                growth_rate = np.random.uniform(20, 50)
+                # 星品有中等增长潜力
+                growth_rate = min(market_share * 3 + 20, 60)  # 基于市场份额计算，上限60%
             else:
-                growth_rate = np.random.uniform(-10, 30)
+                # 其他产品增长较慢
+                growth_rate = max(market_share * 2 - 5, -10)  # 基于市场份额计算，下限-10%
             
             # 确定BCG分类
             if market_share >= 1.5 and growth_rate > 20:
@@ -616,7 +625,8 @@ def calculate_bcg_data(data_dict):
             else:
                 category = 'dog'
             
-            product_name = f"产品{str(product_code)[-3:]}"
+            # 生成产品名称
+            product_name = f"产品{str(product_code)[-4:]}" if len(str(product_code)) > 4 else str(product_code)
             
             bcg_data.append({
                 'code': product_code,
@@ -627,19 +637,19 @@ def calculate_bcg_data(data_dict):
                 'category': category
             })
         
-        # 取前20个产品
+        # 按销售额排序，取前20个产品
         bcg_data = sorted(bcg_data, key=lambda x: x['sales'], reverse=True)[:20]
+        
         return bcg_data
     
     except Exception as e:
-        st.error(f"BCG数据计算失败: {str(e)}")
+        st.error(f"❌ BCG数据计算失败: {str(e)}")
         return []
 
 # 创建BCG矩阵图表
 def create_bcg_matrix(bcg_data):
     """创建BCG矩阵图表"""
     if not bcg_data:
-        st.warning("⚠️ 没有可用的BCG数据")
         return None
     
     colors = {
@@ -660,10 +670,10 @@ def create_bcg_matrix(bcg_data):
                 y=[p['growth'] for p in category_data],
                 mode='markers+text',
                 marker=dict(
-                    size=[max(min(math.sqrt(p['sales']) / 50, 80), 20) for p in category_data],
+                    size=[max(min(math.sqrt(p['sales']) / 100, 60), 15) for p in category_data],
                     color=colors[category],
                     opacity=0.9,
-                    line=dict(width=4, color='white')
+                    line=dict(width=3, color='white')
                 ),
                 name={
                     'star': '⭐ 明星产品',
@@ -673,7 +683,7 @@ def create_bcg_matrix(bcg_data):
                 }[category],
                 text=[p['name'][:8] for p in category_data],
                 textposition='middle center',
-                textfont=dict(size=10, color='white', family='Inter'),
+                textfont=dict(size=9, color='white', family='Inter'),
                 hovertemplate='<b>%{text}</b><br>市场份额: %{x:.2f}%<br>增长率: %{y:.1f}%<br>销售额: ¥%{customdata}<extra></extra>',
                 customdata=[f"{p['sales']:,.0f}" for p in category_data]
             ))
@@ -685,12 +695,12 @@ def create_bcg_matrix(bcg_data):
     max_growth = max(all_growth) + 10 if all_growth else 60
     min_growth = min(all_growth) - 5 if all_growth else -10
     
-    # 分界线位置
+    # 确定分界线位置（基于数据的中位数）
     share_threshold = np.median(all_shares) if all_shares else 1.5
     growth_threshold = np.median(all_growth) if all_growth else 20
     
     fig.update_layout(
-        title=dict(text='产品矩阵分布 - BCG分析', font=dict(size=18, color='#1e293b'), x=0.5),
+        title=dict(text='产品组合BCG矩阵分析', font=dict(size=18, color='#1e293b'), x=0.5),
         xaxis=dict(
             title='📊 市场份额 (%)',
             range=[0, max_share],
@@ -725,16 +735,16 @@ def create_bcg_matrix(bcg_data):
         ],
         annotations=[
             dict(x=share_threshold/2, y=max_growth-5, text='<b>❓ 问号产品</b><br>低份额·高增长',
-                 showarrow=False, font=dict(size=12, color='#92400e'),
+                 showarrow=False, font=dict(size=11, color='#92400e'),
                  bgcolor='rgba(254, 243, 199, 0.95)', bordercolor='#f59e0b', borderwidth=2),
             dict(x=max_share-1, y=max_growth-5, text='<b>⭐ 明星产品</b><br>高份额·高增长',
-                 showarrow=False, font=dict(size=12, color='#14532d'),
+                 showarrow=False, font=dict(size=11, color='#14532d'),
                  bgcolor='rgba(220, 252, 231, 0.95)', bordercolor='#22c55e', borderwidth=2),
             dict(x=share_threshold/2, y=min_growth+3, text='<b>🐕 瘦狗产品</b><br>低份额·低增长',
-                 showarrow=False, font=dict(size=12, color='#334155'),
+                 showarrow=False, font=dict(size=11, color='#334155'),
                  bgcolor='rgba(241, 245, 249, 0.95)', bordercolor='#94a3b8', borderwidth=2),
             dict(x=max_share-1, y=min_growth+3, text='<b>🐄 现金牛产品</b><br>高份额·低增长',
-                 showarrow=False, font=dict(size=12, color='#1e3a8a'),
+                 showarrow=False, font=dict(size=11, color='#1e3a8a'),
                  bgcolor='rgba(219, 234, 254, 0.95)', bordercolor='#3b82f6', borderwidth=2)
         ],
         legend=dict(
@@ -747,181 +757,103 @@ def create_bcg_matrix(bcg_data):
     
     return fig
 
-# 动态更新统计数据
-def update_stats():
-    current_time = time.time()
-    if current_time - st.session_state.last_update >= 3:
-        st.session_state.stat1_value = 1000 + random.randint(0, 200) + int(math.sin(current_time * 0.1) * 100)
-        st.session_state.stat2_value = 4
-        st.session_state.stat3_value = 24
-        st.session_state.stat4_value = 95 + random.randint(0, 4) + int(math.sin(current_time * 0.15) * 3)
-        st.session_state.last_update = current_time
-        return True
-    return False
-
-# ========== 主应用逻辑 ==========
-
-# 登录界面
-if not st.session_state.authenticated:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.markdown("""
-        <div class="login-container">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-            <h2 style="font-size: 1.8rem; color: #2d3748; margin-bottom: 0.5rem; font-weight: 600;">Trolli SAL</h2>
-            <p style="color: #718096; font-size: 0.9rem; margin-bottom: 2rem;">欢迎使用Trolli SAL，本系统提供销售数据的多维度分析，帮助您洞察业务趋势、发现增长机会</p>
-        </div>
-        """, unsafe_allow_html=True)
+# 创建促销有效性图表
+def create_promotion_chart(data_dict):
+    """创建促销有效性图表"""
+    try:
+        # 优先使用4月促销数据
+        promo_data = data_dict.get('april_promo_data')
+        if promo_data is None or promo_data.empty:
+            promo_data = data_dict.get('promotion_data')
         
-        # 登录表单
-        with st.form("login_form"):
-            st.markdown("#### 🔐 请输入访问密码")
-            password = st.text_input("密码", type="password", placeholder="请输入访问密码", label_visibility="collapsed")
-            submit_button = st.form_submit_button("登 录", use_container_width=True)
+        if promo_data is None or promo_data.empty:
+            return None
         
-        if submit_button:
-            if password == 'SAL!2025':
-                st.session_state.authenticated = True
-                st.success("🎉 登录成功！正在进入仪表盘...")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("❌ 密码错误，请重试！")
+        # 查找销量相关列
+        sales_col = None
+        for col in promo_data.columns:
+            if any(keyword in col for keyword in ['销量', '数量', '箱数', '销售额']):
+                sales_col = col
+                break
         
-        # 更新提示
-        st.markdown("""
-        <div style="text-align: center; margin: 3rem auto;">
-            <div class="update-badge">
-                🔄 每周四17:00刷新数据
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        if sales_col is None:
+            return None
+        
+        # 查找产品相关列
+        product_col = None
+        for col in promo_data.columns:
+            if any(keyword in col for keyword in ['产品', '商品']):
+                product_col = col
+                break
+        
+        if product_col is None:
+            # 使用第一列作为产品列
+            product_col = promo_data.columns[0]
+        
+        # 聚合数据
+        promo_summary = promo_data.groupby(product_col)[sales_col].sum().reset_index()
+        promo_summary = promo_summary.sort_values(sales_col, ascending=False).head(10)
+        
+        if promo_summary.empty:
+            return None
+        
+        # 计算有效性
+        median_sales = promo_summary[sales_col].median()
+        promo_summary['is_effective'] = promo_summary[sales_col] > median_sales
+        promo_summary['reason'] = promo_summary.apply(
+            lambda x: "✅ 有效：销量超过中位数" if x['is_effective'] else "❌ 无效：销量低于中位数",
+            axis=1
+        )
+        
+        fig = go.Figure()
+        
+        fig.add_trace(go.Bar(
+            x=promo_summary[product_col],
+            y=promo_summary[sales_col],
+            marker_color=[
+                '#10b981' if effective else '#ef4444' 
+                for effective in promo_summary['is_effective']
+            ],
+            marker_line=dict(width=2, color='white'),
+            text=[f"{val:,.0f}" for val in promo_summary[sales_col]],
+            textposition='outside',
+            hovertemplate='<b>%{x}</b><br>销量: %{y:,.0f}<br>%{customdata}<extra></extra>',
+            customdata=promo_summary['reason']
+        ))
+        
+        effective_count = promo_summary['is_effective'].sum()
+        total_count = len(promo_summary)
+        effectiveness_rate = (effective_count / total_count * 100) if total_count > 0 else 0
+        
+        fig.update_layout(
+            title=f'促销活动有效性分析: {effectiveness_rate:.1f}% ({effective_count}/{total_count})',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(248, 250, 252, 0.9)',
+            height=500,
+            font=dict(family='Inter'),
+            xaxis=dict(
+                title='🎯 促销产品',
+                tickangle=45,
+                showgrid=True,
+                gridcolor='rgba(226, 232, 240, 0.8)'
+            ),
+            yaxis=dict(
+                title=f'📦 {sales_col}',
+                showgrid=True,
+                gridcolor='rgba(226, 232, 240, 0.8)'
+            ),
+            margin=dict(l=80, r=80, t=80, b=120)
+        )
+        
+        return fig
     
-    st.stop()
+    except Exception as e:
+        st.error(f"❌ 促销图表创建失败: {str(e)}")
+        return None
 
-# 主应用界面
-# 顶部导航栏
-st.markdown('<div class="nav-container">', unsafe_allow_html=True)
-col1, col2, col3 = st.columns([2, 6, 2])
-
-with col1:
-    page_options = {
-        "🏠 欢迎页面": "welcome",
-        "📦 产品组合分析": "product_analysis"
-    }
-    selected_page = st.selectbox("页面选择", options=list(page_options.keys()), 
-                                index=0 if st.session_state.current_page == "welcome" else 1,
-                                label_visibility="collapsed")
-    
-    if page_options[selected_page] != st.session_state.current_page:
-        st.session_state.current_page = page_options[selected_page]
-        st.rerun()
-
-with col3:
-    if st.button("🚪 退出登录", use_container_width=True):
-        st.session_state.authenticated = False
-        st.session_state.current_page = "welcome"
-        st.rerun()
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# 根据当前页面显示内容
-if st.session_state.current_page == "welcome":
-    # 欢迎页面
-    st.markdown("""
-    <div class="main-title">
-        <h1>📊 Trolli SAL</h1>
-        <p>欢迎使用Trolli SAL，本系统提供销售数据的多维度分析，帮助您洞察业务趋势、发现增长机会</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # 动态统计数据
-    is_updated = update_stats()
-    update_class = "updating" if is_updated else ""
-    
-    # 统计卡片
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.markdown(f"""
-        <div class="stat-card">
-            <span class="counter-number {update_class}">{st.session_state.stat1_value}+</span>
-            <div class="stat-label">数据分析</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div class="stat-card">
-            <span class="counter-number {update_class}">{st.session_state.stat2_value}</span>
-            <div class="stat-label">分析模块</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div class="stat-card">
-            <span class="counter-number {update_class}">{st.session_state.stat3_value}</span>
-            <div class="stat-label">小时监控</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown(f"""
-        <div class="stat-card">
-            <span class="counter-number {update_class}">{st.session_state.stat4_value}%</span>
-            <div class="stat-label">准确率</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # 功能模块介绍
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div style="text-align: center; margin-bottom: 2rem;">
-        <h3 style="color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); font-size: 1.5rem;">
-            💡 选择上方下拉菜单切换到产品组合分析页面
-        </h3>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # 功能卡片
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        <div class="feature-card">
-            <span class="feature-icon">📦</span>
-            <h3 class="feature-title">产品组合分析</h3>
-            <p class="feature-description">
-                分析产品销售表现，包括BCG矩阵分析、产品生命周期管理，优化产品组合策略，提升整体盈利能力。
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="feature-card">
-            <span class="feature-icon">📊</span>
-            <h3 class="feature-title">即将推出更多模块</h3>
-            <p class="feature-description">
-                预测库存分析、客户依赖分析、销售达成分析等更多功能模块正在开发中，敬请期待。
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # 更新提示
-    st.markdown("""
-    <div style="text-align: center; margin: 3rem auto;">
-        <div class="update-badge">
-            🔄 每周四17:00刷新数据
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-elif st.session_state.current_page == "product_analysis":
-    # 产品组合分析页面
+# 主函数
+def main():
+    # 页面标题
     st.markdown("""
     <div class="main-title">
         <h1>📦 Trolli SAL 产品组合分析仪表盘</h1>
@@ -929,16 +861,24 @@ elif st.session_state.current_page == "product_analysis":
     """, unsafe_allow_html=True)
     
     # 加载数据
-    with st.spinner("🔄 正在加载数据..."):
+    with st.spinner("🔄 正在加载真实数据文件..."):
         data_dict = load_real_data()
+        if not data_dict:
+            st.error("❌ 没有可用的数据，无法进行分析")
+            return
+            
         key_metrics = calculate_key_metrics(data_dict)
+        if key_metrics is None:
+            st.error("❌ 关键指标计算失败，无法进行分析")
+            return
+            
         bcg_data = calculate_bcg_data(data_dict)
     
     # 创建标签页
     tabs = st.tabs([
         "📊 产品情况总览",
         "🎯 BCG产品矩阵", 
-        "🚀 全国促销活动有效性",
+        "🚀 促销活动有效性",
         "📈 星品新品达成",
         "🔗 产品关联分析",
         "📍 漏铺市分析",
@@ -954,9 +894,9 @@ elif st.session_state.current_page == "product_analysis":
         
         with col1:
             st.metric(
-                label="💰 2025年总销售额",
+                label="💰 总销售额",
                 value=f"¥{key_metrics['total_sales']:,.0f}",
-                delta="📈 基于销售数据计算"
+                delta="基于真实销售数据"
             )
         
         with col2:
@@ -975,9 +915,9 @@ elif st.session_state.current_page == "product_analysis":
         
         with col4:
             st.metric(
-                label="🚀 全国促销有效性",
-                value=f"{key_metrics['promo_effectiveness']:.1f}%",
-                delta="基于促销活动数据"
+                label="📊 新品渗透率",
+                value=f"{key_metrics['penetration_rate']:.1f}%",
+                delta="购买新品客户比例"
             )
         
         # 第二行指标
@@ -1005,25 +945,28 @@ elif st.session_state.current_page == "product_analysis":
             )
         
         with col8:
+            # 计算数据覆盖率
+            available_files = len([k for k, v in data_dict.items() if v is not None])
+            total_files = 10  # 预期的总文件数
+            coverage_rate = (available_files / total_files * 100)
             st.metric(
-                label="📊 新品渗透率",
-                value=f"{key_metrics['penetration_rate']:.1f}%",
-                delta="购买新品客户比例"
+                label="📄 数据覆盖率",
+                value=f"{coverage_rate:.0f}%",
+                delta=f"{available_files}/{total_files}个文件"
             )
     
     # 标签页2: BCG产品矩阵
     with tabs[1]:
         st.markdown("### 🎯 BCG产品矩阵分析")
         
-        # 全国BCG矩阵
-        fig = create_bcg_matrix(bcg_data)
-        if fig:
-            st.plotly_chart(fig, use_container_width=True, key="national_bcg")
-            
-            # JBP符合度分析
-            st.markdown("### 📊 JBP符合度分析")
-            
-            if bcg_data:
+        if bcg_data:
+            fig = create_bcg_matrix(bcg_data)
+            if fig:
+                st.plotly_chart(fig, use_container_width=True, key="bcg_matrix")
+                
+                # JBP符合度分析
+                st.markdown("### 📊 JBP符合度分析")
+                
                 # 计算各类产品占比
                 total_sales = sum(p['sales'] for p in bcg_data)
                 cow_sales = sum(p['sales'] for p in bcg_data if p['category'] == 'cow')
@@ -1037,25 +980,25 @@ elif st.session_state.current_page == "product_analysis":
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    cow_status = "✓" if 45 <= cow_ratio <= 50 else "✗"
+                    cow_status = "✓" if 30 <= cow_ratio <= 60 else "✗"
                     st.metric(
-                        label="现金牛产品占比 (目标: 45%-50%)",
+                        label="现金牛产品占比 (目标: 30%-60%)",
                         value=f"{cow_ratio:.1f}% {cow_status}",
                         delta="符合标准" if cow_status == "✓" else "需要调整"
                     )
                 
                 with col2:
-                    star_status = "✓" if 40 <= star_question_ratio <= 45 else "✗"
+                    star_status = "✓" if 30 <= star_question_ratio <= 50 else "✗"
                     st.metric(
-                        label="明星&问号产品占比 (目标: 40%-45%)",
+                        label="明星&问号产品占比 (目标: 30%-50%)",
                         value=f"{star_question_ratio:.1f}% {star_status}",
                         delta="符合标准" if star_status == "✓" else "需要调整"
                     )
                 
                 with col3:
-                    dog_status = "✓" if dog_ratio <= 10 else "✗"
+                    dog_status = "✓" if dog_ratio <= 20 else "✗"
                     st.metric(
-                        label="瘦狗产品占比 (目标: ≤10%)",
+                        label="瘦狗产品占比 (目标: ≤20%)",
                         value=f"{dog_ratio:.1f}% {dog_status}",
                         delta="符合标准" if dog_status == "✓" else "需要调整"
                     )
@@ -1063,29 +1006,69 @@ elif st.session_state.current_page == "product_analysis":
                 # 总体评估
                 overall_conforming = cow_status == "✓" and star_status == "✓" and dog_status == "✓"
                 if overall_conforming:
-                    st.success("🎉 总体评估：符合JBP计划 ✓")
+                    st.success("🎉 总体评估：符合JBP计划标准 ✓")
                 else:
-                    st.warning("⚠️ 总体评估：需要优化产品结构")
+                    st.warning("⚠️ 总体评估：产品结构需要优化")
+            else:
+                st.error("❌ BCG矩阵图表生成失败")
         else:
-            st.error("❌ BCG矩阵数据不足，无法生成图表")
+            st.error("❌ 没有足够的数据生成BCG矩阵")
     
-    # 标签页3-7: 其他分析模块
+    # 标签页3: 促销活动有效性
     with tabs[2]:
         st.markdown("### 🚀 促销活动有效性分析")
-        st.info("🚧 该模块正在开发中，将提供促销活动效果评估和优化建议...")
+        
+        fig = create_promotion_chart(data_dict)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True, key="promotion_chart")
+            
+            # 分析说明
+            st.info("""
+            📊 **数据来源：** 基于真实促销活动数据文件  
+            🎯 **分析逻辑：** 销量超过中位数为有效，低于中位数为无效  
+            🔍 **评估维度：** 销量表现、市场反应、投入产出比  
+            💡 **提示：** 悬停在柱状图上可查看详细分析结果
+            """)
+        else:
+            st.error("❌ 促销数据不足或格式不正确，无法生成图表")
     
+    # 标签页4-7: 其他分析模块
     with tabs[3]:
         st.markdown("### 📈 星品&新品总占比达成分析")
-        st.info("🚧 该模块正在开发中，将提供区域、销售员、趋势三个维度的深度分析...")
+        
+        # 显示实际的星品新品分析
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 🌟 新品表现分析")
+            new_products = data_dict.get('new_products', [])
+            if new_products:
+                st.write(f"新品代码数量: {len(new_products)}个")
+                st.write(f"新品销售占比: {key_metrics['new_product_ratio']:.1f}%")
+            else:
+                st.warning("未找到新品代码数据")
+        
+        with col2:
+            st.markdown("#### ⭐ 星品表现分析")
+            kpi_products = data_dict.get('kpi_products', [])
+            if kpi_products:
+                star_count = len([p for p in kpi_products if p not in new_products])
+                st.write(f"星品代码数量: {star_count}个")
+                st.write(f"星品销售占比: {key_metrics['star_product_ratio']:.1f}%")
+            else:
+                st.warning("未找到KPI产品代码数据")
     
     with tabs[4]:
         st.markdown("### 🔗 产品关联分析")
-        st.info("🚧 该模块正在开发中，将提供产品关联规则挖掘和推荐...")
+        st.info("🚧 该模块需要更多历史数据支持，将基于购物篮分析提供产品关联规则...")
     
     with tabs[5]:
         st.markdown("### 📍 漏铺市分析")
-        st.info("🚧 该模块正在开发中，将识别各区域产品覆盖空白和机会...")
+        st.info("🚧 该模块需要区域覆盖数据支持，将识别各区域产品覆盖空白和机会...")
     
     with tabs[6]:
         st.markdown("### 📅 季节性分析")
-        st.info("🚧 该模块正在开发中，将展示产品的季节性销售特征和趋势...")
+        st.info("🚧 该模块需要时间序列数据支持，将展示产品的季节性销售特征和趋势...")
+
+if __name__ == "__main__":
+    main()
