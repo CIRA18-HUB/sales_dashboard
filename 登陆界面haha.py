@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="Trolli SAL",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"  # 确保侧边栏展开
+    initial_sidebar_state="collapsed"  # 隐藏侧边栏
 )
 
 # 初始化会话状态
@@ -42,10 +42,16 @@ hide_streamlit_style = """
         max-width: 100%;
     }
     
-    /* 确保侧边栏可见 - 移除可能隐藏侧边栏的CSS */
+    /* 隐藏侧边栏 */
     section[data-testid="stSidebar"] {
-        display: block !important;
-        visibility: visible !important;
+        display: none !important;
+    }
+    
+    /* 确保主内容区占满全屏 */
+    .main .block-container {
+        max-width: 100% !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
     }
 </style>
 """
@@ -106,71 +112,6 @@ main_css = """
         position: relative;
         z-index: 1;
         background: transparent !important;
-    }
-    
-    /* 侧边栏样式 - 确保可见性 */
-    section[data-testid="stSidebar"] {
-        background: rgba(255, 255, 255, 0.95) !important;
-        backdrop-filter: blur(20px);
-        border-right: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-        z-index: 10;
-    }
-    
-    /* 侧边栏按钮样式 */
-    section[data-testid="stSidebar"] .stButton > button {
-        width: 100%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        border-radius: 12px;
-        padding: 0.8rem 1rem;
-        color: white;
-        text-align: left;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        font-size: 0.9rem;
-        font-weight: 500;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-        margin-bottom: 0.3rem;
-    }
-    
-    section[data-testid="stSidebar"] .stButton > button:hover {
-        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
-        transform: translateX(5px) scale(1.02);
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-    }
-    
-    /* 标题样式 */
-    .sidebar-title {
-        color: #2d3748;
-        font-weight: 700;
-        text-align: center;
-        padding: 1rem 0;
-        margin-bottom: 1rem;
-        border-bottom: 2px solid rgba(102, 126, 234, 0.2);
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 1.3rem;
-    }
-    
-    .sidebar-section {
-        color: #2d3748;
-        font-weight: 600;
-        padding: 0 1rem;
-        margin: 1rem 0 0.5rem 0;
-        font-size: 0.9rem;
-    }
-    
-    /* 用户信息框 */
-    .user-info {
-        background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%);
-        border: 1px solid #38d9a9;
-        border-radius: 10px;
-        padding: 1rem;
-        margin: 0 1rem;
-        color: #2d3748;
-        box-shadow: 0 2px 5px rgba(56, 217, 169, 0.2);
     }
     
     /* 主标题 */
@@ -412,6 +353,25 @@ main_css = """
         box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
     }
     
+    /* 顶部退出按钮样式 */
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
     /* 成功/错误消息样式 */
     .stSuccess, .stError {
         border-radius: 10px;
@@ -466,47 +426,11 @@ if not st.session_state.authenticated:
     
     st.stop()
 
-# 主页面 - 侧边栏（确保在登录后显示）
-with st.sidebar:
-    st.markdown('<h3 class="sidebar-title">📊 Trolli SAL</h3>', unsafe_allow_html=True)
-    st.markdown('<h4 class="sidebar-section">🏠 主要功能</h4>', unsafe_allow_html=True)
-    
-    if st.button("🏠 欢迎页面", use_container_width=True):
-        st.session_state.current_page = "welcome"
-        st.rerun()
-    
-    st.markdown("---")
-    st.markdown('<h4 class="sidebar-section">📈 分析模块</h4>', unsafe_allow_html=True)
-    
-    # 模拟页面跳转（在实际部署中使用 st.switch_page）
-    if st.button("📦 产品组合分析", use_container_width=True):
-        st.session_state.current_page = "product_analysis"
-        st.info("📦 产品组合分析页面（演示版本）")
-    
-    if st.button("📊 预测库存分析", use_container_width=True):
-        st.session_state.current_page = "inventory_forecast"
-        st.info("📊 预测库存分析页面（演示版本）")
-    
-    if st.button("👥 客户依赖分析", use_container_width=True):
-        st.session_state.current_page = "customer_analysis"
-        st.info("👥 客户依赖分析页面（演示版本）")
-    
-    if st.button("🎯 销售达成分析", use_container_width=True):
-        st.session_state.current_page = "sales_achievement"
-        st.info("🎯 销售达成分析页面（演示版本）")
-    
-    st.markdown("---")
-    st.markdown('<h4 class="sidebar-section">👤 用户信息</h4>', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="user-info">
-        <strong>管理员</strong><br>
-        cira<br>
-        <small>登录时间: {}</small>
-    </div>
-    """.format(datetime.now().strftime("%H:%M:%S")), unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
+# 主页面 - 全屏版本（无侧边栏）
+
+# 顶部操作栏
+col1, col2, col3 = st.columns([1, 6, 1])
+with col3:
     if st.button("🚪 退出登录", use_container_width=True):
         st.session_state.authenticated = False
         st.session_state.current_page = "welcome"
@@ -631,7 +555,7 @@ st.markdown("""
 </div>
 
 <div class="navigation-hint">
-    👈 请使用左侧导航栏访问各分析页面
+    ✨ 享受简洁优雅的数据分析体验
 </div>
 
 <div class="footer">
@@ -639,10 +563,6 @@ st.markdown("""
     <p>每周四17:00刷新数据 | 将枯燥数据变好看</p>
 </div>
 """, unsafe_allow_html=True)
-
-# 页面状态显示（调试用）
-if st.session_state.get('current_page') != 'welcome':
-    st.info(f"当前页面: {st.session_state.get('current_page', 'welcome')}")
 
 # 自动刷新机制（可选，可能导致性能问题）
 # if st.session_state.authenticated:
