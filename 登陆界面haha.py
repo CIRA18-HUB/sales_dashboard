@@ -1,4 +1,4 @@
-# app.py - Streamlit Cloud完整部署版本
+# app.py - Streamlit Cloud完整部署版本（修复背景问题）
 import streamlit as st
 from datetime import datetime
 import time
@@ -24,7 +24,7 @@ if 'stats_initialized' not in st.session_state:
     st.session_state.stat4_value = 99
     st.session_state.last_update = time.time()
 
-# 隐藏Streamlit默认元素和应用全局样式
+# 隐藏Streamlit默认元素
 hide_streamlit_style = """
 <style>
     /* 隐藏Streamlit默认元素 */
@@ -48,43 +48,73 @@ hide_streamlit_style = """
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# 主要CSS样式 - 完整版本
+# 主要CSS样式 - 改进版本，确保背景渐变生效
 main_css = """
 <style>
     /* 导入字体 */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     /* 全局样式 */
+    html, body {
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
+    
     .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        background: transparent !important;
     }
     
-    /* 主背景渐变 - 应用到整个页面 */
-    [data-testid="stAppViewContainer"] > .main {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-        position: relative;
+    /* 主背景渐变 - 使用多个选择器确保覆盖 */
+    .stApp > div:first-child,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stAppViewContainer"] > section.main,
+    section.main > div,
+    .main .block-container {
+        background: transparent !important;
     }
     
-    /* 动态背景波纹 */
-    [data-testid="stAppViewContainer"] > .main::before {
+    /* 创建固定的背景层 */
+    .stApp::before {
         content: '';
         position: fixed;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
+        width: 100vw;
+        height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        z-index: -2;
+        pointer-events: none;
+    }
+    
+    /* 动态背景波纹 */
+    .stApp::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
         background: 
             radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
             radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
         animation: waveMove 8s ease-in-out infinite;
         pointer-events: none;
-        z-index: 0;
+        z-index: -1;
     }
     
     @keyframes waveMove {
         0%, 100% { background-position: 0% 0%, 100% 100%; }
         50% { background-position: 100% 100%, 0% 0%; }
+    }
+    
+    /* 确保内容区域透明 */
+    .element-container,
+    .stMarkdown,
+    .stButton,
+    div[data-testid="column"] {
+        background: transparent !important;
     }
     
     /* 侧边栏样式 */
@@ -357,10 +387,62 @@ main_css = """
         padding: 1rem;
         margin: 1rem 0;
     }
+    
+    /* 强制覆盖任何白色背景 */
+    div[data-testid="stVerticalBlock"] > div:has(> div[data-testid="stVerticalBlock"]),
+    div[data-testid="block-container"] {
+        background: transparent !important;
+    }
 </style>
 """
 
+# 添加JavaScript来确保背景渐变
+js_code = """
+<script>
+    // 确保背景渐变应用到整个页面
+    window.addEventListener('DOMContentLoaded', (event) => {
+        // 创建背景元素
+        const bgGradient = document.createElement('div');
+        bgGradient.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: -2;
+            pointer-events: none;
+        `;
+        
+        const bgWave = document.createElement('div');
+        bgWave.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
+                        radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+            z-index: -1;
+            pointer-events: none;
+            animation: waveMove 8s ease-in-out infinite;
+        `;
+        
+        // 添加到body
+        document.body.appendChild(bgGradient);
+        document.body.appendChild(bgWave);
+        
+        // 移除所有可能的白色背景
+        const elements = document.querySelectorAll('[data-testid="stAppViewContainer"], .main, .block-container');
+        elements.forEach(el => {
+            el.style.background = 'transparent';
+        });
+    });
+</script>
+"""
+
 st.markdown(main_css, unsafe_allow_html=True)
+st.markdown(js_code, unsafe_allow_html=True)
 
 # 登录界面
 if not st.session_state.authenticated:
