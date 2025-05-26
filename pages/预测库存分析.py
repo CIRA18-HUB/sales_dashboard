@@ -30,9 +30,44 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
 # 自定义CSS - 紫色主题
 st.markdown("""
 <style>
-    /* 紫色主题背景渐变 */
+    /* 紫色主题背景渐变 - 与主页面保持一致 */
     .stApp {
-        background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 50%, #6D28D9 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        min-height: 100vh;
+    }
+    
+    /* 动态背景波纹效果 */
+    .stApp::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: 
+            radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+        animation: waveMove 8s ease-in-out infinite;
+        pointer-events: none;
+        z-index: 0;
+    }
+    
+    @keyframes waveMove {
+        0%, 100% { 
+            background-position: 0% 0%, 100% 100%;
+            opacity: 0.8;
+        }
+        50% { 
+            background-position: 100% 100%, 0% 0%;
+            opacity: 1;
+        }
+    }
+    
+    /* 确保内容在背景之上 */
+    .main .block-container {
+        position: relative;
+        z-index: 1;
+        background: transparent !important;
     }
     
     /* 深色图表背景 */
@@ -42,25 +77,25 @@ st.markdown("""
     
     /* 指标卡片紫色主题 */
     div[data-testid="metric-container"] {
-        background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.1));
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
         padding: 1.5rem;
         border-radius: 20px;
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        box-shadow: 0 8px 32px rgba(139, 92, 246, 0.25);
-        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.25);
+        backdrop-filter: blur(10px);
         transition: all 0.3s ease;
-        color: white;
     }
     
     div[data-testid="metric-container"]:hover {
         transform: translateY(-5px);
-        box-shadow: 0 12px 40px rgba(139, 92, 246, 0.35);
-        background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(124, 58, 237, 0.2));
+        box-shadow: 0 12px 40px rgba(102, 126, 234, 0.35);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.95));
     }
     
     /* 标签样式 */
     .stTabs [data-baseweb="tab-list"] {
-        background: linear-gradient(90deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.1));
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
         padding: 0.5rem;
         border-radius: 15px;
         gap: 0.5rem;
@@ -77,11 +112,11 @@ st.markdown("""
     }
     
     .stTabs [data-baseweb="tab"]:hover {
-        background: rgba(139, 92, 246, 0.3);
+        background: rgba(255, 255, 255, 0.2);
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #9333EA, #7C3AED);
+        background: linear-gradient(135deg, #667eea, #764ba2);
         color: white;
     }
     
@@ -92,29 +127,42 @@ st.markdown("""
     
     /* 信息卡片样式 */
     .stInfo, .stWarning, .stSuccess {
-        background-color: rgba(139, 92, 246, 0.2) !important;
-        border: 1px solid rgba(139, 92, 246, 0.3) !important;
+        background-color: rgba(255, 255, 255, 0.9) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        color: #2d3748 !important;
+    }
+    
+    /* 展开器样式 */
+    .streamlit-expanderHeader {
+        background-color: rgba(255, 255, 255, 0.1) !important;
         color: white !important;
+        border-radius: 10px;
+    }
+    
+    .streamlit-expanderContent {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
     
     /* 悬浮提示框美化 */
     .hoverlabel {
-        background: rgba(139, 92, 246, 0.95) !important;
-        border: 1px solid #9333EA !important;
+        background: rgba(102, 126, 234, 0.95) !important;
+        border: 1px solid #667eea !important;
         border-radius: 10px !important;
-        box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3) !important;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
         font-family: 'Inter', sans-serif !important;
         color: white !important;
     }
     
     /* 解释框样式 */
     .interpretation-box {
-        background: rgba(139, 92, 246, 0.15);
-        border: 1px solid rgba(139, 92, 246, 0.3);
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 10px;
         padding: 1rem;
         margin: 0.5rem 0;
         color: white;
+        backdrop-filter: blur(10px);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1025,11 +1073,14 @@ with tab4:
             hovertemplate='区域: %{y}<br>产品: %{x}<br>销量: %{z:,.0f}箱<extra></extra>'
         )
         
+        # 合并xaxis设置
+        heatmap_layout = plotly_layout_template.copy()
+        heatmap_layout['xaxis']['tickangle'] = -45
+        
         fig_heatmap.update_layout(
-            **plotly_layout_template,
+            **heatmap_layout,
             title="区域-产品销量分布热力图（TOP10产品）",
-            height=400,
-            xaxis=dict(tickangle=-45)
+            height=400
         )
         
         st.plotly_chart(fig_heatmap, use_container_width=True)
