@@ -1,4 +1,4 @@
-# app.py - Streamlit Cloud优化版本
+# app.py - Streamlit Cloud完整部署版本
 import streamlit as st
 from datetime import datetime
 import time
@@ -13,7 +13,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 隐藏Streamlit默认元素
+# 初始化会话状态
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+if 'stats_initialized' not in st.session_state:
+    st.session_state.stats_initialized = False
+    st.session_state.stat1_value = 1000
+    st.session_state.stat2_value = 4
+    st.session_state.stat3_value = 24
+    st.session_state.stat4_value = 99
+    st.session_state.last_update = time.time()
+
+# 隐藏Streamlit默认元素和应用全局样式
 hide_streamlit_style = """
 <style>
     /* 隐藏Streamlit默认元素 */
@@ -37,7 +48,7 @@ hide_streamlit_style = """
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# 主要CSS样式（优化版）
+# 主要CSS样式 - 完整版本
 main_css = """
 <style>
     /* 导入字体 */
@@ -48,7 +59,7 @@ main_css = """
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     }
     
-    /* 主背景渐变 */
+    /* 主背景渐变 - 应用到整个页面 */
     [data-testid="stAppViewContainer"] > .main {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         min-height: 100vh;
@@ -81,6 +92,7 @@ main_css = """
         background: rgba(255, 255, 255, 0.95) !important;
         backdrop-filter: blur(20px);
         border-right: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
     }
     
     section[data-testid="stSidebar"] .stButton > button {
@@ -174,6 +186,8 @@ main_css = """
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         transition: all 0.4s ease;
         height: 100%;
+        position: relative;
+        overflow: hidden;
     }
     
     .stat-card:hover {
@@ -215,6 +229,8 @@ main_css = """
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         transition: all 0.5s ease;
         height: 100%;
+        position: relative;
+        overflow: hidden;
     }
     
     .feature-card:hover {
@@ -285,6 +301,20 @@ main_css = """
         border-radius: 20px;
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
         text-align: center;
+        position: relative;
+        z-index: 10;
+        animation: loginFadeIn 0.8s ease-out;
+    }
+    
+    @keyframes loginFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     
     /* 输入框样式 */
@@ -300,24 +330,41 @@ main_css = """
         border-color: #667eea;
         box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
     }
+    
+    /* 登录按钮特殊样式 */
+    .login-form .stButton > button {
+        width: 100%;
+        padding: 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .login-form .stButton > button:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* 成功/错误消息样式 */
+    .stSuccess, .stError {
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
 </style>
 """
 
 st.markdown(main_css, unsafe_allow_html=True)
 
-# 初始化会话状态
-if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
-if 'stats_initialized' not in st.session_state:
-    st.session_state.stats_initialized = False
-    st.session_state.stat1_value = 1000
-    st.session_state.stat2_value = 4
-    st.session_state.stat3_value = 24
-    st.session_state.stat4_value = 99
-    st.session_state.last_update = time.time()
-
 # 登录界面
 if not st.session_state.authenticated:
+    # 创建登录界面布局
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
@@ -330,10 +377,13 @@ if not st.session_state.authenticated:
         """, unsafe_allow_html=True)
         
         # 登录表单
-        with st.form("login_form"):
-            st.markdown("#### 🔐 请输入访问密码")
-            password = st.text_input("密码", type="password", placeholder="请输入访问密码")
-            submit_button = st.form_submit_button("登 录", use_container_width=True)
+        with st.container():
+            st.markdown('<div class="login-form">', unsafe_allow_html=True)
+            with st.form("login_form"):
+                st.markdown("#### 🔐 请输入访问密码")
+                password = st.text_input("密码", type="password", placeholder="请输入访问密码", label_visibility="collapsed")
+                submit_button = st.form_submit_button("登 录", use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         
         if submit_button:
             if password == 'SAL!2025':
@@ -383,7 +433,7 @@ with st.sidebar:
     st.markdown('<h4 class="sidebar-section">👤 用户信息</h4>', unsafe_allow_html=True)
     st.markdown("""
     <div class="user-info">
-        <strong>管理员</strong>
+        <strong>管理员</strong><br>
         cira
     </div>
     """, unsafe_allow_html=True)
@@ -407,8 +457,8 @@ def update_stats():
     current_time = time.time()
     if current_time - st.session_state.last_update >= 3:
         st.session_state.stat1_value = 1000 + random.randint(0, 200) + int(math.sin(current_time * 0.1) * 100)
-        st.session_state.stat2_value = 4 + random.randint(-1, 1)
-        st.session_state.stat3_value = 24 + int(math.sin(current_time * 0.2) * 8)
+        st.session_state.stat2_value = 4  # 固定值
+        st.session_state.stat3_value = 24  # 固定值
         st.session_state.stat4_value = 95 + random.randint(0, 4) + int(math.sin(current_time * 0.15) * 3)
         st.session_state.last_update = current_time
         return True
@@ -522,18 +572,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 添加自动刷新功能
-if st.session_state.authenticated and not st.session_state.stats_initialized:
-    st.session_state.stats_initialized = True
+# 自动刷新机制
+if st.session_state.authenticated:
+    # 每3秒刷新一次数据
     time.sleep(0.1)
-    st.rerun()
-
-# 使用JavaScript实现平滑的自动更新
-st.markdown("""
-<script>
-    // 每3秒刷新页面以更新数据
-    setTimeout(function() {
-        window.location.reload();
-    }, 3000);
-</script>
-""", unsafe_allow_html=True)
+    if update_stats():
+        st.rerun()
