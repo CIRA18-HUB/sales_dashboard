@@ -1,4 +1,4 @@
-# app.py - Streamlit Cloud完整部署版本（修复背景问题）
+# app.py - 修复版 Streamlit 应用
 import streamlit as st
 from datetime import datetime
 import time
@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="Trolli SAL",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded"  # 确保侧边栏展开
 )
 
 # 初始化会话状态
@@ -23,11 +23,13 @@ if 'stats_initialized' not in st.session_state:
     st.session_state.stat3_value = 24
     st.session_state.stat4_value = 99
     st.session_state.last_update = time.time()
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = "welcome"
 
-# 隐藏Streamlit默认元素
+# 隐藏Streamlit默认元素 - 修复版
 hide_streamlit_style = """
 <style>
-    /* 隐藏Streamlit默认元素 */
+    /* 隐藏Streamlit默认元素，但保留侧边栏 */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -40,15 +42,16 @@ hide_streamlit_style = """
         max-width: 100%;
     }
     
-    /* 隐藏侧边栏标题 */
-    section[data-testid="stSidebar"] > div:first-child {
-        display: none;
+    /* 确保侧边栏可见 - 移除可能隐藏侧边栏的CSS */
+    section[data-testid="stSidebar"] {
+        display: block !important;
+        visibility: visible !important;
     }
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# 主要CSS样式 - 改进版本，确保背景渐变生效
+# 主要CSS样式 - 增强版
 main_css = """
 <style>
     /* 导入字体 */
@@ -63,32 +66,15 @@ main_css = """
     
     .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-        background: transparent !important;
     }
     
-    /* 主背景渐变 - 使用多个选择器确保覆盖 */
-    .stApp > div:first-child,
-    [data-testid="stAppViewContainer"],
-    [data-testid="stAppViewContainer"] > section.main,
-    section.main > div,
-    .main .block-container {
-        background: transparent !important;
+    /* 主背景渐变 - 确保生效 */
+    .stApp {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        min-height: 100vh;
     }
     
-    /* 创建固定的背景层 */
-    .stApp::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        z-index: -2;
-        pointer-events: none;
-    }
-    
-    /* 动态背景波纹 */
+    /* 动态背景波纹 - 简化版确保兼容性 */
     .stApp::after {
         content: '';
         position: fixed;
@@ -97,59 +83,66 @@ main_css = """
         width: 100vw;
         height: 100vh;
         background: 
-            radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
-            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+            radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
         animation: waveMove 8s ease-in-out infinite;
         pointer-events: none;
-        z-index: -1;
+        z-index: 0;
     }
     
     @keyframes waveMove {
-        0%, 100% { background-position: 0% 0%, 100% 100%; }
-        50% { background-position: 100% 100%, 0% 0%; }
+        0%, 100% { 
+            background-position: 0% 0%, 100% 100%;
+            opacity: 0.8;
+        }
+        50% { 
+            background-position: 100% 100%, 0% 0%;
+            opacity: 1;
+        }
     }
     
-    /* 确保内容区域透明 */
-    .element-container,
-    .stMarkdown,
-    .stButton,
-    div[data-testid="column"] {
+    /* 确保内容在背景之上 */
+    .main .block-container {
+        position: relative;
+        z-index: 1;
         background: transparent !important;
     }
     
-    /* 侧边栏样式 */
+    /* 侧边栏样式 - 确保可见性 */
     section[data-testid="stSidebar"] {
         background: rgba(255, 255, 255, 0.95) !important;
         backdrop-filter: blur(20px);
         border-right: 1px solid rgba(255, 255, 255, 0.2);
         box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        z-index: 10;
     }
     
+    /* 侧边栏按钮样式 */
     section[data-testid="stSidebar"] .stButton > button {
         width: 100%;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border: none;
-        border-radius: 15px;
-        padding: 1rem 1.2rem;
+        border-radius: 12px;
+        padding: 0.8rem 1rem;
         color: white;
         text-align: left;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        font-size: 0.95rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 0.9rem;
         font-weight: 500;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        margin-bottom: 0.5rem;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        margin-bottom: 0.3rem;
     }
     
     section[data-testid="stSidebar"] .stButton > button:hover {
         background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
-        transform: translateX(8px) scale(1.02);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        transform: translateX(5px) scale(1.02);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
     }
     
     /* 标题样式 */
     .sidebar-title {
         color: #2d3748;
-        font-weight: 600;
+        font-weight: 700;
         text-align: center;
         padding: 1rem 0;
         margin-bottom: 1rem;
@@ -158,7 +151,7 @@ main_css = """
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 1.5rem;
+        font-size: 1.3rem;
     }
     
     .sidebar-section {
@@ -166,17 +159,18 @@ main_css = """
         font-weight: 600;
         padding: 0 1rem;
         margin: 1rem 0 0.5rem 0;
-        font-size: 1rem;
+        font-size: 0.9rem;
     }
     
     /* 用户信息框 */
     .user-info {
-        background: #e6fffa;
+        background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%);
         border: 1px solid #38d9a9;
         border-radius: 10px;
         padding: 1rem;
         margin: 0 1rem;
         color: #2d3748;
+        box-shadow: 0 2px 5px rgba(56, 217, 169, 0.2);
     }
     
     /* 主标题 */
@@ -193,17 +187,24 @@ main_css = """
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         margin-bottom: 1rem;
         font-weight: 700;
-        animation: titleGlow 4s ease-in-out infinite;
+        animation: titleGlow 3s ease-in-out infinite;
     }
     
     @keyframes titleGlow {
-        0%, 100% { text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.5); }
-        50% { text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 40px rgba(255, 255, 255, 0.9); }
+        0%, 100% { 
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 255, 255, 0.4);
+            transform: scale(1);
+        }
+        50% { 
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 25px rgba(255, 255, 255, 0.8);
+            transform: scale(1.02);
+        }
     }
     
     .main-title p {
         font-size: 1.2rem;
         color: rgba(255, 255, 255, 0.9);
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
     }
     
     /* 统计卡片 */
@@ -213,16 +214,18 @@ main_css = """
         border-radius: 15px;
         padding: 1.5rem;
         text-align: center;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        transition: all 0.4s ease;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         height: 100%;
         position: relative;
         overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.3);
     }
     
     .stat-card:hover {
-        transform: translateY(-5px) scale(1.05);
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        transform: translateY(-8px) scale(1.05);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        background: rgba(255, 255, 255, 1);
     }
     
     .counter-number {
@@ -234,20 +237,23 @@ main_css = """
         -webkit-text-fill-color: transparent;
         margin-bottom: 0.5rem;
         display: block;
+        transition: all 0.3s ease;
     }
     
     .counter-number.updating {
-        animation: numberBounce 0.6s ease-out;
+        animation: numberPulse 0.6s ease-out;
     }
     
-    @keyframes numberBounce {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.2); }
+    @keyframes numberPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.15); }
+        100% { transform: scale(1); }
     }
     
     .stat-label {
         color: #4a5568;
         font-size: 0.9rem;
+        font-weight: 500;
     }
     
     /* 功能卡片 */
@@ -256,22 +262,30 @@ main_css = """
         backdrop-filter: blur(20px);
         border-radius: 15px;
         padding: 2rem;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        transition: all 0.5s ease;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         height: 100%;
         position: relative;
         overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.3);
     }
     
     .feature-card:hover {
-        transform: translateY(-10px) scale(1.02);
-        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
+        transform: translateY(-10px) rotate(2deg) scale(1.02);
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.2);
+        background: rgba(255, 255, 255, 1);
     }
     
     .feature-icon {
         font-size: 2.5rem;
         margin-bottom: 1rem;
         display: block;
+        animation: iconBounce 2s ease-in-out infinite;
+    }
+    
+    @keyframes iconBounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
     }
     
     .feature-title {
@@ -296,29 +310,43 @@ main_css = """
         font-weight: 600;
         font-size: 1.1rem;
         box-shadow: 0 5px 15px rgba(116, 185, 255, 0.3);
-        animation: badgePulse 3s ease-in-out infinite;
+        animation: badgeFloat 3s ease-in-out infinite;
     }
     
-    @keyframes badgePulse {
-        0%, 100% { box-shadow: 0 5px 15px rgba(116, 185, 255, 0.3); }
-        50% { box-shadow: 0 10px 30px rgba(116, 185, 255, 0.6); }
+    @keyframes badgeFloat {
+        0%, 100% { 
+            transform: translateY(0);
+            box-shadow: 0 5px 15px rgba(116, 185, 255, 0.3);
+        }
+        50% { 
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(116, 185, 255, 0.5);
+        }
     }
     
     .navigation-hint {
         text-align: center;
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(255, 255, 255, 0.9);
         font-size: 1.1rem;
         margin-top: 2rem;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        animation: hintPulse 4s ease-in-out infinite;
+    }
+    
+    @keyframes hintPulse {
+        0%, 100% { opacity: 0.8; }
+        50% { opacity: 1; }
     }
     
     /* 页脚 */
     .footer {
         text-align: center;
-        color: rgba(255, 255, 255, 0.7);
+        color: rgba(255, 255, 255, 0.8);
         font-size: 0.9rem;
         margin-top: 3rem;
         padding: 2rem 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
     }
     
     /* 登录容器 */
@@ -329,21 +357,22 @@ main_css = """
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(20px);
         border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
         text-align: center;
         position: relative;
         z-index: 10;
-        animation: loginFadeIn 0.8s ease-out;
+        animation: loginSlideIn 0.8s ease-out;
+        border: 1px solid rgba(255, 255, 255, 0.3);
     }
     
-    @keyframes loginFadeIn {
+    @keyframes loginSlideIn {
         from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(30px) scale(0.9);
         }
         to {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
         }
     }
     
@@ -354,11 +383,13 @@ main_css = """
         border-radius: 10px;
         padding: 1rem 1.2rem;
         font-size: 1rem;
+        transition: all 0.3s ease;
     }
     
     .stTextInput > div > div > input:focus {
         border-color: #667eea;
         box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        background: white;
     }
     
     /* 登录按钮特殊样式 */
@@ -387,62 +418,10 @@ main_css = """
         padding: 1rem;
         margin: 1rem 0;
     }
-    
-    /* 强制覆盖任何白色背景 */
-    div[data-testid="stVerticalBlock"] > div:has(> div[data-testid="stVerticalBlock"]),
-    div[data-testid="block-container"] {
-        background: transparent !important;
-    }
 </style>
 """
 
-# 添加JavaScript来确保背景渐变
-js_code = """
-<script>
-    // 确保背景渐变应用到整个页面
-    window.addEventListener('DOMContentLoaded', (event) => {
-        // 创建背景元素
-        const bgGradient = document.createElement('div');
-        bgGradient.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            z-index: -2;
-            pointer-events: none;
-        `;
-        
-        const bgWave = document.createElement('div');
-        bgWave.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
-                        radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
-            z-index: -1;
-            pointer-events: none;
-            animation: waveMove 8s ease-in-out infinite;
-        `;
-        
-        // 添加到body
-        document.body.appendChild(bgGradient);
-        document.body.appendChild(bgWave);
-        
-        // 移除所有可能的白色背景
-        const elements = document.querySelectorAll('[data-testid="stAppViewContainer"], .main, .block-container');
-        elements.forEach(el => {
-            el.style.background = 'transparent';
-        });
-    });
-</script>
-"""
-
 st.markdown(main_css, unsafe_allow_html=True)
-st.markdown(js_code, unsafe_allow_html=True)
 
 # 登录界面
 if not st.session_state.authenticated:
@@ -487,43 +466,50 @@ if not st.session_state.authenticated:
     
     st.stop()
 
-# 主页面 - 只在登录成功后显示
-# 侧边栏
+# 主页面 - 侧边栏（确保在登录后显示）
 with st.sidebar:
     st.markdown('<h3 class="sidebar-title">📊 Trolli SAL</h3>', unsafe_allow_html=True)
     st.markdown('<h4 class="sidebar-section">🏠 主要功能</h4>', unsafe_allow_html=True)
     
     if st.button("🏠 欢迎页面", use_container_width=True):
         st.session_state.current_page = "welcome"
+        st.rerun()
     
     st.markdown("---")
     st.markdown('<h4 class="sidebar-section">📈 分析模块</h4>', unsafe_allow_html=True)
     
+    # 模拟页面跳转（在实际部署中使用 st.switch_page）
     if st.button("📦 产品组合分析", use_container_width=True):
-        st.switch_page("pages/产品组合分析.py")
+        st.session_state.current_page = "product_analysis"
+        st.info("📦 产品组合分析页面（演示版本）")
     
     if st.button("📊 预测库存分析", use_container_width=True):
-        st.switch_page("pages/预测库存分析.py")
+        st.session_state.current_page = "inventory_forecast"
+        st.info("📊 预测库存分析页面（演示版本）")
     
     if st.button("👥 客户依赖分析", use_container_width=True):
-        st.switch_page("pages/客户依赖分析.py")
+        st.session_state.current_page = "customer_analysis"
+        st.info("👥 客户依赖分析页面（演示版本）")
     
     if st.button("🎯 销售达成分析", use_container_width=True):
-        st.switch_page("pages/销售达成分析.py")
+        st.session_state.current_page = "sales_achievement"
+        st.info("🎯 销售达成分析页面（演示版本）")
     
     st.markdown("---")
     st.markdown('<h4 class="sidebar-section">👤 用户信息</h4>', unsafe_allow_html=True)
     st.markdown("""
     <div class="user-info">
         <strong>管理员</strong><br>
-        cira
+        cira<br>
+        <small>登录时间: {}</small>
     </div>
-    """, unsafe_allow_html=True)
+    """.format(datetime.now().strftime("%H:%M:%S")), unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
     
     if st.button("🚪 退出登录", use_container_width=True):
         st.session_state.authenticated = False
+        st.session_state.current_page = "welcome"
         st.rerun()
 
 # 主内容区
@@ -654,9 +640,13 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 自动刷新机制
-if st.session_state.authenticated:
-    # 每3秒刷新一次数据
-    time.sleep(0.1)
-    if update_stats():
-        st.rerun()
+# 页面状态显示（调试用）
+if st.session_state.get('current_page') != 'welcome':
+    st.info(f"当前页面: {st.session_state.get('current_page', 'welcome')}")
+
+# 自动刷新机制（可选，可能导致性能问题）
+# if st.session_state.authenticated:
+#     # 每3秒刷新一次数据
+#     time.sleep(0.1)
+#     if is_updated:
+#         st.rerun()
