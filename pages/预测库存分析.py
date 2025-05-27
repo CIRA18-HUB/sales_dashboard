@@ -390,11 +390,11 @@ st.markdown("""
     }
     
     /* 特殊风险等级颜色 */
-    .risk-extreme { border-left-color: #ff4757 !important; }
-    .risk-high { border-left-color: #ff6348 !important; }
-    .risk-medium { border-left-color: #ffa502 !important; }
-    .risk-low { border-left-color: #2ed573 !important; }
-    .risk-minimal { border-left-color: #5352ed !important; }
+    .risk-extreme { border-left-color: #8B0000 !important; }
+    .risk-high { border-left-color: #FF0000 !important; }
+    .risk-medium { border-left-color: #FFA500 !important; }
+    .risk-low { border-left-color: #90EE90 !important; }
+    .risk-minimal { border-left-color: #006400 !important; }
     
     /* 响应式设计 */
     @media (max-width: 768px) {
@@ -524,10 +524,10 @@ st.markdown("""
     /* 风险等级样式 - 极高风险 (超级增强版) */
     .stDataFrame tbody tr:has(td:contains("极高风险")) {
         background: linear-gradient(90deg, 
-            rgba(255, 71, 87, 0.15) 0%,
-            rgba(255, 71, 87, 0.08) 50%,
-            rgba(255, 71, 87, 0.15) 100%) !important;
-        border-left: 8px solid #ff4757 !important;
+            rgba(139, 0, 0, 0.15) 0%,
+            rgba(139, 0, 0, 0.08) 50%,
+            rgba(139, 0, 0, 0.15) 100%) !important;
+        border-left: 8px solid #8B0000 !important;
         animation: 
             extremeRiskPulse 1.5s ease-in-out infinite,
             extremeRiskWave 3s linear infinite,
@@ -553,31 +553,31 @@ st.markdown("""
         top: 0;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 71, 87, 0.1), transparent);
+        background: linear-gradient(90deg, transparent, rgba(139, 0, 0, 0.1), transparent);
         animation: riskScanline 2s linear infinite;
         pointer-events: none;
     }
     
     .stDataFrame tbody tr:has(td:contains("极高风险")):hover {
         background: linear-gradient(90deg, 
-            rgba(255, 71, 87, 0.25) 0%,
-            rgba(255, 71, 87, 0.15) 50%,
-            rgba(255, 71, 87, 0.25) 100%) !important;
+            rgba(139, 0, 0, 0.25) 0%,
+            rgba(139, 0, 0, 0.15) 50%,
+            rgba(139, 0, 0, 0.25) 100%) !important;
         transform: scale(1.03) translateX(15px) !important;
         box-shadow: 
-            0 20px 50px rgba(255, 71, 87, 0.4),
-            -10px 0 30px rgba(255, 71, 87, 0.3),
-            inset 0 0 30px rgba(255, 71, 87, 0.1) !important;
+            0 20px 50px rgba(139, 0, 0, 0.4),
+            -10px 0 30px rgba(139, 0, 0, 0.3),
+            inset 0 0 30px rgba(139, 0, 0, 0.1) !important;
         border-left-width: 12px !important;
     }
     
     /* 风险等级样式 - 高风险 (增强版) */
     .stDataFrame tbody tr:has(td:contains("高风险")):not(:has(td:contains("极高风险"))) {
         background: linear-gradient(90deg, 
-            rgba(255, 99, 72, 0.12) 0%,
-            rgba(255, 99, 72, 0.06) 50%,
-            rgba(255, 99, 72, 0.12) 100%) !important;
-        border-left: 6px solid #ff6348 !important;
+            rgba(255, 0, 0, 0.12) 0%,
+            rgba(255, 0, 0, 0.06) 50%,
+            rgba(255, 0, 0, 0.12) 100%) !important;
+        border-left: 6px solid #FF0000 !important;
         animation: 
             highRiskGlow 2s ease-in-out infinite,
             highRiskBreath 4s ease-in-out infinite !important;
@@ -596,55 +596,55 @@ st.markdown("""
     
     .stDataFrame tbody tr:has(td:contains("高风险")):not(:has(td:contains("极高风险"))):hover {
         background: linear-gradient(90deg, 
-            rgba(255, 99, 72, 0.2) 0%,
-            rgba(255, 99, 72, 0.12) 50%,
-            rgba(255, 99, 72, 0.2) 100%) !important;
+            rgba(255, 0, 0, 0.2) 0%,
+            rgba(255, 0, 0, 0.12) 50%,
+            rgba(255, 0, 0, 0.2) 100%) !important;
         transform: scale(1.025) translateX(12px) !important;
         box-shadow: 
-            0 15px 40px rgba(255, 99, 72, 0.35),
-            -8px 0 25px rgba(255, 99, 72, 0.25),
-            inset 0 0 20px rgba(255, 99, 72, 0.08) !important;
+            0 15px 40px rgba(255, 0, 0, 0.35),
+            -8px 0 25px rgba(255, 0, 0, 0.25),
+            inset 0 0 20px rgba(255, 0, 0, 0.08) !important;
         border-left-width: 10px !important;
     }
     
     /* 风险等级样式 - 中风险 */
     .stDataFrame tbody tr:has(td:contains("中风险")) {
-        background: linear-gradient(90deg, rgba(255, 165, 2, 0.08), rgba(255, 165, 2, 0.04)) !important;
-        border-left: 4px solid #ffa502 !important;
+        background: linear-gradient(90deg, rgba(255, 165, 0, 0.08), rgba(255, 165, 0, 0.04)) !important;
+        border-left: 4px solid #FFA500 !important;
         animation: mediumRiskPulse 3s ease-in-out infinite !important;
     }
     
     .stDataFrame tbody tr:has(td:contains("中风险")):hover {
-        background: linear-gradient(90deg, rgba(255, 165, 2, 0.15), rgba(255, 165, 2, 0.08)) !important;
+        background: linear-gradient(90deg, rgba(255, 165, 0, 0.15), rgba(255, 165, 0, 0.08)) !important;
         transform: scale(1.015) translateX(8px) !important;
-        box-shadow: 0 10px 30px rgba(255, 165, 2, 0.2) !important;
+        box-shadow: 0 10px 30px rgba(255, 165, 0, 0.2) !important;
     }
     
     /* 风险等级样式 - 低风险 */
     .stDataFrame tbody tr:has(td:contains("低风险")) {
-        background: linear-gradient(90deg, rgba(46, 213, 115, 0.06), rgba(46, 213, 115, 0.03)) !important;
-        border-left: 3px solid #2ed573 !important;
+        background: linear-gradient(90deg, rgba(144, 238, 144, 0.06), rgba(144, 238, 144, 0.03)) !important;
+        border-left: 3px solid #90EE90 !important;
     }
     
     /* 风险等级样式 - 极低风险 */
     .stDataFrame tbody tr:has(td:contains("极低风险")) {
-        background: linear-gradient(90deg, rgba(83, 82, 237, 0.06), rgba(83, 82, 237, 0.03)) !important;
-        border-left: 3px solid #5352ed !important;
+        background: linear-gradient(90deg, rgba(0, 100, 0, 0.06), rgba(0, 100, 0, 0.03)) !important;
+        border-left: 3px solid #006400 !important;
     }
     
     /* 动画效果定义 */
     @keyframes extremeRiskPulse {
         0%, 100% {
             box-shadow: 
-                0 0 0 0 rgba(255, 71, 87, 0.8),
-                0 10px 25px rgba(255, 71, 87, 0.3),
-                inset 0 0 20px rgba(255, 71, 87, 0.05);
+                0 0 0 0 rgba(139, 0, 0, 0.8),
+                0 10px 25px rgba(139, 0, 0, 0.3),
+                inset 0 0 20px rgba(139, 0, 0, 0.05);
         }
         50% {
             box-shadow: 
-                0 0 0 15px rgba(255, 71, 87, 0),
-                0 15px 40px rgba(255, 71, 87, 0.5),
-                inset 0 0 30px rgba(255, 71, 87, 0.1);
+                0 0 0 15px rgba(139, 0, 0, 0),
+                0 15px 40px rgba(139, 0, 0, 0.5),
+                inset 0 0 30px rgba(139, 0, 0, 0.1);
         }
     }
     
@@ -662,13 +662,13 @@ st.markdown("""
     @keyframes highRiskGlow {
         0%, 100% {
             box-shadow: 
-                0 0 10px rgba(255, 99, 72, 0.4),
-                0 5px 15px rgba(255, 99, 72, 0.2);
+                0 0 10px rgba(255, 0, 0, 0.4),
+                0 5px 15px rgba(255, 0, 0, 0.2);
         }
         50% {
             box-shadow: 
-                0 0 25px rgba(255, 99, 72, 0.6),
-                0 10px 30px rgba(255, 99, 72, 0.3);
+                0 0 25px rgba(255, 0, 0, 0.6),
+                0 10px 30px rgba(255, 0, 0, 0.3);
         }
     }
     
@@ -699,7 +699,7 @@ st.markdown("""
     
     /* 风险等级单元格特殊样式 - 超级增强版 */
     [data-testid="stDataFrameResizable"] td:contains("极高风险") {
-        background: linear-gradient(135deg, #ff4757 0%, #ff3838 50%, #ff2525 100%) !important;
+        background: linear-gradient(135deg, #8B0000 0%, #660000 50%, #4B0000 100%) !important;
         color: white !important;
         font-weight: 900 !important;
         border-radius: 15px !important;
@@ -707,7 +707,7 @@ st.markdown("""
         text-shadow: 0 2px 4px rgba(0,0,0,0.4) !important;
         animation: extremeRiskTextPulse 1s ease-in-out infinite !important;
         box-shadow: 
-            0 4px 10px rgba(255, 71, 87, 0.4),
+            0 4px 10px rgba(139, 0, 0, 0.4),
             inset 0 2px 4px rgba(255,255,255,0.2),
             inset 0 -2px 4px rgba(0,0,0,0.2) !important;
         position: relative !important;
@@ -717,7 +717,7 @@ st.markdown("""
     }
     
     [data-testid="stDataFrameResizable"] td:contains("高风险") {
-        background: linear-gradient(135deg, #ff6348 0%, #ff5733 50%, #ff4520 100%) !important;
+        background: linear-gradient(135deg, #FF0000 0%, #CC0000 50%, #990000 100%) !important;
         color: white !important;
         font-weight: 800 !important;
         border-radius: 12px !important;
@@ -725,7 +725,7 @@ st.markdown("""
         text-shadow: 0 2px 3px rgba(0,0,0,0.3) !important;
         animation: highRiskTextGlow 2s ease-in-out infinite !important;
         box-shadow: 
-            0 3px 8px rgba(255, 99, 72, 0.3),
+            0 3px 8px rgba(255, 0, 0, 0.3),
             inset 0 1px 3px rgba(255,255,255,0.2) !important;
     }
     
@@ -733,14 +733,14 @@ st.markdown("""
         0%, 100% { 
             transform: scale(1);
             box-shadow: 
-                0 4px 10px rgba(255, 71, 87, 0.4),
+                0 4px 10px rgba(139, 0, 0, 0.4),
                 inset 0 2px 4px rgba(255,255,255,0.2),
                 inset 0 -2px 4px rgba(0,0,0,0.2);
         }
         50% { 
             transform: scale(1.05);
             box-shadow: 
-                0 6px 20px rgba(255, 71, 87, 0.6),
+                0 6px 20px rgba(139, 0, 0, 0.6),
                 inset 0 2px 4px rgba(255,255,255,0.3),
                 inset 0 -2px 4px rgba(0,0,0,0.3);
         }
@@ -767,8 +767,8 @@ st.markdown("""
     /* 数值列特殊格式 - 增强版 */
     .stDataFrame tbody td:contains("¥") {
         font-weight: 800 !important;
-        color: #2ed573 !important;
-        text-shadow: 0 1px 2px rgba(46, 213, 115, 0.2) !important;
+        color: #228B22 !important;
+        text-shadow: 0 1px 2px rgba(34, 139, 34, 0.2) !important;
         font-size: 1.05rem !important;
     }
     
@@ -823,14 +823,14 @@ st.markdown("""
     
     @keyframes riskSpotlight {
         0% {
-            background: radial-gradient(circle at 50% 50%, rgba(255, 71, 87, 0.3) 0%, transparent 50%);
+            background: radial-gradient(circle at 50% 50%, rgba(139, 0, 0, 0.3) 0%, transparent 50%);
             opacity: 0;
         }
         50% {
             opacity: 1;
         }
         100% {
-            background: radial-gradient(circle at 50% 50%, rgba(255, 71, 87, 0) 0%, transparent 80%);
+            background: radial-gradient(circle at 50% 50%, rgba(139, 0, 0, 0) 0%, transparent 80%);
             opacity: 0;
         }
     }
@@ -864,11 +864,11 @@ st.markdown("""
 COLOR_SCHEME = {
     'primary': '#667eea',
     'secondary': '#764ba2', 
-    'risk_extreme': '#ff4757',
-    'risk_high': '#ff6348',
-    'risk_medium': '#ffa502',
-    'risk_low': '#2ed573',
-    'risk_minimal': '#5352ed',
+    'risk_extreme': '#8B0000',  # 深红色
+    'risk_high': '#FF0000',     # 红色
+    'risk_medium': '#FFA500',   # 橙色
+    'risk_low': '#90EE90',      # 浅绿色
+    'risk_minimal': '#006400',  # 深绿色
     'chart_colors': ['#667eea', '#ff6b9d', '#c44569', '#ffc75f', '#f8b500', '#845ec2', '#4e8397', '#00c9a7']
 }
 
@@ -1141,13 +1141,19 @@ def create_integrated_risk_analysis(processed_inventory):
         risk_counts = processed_inventory['风险等级'].value_counts()
         risk_value = processed_inventory.groupby('风险等级')['批次价值'].sum() / 1000000
         
-        colors = [
-            COLOR_SCHEME['risk_extreme'],
-            COLOR_SCHEME['risk_high'],
-            COLOR_SCHEME['risk_medium'], 
-            COLOR_SCHEME['risk_low'],
-            COLOR_SCHEME['risk_minimal']
-        ]
+        # 创建颜色映射字典
+        risk_color_map = {
+            '极高风险': '#8B0000',  # 深红色
+            '高风险': '#FF0000',    # 红色
+            '中风险': '#FFA500',    # 橙色
+            '低风险': '#90EE90',    # 浅绿色
+            '极低风险': '#006400'   # 深绿色
+        }
+        
+        # 按风险等级顺序排列
+        risk_order = ['极高风险', '高风险', '中风险', '低风险', '极低风险']
+        ordered_risks = [risk for risk in risk_order if risk in risk_counts.index]
+        colors = [risk_color_map[risk] for risk in ordered_risks]
         
         # 创建子图布局
         fig = make_subplots(
@@ -1157,43 +1163,65 @@ def create_integrated_risk_analysis(processed_inventory):
                    [{"type": "histogram"}, {"type": "scatter"}]]
         )
         
+        # 为饼图准备详细信息
+        risk_details = {}
+        for risk in ordered_risks:
+            risk_products = processed_inventory[processed_inventory['风险等级'] == risk]
+            risk_details[risk] = {
+                'count': len(risk_products),
+                'value': risk_products['批次价值'].sum() / 1000000,
+                'products': risk_products.groupby('产品名称').agg({
+                    '数量': 'count',
+                    '批次价值': 'sum'
+                }).head(5).to_dict()
+            }
+        
         # 1. 风险等级分布饼图 - 增强悬停
         fig.add_trace(go.Pie(
-            labels=risk_counts.index,
-            values=risk_counts.values,
+            labels=ordered_risks,
+            values=[risk_counts[risk] for risk in ordered_risks],
             hole=.4,
-            marker_colors=colors[:len(risk_counts)],
+            marker_colors=colors,
             textinfo='label+percent',
             name="风险分布",
+            customdata=[[risk_details[risk]['count'], 
+                        risk_details[risk]['value'],
+                        ', '.join(list(risk_details[risk]['products']['数量'].keys())[:3])] for risk in ordered_risks],
             hovertemplate="<b>%{label}</b><br>" +
                          "批次数量: %{value}个<br>" +
                          "占比: %{percent}<br>" +
+                         "总价值: ¥%{customdata[1]:.1f}M<br>" +
+                         "主要产品: %{customdata[2]}<br>" +
                          "<extra></extra>"
         ), row=1, col=1)
         
         # 2. 风险等级价值分布 - 增强悬停
         fig.add_trace(go.Bar(
-            x=risk_value.index,
-            y=risk_value.values,
-            marker_color=colors[:len(risk_value)],
+            x=ordered_risks,
+            y=[risk_value.get(risk, 0) for risk in ordered_risks],
+            marker_color=colors,
             name="价值分布",
-            text=[f'¥{v:.1f}M' for v in risk_value.values],
+            text=[f'¥{risk_value.get(risk, 0):.1f}M' for risk in ordered_risks],
             textposition='auto',
             hovertemplate="<b>%{x}</b><br>" +
                          "总价值: ¥%{y:.1f}M<br>" +
-                         "批次数: " + risk_value.index.map(lambda x: str(risk_counts.get(x, 0))) + "个<br>" +
-                         "平均批次价值: ¥%{y:.1f}K<br>" +
+                         "批次数: " + ", ".join([f"{risk}: {risk_counts.get(risk, 0)}个" for risk in ordered_risks]) + "<br>" +
                          "<extra></extra>"
         ), row=1, col=2)
         
-        # 3. 库龄分布直方图 - 增强悬停
+        # 3. 库龄分布直方图 - 增强悬停显示产品信息
+        # 创建库龄区间的产品信息
+        age_bins = pd.cut(processed_inventory['库龄'], bins=20)
+        age_product_info = processed_inventory.groupby([age_bins, '产品名称']).size().reset_index(name='批次数')
+        
         fig.add_trace(go.Histogram(
             x=processed_inventory['库龄'],
             nbinsx=20,
             marker_color=COLOR_SCHEME['primary'],
             opacity=0.7,
             name="库龄分布",
-            hovertemplate="库龄范围: %{x}天<br>" +
+            customdata=processed_inventory[['产品名称', '库龄', '生产批号']],
+            hovertemplate="库龄: %{x}天<br>" +
                          "批次数量: %{y}个<br>" +
                          "<extra></extra>"
         ), row=2, col=1)
@@ -1477,11 +1505,11 @@ def create_ultra_integrated_forecast_chart(merged_data):
             font=dict(size=11)
         )
         
-        # 在左上角添加重点SKU统计
+        # 在左上角添加重点SKU统计 - 调整位置避免遮挡
         key_sku_text = f"🎯 <b>重点SKU统计</b><br>数量: {len(key_products_data)}个<br>占销售额: 80%<br>平均准确率: {key_products_data['准确率'].mean():.1%}"
         fig.add_annotation(
             x=0.02,
-            y=0.98,
+            y=0.95,  # 从0.98调整到0.95，稍微往下移
             xref='paper',
             yref='paper',
             text=key_sku_text,
@@ -1493,7 +1521,7 @@ def create_ultra_integrated_forecast_chart(merged_data):
             font=dict(size=11, color=COLOR_SCHEME['primary'])
         )
         
-        # 更新布局
+        # 更新布局 - 调整图例位置避免遮挡
         fig.update_layout(
             title=dict(
                 text=f"销售预测准确性全景分析 - {datetime.now().year}年数据<br><sub>气泡大小=销售占比 | 颜色=准确率 | 重点SKU(占销售额80%)突出显示</sub>",
@@ -1507,7 +1535,7 @@ def create_ultra_integrated_forecast_chart(merged_data):
             showlegend=True,
             legend=dict(
                 x=0.02,
-                y=0.02,
+                y=0.15,  # 从0.02调整到0.15，往上移避免遮挡坐标轴
                 bgcolor='rgba(255,255,255,0.8)',
                 bordercolor='gray',
                 borderwidth=1
@@ -1828,20 +1856,20 @@ with tab4:
         else:
             st.markdown("""
             <div style="text-align: center; padding: 3rem; 
-                        background: linear-gradient(135deg, rgba(255, 165, 2, 0.1), rgba(255, 165, 2, 0.05));
-                        border-radius: 20px; border: 2px dashed #ffa502;">
-                <div style="font-size: 3rem; color: #ffa502; margin-bottom: 1rem;">📭</div>
-                <div style="font-size: 1.5rem; font-weight: 700; color: #ffa502; margin-bottom: 0.5rem;">暂无符合条件的数据</div>
+                        background: linear-gradient(135deg, rgba(255, 165, 0, 0.1), rgba(255, 165, 0, 0.05));
+                        border-radius: 20px; border: 2px dashed #FFA500;">
+                <div style="font-size: 3rem; color: #FFA500; margin-bottom: 1rem;">📭</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #FFA500; margin-bottom: 0.5rem;">暂无符合条件的数据</div>
                 <div style="color: #666; font-size: 1rem;">请调整筛选条件重新查询</div>
             </div>
             """, unsafe_allow_html=True)
     else:
         st.markdown("""
         <div style="text-align: center; padding: 3rem; 
-                    background: linear-gradient(135deg, rgba(255, 71, 87, 0.1), rgba(255, 71, 87, 0.05));
-                    border-radius: 20px; border: 2px dashed #ff4757;">
-            <div style="font-size: 3rem; color: #ff4757; margin-bottom: 1rem;">📦</div>
-            <div style="font-size: 1.5rem; font-weight: 700; color: #ff4757; margin-bottom: 0.5rem;">暂无库存数据</div>
+                    background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(139, 0, 0, 0.05));
+                    border-radius: 20px; border: 2px dashed #8B0000;">
+            <div style="font-size: 3rem; color: #8B0000; margin-bottom: 1rem;">📦</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #8B0000; margin-bottom: 0.5rem;">暂无库存数据</div>
             <div style="color: #666; font-size: 1rem;">请检查数据文件是否正确加载</div>
         </div>
         """, unsafe_allow_html=True)
