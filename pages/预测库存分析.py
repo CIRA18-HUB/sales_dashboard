@@ -23,7 +23,7 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
     st.switch_page("登陆界面haha.py")
     st.stop()
 
-# 统一的增强CSS样式
+# 统一的增强CSS样式 - 添加对 Streamlit 容器的样式支持
 st.markdown("""
 <style>
     /* 导入Google字体 */
@@ -138,6 +138,43 @@ st.markdown("""
     
     /* 统一的卡片容器样式 */
     .metric-card, .content-container, .chart-container, .insight-box {
+        background: rgba(255,255,255,0.98) !important;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            0 15px 35px rgba(0,0,0,0.08),
+            0 5px 15px rgba(0,0,0,0.03);
+        border: 1px solid rgba(255,255,255,0.3);
+        animation: slideUpStagger 1s ease-out;
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+        border-left: 4px solid #667eea;
+    }
+    
+    /* Streamlit 容器样式 - 新增 */
+    .styled-container {
+        background: rgba(255,255,255,0.98) !important;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            0 15px 35px rgba(0,0,0,0.08),
+            0 5px 15px rgba(0,0,0,0.03);
+        border: 1px solid rgba(255,255,255,0.3);
+        animation: slideUpStagger 1s ease-out;
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+        border-left: 4px solid #667eea;
+    }
+    
+    .styled-container:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 25px 50px rgba(0,0,0,0.12);
+    }
+    
+    /* 为 Streamlit 的 container 添加样式 */
+    div[data-testid="stVerticalBlock"] > div:has(> div[data-testid="stVerticalBlock"]):has(.chart-container-marker) {
         background: rgba(255,255,255,0.98) !important;
         border-radius: 25px;
         padding: 2rem;
@@ -1422,10 +1459,12 @@ with tab1:
 with tab2:
     st.markdown("### 🎯 库存风险分布全景分析")
     
-    st.markdown('<div class="content-container">', unsafe_allow_html=True)
-    integrated_fig = create_integrated_risk_analysis(processed_inventory)
-    st.plotly_chart(integrated_fig, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # 使用原生容器
+    with st.container():
+        # 添加标记以识别这是图表容器
+        st.markdown('<div class="chart-container-marker"></div>', unsafe_allow_html=True)
+        integrated_fig = create_integrated_risk_analysis(processed_inventory)
+        st.plotly_chart(integrated_fig, use_container_width=True)
     
     # 风险分析洞察
     st.markdown(f"""
@@ -1445,11 +1484,12 @@ with tab3:
     st.markdown(f"### 📈 销售预测准确性综合分析 - {datetime.now().year}年数据")
     
     if merged_data is not None and not merged_data.empty:
-        # 显示超级整合图表
-        st.markdown('<div class="content-container">', unsafe_allow_html=True)
-        ultra_fig = create_ultra_integrated_forecast_chart(merged_data)
-        st.plotly_chart(ultra_fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        # 使用原生容器显示超级整合图表
+        with st.container():
+            # 添加标记以识别这是图表容器
+            st.markdown('<div class="chart-container-marker"></div>', unsafe_allow_html=True)
+            ultra_fig = create_ultra_integrated_forecast_chart(merged_data)
+            st.plotly_chart(ultra_fig, use_container_width=True)
         
         # 改进建议
         overall_acc = forecast_key_metrics.get('overall_accuracy', 0)
@@ -1522,41 +1562,43 @@ with tab4:
         
         # 显示高级数据表格
         if not filtered_data.empty:
-            st.markdown('<div class="content-container advanced-table">', unsafe_allow_html=True)
-            
-            # 重新排序列并格式化
-            display_columns = ['物料', '产品名称', '生产日期', '生产批号', '数量', '库龄', '风险等级', '批次价值', '处理建议']
-            display_data = filtered_data[display_columns].copy()
-            
-            # 格式化数值
-            display_data['批次价值'] = display_data['批次价值'].apply(lambda x: f"¥{x:,.0f}")
-            display_data['生产日期'] = display_data['生产日期'].dt.strftime('%Y-%m-%d')
-            display_data['库龄'] = display_data['库龄'].apply(lambda x: f"{x}天")
-            
-            # 按风险等级和价值排序
-            risk_order = {'极高风险': 0, '高风险': 1, '中风险': 2, '低风险': 3, '极低风险': 4}
-            display_data['风险排序'] = display_data['风险等级'].map(risk_order)
-            display_data = display_data.sort_values(['风险排序', '库龄'], ascending=[True, False])
-            display_data = display_data.drop('风险排序', axis=1)
-            
-            # 显示增强表格
-            st.dataframe(
-                display_data,
-                use_container_width=True,
-                height=500,
-                hide_index=False
-            )
-            
-            # 下载按钮
-            csv = display_data.to_csv(index=False, encoding='utf-8-sig')
-            st.download_button(
-                label="📥 下载筛选结果",
-                data=csv,
-                file_name=f"库存积压预警_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
+            # 使用容器包裹表格
+            with st.container():
+                st.markdown('<div class="advanced-table">', unsafe_allow_html=True)
+                
+                # 重新排序列并格式化
+                display_columns = ['物料', '产品名称', '生产日期', '生产批号', '数量', '库龄', '风险等级', '批次价值', '处理建议']
+                display_data = filtered_data[display_columns].copy()
+                
+                # 格式化数值
+                display_data['批次价值'] = display_data['批次价值'].apply(lambda x: f"¥{x:,.0f}")
+                display_data['生产日期'] = display_data['生产日期'].dt.strftime('%Y-%m-%d')
+                display_data['库龄'] = display_data['库龄'].apply(lambda x: f"{x}天")
+                
+                # 按风险等级和价值排序
+                risk_order = {'极高风险': 0, '高风险': 1, '中风险': 2, '低风险': 3, '极低风险': 4}
+                display_data['风险排序'] = display_data['风险等级'].map(risk_order)
+                display_data = display_data.sort_values(['风险排序', '库龄'], ascending=[True, False])
+                display_data = display_data.drop('风险排序', axis=1)
+                
+                # 显示增强表格
+                st.dataframe(
+                    display_data,
+                    use_container_width=True,
+                    height=500,
+                    hide_index=False
+                )
+                
+                # 下载按钮
+                csv = display_data.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📥 下载筛选结果",
+                    data=csv,
+                    file_name=f"库存积压预警_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+                st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.markdown("""
             <div style="text-align: center; padding: 3rem; 
