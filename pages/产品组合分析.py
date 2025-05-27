@@ -137,19 +137,6 @@ st.markdown("""
     text {
         text-rendering: optimizeLegibility;
     }
-    
-    /* BCG矩阵特效 */
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
-    }
-    
-    @keyframes float {
-        0% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
-        100% { transform: translateY(0px); }
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -250,14 +237,14 @@ def calculate_overview_metrics(data):
         'jbp_status': 'YES' if total_ratio >= 20 else 'NO'
     }
 
-# 增强的BCG矩阵分析
-def create_enhanced_bcg_matrix(data, dimension='national'):
-    """创建增强的BCG矩阵分析"""
+# 简洁风格的BCG矩阵
+def create_simple_bcg_matrix(data, dimension='national'):
+    """创建简洁风格的BCG矩阵分析"""
     sales_df = data['sales_df']
     
     if dimension == 'national':
         product_analysis = analyze_product_bcg(sales_df)
-        fig = plot_super_enhanced_bcg_matrix(product_analysis)
+        fig = plot_simple_bcg_matrix(product_analysis)
         return fig, product_analysis
     else:
         # 分区域维度BCG分析
@@ -267,7 +254,7 @@ def create_enhanced_bcg_matrix(data, dimension='national'):
         for region in regions:
             region_data = sales_df[sales_df['区域'] == region]
             region_analysis = analyze_product_bcg(region_data)
-            fig = plot_super_enhanced_bcg_matrix(region_analysis, title=f"{region}区域")
+            fig = plot_simple_bcg_matrix(region_analysis, title=f"{region}区域")
             regional_figs.append((region, fig))
         
         return regional_figs
@@ -309,11 +296,11 @@ def analyze_product_bcg(sales_df):
     
     return pd.DataFrame(product_stats)
 
-def plot_super_enhanced_bcg_matrix(product_df, title="BCG产品矩阵分析"):
-    """绘制超级增强的BCG矩阵图"""
+def plot_simple_bcg_matrix(product_df, title="BCG产品矩阵"):
+    """绘制简洁风格的BCG矩阵图"""
     fig = go.Figure()
     
-    # 使用渐变色彩
+    # 使用简洁的配色方案
     colors = {
         'star': '#FFD700',      # 金色 - 明星产品
         'question': '#FF6B6B',  # 红色 - 问号产品
@@ -321,11 +308,12 @@ def plot_super_enhanced_bcg_matrix(product_df, title="BCG产品矩阵分析"):
         'dog': '#95A5A6'        # 灰色 - 瘦狗产品
     }
     
-    gradient_colors = {
-        'star': ['#FFD700', '#FFA500', '#FF8C00'],
-        'question': ['#FF6B6B', '#FF4757', '#FF3838'],
-        'cow': ['#4ECDC4', '#3CBBB1', '#2E86AB'],
-        'dog': ['#95A5A6', '#7F8C8D', '#636E72']
+    # 背景色方案（淡色）
+    bg_colors = {
+        'star': 'rgba(255, 255, 224, 0.3)',      # 淡黄色
+        'question': 'rgba(255, 192, 203, 0.3)',  # 淡粉色
+        'cow': 'rgba(176, 224, 230, 0.3)',       # 淡青色
+        'dog': 'rgba(211, 211, 211, 0.3)'        # 淡灰色
     }
     
     names = {
@@ -335,208 +323,71 @@ def plot_super_enhanced_bcg_matrix(product_df, title="BCG产品矩阵分析"):
         'dog': '🐕 瘦狗产品'
     }
     
-    strategies = {
-        'star': '建议：加大投入，维持竞争优势，扩大市场份额',
-        'question': '建议：选择性投资，培育潜力产品，提升市场地位',
-        'cow': '建议：维持现状，最大化现金流，支援其他产品',
-        'dog': '建议：减少投入，考虑产品组合优化或退出'
-    }
+    # 添加四个象限的背景
+    fig.add_shape(type="rect", x0=0, y0=20, x1=1.5, y1=50,
+                  fillcolor=bg_colors['question'], line=dict(width=0))
+    fig.add_shape(type="rect", x0=1.5, y0=20, x1=5, y1=50,
+                  fillcolor=bg_colors['star'], line=dict(width=0))
+    fig.add_shape(type="rect", x0=0, y0=0, x1=1.5, y1=20,
+                  fillcolor=bg_colors['dog'], line=dict(width=0))
+    fig.add_shape(type="rect", x0=1.5, y0=0, x1=5, y1=20,
+                  fillcolor=bg_colors['cow'], line=dict(width=0))
     
-    # 添加渐变背景象限
-    # 左下角 - 瘦狗产品
-    for i in range(10):
-        alpha = 0.02 + i * 0.01
-        fig.add_shape(type="rect", 
-                     x0=i*0.15, y0=i*2, 
-                     x1=1.5-i*0.15, y1=20-i*2,
-                     fillcolor=f"rgba(149,165,166,{alpha})", 
-                     line=dict(width=0),
-                     layer="below")
-    
-    # 左上角 - 问号产品
-    for i in range(10):
-        alpha = 0.02 + i * 0.01
-        fig.add_shape(type="rect", 
-                     x0=i*0.15, y0=20+i*3, 
-                     x1=1.5-i*0.15, y1=50-i*3,
-                     fillcolor=f"rgba(255,107,107,{alpha})", 
-                     line=dict(width=0),
-                     layer="below")
-    
-    # 右下角 - 现金牛产品
-    for i in range(10):
-        alpha = 0.02 + i * 0.01
-        fig.add_shape(type="rect", 
-                     x0=1.5+i*0.35, y0=i*2, 
-                     x1=5-i*0.35, y1=20-i*2,
-                     fillcolor=f"rgba(78,205,196,{alpha})", 
-                     line=dict(width=0),
-                     layer="below")
-    
-    # 右上角 - 明星产品
-    for i in range(10):
-        alpha = 0.02 + i * 0.01
-        fig.add_shape(type="rect", 
-                     x0=1.5+i*0.35, y0=20+i*3, 
-                     x1=5-i*0.35, y1=50-i*3,
-                     fillcolor=f"rgba(255,215,0,{alpha})", 
-                     line=dict(width=0),
-                     layer="below")
-    
-    # 绘制产品气泡，增加动画效果
-    for idx, category in enumerate(['star', 'question', 'cow', 'dog']):
+    # 绘制产品气泡
+    for category in ['star', 'question', 'cow', 'dog']:
         cat_data = product_df[product_df['category'] == category]
         if len(cat_data) > 0:
-            # 调整位置避免重叠
-            x_positions = cat_data['market_share'].values.copy()
-            y_positions = cat_data['growth_rate'].values.copy()
-            
-            # 简单的位置调整算法
-            for i in range(len(x_positions)):
-                for j in range(i+1, len(x_positions)):
-                    dist = np.sqrt((x_positions[i]-x_positions[j])**2 + (y_positions[i]-y_positions[j])**2)
-                    if dist < 0.3:  # 如果太近
-                        x_positions[j] += 0.2
-                        y_positions[j] += 2
-            
-            # 为每个气泡添加独特的动画效果
-            sizes = cat_data['sales'].apply(lambda x: max(min(np.sqrt(x)/40, 100), 30))
-            
             fig.add_trace(go.Scatter(
-                x=x_positions,
-                y=y_positions,
+                x=cat_data['market_share'],
+                y=cat_data['growth_rate'],
                 mode='markers+text',
                 name=names[category],
                 marker=dict(
-                    size=sizes,
-                    color=gradient_colors[category][0],
-                    opacity=0.85,
-                    line=dict(width=3, color='white'),
-                    gradient=dict(
-                        type="radial",
-                        color=gradient_colors[category]
-                    )
+                    size=cat_data['sales'].apply(lambda x: max(min(np.sqrt(x)/40, 80), 20)),
+                    color=colors[category],
+                    opacity=0.8,
+                    line=dict(width=2, color='white')
                 ),
                 text=cat_data['name'],
                 textposition='middle center',
-                textfont=dict(size=10, color='white', family='Arial Black'),
+                textfont=dict(size=9, color='white', family='Arial'),
                 hovertemplate='<b>%{text}</b><br>' +
-                             '产品类型: ' + names[category] + '<br>' +
                              '市场份额: %{x:.1f}%<br>' +
                              '增长率: %{y:.1f}%<br>' +
-                             '销售额: ¥%{customdata:,.0f}<br>' +
-                             '<b>策略建议:</b><br>' + strategies[category] + '<extra></extra>',
+                             '销售额: ¥%{customdata:,.0f}<extra></extra>',
                 customdata=cat_data['sales']
             ))
     
-    # 添加动态分割线
-    fig.add_hline(y=20, line_dash="dash", line_color="gray", 
-                 opacity=0.7, line_width=3,
-                 annotation_text="20%增长率分界线", 
-                 annotation_position="top right",
-                 annotation_font_size=12)
+    # 添加分割线
+    fig.add_hline(y=20, line_dash="dash", line_color="gray", opacity=0.5, line_width=1,
+                 annotation_text="20%增长率分界线", annotation_position="right")
+    fig.add_vline(x=1.5, line_dash="dash", line_color="gray", opacity=0.5, line_width=1,
+                 annotation_text="1.5%市场份额分界线", annotation_position="bottom right")
     
-    fig.add_vline(x=1.5, line_dash="dash", line_color="gray", 
-                 opacity=0.7, line_width=3,
-                 annotation_text="1.5%市场份额分界线", 
-                 annotation_position="top right",
-                 annotation_font_size=12)
+    # 添加象限标注
+    fig.add_annotation(x=0.75, y=35, text="问号产品<br>低份额·高增长<br>🚀 潜力巨大", 
+                      showarrow=False, font=dict(size=11, color="#333"),
+                      bgcolor="rgba(255,255,255,0.8)", borderpad=4)
+    fig.add_annotation(x=3.25, y=35, text="明星产品<br>高份额·高增长<br>⭐ 重点培育", 
+                      showarrow=False, font=dict(size=11, color="#333"),
+                      bgcolor="rgba(255,255,255,0.8)", borderpad=4)
+    fig.add_annotation(x=0.75, y=10, text="瘦狗产品<br>低份额·低增长<br>📉 考虑退出", 
+                      showarrow=False, font=dict(size=11, color="#333"),
+                      bgcolor="rgba(255,255,255,0.8)", borderpad=4)
+    fig.add_annotation(x=3.25, y=10, text="现金牛产品<br>高份额·低增长<br>💰 稳定收益", 
+                      showarrow=False, font=dict(size=11, color="#333"),
+                      bgcolor="rgba(255,255,255,0.8)", borderpad=4)
     
-    # 添加象限标注（更美观的样式）
-    annotations = [
-        dict(x=0.75, y=35, text="<b>问号产品</b><br>低份额·高增长<br>🚀 潜力巨大", 
-             showarrow=False, font=dict(size=14, color="#FF6B6B", family="Arial"),
-             bgcolor="rgba(255,255,255,0.8)", bordercolor="#FF6B6B", borderwidth=2),
-        dict(x=3.25, y=35, text="<b>明星产品</b><br>高份额·高增长<br>⭐ 重点培育", 
-             showarrow=False, font=dict(size=14, color="#FFD700", family="Arial"),
-             bgcolor="rgba(255,255,255,0.8)", bordercolor="#FFD700", borderwidth=2),
-        dict(x=0.75, y=10, text="<b>瘦狗产品</b><br>低份额·低增长<br>📉 考虑退出", 
-             showarrow=False, font=dict(size=14, color="#95A5A6", family="Arial"),
-             bgcolor="rgba(255,255,255,0.8)", bordercolor="#95A5A6", borderwidth=2),
-        dict(x=3.25, y=10, text="<b>现金牛产品</b><br>高份额·低增长<br>💰 稳定收益", 
-             showarrow=False, font=dict(size=14, color="#4ECDC4", family="Arial"),
-             bgcolor="rgba(255,255,255,0.8)", bordercolor="#4ECDC4", borderwidth=2)
-    ]
-    
-    for ann in annotations:
-        fig.add_annotation(**ann)
-    
-    # 更新布局，添加动画效果
     fig.update_layout(
-        title=dict(
-            text=f"<b>{title}</b>",
-            font=dict(size=28, family="Arial Black"),
-            x=0.5,
-            xanchor='center'
-        ),
-        xaxis_title="<b>市场份额 (%)</b>",
-        yaxis_title="<b>市场增长率 (%)</b>",
-        height=700,
+        title=dict(text=title, font=dict(size=20)),
+        xaxis_title="市场份额 (%)",
+        yaxis_title="市场增长率 (%)",
+        height=600,
         showlegend=True,
         template="plotly_white",
-        xaxis=dict(
-            range=[0, 5],
-            showgrid=True,
-            gridcolor='rgba(200,200,200,0.3)',
-            zeroline=True,
-            zerolinecolor='rgba(200,200,200,0.5)'
-        ),
-        yaxis=dict(
-            range=[0, 50],
-            showgrid=True,
-            gridcolor='rgba(200,200,200,0.3)',
-            zeroline=True,
-            zerolinecolor='rgba(200,200,200,0.5)'
-        ),
-        hovermode='closest',
-        plot_bgcolor='rgba(250,250,250,0.5)',
-        paper_bgcolor='white',
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1,
-            bgcolor='rgba(255,255,255,0.8)',
-            bordercolor='rgba(0,0,0,0.1)',
-            borderwidth=1
-        ),
-        # 添加动画配置
-        updatemenus=[dict(
-            type="buttons",
-            direction="left",
-            buttons=list([
-                dict(
-                    args=[None, {"frame": {"duration": 500, "redraw": True},
-                                "fromcurrent": True,
-                                "transition": {"duration": 300, "easing": "quadratic-in-out"}}],
-                    label="播放动画",
-                    method="animate"
-                )
-            ]),
-            pad={"r": 10, "t": 70},
-            showactive=False,
-            x=0.1,
-            xanchor="left",
-            y=1.15,
-            yanchor="top"
-        )]
-    )
-    
-    # 添加气泡动画效果
-    fig.update_traces(
-        marker=dict(
-            line=dict(width=2),
-            sizemode='area',
-            sizeref=2.*max(product_df['sales'])/(100.**2),
-            sizemin=20
-        ),
-        # 悬停时的动画效果
-        hoverlabel=dict(
-            bgcolor="white",
-            font_size=14,
-            font_family="Arial"
-        )
+        xaxis=dict(range=[0, 5]),
+        yaxis=dict(range=[0, 50]),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     
     return fig
@@ -580,23 +431,6 @@ def analyze_promotion_effectiveness_enhanced(data):
         positive_count = sum([mom_growth > 0, yoy_growth > 0, avg_growth > 0])
         is_effective = positive_count >= 2
         
-        # 详细的有效性原因
-        reasons = []
-        if mom_growth > 0:
-            reasons.append(f"环比增长{mom_growth:.1f}%")
-        else:
-            reasons.append(f"环比下降{abs(mom_growth):.1f}%")
-            
-        if yoy_growth > 0:
-            reasons.append(f"同比增长{yoy_growth:.1f}%")
-        else:
-            reasons.append(f"同比下降{abs(yoy_growth):.1f}%")
-            
-        if avg_growth > 0:
-            reasons.append(f"比去年均值增长{avg_growth:.1f}%")
-        else:
-            reasons.append(f"比去年均值下降{abs(avg_growth):.1f}%")
-        
         effectiveness_results.append({
             'product': promo['促销产品名称'],
             'sales': april_2025,
@@ -605,9 +439,7 @@ def analyze_promotion_effectiveness_enhanced(data):
             'yoy_growth': yoy_growth,
             'avg_growth': avg_growth,
             'positive_count': positive_count,
-            'reasons': reasons,
-            'effectiveness_reason': f"{'✅ 有效' if is_effective else '❌ 无效'}（{positive_count}/3项正增长）",
-            'detail_reason': '；'.join(reasons),
+            'effectiveness_score': positive_count * 33.33,  # 有效性得分
             'march_sales': march_2025,
             'april_2024_sales': april_2024,
             'avg_2024_sales': avg_2024
@@ -615,7 +447,79 @@ def analyze_promotion_effectiveness_enhanced(data):
     
     return pd.DataFrame(effectiveness_results)
 
-# 创建增强的2D雷达图
+# 创建美观的促销活动分析图
+def create_beautiful_promotion_chart(promo_results):
+    """创建美观的促销活动分析图"""
+    if len(promo_results) == 0:
+        return None
+    
+    # 按有效性得分排序
+    promo_results = promo_results.sort_values('effectiveness_score', ascending=True)
+    
+    # 创建水平条形图
+    fig = go.Figure()
+    
+    # 颜色根据得分
+    colors = []
+    for score in promo_results['effectiveness_score']:
+        if score >= 66.66:
+            colors.append('#10b981')  # 绿色
+        elif score >= 33.33:
+            colors.append('#f59e0b')  # 橙色
+        else:
+            colors.append('#ef4444')  # 红色
+    
+    # 添加条形
+    fig.add_trace(go.Bar(
+        y=promo_results['product'],
+        x=promo_results['effectiveness_score'],
+        orientation='h',
+        marker=dict(
+            color=colors,
+            line=dict(width=2, color='white')
+        ),
+        text=[f"{score:.0f}%" for score in promo_results['effectiveness_score']],
+        textposition='outside',
+        hovertemplate='<b>%{y}</b><br>' +
+                     '有效性得分: %{x:.0f}%<br>' +
+                     '4月销售额: ¥%{customdata[0]:,.0f}<br>' +
+                     '环比增长: %{customdata[1]:.1f}%<br>' +
+                     '同比增长: %{customdata[2]:.1f}%<br>' +
+                     '较月均增长: %{customdata[3]:.1f}%<extra></extra>',
+        customdata=np.column_stack((
+            promo_results['sales'],
+            promo_results['mom_growth'],
+            promo_results['yoy_growth'],
+            promo_results['avg_growth']
+        ))
+    ))
+    
+    # 添加标记线
+    fig.add_vline(x=66.66, line_dash="dash", line_color="green", opacity=0.5,
+                 annotation_text="高效", annotation_position="top")
+    fig.add_vline(x=33.33, line_dash="dash", line_color="orange", opacity=0.5,
+                 annotation_text="一般", annotation_position="top")
+    
+    # 计算总体有效率
+    effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
+    
+    fig.update_layout(
+        title=dict(
+            text=f"全国促销活动有效性分析<br><sup>总体有效率: {effectiveness_rate:.1f}%</sup>",
+            font=dict(size=20)
+        ),
+        xaxis_title="有效性得分 (%)",
+        yaxis_title="",
+        height=max(400, len(promo_results) * 50),
+        showlegend=False,
+        xaxis=dict(range=[0, 110]),
+        margin=dict(l=150),
+        plot_bgcolor='rgba(248,249,250,0.5)'
+    )
+    
+    return fig
+
+# 创建增强的2D雷达图（修复变量问题）
 def create_enhanced_radar_chart(categories, values, title="产品覆盖率分析"):
     """创建增强的2D雷达图"""
     fig = go.Figure()
@@ -637,6 +541,18 @@ def create_enhanced_radar_chart(categories, values, title="产品覆盖率分析
             hoverinfo='skip'
         ))
     
+    # 创建customdata，根据values生成洞察
+    insights = []
+    for i, (cat, val) in enumerate(zip(categories, values)):
+        if val >= 80:
+            insight = f'{cat}地区表现良好，建议维持现有策略'
+        elif val >= 70:
+            insight = f'{cat}地区有提升空间，建议加强市场开发'
+        else:
+            insight = f'{cat}地区需重点关注，制定专项提升计划'
+        insights.append(insight)
+    insights.append('')  # 为闭合的点添加空洞察
+    
     # 添加主数据
     fig.add_trace(go.Scatterpolar(
         r=r,
@@ -650,13 +566,7 @@ def create_enhanced_radar_chart(categories, values, title="产品覆盖率分析
         hovertemplate='<b>%{theta}</b><br>覆盖率: %{r:.1f}%<br>' +
                      '<b>分析洞察:</b><br>' +
                      '%{customdata}<extra></extra>',
-        customdata=[
-            '华北地区表现良好，建议维持现有策略' if v >= 80 else '华北地区有提升空间，建议加强市场开发' if v >= 70 else '华北地区需重点关注，制定专项提升计划',
-            '华南地区市场潜力大，建议深耕细作' if v >= 80 else '华南地区仍有增长空间，优化产品组合' if v >= 70 else '华南地区亟需改善，考虑调整策略',
-            '华东地区是核心市场，继续保持领先' if v >= 80 else '华东地区需巩固地位，防止竞争对手蚕食' if v >= 70 else '华东地区面临挑战，需紧急应对',
-            '华西地区基础良好，可扩大投入' if v >= 80 else '华西地区稳步发展，注意渠道建设' if v >= 70 else '华西地区发展缓慢，需加快布局',
-            '华中地区表现优异，可作为标杆' if v >= 80 else '华中地区发展平稳，挖掘增长点' if v >= 70 else '华中地区存在短板，需专项支持'
-        ][:len(values)] + ['']
+        customdata=insights
     ))
     
     # 添加目标线（80%）
@@ -800,8 +710,8 @@ def main():
     if data is None:
         return
     
-    # 创建标签页 - 修正顺序确保季节性分析可见
-    tab_list = [
+    # 创建7个标签页，确保季节性分析可见
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📊 产品情况总览",
         "🎯 BCG产品矩阵", 
         "🚀 全国促销活动有效性",
@@ -809,12 +719,10 @@ def main():
         "🔗 产品关联分析",
         "📍 漏铺市分析",
         "📅 季节性分析"
-    ]
-    
-    tabs = st.tabs(tab_list)
+    ])
     
     # Tab 1: 产品情况总览 - 使用卡片显示
-    with tabs[0]:
+    with tab1:
         metrics = calculate_overview_metrics(data)
         
         # 第一行卡片
@@ -896,12 +804,12 @@ def main():
             </div>
             """, unsafe_allow_html=True)
     
-    # Tab 2: BCG产品矩阵 - 超级增强版
-    with tabs[1]:
+    # Tab 2: BCG产品矩阵 - 简洁风格
+    with tab2:
         bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
         
         if bcg_dimension == "🌏 全国维度":
-            fig, product_analysis = create_enhanced_bcg_matrix(data, 'national')
+            fig, product_analysis = create_simple_bcg_matrix(data, 'national')
             st.plotly_chart(fig, use_container_width=True)
             
             # JBP符合度分析
@@ -937,83 +845,44 @@ def main():
         
         else:
             # 分区域维度 - 默认显示所有区域
-            regional_figs = create_enhanced_bcg_matrix(data, 'regional')
+            regional_figs = create_simple_bcg_matrix(data, 'regional')
             
             # 显示所有区域的BCG矩阵
             for region, fig in regional_figs:
                 st.plotly_chart(fig, use_container_width=True)
     
-    # Tab 3: 全国促销活动有效性 - 增强版
-    with tabs[2]:
+    # Tab 3: 全国促销活动有效性 - 美观版
+    with tab3:
         promo_results = analyze_promotion_effectiveness_enhanced(data)
         
         if len(promo_results) > 0:
-            # 创建增强的柱状图，修复数字重影
-            fig = go.Figure()
-            
-            colors = ['#10b981' if eff else '#ef4444' for eff in promo_results['is_effective']]
-            
-            # 创建hover文本，包含所有分析信息
-            hover_texts = []
-            for _, row in promo_results.iterrows():
-                hover_text = f"""<b>{row['product']}</b><br>
-<b>4月销售额:</b> ¥{row['sales']:,.0f}<br>
-<b>有效性判断:</b> {row['effectiveness_reason']}<br>
-<br><b>详细分析:</b><br>
-• 3月销售额: ¥{row['march_sales']:,.0f}<br>
-• 环比: {'↑' if row['mom_growth'] > 0 else '↓'}{abs(row['mom_growth']):.1f}%<br>
-• 去年4月: ¥{row['april_2024_sales']:,.0f}<br>
-• 同比: {'↑' if row['yoy_growth'] > 0 else '↓'}{abs(row['yoy_growth']):.1f}%<br>
-• 去年月均: ¥{row['avg_2024_sales']:,.0f}<br>
-• 较月均: {'↑' if row['avg_growth'] > 0 else '↓'}{abs(row['avg_growth']):.1f}%<br>
-<br><b>营销建议:</b><br>
-{'继续加大促销力度，扩大市场份额' if row['is_effective'] else '调整促销策略，优化投入产出比'}"""
-                hover_texts.append(hover_text)
-            
-            fig.add_trace(go.Bar(
-                x=promo_results['product'],
-                y=promo_results['sales'],
-                marker_color=colors,
-                text=[f"¥{sales:,.0f}" for sales in promo_results['sales']],
-                textposition='outside',
-                textfont=dict(size=12),
-                hovertemplate='%{customdata}<extra></extra>',
-                customdata=hover_texts
-            ))
-            
-            effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
-            
-            # 获取最大销售额
-            max_sales = promo_results['sales'].max() if len(promo_results) > 0 else 1000
-            
-            fig.update_layout(
-                title=dict(
-                    text=f"全国促销活动总体有效率: {effectiveness_rate:.1f}% ({promo_results['is_effective'].sum()}/{len(promo_results)})",
-                    font=dict(size=20)
-                ),
-                xaxis_title="促销产品",
-                yaxis_title="销售额 (¥)",
-                height=500,
-                showlegend=False,
-                hovermode='closest',
-                plot_bgcolor='white',
-                yaxis=dict(
-                    gridcolor='rgba(200,200,200,0.3)',
-                    zerolinecolor='rgba(200,200,200,0.5)',
-                    range=[0, max_sales * 1.2]  # 修复：使用正确的方法设置范围
-                )
-            )
-            
-            # 确保文本不重叠
-            fig.update_traces(textangle=0)
-            
+            # 创建美观的促销活动图表
+            fig = create_beautiful_promotion_chart(promo_results)
             st.plotly_chart(fig, use_container_width=True)
             
+            # 显示详细统计
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                high_effective = (promo_results['effectiveness_score'] >= 66.66).sum()
+                st.metric("高效产品", f"{high_effective}个", 
+                         f"{high_effective/len(promo_results)*100:.0f}%")
+            
+            with col2:
+                medium_effective = ((promo_results['effectiveness_score'] >= 33.33) & 
+                                  (promo_results['effectiveness_score'] < 66.66)).sum()
+                st.metric("一般产品", f"{medium_effective}个",
+                         f"{medium_effective/len(promo_results)*100:.0f}%")
+            
+            with col3:
+                low_effective = (promo_results['effectiveness_score'] < 33.33).sum()
+                st.metric("低效产品", f"{low_effective}个",
+                         f"{low_effective/len(promo_results)*100:.0f}%")
         else:
             st.info("暂无全国促销活动数据")
     
     # Tab 4: 星品新品达成 - 增强版
-    with tabs[3]:
+    with tab4:
         view_type = st.radio("选择分析视角", ["按区域", "按销售员", "趋势分析"], horizontal=True)
         
         sales_df = data['sales_df']
@@ -1227,7 +1096,7 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
     
     # Tab 5: 产品关联分析 - 升级版
-    with tabs[4]:
+    with tab5:
         st.subheader("🔗 产品关联网络分析")
         
         # 创建网络图
@@ -1235,7 +1104,7 @@ def main():
         st.plotly_chart(network_fig, use_container_width=True)
     
     # Tab 6: 漏铺市分析 - 增强的2D雷达图
-    with tabs[5]:
+    with tab6:
         st.subheader("📍 区域产品覆盖率分析")
         
         # 覆盖率数据
@@ -1270,7 +1139,7 @@ def main():
                 st.success("✅ 所有区域覆盖率均达到80%以上")
     
     # Tab 7: 季节性分析 - 确保此标签可见
-    with tabs[6]:
+    with tab7:
         st.subheader("📅 产品季节性趋势分析")
         
         product_filter = st.selectbox(
