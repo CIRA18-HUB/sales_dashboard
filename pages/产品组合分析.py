@@ -579,8 +579,18 @@ def calculate_comprehensive_metrics(data):
     promo_results = analyze_promotion_effectiveness_enhanced(data)
     promo_effectiveness = (promo_results['is_effective'].sum() / len(promo_results) * 100) if len(promo_results) > 0 else 0
     
-    # 有效产品率
+    # 有效产品分析
     effective_rate_all = calculate_effective_products_rate(sales_2025, data['dashboard_products'])
+    
+    # 计算有效产品详细数据
+    product_analysis_eff = analyze_effective_products(data, 'national')
+    effective_products = product_analysis_eff[product_analysis_eff['is_effective'] == True]
+    effective_count = len(effective_products)
+    
+    if len(effective_products) > 0:
+        avg_effective_sales = effective_products['monthly_avg_boxes'].mean()
+    else:
+        avg_effective_sales = 0
     
     return {
         'total_sales': total_sales,
@@ -590,7 +600,9 @@ def calculate_comprehensive_metrics(data):
         'penetration_rate': penetration_rate,
         'jbp_status': jbp_status,
         'promo_effectiveness': promo_effectiveness,
-        'effective_products_rate': effective_rate_all
+        'effective_products_rate': effective_rate_all,
+        'effective_products_count': effective_count,
+        'avg_effective_sales': avg_effective_sales
     }
 
 def analyze_product_bcg_comprehensive(sales_df, dashboard_products):
@@ -1296,8 +1308,8 @@ def create_effective_products_chart(product_df, title="有效产品分析"):
     product_df = product_df.sort_values(['is_effective', 'monthly_avg_boxes'], 
                                         ascending=[False, False])
     
-    # 只显示前30个产品，避免图表过于拥挤
-    display_df = product_df.head(30)
+    # 显示所有产品
+    display_df = product_df
     
     colors = ['#10b981' if eff else '#ef4444' for eff in display_df['is_effective']]
     
@@ -1341,6 +1353,9 @@ def create_effective_products_chart(product_df, title="有效产品分析"):
     effective_count = product_df['is_effective'].sum()
     effectiveness_rate = (effective_count / total_products * 100) if total_products > 0 else 0
     
+    # 根据产品数量调整图表高度
+    chart_height = max(600, 400 + len(display_df) * 15)
+    
     fig.update_layout(
         title=dict(
             text=f"<b>{title}</b><br>有效产品率: {effectiveness_rate:.1f}% ({effective_count}/{total_products})",
@@ -1349,7 +1364,7 @@ def create_effective_products_chart(product_df, title="有效产品分析"):
         ),
         xaxis=dict(title="产品名称", tickangle=-45),
         yaxis=dict(title="月均销售 (箱)", range=[0, max(display_df['monthly_avg_boxes'].max() * 1.2, 20)]),
-        height=600,
+        height=chart_height,
         showlegend=False,
         hovermode='closest',
         plot_bgcolor='white',
@@ -1464,11 +1479,55 @@ def main():
                 <div class="metric-sublabel">月均≥15箱</div>
             </div>
             """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # 第三行：有效产品相关指标
+        col9, col10, col11, col12 = st.columns(4)
+        
+        with col9:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{metrics['effective_products_count']}</div>
+                <div class="metric-label">✅ 有效产品数</div>
+                <div class="metric-sublabel">月均≥15箱</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col10:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{metrics['avg_effective_sales']:.1f}箱</div>
+                <div class="metric-label">📈 有效产品月均</div>
+                <div class="metric-sublabel">平均销售量</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col11:
+            total_products = len(data['dashboard_products'])
+            ineffective_count = total_products - metrics['effective_products_count']
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{ineffective_count}</div>
+                <div class="metric-label">❌ 无效产品数</div>
+                <div class="metric-sublabel">需重点提升</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col12:
+            total_products = len(data['dashboard_products'])
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{total_products}</div>
+                <div class="metric-label">📦 仪表盘产品数</div>
+                <div class="metric-sublabel">总产品数量</div>
+            </div>
+            """, unsafe_allow_html=True)
     
     # Tab 2: BCG产品矩阵
     with tabs[1]:
         # 选择维度控件
-        bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
+        bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True, key="bcg_dimension")
         
         # 获取分析数据
         if bcg_dimension == "🌏 全国维度":
@@ -1571,7 +1630,7 @@ def main():
     # Tab 4: 星品新品达成
     with tabs[3]:
         # 选择控件
-        view_type = st.radio("选择分析视角", ["按区域", "按销售员", "趋势分析"], horizontal=True)
+        view_type = st.radio("选择分析视角", ["按区域", "按销售员", "趋势分析"], horizontal=True, key="star_new_view")
         
         sales_df = data['sales_df']
         star_products = data['star_products']
@@ -1777,7 +1836,7 @@ def main():
     # Tab 5: 市场网络与覆盖分析
     with tabs[4]:
         # 选择控件
-        analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析", "✅ 有效产品分析"], horizontal=True)
+        analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析", "✅ 有效产品分析"], horizontal=True, key="market_analysis_type")
         
         if analysis_type == "🔗 产品关联网络":
             # 产品关联网络
@@ -1845,7 +1904,7 @@ def main():
             st.subheader("有效产品分析（月均销售≥15箱）")
             
             # 选择维度
-            eff_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
+            eff_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True, key="eff_dimension")
             
             if eff_dimension == "🌏 全国维度":
                 product_analysis = analyze_effective_products(data, 'national')
@@ -1860,35 +1919,11 @@ def main():
                 fig, effectiveness_rate = create_effective_products_chart(product_analysis, title)
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # 有效产品洞察
-                with st.expander("💡 有效产品分析洞察", expanded=True):
-                    col1, col2, col3 = st.columns(3)
-                    
+                # 策略建议
+                with st.expander("💡 有效产品策略建议", expanded=True):
                     effective_products = product_analysis[product_analysis['is_effective'] == True]
                     ineffective_products = product_analysis[product_analysis['is_effective'] == False]
                     
-                    with col1:
-                        st.metric("有效产品数", f"{len(effective_products)}个", 
-                                 f"{effectiveness_rate:.1f}%")
-                        st.caption("月均销售≥15箱")
-                    
-                    with col2:
-                        if len(effective_products) > 0:
-                            avg_sales = effective_products['monthly_avg_boxes'].mean()
-                            st.metric("有效产品月均销售", f"{avg_sales:.1f}箱", 
-                                     f"高于标准{avg_sales-15:.1f}箱")
-                        else:
-                            st.metric("有效产品月均销售", "0箱", "无有效产品")
-                    
-                    with col3:
-                        if len(ineffective_products) > 0:
-                            gap_avg = ineffective_products['effectiveness_gap'].mean()
-                            st.metric("无效产品平均差距", f"{gap_avg:.1f}箱", 
-                                     f"{len(ineffective_products)}个产品需提升")
-                        else:
-                            st.metric("无效产品平均差距", "0箱", "全部达标")
-                    
-                    # 策略建议
                     st.info(f"""
                     **📋 策略建议**
                     - 有效产品（{len(effective_products)}个）：继续保持良好销售势头，可作为主推产品
