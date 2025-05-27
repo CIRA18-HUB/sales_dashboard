@@ -201,6 +201,44 @@ st.markdown("""
         animation: containerFadeIn 0.8s ease-out;
     }
     
+    /* 为 Streamlit 的 container 添加样式 - 关键修复 */
+    div[data-testid="stVerticalBlock"] > div:has(.chart-container-marker) {
+        background: white !important;
+        border-radius: 20px;
+        padding: 2rem;
+        margin: 1.5rem 0;
+        box-shadow: 
+            0 15px 35px rgba(0,0,0,0.08),
+            0 5px 15px rgba(0,0,0,0.03);
+        border: 1px solid rgba(255,255,255,0.5);
+        position: relative;
+        overflow: visible;
+    }
+    
+    /* 确保图表本身也有白色背景 */
+    div[data-testid="stVerticalBlock"] > div:has(.chart-container-marker) .stPlotlyChart {
+        background: white !important;
+        border-radius: 12px;
+        padding: 1rem;
+    }
+    
+    /* 通用的Plotly图表容器样式 */
+    .js-plotly-plot {
+        background: white !important;
+    }
+    
+    .plot-container {
+        background: white !important;
+    }
+    
+    /* 强制所有Plotly图表背景为白色 */
+    .stPlotlyChart {
+        background: white !important;
+        border-radius: 12px;
+        padding: 1rem;
+        margin: 0.5rem 0;
+    }
+    
     /* 洞察卡片 */
     .insight-card {
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
@@ -485,8 +523,8 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
         ),
         showlegend=True, height=450, 
         margin=dict(t=40, b=40, l=40, r=40),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
+        paper_bgcolor='white',
+        plot_bgcolor='white'
     )
     charts['health_radar'] = fig_radar
     
@@ -517,15 +555,15 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
         fig_top20.add_hline(y=80, line_dash="dash", line_color="#e74c3c", 
                            annotation_text="80%贡献线", secondary_y=True)
         
-        fig_top20.update_xaxes(title_text="客户名称", tickangle=-45)
-        fig_top20.update_yaxes(title_text="销售额", secondary_y=False)
+        fig_top20.update_xaxes(title_text="客户名称", tickangle=-45, showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
+        fig_top20.update_yaxes(title_text="销售额", secondary_y=False, showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
         fig_top20.update_yaxes(title_text="累计占比 (%)", range=[0, 105], secondary_y=True)
         
         fig_top20.update_layout(
             height=500, hovermode='x unified', 
             margin=dict(t=60, b=100, l=60, r=60),
-            plot_bgcolor='rgba(0,0,0,0)', 
-            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='white', 
+            paper_bgcolor='white',
             showlegend=True
         )
         charts['top20'] = fig_top20
@@ -561,12 +599,12 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
         
         fig_risk.update_layout(
             title=dict(text="区域客户依赖风险矩阵", font=dict(size=16)),
-            xaxis=dict(title="客户数量", gridcolor='rgba(200,200,200,0.3)'),
-            yaxis=dict(title="最大客户依赖度(%)", gridcolor='rgba(200,200,200,0.3)',
+            xaxis=dict(title="客户数量", gridcolor='rgba(200,200,200,0.3)', showgrid=True),
+            yaxis=dict(title="最大客户依赖度(%)", gridcolor='rgba(200,200,200,0.3)', showgrid=True,
                       range=[0, max(100, metrics['region_stats']['最大客户依赖度'].max() * 1.1)]),
             height=500, showlegend=False, 
-            plot_bgcolor='rgba(0,0,0,0)', 
-            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='white', 
+            paper_bgcolor='white',
             margin=dict(t=80, b=60, l=60, r=60)
         )
         charts['risk_matrix'] = fig_risk
@@ -599,8 +637,8 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                 fig_sankey.update_layout(
                     height=500, 
                     margin=dict(t=60, b=60, l=60, r=60),
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)'
+                    paper_bgcolor='white',
+                    plot_bgcolor='white'
                 )
                 charts['sankey'] = fig_sankey
         except Exception as e:
@@ -628,14 +666,14 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                 hovertemplate='月份: %{x}<br>订单数: %{y}笔<extra></extra>'
             ), secondary_y=True)
             
-            fig_trend.update_xaxes(title_text="月份")
-            fig_trend.update_yaxes(title_text="销售额", secondary_y=False)
+            fig_trend.update_xaxes(title_text="月份", showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
+            fig_trend.update_yaxes(title_text="销售额", secondary_y=False, showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
             fig_trend.update_yaxes(title_text="订单数", secondary_y=True)
             fig_trend.update_layout(
                 height=450, hovermode='x unified',
                 margin=dict(t=60, b=60, l=60, r=60),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
+                paper_bgcolor='white',
+                plot_bgcolor='white'
             )
             
             charts['trend'] = fig_trend
@@ -676,9 +714,11 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                 fig_scatter.update_layout(
                     xaxis_title="目标金额", yaxis_title="实际金额", height=500,
                     hovermode='closest', 
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    margin=dict(t=60, b=60, l=60, r=60)
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    margin=dict(t=60, b=60, l=60, r=60),
+                    xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)'),
+                    yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
                 )
                 charts['target_scatter'] = fig_scatter
         except Exception as e:
@@ -802,15 +842,14 @@ def main():
     # Tab 2: 健康诊断
     with tabs[1]:
         # 创建白色背景容器
-        with st.container():
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            
-            if 'health_radar' in charts:
-                st.markdown('<div class="chart-title">客户健康状态综合评估</div>', unsafe_allow_html=True)
-                st.markdown('<div class="chart-subtitle">多维度评估客户群体整体健康状况</div>', unsafe_allow_html=True)
-                st.plotly_chart(charts['health_radar'], use_container_width=True, key="health_radar")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-wrapper">', unsafe_allow_html=True)
+        
+        if 'health_radar' in charts:
+            st.markdown('<div class="chart-title">客户健康状态综合评估</div>', unsafe_allow_html=True)
+            st.markdown('<div class="chart-subtitle">多维度评估客户群体整体健康状况</div>', unsafe_allow_html=True)
+            st.plotly_chart(charts['health_radar'], use_container_width=True, key="health_radar")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # 健康度评分
         health_score = (metrics['normal_rate'] * 0.4 + metrics['target_achievement_rate'] * 0.3 + metrics['high_value_rate'] * 0.3)
@@ -827,62 +866,57 @@ def main():
     # Tab 3: 风险评估
     with tabs[2]:
         # Top20客户分析
-        with st.container():
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.markdown('<div class="chart-title">Top 20 客户贡献度分析</div>', unsafe_allow_html=True)
-            st.markdown('<div class="chart-subtitle">展示前20大客户的销售额分布和累计贡献度</div>', unsafe_allow_html=True)
-            
-            if 'top20' in charts:
-                st.plotly_chart(charts['top20'], use_container_width=True, key="top20_chart")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-wrapper">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-title">Top 20 客户贡献度分析</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-subtitle">展示前20大客户的销售额分布和累计贡献度</div>', unsafe_allow_html=True)
+        
+        if 'top20' in charts:
+            st.plotly_chart(charts['top20'], use_container_width=True, key="top20_chart")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # 区域风险矩阵  
-        with st.container():
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.markdown('<div class="chart-title">区域客户依赖风险矩阵</div>', unsafe_allow_html=True)
-            st.markdown('<div class="chart-subtitle">评估各区域的客户集中度风险</div>', unsafe_allow_html=True)
-            
-            if 'risk_matrix' in charts:
-                st.plotly_chart(charts['risk_matrix'], use_container_width=True, key="risk_matrix_chart")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-wrapper">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-title">区域客户依赖风险矩阵</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-subtitle">评估各区域的客户集中度风险</div>', unsafe_allow_html=True)
+        
+        if 'risk_matrix' in charts:
+            st.plotly_chart(charts['risk_matrix'], use_container_width=True, key="risk_matrix_chart")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 4: 价值分层
     with tabs[3]:
-        with st.container():
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.markdown('<div class="chart-title">客户价值流动分析</div>', unsafe_allow_html=True)
-            st.markdown('<div class="chart-subtitle">展示客户在不同价值层级间的分布</div>', unsafe_allow_html=True)
-            
-            if 'sankey' in charts:
-                st.plotly_chart(charts['sankey'], use_container_width=True, key="sankey_chart")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-wrapper">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-title">客户价值流动分析</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-subtitle">展示客户在不同价值层级间的分布</div>', unsafe_allow_html=True)
+        
+        if 'sankey' in charts:
+            st.plotly_chart(charts['sankey'], use_container_width=True, key="sankey_chart")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 5: 目标追踪
     with tabs[4]:
-        with st.container():
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.markdown('<div class="chart-title">客户目标达成分析</div>', unsafe_allow_html=True)
-            st.markdown('<div class="chart-subtitle">评估各客户的销售目标完成情况</div>', unsafe_allow_html=True)
-            
-            if 'target_scatter' in charts:
-                st.plotly_chart(charts['target_scatter'], use_container_width=True, key="target_scatter_chart")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-wrapper">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-title">客户目标达成分析</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-subtitle">评估各客户的销售目标完成情况</div>', unsafe_allow_html=True)
+        
+        if 'target_scatter' in charts:
+            st.plotly_chart(charts['target_scatter'], use_container_width=True, key="target_scatter_chart")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 6: 趋势分析
     with tabs[5]:
-        with st.container():
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.markdown('<div class="chart-title">销售趋势分析</div>', unsafe_allow_html=True)
-            st.markdown('<div class="chart-subtitle">追踪销售额和订单数的月度变化趋势</div>', unsafe_allow_html=True)
-            
-            if 'trend' in charts:
-                st.plotly_chart(charts['trend'], use_container_width=True, key="trend_chart")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-wrapper">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-title">销售趋势分析</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-subtitle">追踪销售额和订单数的月度变化趋势</div>', unsafe_allow_html=True)
+        
+        if 'trend' in charts:
+            st.plotly_chart(charts['trend'], use_container_width=True, key="trend_chart")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # 趋势洞察
         st.markdown("""
