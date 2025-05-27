@@ -427,52 +427,6 @@ st.markdown("""
         100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
     }
     
-    /* 洞察框样式 */
-    .insight-box {
-        background: linear-gradient(145deg, #ffffff 0%, #f0f9ff 100%);
-        border-radius: 20px;
-        padding: 2rem;
-        margin: 1.5rem 0;
-        box-shadow: 
-            0 10px 25px rgba(0,0,0,0.06),
-            inset 0 1px 0 rgba(255,255,255,0.9);
-        border: 1px solid rgba(59, 130, 246, 0.15);
-        animation: insightFadeIn 1s ease-out;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .insight-box::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: linear-gradient(45deg, transparent, rgba(59, 130, 246, 0.03), transparent);
-        animation: insightShimmer 6s linear infinite;
-    }
-    
-    .insight-box * {
-        color: #1f2937 !important;
-    }
-    
-    @keyframes insightFadeIn {
-        from { 
-            opacity: 0; 
-            transform: translateY(20px) scale(0.98); 
-        }
-        to { 
-            opacity: 1; 
-            transform: translateY(0) scale(1); 
-        }
-    }
-    
-    @keyframes insightShimmer {
-        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
-    }
-    
     /* 响应式设计 */
     @media (max-width: 768px) {
         .metric-value {
@@ -1111,10 +1065,10 @@ def create_real_product_network(data):
 关联度: {pair[2]:.1%}<br>
 共同客户数: {pair[3]}<br>
 <br><b>营销洞察:</b><br>
-• 这两个产品有{pair[2]:.0%}的客户重叠<br>
-• 适合捆绑销售，预计可提升{pair[2]*30:.0f}%销量<br>
-• 建议在促销时同时推广<br>
-• 可设计组合套装，提高客单价""",
+- 这两个产品有{pair[2]:.0%}的客户重叠<br>
+- 适合捆绑销售，预计可提升{pair[2]*30:.0f}%销量<br>
+- 建议在促销时同时推广<br>
+- 可设计组合套装，提高客单价""",
             showlegend=False
         ))
     
@@ -1139,10 +1093,10 @@ def create_real_product_network(data):
         
         detail = f"""<b>{node}</b><br>
 <br><b>网络分析:</b><br>
-• 关联产品数: {connections}<br>
-• 平均关联度: {total_correlation/connections if connections > 0 else 0:.1%}<br>
-• 总销售额: ¥{total_sales:,.0f}<br>
-• 客户数: {customer_count}<br>
+- 关联产品数: {connections}<br>
+- 平均关联度: {total_correlation/connections if connections > 0 else 0:.1%}<br>
+- 总销售额: ¥{total_sales:,.0f}<br>
+- 客户数: {customer_count}<br>
 <br><b>产品定位:</b><br>
 {'• 核心产品，适合作为引流主打' if connections >= 5 else 
 '• 重要连接点，适合交叉销售' if connections >= 3 else 
@@ -1200,12 +1154,12 @@ def create_optimized_promotion_chart(promo_results):
 <b>4月销售额:</b> ¥{row['sales']:,.0f}<br>
 <b>有效性判断:</b> {row['effectiveness_reason']}<br>
 <br><b>详细分析:</b><br>
-• 3月销售额: ¥{row['march_sales']:,.0f}<br>
-• 环比: {arrow_up if row['mom_growth'] > 0 else arrow_down}{abs(row['mom_growth']):.1f}%<br>
-• 去年4月: ¥{row['april_2024_sales']:,.0f}<br>
-• 同比: {arrow_up if row['yoy_growth'] > 0 else arrow_down}{abs(row['yoy_growth']):.1f}%<br>
-• 去年月均: ¥{row['avg_2024_sales']:,.0f}<br>
-• 较月均: {arrow_up if row['avg_growth'] > 0 else arrow_down}{abs(row['avg_growth']):.1f}%<br>
+- 3月销售额: ¥{row['march_sales']:,.0f}<br>
+- 环比: {arrow_up if row['mom_growth'] > 0 else arrow_down}{abs(row['mom_growth']):.1f}%<br>
+- 去年4月: ¥{row['april_2024_sales']:,.0f}<br>
+- 同比: {arrow_up if row['yoy_growth'] > 0 else arrow_down}{abs(row['yoy_growth']):.1f}%<br>
+- 去年月均: ¥{row['avg_2024_sales']:,.0f}<br>
+- 较月均: {arrow_up if row['avg_growth'] > 0 else arrow_down}{abs(row['avg_growth']):.1f}%<br>
 <br><b>营销建议:</b><br>
 {'继续加大促销力度，扩大市场份额' if row['is_effective'] else '调整促销策略，优化投入产出比'}"""
         hover_texts.append(hover_text)
@@ -1365,9 +1319,9 @@ def main():
     
     # Tab 2: BCG产品矩阵
     with tabs[1]:
+        # 选择维度控件 - 包装在容器中
         with st.container():
             st.markdown('<div class="content-container">', unsafe_allow_html=True)
-            
             bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
             
             # 获取分析数据
@@ -1380,10 +1334,9 @@ def main():
                 selected_region = st.selectbox("🗺️ 选择区域", regions)
                 product_analysis = create_bcg_matrix(data, 'regional', selected_region)
                 title = f"{selected_region}区域 BCG产品矩阵"
-            
             st.markdown('</div>', unsafe_allow_html=True)
         
-        # 显示BCG矩阵图表
+        # 显示BCG矩阵图表 - 包装在容器中
         if len(product_analysis) > 0:
             with st.container():
                 st.markdown('<div class="content-container">', unsafe_allow_html=True)
@@ -1404,7 +1357,6 @@ def main():
             region_prefix = f"{selected_region}区域 " if bcg_dimension == "🗺️ 分区域维度" else ""
             
             with st.expander(f"📊 {region_prefix}JBP符合度分析", expanded=True):
-                st.markdown('<div class="insight-box">', unsafe_allow_html=True)
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
@@ -1424,22 +1376,20 @@ def main():
                              "✅ 符合" if dog_ratio <= 10 else "❌ 不符合",
                              delta_color="normal" if dog_ratio <= 10 else "inverse")
                     st.caption("目标: ≤10%")
-                
-                st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("该区域暂无产品数据")
     
     # Tab 3: 全国促销活动有效性
     with tabs[2]:
-        with st.container():
-            st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        promo_results = analyze_promotion_effectiveness_enhanced(data)
+        
+        if len(promo_results) > 0:
+            # 计算有效率并显示在标题中
+            effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
             
-            promo_results = analyze_promotion_effectiveness_enhanced(data)
-            
-            if len(promo_results) > 0:
-                # 计算有效率并显示在标题中
-                effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
-                
+            # 促销活动效果图表 - 包装在容器中
+            with st.container():
+                st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 st.markdown(f"""
                 <div class="promo-header">
                     <h2>🚀 全国促销活动有效性分析</h2>
@@ -1450,46 +1400,41 @@ def main():
                 fig = create_optimized_promotion_chart(promo_results)
                 if fig:
                     st.plotly_chart(fig, use_container_width=True)
-                
-                # 促销洞察分析
-                with st.expander("💡 促销活动深度洞察", expanded=True):
-                    st.markdown('<div class="insight-box">', unsafe_allow_html=True)
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        effective_products = promo_results[promo_results['is_effective'] == True]
-                        ineffective_products = promo_results[promo_results['is_effective'] == False]
-                        
-                        st.info(f"""
-                        **🎯 有效促销产品特征**
-                        - 有效产品数: {len(effective_products)}个
-                        - 平均销售额: ¥{effective_products['sales'].mean():,.0f}
-                        - 环比增长率: {effective_products['mom_growth'].mean():.1f}%
-                        - 同比增长率: {effective_products['yoy_growth'].mean():.1f}%
-                        """)
-                    
-                    with col2:
-                        st.warning(f"""
-                        **⚠️ 无效促销产品分析**
-                        - 无效产品数: {len(ineffective_products)}个
-                        - 平均销售额: ¥{ineffective_products['sales'].mean():,.0f}
-                        - 环比增长率: {ineffective_products['mom_growth'].mean():.1f}%
-                        - 同比增长率: {ineffective_products['yoy_growth'].mean():.1f}%
-                        """)
-                    
-                    st.markdown('</div>', unsafe_allow_html=True)
-            else:
-                st.info("暂无全国促销活动数据")
+                st.markdown('</div>', unsafe_allow_html=True)
             
-            st.markdown('</div>', unsafe_allow_html=True)
+            # 促销洞察分析
+            with st.expander("💡 促销活动深度洞察", expanded=True):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    effective_products = promo_results[promo_results['is_effective'] == True]
+                    ineffective_products = promo_results[promo_results['is_effective'] == False]
+                    
+                    st.info(f"""
+                    **🎯 有效促销产品特征**
+                    - 有效产品数: {len(effective_products)}个
+                    - 平均销售额: ¥{effective_products['sales'].mean():,.0f}
+                    - 环比增长率: {effective_products['mom_growth'].mean():.1f}%
+                    - 同比增长率: {effective_products['yoy_growth'].mean():.1f}%
+                    """)
+                
+                with col2:
+                    st.warning(f"""
+                    **⚠️ 无效促销产品分析**
+                    - 无效产品数: {len(ineffective_products)}个
+                    - 平均销售额: ¥{ineffective_products['sales'].mean():,.0f}
+                    - 环比增长率: {ineffective_products['mom_growth'].mean():.1f}%
+                    - 同比增长率: {ineffective_products['yoy_growth'].mean():.1f}%
+                    """)
+        else:
+            st.info("暂无全国促销活动数据")
     
     # Tab 4: 星品新品达成
     with tabs[3]:
+        # 选择控件 - 包装在容器中
         with st.container():
             st.markdown('<div class="content-container">', unsafe_allow_html=True)
-            
             view_type = st.radio("选择分析视角", ["按区域", "按销售员", "趋势分析"], horizontal=True)
-            
             st.markdown('</div>', unsafe_allow_html=True)
         
         sales_df = data['sales_df']
@@ -1498,6 +1443,7 @@ def main():
         star_new_products = list(set(star_products + new_products))
         
         if view_type == "按区域":
+            # 区域分析 - 包装在容器中
             with st.container():
                 st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 
@@ -1534,10 +1480,10 @@ def main():
 <b>占比:</b> {row['ratio']:.1f}%<br>
 <b>达成情况:</b> {'✅ 已达标' if row['achieved'] else '❌ 未达标'}<br>
 <br><b>销售分析:</b><br>
-• 总销售额: ¥{row['total_sales']:,.0f}<br>
-• 星品新品销售额: ¥{row['star_new_sales']:,.0f}<br>
-• 覆盖客户: {row['customers']}<br>
-• 客户渗透率: {row['penetration']:.1f}%<br>
+- 总销售额: ¥{row['total_sales']:,.0f}<br>
+- 星品新品销售额: ¥{row['star_new_sales']:,.0f}<br>
+- 覆盖客户: {row['customers']}<br>
+- 客户渗透率: {row['penetration']:.1f}%<br>
 <br><b>行动建议:</b><br>
 {'继续保持，可作为其他区域标杆' if row['achieved'] else f"距离目标还差{20-row['ratio']:.1f}%，需重点提升"}"""
                     hover_texts.append(hover_text)
@@ -1565,10 +1511,10 @@ def main():
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
-                
                 st.markdown('</div>', unsafe_allow_html=True)
         
         elif view_type == "按销售员":
+            # 销售员分析 - 包装在容器中
             with st.container():
                 st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 
@@ -1606,9 +1552,9 @@ def main():
 <b>占比:</b> {row['ratio']:.1f}%<br>
 <b>达成情况:</b> {'✅ 已达标' if row['achieved'] else '❌ 未达标'}<br>
 <br><b>销售分析:</b><br>
-• 总销售额: ¥{row['total_sales']:,.0f}<br>
-• 星品新品销售额: ¥{row['star_new_sales']:,.0f}<br>
-• 覆盖客户: {row['customers']}<br>
+- 总销售额: ¥{row['total_sales']:,.0f}<br>
+- 星品新品销售额: ¥{row['star_new_sales']:,.0f}<br>
+- 覆盖客户: {row['customers']}<br>
 <br><b>绩效建议:</b><br>
 {'优秀销售员，可分享经验' if row['achieved'] else '需要培训和支持，提升产品知识'}"""
                     hover_texts.append(hover_text)
@@ -1640,10 +1586,10 @@ def main():
                 
                 achieved_count = person_df['achieved'].sum()
                 st.info(f"📊 达成率统计：{achieved_count}/{len(person_df)}人达标（{achieved_count/len(person_df)*100:.1f}%）")
-                
                 st.markdown('</div>', unsafe_allow_html=True)
         
         else:  # 趋势分析
+            # 趋势分析 - 包装在容器中
             with st.container():
                 st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 
@@ -1705,19 +1651,18 @@ def main():
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
-                
                 st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 5: 市场网络与覆盖分析
     with tabs[4]:
+        # 选择控件 - 包装在容器中
         with st.container():
             st.markdown('<div class="content-container">', unsafe_allow_html=True)
-            
             analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析"], horizontal=True)
-            
             st.markdown('</div>', unsafe_allow_html=True)
         
         if analysis_type == "🔗 产品关联网络":
+            # 产品关联网络 - 包装在容器中
             with st.container():
                 st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 st.subheader("产品关联网络分析")
@@ -1729,7 +1674,6 @@ def main():
             
             # 关联分析洞察
             with st.expander("💡 产品关联营销策略", expanded=True):
-                st.markdown('<div class="insight-box">', unsafe_allow_html=True)
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -1749,20 +1693,18 @@ def main():
                     - 基于关联度设计货架陈列
                     - 开发新的组合套装产品
                     """)
-                st.markdown('</div>', unsafe_allow_html=True)
         
         else:  # 区域覆盖分析
+            # 区域覆盖分析 - 包装在容器中
             with st.container():
                 st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 
                 # 创建更易读的区域覆盖率分析
                 fig, coverage_df = create_regional_coverage_analysis(data)
                 st.plotly_chart(fig, use_container_width=True)
-                
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            # 覆盖率分析
-            st.markdown('<div class="insight-box">', unsafe_allow_html=True)
+            # 覆盖率分析洞察
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1787,8 +1729,6 @@ def main():
                     """)
                 else:
                     st.success("✅ 所有区域覆盖率均达到80%以上")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
