@@ -583,10 +583,10 @@ def calculate_customer_cycles(sales_data, current_year):
                            '轻度异常' if days_since_last <= avg_interval * 2 else '严重异常'
             })
     
-    # 按总销售额排序，获取Top 10（减少密集度）
+    # 按总销售额排序，获取Top 20
     cycles_df = pd.DataFrame(customer_cycles)
     if not cycles_df.empty:
-        cycles_df = cycles_df.nlargest(10, '总销售额')  # 从20改为10
+        cycles_df = cycles_df.nlargest(20, '总销售额')  # 保持Top 20
     
     return cycles_df
 
@@ -861,6 +861,16 @@ def create_risk_dashboard(risk_df):
     fig_matrix.add_shape(type="rect", x0=0, y0=0, x1=50, y1=50,
                         fillcolor="rgba(39, 174, 96, 0.1)", layer="below", line=dict(width=0))
     
+    # 添加区域标签
+    fig_matrix.add_annotation(x=75, y=75, text="高风险区", showarrow=False,
+                             font=dict(size=14, color='#e74c3c'), opacity=0.7)
+    fig_matrix.add_annotation(x=25, y=75, text="断单风险", showarrow=False,
+                             font=dict(size=12, color='#f39c12'), opacity=0.7)
+    fig_matrix.add_annotation(x=75, y=25, text="减量风险", showarrow=False,
+                             font=dict(size=12, color='#f39c12'), opacity=0.7)
+    fig_matrix.add_annotation(x=25, y=25, text="低风险区", showarrow=False,
+                             font=dict(size=14, color='#27ae60'), opacity=0.7)
+    
     # 添加对角线
     fig_matrix.add_trace(go.Scatter(
         x=[0, 100], y=[0, 100],
@@ -871,12 +881,20 @@ def create_risk_dashboard(risk_df):
     ))
     
     fig_matrix.update_layout(
-        title='客户风险矩阵',
+        title=dict(
+            text='客户风险矩阵 - 断单风险 vs 减量风险',
+            font=dict(size=16, color='#2d3748')
+        ),
         xaxis=dict(title='断单风险 (%)', range=[-5, 105]),
         yaxis=dict(title='减量风险 (%)', range=[-5, 105]),
         height=500,
         plot_bgcolor='white',
-        paper_bgcolor='white'
+        paper_bgcolor='white',
+        hoverlabel=dict(
+            bgcolor="white",
+            font_size=12,
+            font_family="Arial"
+        )
     )
     
     return fig_dist, fig_hist, fig_matrix
@@ -894,7 +912,7 @@ def create_timeline_chart(cycles_df):
     
     # 为每个客户创建一条时间轴（增加间距）
     for idx, customer_data in cycles_df.iterrows():
-        y_position = idx * 1.5  # 增加行间距，从idx改为idx * 1.5
+        y_position = idx * 1.3  # 适度的行间距
         orders = customer_data['订单详情']
         
         # 收集所有订单数据用于绘制
@@ -912,17 +930,17 @@ def create_timeline_chart(cycles_df):
             if order.get('距今天数'):
                 # 最后一个订单
                 color = color_scale.get(customer_data['异常状态'], '#667eea')
-                size = 20 if customer_data['异常状态'] == '严重异常' else 15
+                size = 18 if customer_data['异常状态'] == '严重异常' else 13  # 调整大小差异
             else:
                 # 历史订单
                 interval = order['间隔天数']
                 avg_interval = customer_data['平均间隔']
                 if interval > avg_interval * 1.5:
                     color = color_scale['轻度异常']
-                    size = 15
+                    size = 13
                 else:
                     color = color_scale['正常']
-                    size = 12
+                    size = 10
             
             colors.append(color)
             sizes.append(size)
@@ -945,8 +963,8 @@ def create_timeline_chart(cycles_df):
             y=[y_position] * len(dates),
             mode='lines',
             line=dict(
-                color='rgba(150, 150, 150, 0.3)',
-                width=3,
+                color='rgba(150, 150, 150, 0.25)',  # 降低透明度
+                width=2,  # 减小线宽
                 shape='spline'
             ),
             hoverinfo='skip',
@@ -954,7 +972,7 @@ def create_timeline_chart(cycles_df):
         ))
         
         # 绘制订单点（根据金额大小调整）
-        normalized_amounts = np.array(amounts) / max(amounts) * 20 + 10
+        normalized_amounts = np.array(amounts) / max(amounts) * 15 + 8  # 减小标记大小
         
         fig.add_trace(go.Scatter(
             x=dates,
@@ -963,13 +981,13 @@ def create_timeline_chart(cycles_df):
             marker=dict(
                 size=normalized_amounts,
                 color=colors,
-                line=dict(color='white', width=2),
+                line=dict(color='white', width=1.5),  # 减小边框宽度
                 opacity=0.9
             ),
             text=[f"¥{amount/10000:.0f}万" if amount >= 10000 else f"¥{amount:.0f}" 
                   for amount in amounts],
             textposition='top center',
-            textfont=dict(size=9, color='#666'),
+            textfont=dict(size=8, color='#666'),  # 减小字体大小
             hovertemplate='%{hovertext}<extra></extra>',
             hovertext=hover_texts,
             showlegend=False
@@ -982,7 +1000,7 @@ def create_timeline_chart(cycles_df):
             text=customer_data['客户'][:10] + '...' if len(customer_data['客户']) > 10 else customer_data['客户'],
             xanchor='right',
             showarrow=False,
-            font=dict(size=11, color='#2d3748')
+            font=dict(size=10, color='#2d3748')  # 稍微减小字体
         )
         
         # 添加平均周期基准（虚线）
@@ -995,12 +1013,12 @@ def create_timeline_chart(cycles_df):
         
         fig.add_trace(go.Scatter(
             x=reference_dates,
-            y=[y_position - 0.3] * len(reference_dates),  # 调整位置以匹配新的间距
+            y=[y_position - 0.25] * len(reference_dates),  # 调整位置以匹配新的间距
             mode='markers',
             marker=dict(
                 symbol='line-ns',
-                size=8,
-                color='rgba(102, 126, 234, 0.3)'
+                size=6,  # 减小参考线标记大小
+                color='rgba(102, 126, 234, 0.25)'  # 降低透明度
             ),
             hoverinfo='skip',
             showlegend=False
@@ -1013,21 +1031,21 @@ def create_timeline_chart(cycles_df):
                 y=[y_position],
                 mode='markers+text',
                 marker=dict(
-                    size=15,
+                    size=12,  # 减小预测点大小
                     color='rgba(102, 126, 234, 0.5)',
                     symbol='circle-open',
-                    line=dict(width=3)
+                    line=dict(width=2.5)  # 稍微减小线宽
                 ),
                 text='预测',
                 textposition='top center',
-                textfont=dict(size=9, color='#667eea'),
+                textfont=dict(size=8, color='#667eea'),  # 减小字体
                 hovertemplate=f"预测下单日期: {customer_data['预测下单日期'].strftime('%Y-%m-%d')}<extra></extra>",
                 showlegend=False
             ))
     
     # 更新布局
     fig.update_layout(
-        height=max(600, len(cycles_df) * 80),  # 增加每行高度
+        height=max(800, len(cycles_df) * 60),  # 调整高度以适应20个客户
         xaxis=dict(
             title="时间轴",
             showgrid=True,
@@ -1040,7 +1058,7 @@ def create_timeline_chart(cycles_df):
         yaxis=dict(
             showticklabels=False,
             showgrid=False,
-            range=[-0.5, len(cycles_df) * 1.5 - 0.5],  # 调整范围以匹配新的y位置
+            range=[-0.5, len(cycles_df) * 1.3 - 0.5],  # 调整范围以匹配新的y位置
             autorange='reversed'
         ),
         hovermode='closest',
@@ -1049,6 +1067,21 @@ def create_timeline_chart(cycles_df):
         margin=dict(l=150, r=50, t=60, b=60),  # 增加左边距以容纳客户名称
         dragmode='pan'
     )
+    
+    # 添加交替背景（提高可读性）
+    for i in range(0, len(cycles_df), 2):
+        fig.add_shape(
+            type="rect",
+            xref="paper",
+            yref="y",
+            x0=0,
+            x1=1,
+            y0=i * 1.3 - 0.4,
+            y1=min((i + 1) * 1.3 - 0.4, len(cycles_df) * 1.3 - 0.5),
+            fillcolor="rgba(240, 240, 240, 0.3)",
+            layer="below",
+            line=dict(width=0)
+        )
     
     # 添加渐变背景区域（表示时间流逝）
     fig.add_shape(
@@ -1107,7 +1140,7 @@ def create_timeline_chart(cycles_df):
             x=[None],
             y=[None],
             mode='markers',
-            marker=dict(size=12, color=color, symbol=symbol, line=dict(width=2, color='white')),
+            marker=dict(size=10, color=color, symbol=symbol, line=dict(width=1.5, color='white')),  # 调整图例标记大小
             showlegend=True,
             name=name
         ))
@@ -1566,7 +1599,7 @@ def main():
             st.markdown('''
             <div class="chart-header">
                 <div class="chart-title">客户下单周期监测</div>
-                <div class="chart-subtitle">追踪Top 10客户的下单规律，识别异常行为</div>
+                <div class="chart-subtitle">追踪Top 20客户的下单规律，识别异常行为</div>
             </div>
             ''', unsafe_allow_html=True)
             
@@ -1578,6 +1611,9 @@ def main():
                     # 显示时间轴图表
                     timeline_fig = create_timeline_chart(cycles_df)
                     st.plotly_chart(timeline_fig, use_container_width=True, key="timeline_chart")
+                    
+                    # 添加提示信息
+                    st.info("💡 提示：可以拖动图表查看更多细节，鼠标悬停查看详细信息")
                     
                     # 显示统计信息
                     col1, col2, col3, col4 = st.columns(4)
