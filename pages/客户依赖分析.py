@@ -683,13 +683,12 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     
     # 7. 额外计算一些指标
     # 客户集中度（前20%客户贡献）
-    if not customer_actual_sales.empty:
+    concentration_rate = 0  # 默认值
+    if len(customer_actual_sales) > 0:
         sorted_sales = customer_actual_sales.sort_values(ascending=False)
         top20_count = max(1, int(len(sorted_sales) * 0.2))
         top20_sales = sorted_sales.head(top20_count).sum()
         concentration_rate = (top20_sales / total_sales * 100) if total_sales > 0 else 0
-    else:
-        concentration_rate = 0
     
     return {
         'total_customers': total_customers,
@@ -1041,14 +1040,6 @@ def create_chart_with_tooltip(chart, title, subtitle, tooltip_text, key):
 
 # 主应用逻辑
 def main():
-    # 侧边栏返回按钮
-    with st.sidebar:
-        if st.button("🏠 返回主页", use_container_width=True):
-            st.switch_page("app.py")
-        
-        if st.button("🚪 退出登录", use_container_width=True):
-            st.session_state.authenticated = False
-            st.switch_page("app.py")
     
     # 标题
     st.markdown("""
@@ -1080,6 +1071,22 @@ def main():
     
     # Tab 1: 关键指标总览 - 只显示指标卡片
     with tabs[0]:
+        # 重要指标 - 当年总销售额
+        st.markdown(f"""
+        <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                  color: white; padding: 2rem; border-radius: 15px; 
+                  text-align: center; margin-bottom: 2rem;
+                  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);'>
+            <h2 style='font-size: 1rem; margin: 0; opacity: 0.9;'>💰 {metrics['current_year']}年总销售额</h2>
+            <h1 style='font-size: 3.5rem; margin: 0.5rem 0; font-weight: 700;'>
+                ¥{metrics['total_sales']/100000000:.2f}亿
+            </h1>
+            <p style='font-size: 1.1rem; margin: 0; opacity: 0.9;'>
+                同比增长 {'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
         # 第一行指标
         col1, col2, col3, col4 = st.columns(4)
         
@@ -1136,23 +1143,9 @@ def main():
         st.markdown("<br>", unsafe_allow_html=True)
         
         # 第二行指标
-        col5, col6, col7, col8 = st.columns(4)
+        col5, col6, col7 = st.columns(3)
         
         with col5:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">📈 销售同比增长</div>
-                <div class="metric-value data-point" style="color: {'#48bb78' if metrics['growth_rate'] > 0 else '#f56565'};">
-                    {'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%
-                </div>
-                <div class="metric-detail">总额 ¥{metrics['total_sales']/100000000:.2f}亿</div>
-                <div class="metric-trend {'trend-up' if metrics['growth_rate'] > 0 else 'trend-down'}">
-                    {'增长' if metrics['growth_rate'] > 0 else '下降'}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col6:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">💰 平均客户贡献</div>
@@ -1162,7 +1155,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        with col7:
+        with col6:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">🔒 客户集中度</div>
@@ -1174,7 +1167,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        with col8:
+        with col7:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">⏰ 流失预警</div>
