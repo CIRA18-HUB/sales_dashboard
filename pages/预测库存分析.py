@@ -153,41 +153,30 @@ st.markdown("""
         border-left: 4px solid #667eea;
     }
     
-    /* Streamlit 容器样式 - 新增 */
-    .styled-container {
-        background: rgba(255,255,255,0.98) !important;
-        border-radius: 25px;
-        padding: 2rem;
-        margin-bottom: 2rem;
-        box-shadow: 
-            0 15px 35px rgba(0,0,0,0.08),
-            0 5px 15px rgba(0,0,0,0.03);
-        border: 1px solid rgba(255,255,255,0.3);
-        animation: slideUpStagger 1s ease-out;
-        backdrop-filter: blur(10px);
-        transition: all 0.3s ease;
-        border-left: 4px solid #667eea;
+    /* Plotly图表圆角样式 - 重要修改 */
+    .js-plotly-plot .plotly .modebar {
+        border-top-right-radius: 20px !important;
     }
     
-    .styled-container:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 25px 50px rgba(0,0,0,0.12);
-    }
-    
-    /* 为 Streamlit 的 container 添加样式 */
-    div[data-testid="stVerticalBlock"] > div:has(> div[data-testid="stVerticalBlock"]):has(.chart-container-marker) {
-        background: rgba(255,255,255,0.98) !important;
-        border-radius: 25px;
-        padding: 2rem;
-        margin-bottom: 2rem;
+    .js-plotly-plot .plotly {
+        border-radius: 20px !important;
+        overflow: hidden !important;
         box-shadow: 
             0 15px 35px rgba(0,0,0,0.08),
-            0 5px 15px rgba(0,0,0,0.03);
-        border: 1px solid rgba(255,255,255,0.3);
-        animation: slideUpStagger 1s ease-out;
-        backdrop-filter: blur(10px);
-        transition: all 0.3s ease;
-        border-left: 4px solid #667eea;
+            0 5px 15px rgba(0,0,0,0.03) !important;
+        border: 1px solid rgba(102, 126, 234, 0.2) !important;
+    }
+    
+    /* Plotly图表容器样式 */
+    div[data-testid="stPlotlyChart"] {
+        border-radius: 20px !important;
+        overflow: hidden !important;
+        margin-bottom: 2rem !important;
+        background: rgba(255,255,255,0.98) !important;
+        padding: 1rem !important;
+        box-shadow: 
+            0 15px 35px rgba(0,0,0,0.08),
+            0 5px 15px rgba(0,0,0,0.03) !important;
     }
     
     /* 指标卡片增强样式 - 修复文字截断 */
@@ -1699,12 +1688,9 @@ with tab1:
 with tab2:
     st.markdown("### 🎯 库存风险分布全景分析")
     
-    # 使用原生容器
-    with st.container():
-        # 添加标记以识别这是图表容器
-        st.markdown('<div class="chart-container-marker"></div>', unsafe_allow_html=True)
-        integrated_fig = create_integrated_risk_analysis(processed_inventory)
-        st.plotly_chart(integrated_fig, use_container_width=True)
+    # 直接显示图表，不使用容器
+    integrated_fig = create_integrated_risk_analysis(processed_inventory)
+    st.plotly_chart(integrated_fig, use_container_width=True)
     
     # 风险分析洞察
     st.markdown(f"""
@@ -1724,12 +1710,9 @@ with tab3:
     st.markdown(f"### 📈 销售预测准确性综合分析 - {datetime.now().year}年数据")
     
     if merged_data is not None and not merged_data.empty:
-        # 使用原生容器显示超级整合图表
-        with st.container():
-            # 添加标记以识别这是图表容器
-            st.markdown('<div class="chart-container-marker"></div>', unsafe_allow_html=True)
-            ultra_fig = create_ultra_integrated_forecast_chart(merged_data)
-            st.plotly_chart(ultra_fig, use_container_width=True)
+        # 直接显示超级整合图表，不使用容器
+        ultra_fig = create_ultra_integrated_forecast_chart(merged_data)
+        st.plotly_chart(ultra_fig, use_container_width=True)
         
         # 改进建议
         overall_acc = forecast_key_metrics.get('overall_accuracy', 0)
