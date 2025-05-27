@@ -98,22 +98,6 @@ st.markdown("""
         50% { transform: scale(1.02); }
     }
     
-    /* 总销售额卡片动画 */
-    @keyframes totalSalesGlow {
-        0%, 100% {
-            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
-            transform: scale(1);
-        }
-        50% {
-            box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5);
-            transform: scale(1.02);
-        }
-    }
-    
-    .total-sales-card {
-        animation: totalSalesGlow 3s ease-in-out infinite;
-    }
-    
     /* 增强的指标卡片样式 */
     .metric-card {
         background: white;
@@ -1079,7 +1063,7 @@ def main():
     tabs = st.tabs([
         "📊 关键指标总览", 
         "🎯 客户健康诊断", 
-        "⚠️ 区域风险评估", 
+        "⚠️ 大客户依赖风险评估", 
         "💎 价值分层管理", 
         "📈 目标达成追踪",
         "📉 趋势洞察分析"
@@ -1087,26 +1071,22 @@ def main():
     
     # Tab 1: 关键指标总览 - 只显示指标卡片
     with tabs[0]:
-        # 重要指标 - 当年总销售额
-        st.markdown(f"""
-        <div class='total-sales-card' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                  color: white; padding: 2rem; border-radius: 15px; 
-                  text-align: center; margin-bottom: 2rem;
-                  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);'>
-            <h2 style='font-size: 1rem; margin: 0; opacity: 0.9;'>💰 {metrics['current_year']}年总销售额</h2>
-            <h1 style='font-size: 3.5rem; margin: 0.5rem 0; font-weight: 700;'>
-                ¥{metrics['total_sales']/100000000:.2f}亿
-            </h1>
-            <p style='font-size: 1.1rem; margin: 0; opacity: 0.9;'>
-                同比增长 {'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
         # 第一行指标
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">💰 {metrics['current_year']}年总销售额</div>
+                <div class="metric-value data-point">¥{metrics['total_sales']/100000000:.2f}亿</div>
+                <div class="metric-detail">同比 {'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%</div>
+                <div class="metric-trend {'trend-up' if metrics['growth_rate'] > 0 else 'trend-down'}">
+                    {'增长' if metrics['growth_rate'] > 0 else '下降'}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">❤️ 客户健康度</div>
@@ -1118,7 +1098,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        with col2:
+        with col3:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">⚠️ 最高区域风险</div>
@@ -1132,7 +1112,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        with col3:
+        with col4:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">🎯 目标达成率</div>
@@ -1144,7 +1124,12 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        with col4:
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # 第二行指标
+        col5, col6, col7, col8 = st.columns(4)
+        
+        with col5:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">💎 高价值客户占比</div>
@@ -1158,10 +1143,7 @@ def main():
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # 第二行指标
-        col5, col6, col7 = st.columns(3)
-        
-        with col5:
+        with col6:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">💰 平均客户贡献</div>
@@ -1171,7 +1153,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        with col6:
+        with col7:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">🔒 客户集中度</div>
@@ -1183,7 +1165,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        with col7:
+        with col8:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">⏰ 流失预警</div>
@@ -1207,16 +1189,17 @@ def main():
             <div class='insight-card'>
                 <h4>💡 业务健康状况</h4>
                 <ul style='margin: 0; padding-left: 20px;'>
-                    <li>客户群体整体健康，但存在{0}家流失风险客户需要重点关注</li>
-                    <li>销售业绩同比{1}，显示{2}发展态势</li>
-                    <li>高价值客户群体贡献了约{3:.1f}%的销售额</li>
-                    <li>前20%客户贡献{4:.1f}%销售额，集中度{5}</li>
+                    <li>{0}年销售额达{1:.2f}亿元，同比{2}</li>
+                    <li>客户群体整体健康，但存在{3}家流失风险客户需要重点关注</li>
+                    <li>高价值客户群体贡献了约{4:.1f}%的销售额</li>
+                    <li>前20%客户贡献{5:.1f}%销售额，集中度{6}</li>
                 </ul>
             </div>
             """.format(
-                metrics['risk_customers'],
+                metrics['current_year'],
+                metrics['total_sales'] / 100000000,
                 f"增长{metrics['growth_rate']:.1f}%" if metrics['growth_rate'] > 0 else f"下降{abs(metrics['growth_rate']):.1f}%",
-                '良好' if metrics['growth_rate'] > 0 else '需关注',
+                metrics['risk_customers'],
                 metrics['high_value_rate'] * 1.5,  # 估算值
                 metrics['concentration_rate'],
                 '偏高' if metrics['concentration_rate'] > 80 else '合理'
@@ -1228,7 +1211,7 @@ def main():
                 <h4>🎯 管理建议</h4>
                 <ul style='margin: 0; padding-left: 20px;'>
                     <li>立即启动{0}家流失风险客户的挽回计划</li>
-                    <li>重点监控{1}区域的客户集中度风险</li>
+                    <li>重点监控{1}区域的大客户依赖风险</li>
                     <li>培育{2}家潜力客户，提升整体客户价值</li>
                     <li>优化产品组合，提高客户满意度和粘性</li>
                 </ul>
@@ -1331,7 +1314,7 @@ def main():
         
         st.markdown("</div>", unsafe_allow_html=True)
     
-    # Tab 3: 区域风险评估
+    # Tab 3: 大客户依赖风险评估
     with tabs[2]:
         st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
         
@@ -1339,8 +1322,8 @@ def main():
             # 3D风险图占用全宽
             create_chart_with_tooltip(
                 charts['risk_3d'],
-                "区域风险三维分布图",
-                "立体展示各区域的客户依赖风险",
+                "大客户依赖风险三维分布图",
+                "立体展示各区域的大客户依赖风险",
                 """
                 • <b>用途</b>：识别高风险区域，制定风险分散策略<br>
                 • <b>坐标说明</b>：<br>
@@ -1384,7 +1367,7 @@ def main():
                                               annotation_text="风险线(30%)")
                     
                     fig_risk_compare.update_layout(
-                        title="高风险区域依赖度对比",
+                        title="高风险区域大客户依赖度对比",
                         xaxis_title="区域",
                         yaxis_title="最大客户依赖度(%)",
                         height=400,
