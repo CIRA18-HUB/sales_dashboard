@@ -18,17 +18,18 @@ st.set_page_config(
     layout="wide"
 )
 
-# 增强的CSS样式 - 与销售达成分析一致
+# 增强的CSS样式 - 统一容器设计
 st.markdown("""
 <style>
     /* 导入Google字体 */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
-    /* 全局字体 */
+    /* 全局字体和背景 */
     .stApp {
         font-family: 'Inter', sans-serif;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         background-attachment: fixed;
+        color: #1f2937;
     }
     
     /* 添加浮动粒子背景动画 */
@@ -58,13 +59,18 @@ st.markdown("""
     
     /* 主容器背景 */
     .main .block-container {
-        background: rgba(255,255,255,0.95);
+        background: rgba(255,255,255,0.98);
         border-radius: 20px;
         padding: 2rem;
         margin-top: 2rem;
         box-shadow: 0 20px 60px rgba(0,0,0,0.1);
         backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+    
+    /* 确保所有文本颜色正确 */
+    .stApp, .stApp * {
+        color: #1f2937 !important;
     }
     
     /* 主标题样式 - 增强动画 */
@@ -73,7 +79,7 @@ st.markdown("""
         padding: 3rem 0;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
         background-size: 200% 200%;
-        color: white;
+        color: white !important;
         border-radius: 25px;
         margin-bottom: 2rem;
         animation: gradientShift 4s ease infinite, fadeInScale 1.5s ease-out, glow 2s ease-in-out infinite alternate;
@@ -85,6 +91,10 @@ st.markdown("""
         overflow: hidden;
         transform: perspective(1000px) rotateX(0deg);
         transition: transform 0.3s ease;
+    }
+    
+    .main-header * {
+        color: white !important;
     }
     
     .main-header:hover {
@@ -112,6 +122,63 @@ st.markdown("""
         right: 10%;
         font-size: 2rem;
         animation: sparkle 1.5s ease-in-out infinite;
+    }
+    
+    /* 统一的内容容器样式 */
+    .content-container {
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 25px;
+        padding: 2rem;
+        margin: 1.5rem 0;
+        box-shadow: 
+            0 15px 35px rgba(0,0,0,0.08),
+            0 5px 15px rgba(0,0,0,0.03),
+            inset 0 1px 0 rgba(255,255,255,0.9);
+        border: 1px solid rgba(255,255,255,0.3);
+        backdrop-filter: blur(10px);
+        animation: containerFadeIn 1.2s ease-out;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .content-container:hover {
+        transform: translateY(-2px);
+        box-shadow: 
+            0 20px 40px rgba(0,0,0,0.12),
+            0 8px 20px rgba(0,0,0,0.06);
+    }
+    
+    .content-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.02), transparent);
+        animation: containerShimmer 8s linear infinite;
+    }
+    
+    /* 确保容器内文本颜色正确 */
+    .content-container, .content-container * {
+        color: #1f2937 !important;
+    }
+    
+    @keyframes containerFadeIn {
+        from { 
+            opacity: 0; 
+            transform: translateY(30px) scale(0.95); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0) scale(1); 
+        }
+    }
+    
+    @keyframes containerShimmer {
+        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
     }
     
     @keyframes glow {
@@ -243,7 +310,7 @@ st.markdown("""
     }
     
     .metric-label {
-        color: #374151;
+        color: #374151 !important;
         font-size: 1.1rem;
         font-weight: 700;
         margin-top: 0.8rem;
@@ -252,7 +319,7 @@ st.markdown("""
     }
     
     .metric-sublabel {
-        color: #6b7280;
+        color: #6b7280 !important;
         font-size: 0.9rem;
         margin-top: 0.8rem;
         font-weight: 500;
@@ -279,6 +346,7 @@ st.markdown("""
         border: 1px solid rgba(102, 126, 234, 0.15);
         font-weight: 700;
         font-size: 1rem;
+        color: #374151 !important;
         transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         position: relative;
         overflow: hidden;
@@ -308,7 +376,7 @@ st.markdown("""
     
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        color: white !important;
         border: none;
         transform: translateY(-3px) scale(1.02);
         box-shadow: 
@@ -335,46 +403,21 @@ st.markdown("""
     .metric-card:nth-child(5) { animation-delay: 0.5s; }
     .metric-card:nth-child(6) { animation-delay: 0.6s; }
     
-    /* 图表容器样式 */
-    .chart-container {
-        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        border-radius: 25px;
-        padding: 1.5rem;
-        box-shadow: 
-            0 15px 35px rgba(0,0,0,0.08),
-            inset 0 1px 0 rgba(255,255,255,0.9);
-        border: 1px solid rgba(255,255,255,0.3);
-        animation: chartFadeIn 1.2s ease-out;
-        backdrop-filter: blur(10px);
-        position: relative;
-        overflow: hidden;
+    /* 促销活动有效率标题样式 */
+    .promo-header {
+        text-align: center;
+        padding: 1.5rem 0;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white !important;
+        border-radius: 15px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+        font-weight: 700;
+        font-size: 1.5rem;
     }
     
-    .chart-container::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.02), transparent);
-        animation: chartShimmer 8s linear infinite;
-    }
-    
-    @keyframes chartShimmer {
-        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
-    }
-    
-    @keyframes chartFadeIn {
-        from { 
-            opacity: 0; 
-            transform: translateY(30px) scale(0.95); 
-        }
-        to { 
-            opacity: 1; 
-            transform: translateY(0) scale(1); 
-        }
+    .promo-header * {
+        color: white !important;
     }
     
     /* 添加脉动效果 */
@@ -382,6 +425,52 @@ st.markdown("""
         0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
         70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
         100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+    }
+    
+    /* 洞察框样式 */
+    .insight-box {
+        background: linear-gradient(145deg, #ffffff 0%, #f0f9ff 100%);
+        border-radius: 20px;
+        padding: 2rem;
+        margin: 1.5rem 0;
+        box-shadow: 
+            0 10px 25px rgba(0,0,0,0.06),
+            inset 0 1px 0 rgba(255,255,255,0.9);
+        border: 1px solid rgba(59, 130, 246, 0.15);
+        animation: insightFadeIn 1s ease-out;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .insight-box::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(45deg, transparent, rgba(59, 130, 246, 0.03), transparent);
+        animation: insightShimmer 6s linear infinite;
+    }
+    
+    .insight-box * {
+        color: #1f2937 !important;
+    }
+    
+    @keyframes insightFadeIn {
+        from { 
+            opacity: 0; 
+            transform: translateY(20px) scale(0.98); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0) scale(1); 
+        }
+    }
+    
+    @keyframes insightShimmer {
+        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
     }
     
     /* 响应式设计 */
@@ -395,40 +484,31 @@ st.markdown("""
         .main-header {
             padding: 2rem 0;
         }
+        .content-container {
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
     }
     
-    /* 添加加载动画 */
-    @keyframes loading {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+    /* Streamlit组件样式覆盖 */
+    .stSelectbox > div > div {
+        background: rgba(255,255,255,0.9) !important;
+        color: #1f2937 !important;
     }
     
-    .loading {
-        animation: loading 2s linear infinite;
-    }
-    
-    /* 成功动画 */
-    @keyframes success {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
-    }
-    
-    .success {
-        animation: success 0.6s ease-in-out;
-    }
-    
-    /* 促销活动有效率标题样式 */
-    .promo-header {
-        text-align: center;
-        padding: 1.5rem 0;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
+    .stRadio > div {
+        background: rgba(255,255,255,0.9) !important;
         border-radius: 15px;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
-        font-weight: 700;
-        font-size: 1.5rem;
+        padding: 1rem;
+    }
+    
+    .stRadio label {
+        color: #1f2937 !important;
+    }
+    
+    /* 确保所有Streamlit元素的文本颜色 */
+    .stMarkdown, .stText, .stCaption {
+        color: #1f2937 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1285,6 +1365,8 @@ def main():
     
     # Tab 2: BCG产品矩阵
     with tabs[1]:
+        st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        
         bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
         
         # 获取分析数据
@@ -1298,10 +1380,14 @@ def main():
             product_analysis = create_bcg_matrix(data, 'regional', selected_region)
             title = f"{selected_region}区域 BCG产品矩阵"
         
+        st.markdown('</div>', unsafe_allow_html=True)
+        
         # 显示BCG矩阵图表
         if len(product_analysis) > 0:
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
             fig = plot_bcg_matrix(product_analysis, title=title)
             st.plotly_chart(fig, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
             
             # JBP符合度分析
             total_sales = product_analysis['sales'].sum()
@@ -1316,6 +1402,7 @@ def main():
             region_prefix = f"{selected_region}区域 " if bcg_dimension == "🗺️ 分区域维度" else ""
             
             with st.expander(f"📊 {region_prefix}JBP符合度分析", expanded=True):
+                st.markdown('<div class="insight-box">', unsafe_allow_html=True)
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
@@ -1335,20 +1422,71 @@ def main():
                              "✅ 符合" if dog_ratio <= 10 else "❌ 不符合",
                              delta_color="normal" if dog_ratio <= 10 else "inverse")
                     st.caption("目标: ≤10%")
+                
+                st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("该区域暂无产品数据")
+    
+    # Tab 3: 全国促销活动有效性
+    with tabs[2]:
+        st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        
         promo_results = analyze_promotion_effectiveness_enhanced(data)
         
         if len(promo_results) > 0:
+            # 计算有效率并显示在标题中
+            effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
+            
+            st.markdown(f"""
+            <div class="promo-header">
+                <h2>🚀 全国促销活动有效性分析</h2>
+                <h3>总体有效率: {effectiveness_rate:.1f}% ({promo_results['is_effective'].sum()}/{len(promo_results)})</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            
             fig = create_optimized_promotion_chart(promo_results)
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
+            
+            # 促销洞察分析
+            with st.expander("💡 促销活动深度洞察", expanded=True):
+                st.markdown('<div class="insight-box">', unsafe_allow_html=True)
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    effective_products = promo_results[promo_results['is_effective'] == True]
+                    ineffective_products = promo_results[promo_results['is_effective'] == False]
+                    
+                    st.info(f"""
+                    **🎯 有效促销产品特征**
+                    - 有效产品数: {len(effective_products)}个
+                    - 平均销售额: ¥{effective_products['sales'].mean():,.0f}
+                    - 环比增长率: {effective_products['mom_growth'].mean():.1f}%
+                    - 同比增长率: {effective_products['yoy_growth'].mean():.1f}%
+                    """)
+                
+                with col2:
+                    st.warning(f"""
+                    **⚠️ 无效促销产品分析**
+                    - 无效产品数: {len(ineffective_products)}个
+                    - 平均销售额: ¥{ineffective_products['sales'].mean():,.0f}
+                    - 环比增长率: {ineffective_products['mom_growth'].mean():.1f}%
+                    - 同比增长率: {ineffective_products['yoy_growth'].mean():.1f}%
+                    """)
+                
+                st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("暂无全国促销活动数据")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 4: 星品新品达成
     with tabs[3]:
+        st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        
         view_type = st.radio("选择分析视角", ["按区域", "按销售员", "趋势分析"], horizontal=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
         
         sales_df = data['sales_df']
         star_products = data['star_products']
@@ -1356,6 +1494,8 @@ def main():
         star_new_products = list(set(star_products + new_products))
         
         if view_type == "按区域":
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            
             # 区域分析
             region_stats = []
             for region in sales_df['区域'].unique():
@@ -1420,8 +1560,12 @@ def main():
             )
             
             st.plotly_chart(fig, use_container_width=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
         
         elif view_type == "按销售员":
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            
             # 销售员分析
             salesperson_stats = []
             for person in sales_df['销售员'].unique():
@@ -1490,8 +1634,12 @@ def main():
             
             achieved_count = person_df['achieved'].sum()
             st.info(f"📊 达成率统计：{achieved_count}/{len(person_df)}人达标（{achieved_count/len(person_df)*100:.1f}%）")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
         
         else:  # 趋势分析
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            
             # 趋势分析
             monthly_stats = []
             
@@ -1550,20 +1698,29 @@ def main():
             )
             
             st.plotly_chart(fig, use_container_width=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 5: 市场网络与覆盖分析
     with tabs[4]:
+        st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        
         analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析"], horizontal=True)
         
+        st.markdown('</div>', unsafe_allow_html=True)
+        
         if analysis_type == "🔗 产品关联网络":
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
             st.subheader("产品关联网络分析")
             
             # 创建基于真实数据的2D网络图
             network_fig = create_real_product_network(data)
             st.plotly_chart(network_fig, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
             
             # 关联分析洞察
             with st.expander("💡 产品关联营销策略", expanded=True):
+                st.markdown('<div class="insight-box">', unsafe_allow_html=True)
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -1583,13 +1740,19 @@ def main():
                     - 基于关联度设计货架陈列
                     - 开发新的组合套装产品
                     """)
+                st.markdown('</div>', unsafe_allow_html=True)
         
         else:  # 区域覆盖分析
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            
             # 创建更易读的区域覆盖率分析
             fig, coverage_df = create_regional_coverage_analysis(data)
             st.plotly_chart(fig, use_container_width=True)
             
+            st.markdown('</div>', unsafe_allow_html=True)
+            
             # 覆盖率分析
+            st.markdown('<div class="insight-box">', unsafe_allow_html=True)
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1614,6 +1777,8 @@ def main():
                     """)
                 else:
                     st.success("✅ 所有区域覆盖率均达到80%以上")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
