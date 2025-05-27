@@ -284,7 +284,8 @@ def calculate_overview_metrics(data):
         'regions': regions
     }
 
-# 创建全国维度综合分析图
+# 创建全国维度综合分析图（修复版）
+@st.cache_data
 def create_national_comprehensive_analysis(data, channel_filter=None):
     """创建全国维度的综合分析图"""
     sales_data = data['sales_data']
@@ -309,7 +310,7 @@ def create_national_comprehensive_analysis(data, channel_filter=None):
         specs=[
             [{"secondary_y": True}, {"secondary_y": False}],
             [{"type": "bar"}, {"type": "pie"}],
-            [{"type": "scatter"}, {"type": "bar"}]
+            [{"secondary_y": False}, {"type": "bar"}]  # 修复：移除scatter类型
         ]
     )
     
@@ -456,8 +457,20 @@ def create_national_comprehensive_analysis(data, channel_filter=None):
     )
     
     # 添加100%参考线
-    fig.add_hline(y=100, line_dash="dash", line_color="red", 
-                  annotation_text="目标线", row=1, col=2)
+    fig.add_shape(
+        type="line",
+        x0=0, x1=1,
+        y0=100, y1=100,
+        xref='x2 domain', yref='y2',
+        line=dict(color="red", width=2, dash="dash")
+    )
+    fig.add_annotation(
+        text="目标线",
+        x=0.95, y=100,
+        xref='x2 domain', yref='y2',
+        showarrow=False,
+        font=dict(color="red", size=12)
+    )
     
     # 3. 季度销售额对比（左中）
     quarterly_data = df_monthly.groupby('季度').agg({
@@ -515,7 +528,7 @@ def create_national_comprehensive_analysis(data, channel_filter=None):
     fig.add_annotation(
         text=f'总销售额<br>¥{(total_tt + total_mt)/10000:.0f}万',
         x=0.5, y=0.5,
-        xref='x4', yref='y4',
+        xref='x4 domain', yref='y4 domain',
         showarrow=False,
         font=dict(size=16, weight='bold')
     )
@@ -537,12 +550,17 @@ def create_national_comprehensive_analysis(data, channel_filter=None):
     )
     
     # 添加零线
-    fig.add_hline(y=0, line_dash="solid", line_color="gray", row=3, col=1)
+    fig.add_shape(
+        type="line",
+        x0=0, x1=1,
+        y0=0, y1=0,
+        xref='x5 domain', yref='y5',
+        line=dict(color="gray", width=1)
+    )
     
     # 6. 累计销售达成（右下）
     cumulative_sales = df_monthly['总销售额'].cumsum()
     cumulative_target = df_monthly['总目标额'].cumsum()
-    cumulative_achievement = (cumulative_sales / cumulative_target * 100)
     
     fig.add_trace(
         go.Bar(
@@ -606,7 +624,8 @@ def create_national_comprehensive_analysis(data, channel_filter=None):
     
     return fig
 
-# 创建区域维度综合分析图
+# 创建区域维度综合分析图（优化版）
+@st.cache_data
 def create_regional_comprehensive_analysis(data, channel_filter=None):
     """创建区域维度的综合分析图"""
     sales_data = data['sales_data']
@@ -819,16 +838,18 @@ def main():
                 "选择分析维度",
                 ["全国维度", "区域维度"],
                 key="mt_dimension",
-                horizontal=True
+                horizontal=True,
+                label_visibility="collapsed"
             )
         
-        # 根据选择的维度显示相应的图表
-        if dimension_mt == "全国维度":
-            mt_national_fig = create_national_comprehensive_analysis(data, channel_filter='MT')
-            st.plotly_chart(mt_national_fig, use_container_width=True)
-        else:
-            mt_regional_fig = create_regional_comprehensive_analysis(data, channel_filter='MT')
-            st.plotly_chart(mt_regional_fig, use_container_width=True)
+        # 创建占位符以提高切换流畅度
+        with st.container():
+            if dimension_mt == "全国维度":
+                mt_national_fig = create_national_comprehensive_analysis(data, channel_filter='MT')
+                st.plotly_chart(mt_national_fig, use_container_width=True)
+            else:
+                mt_regional_fig = create_regional_comprehensive_analysis(data, channel_filter='MT')
+                st.plotly_chart(mt_regional_fig, use_container_width=True)
     
     # Tab 3: TT渠道分析
     with tabs[2]:
@@ -841,16 +862,18 @@ def main():
                 "选择分析维度",
                 ["全国维度", "区域维度"],
                 key="tt_dimension",
-                horizontal=True
+                horizontal=True,
+                label_visibility="collapsed"
             )
         
-        # 根据选择的维度显示相应的图表
-        if dimension_tt == "全国维度":
-            tt_national_fig = create_national_comprehensive_analysis(data, channel_filter='TT')
-            st.plotly_chart(tt_national_fig, use_container_width=True)
-        else:
-            tt_regional_fig = create_regional_comprehensive_analysis(data, channel_filter='TT')
-            st.plotly_chart(tt_regional_fig, use_container_width=True)
+        # 创建占位符以提高切换流畅度
+        with st.container():
+            if dimension_tt == "全国维度":
+                tt_national_fig = create_national_comprehensive_analysis(data, channel_filter='TT')
+                st.plotly_chart(tt_national_fig, use_container_width=True)
+            else:
+                tt_regional_fig = create_regional_comprehensive_analysis(data, channel_filter='TT')
+                st.plotly_chart(tt_regional_fig, use_container_width=True)
     
     # Tab 4: 全渠道分析
     with tabs[3]:
@@ -863,16 +886,18 @@ def main():
                 "选择分析维度",
                 ["全国维度", "区域维度"],
                 key="all_dimension",
-                horizontal=True
+                horizontal=True,
+                label_visibility="collapsed"
             )
         
-        # 根据选择的维度显示相应的图表
-        if dimension_all == "全国维度":
-            all_national_fig = create_national_comprehensive_analysis(data)
-            st.plotly_chart(all_national_fig, use_container_width=True)
-        else:
-            all_regional_fig = create_regional_comprehensive_analysis(data)
-            st.plotly_chart(all_regional_fig, use_container_width=True)
+        # 创建占位符以提高切换流畅度
+        with st.container():
+            if dimension_all == "全国维度":
+                all_national_fig = create_national_comprehensive_analysis(data)
+                st.plotly_chart(all_national_fig, use_container_width=True)
+            else:
+                all_regional_fig = create_regional_comprehensive_analysis(data)
+                st.plotly_chart(all_regional_fig, use_container_width=True)
         
         # 分析洞察卡片
         st.markdown("### 📈 关键业务洞察")
