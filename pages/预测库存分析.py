@@ -283,6 +283,263 @@ st.markdown("""
         .page-header { padding: 2rem 1rem; }
         .page-title { font-size: 2.5rem; }
     }
+    
+    /* 高级表格样式 */
+    .advanced-table {
+        background: rgba(255,255,255,0.98) !important;
+        border-radius: 20px !important;
+        overflow: hidden !important;
+        box-shadow: 
+            0 20px 40px rgba(0,0,0,0.1),
+            0 5px 15px rgba(0,0,0,0.05) !important;
+        border: 2px solid rgba(102, 126, 234, 0.1) !important;
+        margin: 1rem 0 !important;
+    }
+    
+    .stDataFrame > div {
+        border-radius: 20px !important;
+        overflow: hidden !important;
+        border: none !important;
+        box-shadow: 
+            0 20px 40px rgba(0,0,0,0.1),
+            0 5px 15px rgba(0,0,0,0.05) !important;
+    }
+    
+    /* 表格头部样式 */
+    .stDataFrame thead th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        font-weight: 700 !important;
+        font-size: 1rem !important;
+        padding: 1.5rem 1rem !important;
+        text-align: center !important;
+        border: none !important;
+        position: relative !important;
+        overflow: hidden !important;
+    }
+    
+    .stDataFrame thead th::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        animation: tableHeaderShimmer 3s ease-in-out infinite;
+    }
+    
+    @keyframes tableHeaderShimmer {
+        0% { left: -100%; }
+        50% { left: 100%; }
+        100% { left: -100%; }
+    }
+    
+    /* 表格行样式 */
+    .stDataFrame tbody tr {
+        transition: all 0.3s ease !important;
+        border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+    }
+    
+    .stDataFrame tbody tr:hover {
+        background: rgba(102, 126, 234, 0.05) !important;
+        transform: scale(1.01) !important;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2) !important;
+    }
+    
+    .stDataFrame tbody td {
+        padding: 1.2rem 1rem !important;
+        border: none !important;
+        font-size: 0.95rem !important;
+        font-weight: 500 !important;
+        text-align: center !important;
+        vertical-align: middle !important;
+    }
+    
+    /* 风险等级样式 - 极高风险 */
+    .stDataFrame tbody tr:has(td:contains("极高风险")) {
+        background: linear-gradient(90deg, rgba(255, 71, 87, 0.1), rgba(255, 71, 87, 0.05)) !important;
+        border-left: 5px solid #ff4757 !important;
+        animation: extremeRiskPulse 2s ease-in-out infinite !important;
+    }
+    
+    .stDataFrame tbody tr:has(td:contains("极高风险")):hover {
+        background: linear-gradient(90deg, rgba(255, 71, 87, 0.2), rgba(255, 71, 87, 0.1)) !important;
+        transform: scale(1.02) translateX(10px) !important;
+        box-shadow: 
+            0 10px 30px rgba(255, 71, 87, 0.3),
+            -5px 0 15px rgba(255, 71, 87, 0.2) !important;
+    }
+    
+    /* 风险等级样式 - 高风险 */
+    .stDataFrame tbody tr:has(td:contains("高风险")):not(:has(td:contains("极高风险"))) {
+        background: linear-gradient(90deg, rgba(255, 99, 72, 0.08), rgba(255, 99, 72, 0.03)) !important;
+        border-left: 4px solid #ff6348 !important;
+        animation: highRiskGlow 3s ease-in-out infinite !important;
+    }
+    
+    .stDataFrame tbody tr:has(td:contains("高风险")):not(:has(td:contains("极高风险"))):hover {
+        background: linear-gradient(90deg, rgba(255, 99, 72, 0.15), rgba(255, 99, 72, 0.08)) !important;
+        transform: scale(1.015) translateX(8px) !important;
+        box-shadow: 
+            0 8px 25px rgba(255, 99, 72, 0.25),
+            -4px 0 12px rgba(255, 99, 72, 0.15) !important;
+    }
+    
+    /* 风险等级样式 - 中风险 */
+    .stDataFrame tbody tr:has(td:contains("中风险")) {
+        background: linear-gradient(90deg, rgba(255, 165, 2, 0.06), rgba(255, 165, 2, 0.02)) !important;
+        border-left: 3px solid #ffa502 !important;
+    }
+    
+    .stDataFrame tbody tr:has(td:contains("中风险")):hover {
+        background: linear-gradient(90deg, rgba(255, 165, 2, 0.12), rgba(255, 165, 2, 0.06)) !important;
+        transform: scale(1.01) translateX(5px) !important;
+    }
+    
+    /* 风险等级样式 - 低风险 */
+    .stDataFrame tbody tr:has(td:contains("低风险")) {
+        background: linear-gradient(90deg, rgba(46, 213, 115, 0.06), rgba(46, 213, 115, 0.02)) !important;
+        border-left: 3px solid #2ed573 !important;
+    }
+    
+    /* 风险等级样式 - 极低风险 */
+    .stDataFrame tbody tr:has(td:contains("极低风险")) {
+        background: linear-gradient(90deg, rgba(83, 82, 237, 0.06), rgba(83, 82, 237, 0.02)) !important;
+        border-left: 3px solid #5352ed !important;
+    }
+    
+    /* 极高风险动画 */
+    @keyframes extremeRiskPulse {
+        0%, 100% {
+            box-shadow: 
+                0 0 0 0 rgba(255, 71, 87, 0.7),
+                0 5px 15px rgba(255, 71, 87, 0.2);
+        }
+        50% {
+            box-shadow: 
+                0 0 0 8px rgba(255, 71, 87, 0),
+                0 8px 25px rgba(255, 71, 87, 0.4);
+        }
+    }
+    
+    /* 高风险动画 */
+    @keyframes highRiskGlow {
+        0%, 100% {
+            box-shadow: 
+                0 0 5px rgba(255, 99, 72, 0.3),
+                0 3px 10px rgba(255, 99, 72, 0.15);
+        }
+        50% {
+            box-shadow: 
+                0 0 15px rgba(255, 99, 72, 0.5),
+                0 5px 20px rgba(255, 99, 72, 0.25);
+        }
+    }
+    
+    /* 风险等级单元格特殊样式 */
+    .stDataFrame tbody td:has-text("极高风险") {
+        background: linear-gradient(135deg, #ff4757, #ff3742) !important;
+        color: white !important;
+        font-weight: 800 !important;
+        border-radius: 12px !important;
+        padding: 0.8rem 1.2rem !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+        animation: extremeRiskText 2s ease-in-out infinite !important;
+    }
+    
+    .stDataFrame tbody td:has-text("高风险") {
+        background: linear-gradient(135deg, #ff6348, #ff5722) !important;
+        color: white !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        padding: 0.7rem 1.1rem !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+        animation: highRiskText 3s ease-in-out infinite !important;
+    }
+    
+    .stDataFrame tbody td:has-text("中风险") {
+        background: linear-gradient(135deg, #ffa502, #ff9500) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        padding: 0.6rem 1rem !important;
+    }
+    
+    .stDataFrame tbody td:has-text("低风险") {
+        background: linear-gradient(135deg, #2ed573, #27c65f) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        padding: 0.6rem 1rem !important;
+    }
+    
+    .stDataFrame tbody td:has-text("极低风险") {
+        background: linear-gradient(135deg, #5352ed, #4834d4) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        padding: 0.6rem 1rem !important;
+    }
+    
+    @keyframes extremeRiskText {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+    
+    @keyframes highRiskText {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.9; }
+    }
+    
+    /* 表格行号样式 */
+    .stDataFrame tbody tr td:first-child {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(102, 126, 234, 0.05)) !important;
+        font-weight: 700 !important;
+        color: #667eea !important;
+    }
+    
+    /* 数值列特殊格式 */
+    .stDataFrame tbody td:contains("¥") {
+        font-weight: 700 !important;
+        color: #2ed573 !important;
+    }
+    
+    .stDataFrame tbody td:contains("天") {
+        font-weight: 600 !important;
+        color: #667eea !important;
+    }
+    
+    /* 表格容器增强 */
+    .stDataFrame {
+        background: transparent !important;
+        border: none !important;
+    }
+    
+    .stDataFrame > div > div {
+        border-radius: 20px !important;
+        overflow: hidden !important;
+    }
+    
+    /* 滚动条美化 */
+    .stDataFrame ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .stDataFrame ::-webkit-scrollbar-track {
+        background: rgba(102, 126, 234, 0.1);
+        border-radius: 10px;
+    }
+    
+    .stDataFrame ::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-radius: 10px;
+    }
+    
+    .stDataFrame ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #5a6fd8, #6b419e);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -719,8 +976,7 @@ def create_ultra_integrated_forecast_chart(merged_data):
                     opacity=0.8,
                     line=dict(width=2, color='white'),
                     colorbar=dict(
-                        title="预测准确率",
-                        titleside="right",
+                        title=dict(text="预测准确率", side="right"),
                         tickmode="linear",
                         tick0=0,
                         dtick=0.2,
@@ -897,7 +1153,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "📊 核心指标总览",
     "🎯 风险分布分析", 
     "📈 销售预测准确性综合分析",
-    "📋 批次详情"
+    "📋 库存积压预警详情"
 ])
 
 # 标签1：核心指标总览 - 包含预测准确性指标
@@ -1050,9 +1306,9 @@ with tab3:
     else:
         st.warning(f"暂无{datetime.now().year}年的预测数据，请检查数据文件是否包含当年数据。")
 
-# 标签4：批次详情
+# 标签4：库存积压预警详情
 with tab4:
-    st.markdown("### 📋 库存批次详细信息")
+    st.markdown("### 📋 库存积压预警详情")
     
     if not processed_inventory.empty:
         # 筛选控件
@@ -1092,20 +1348,10 @@ with tab4:
             (filtered_data['库龄'] <= max_age)
         ]
         
-        # 显示筛选结果统计
-        st.markdown(f"""
-        <div class="insight-box">
-            <div class="insight-title">📊 筛选结果</div>
-            <div class="insight-content">
-                筛选出{len(filtered_data)}个批次，总价值¥{filtered_data['批次价值'].sum()/1000000:.2f}M，
-                平均库龄{filtered_data['库龄'].mean():.0f}天
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 显示数据表格
+        # 显示高级数据表格
         if not filtered_data.empty:
-            st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            st.markdown('<div class="content-container advanced-table">', unsafe_allow_html=True)
+            
             # 重新排序列并格式化
             display_columns = ['物料', '产品名称', '生产日期', '生产批号', '数量', '库龄', '风险等级', '批次价值', '处理建议']
             display_data = filtered_data[display_columns].copy()
@@ -1113,6 +1359,7 @@ with tab4:
             # 格式化数值
             display_data['批次价值'] = display_data['批次价值'].apply(lambda x: f"¥{x:,.0f}")
             display_data['生产日期'] = display_data['生产日期'].dt.strftime('%Y-%m-%d')
+            display_data['库龄'] = display_data['库龄'].apply(lambda x: f"{x}天")
             
             # 按风险等级和价值排序
             risk_order = {'极高风险': 0, '高风险': 1, '中风险': 2, '低风险': 3, '极低风险': 4}
@@ -1120,10 +1367,47 @@ with tab4:
             display_data = display_data.sort_values(['风险排序', '库龄'], ascending=[True, False])
             display_data = display_data.drop('风险排序', axis=1)
             
+            # 显示表格统计信息
+            total_batches = len(display_data)
+            total_value = filtered_data['批次价值'].sum() / 1000000
+            avg_age = filtered_data['库龄'].mean()
+            
+            # 风险分布统计
+            risk_stats = filtered_data['风险等级'].value_counts()
+            extreme_count = risk_stats.get('极高风险', 0)
+            high_count = risk_stats.get('高风险', 0)
+            
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); 
+                        border-radius: 15px; padding: 1.5rem; margin-bottom: 1.5rem; 
+                        border: 2px solid rgba(102, 126, 234, 0.2);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 800; color: #667eea;">{total_batches}</div>
+                        <div style="font-size: 0.9rem; color: #666; font-weight: 600;">筛选批次</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 800; color: #2ed573;">¥{total_value:.2f}M</div>
+                        <div style="font-size: 0.9rem; color: #666; font-weight: 600;">总价值</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 800; color: #ffa502;">{avg_age:.0f}天</div>
+                        <div style="font-size: 0.9rem; color: #666; font-weight: 600;">平均库龄</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; font-weight: 800; color: #ff4757;">{extreme_count + high_count}</div>
+                        <div style="font-size: 0.9rem; color: #666; font-weight: 600;">高风险批次</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # 显示增强表格
             st.dataframe(
                 display_data,
                 use_container_width=True,
-                height=400
+                height=500,
+                hide_index=False
             )
             
             # 下载按钮
@@ -1131,14 +1415,31 @@ with tab4:
             st.download_button(
                 label="📥 下载筛选结果",
                 data=csv,
-                file_name=f"库存分析_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
+                file_name=f"库存积压预警_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                use_container_width=True
             )
             st.markdown('</div>', unsafe_allow_html=True)
         else:
-            st.warning("没有符合筛选条件的数据")
+            st.markdown("""
+            <div style="text-align: center; padding: 3rem; 
+                        background: linear-gradient(135deg, rgba(255, 165, 2, 0.1), rgba(255, 165, 2, 0.05));
+                        border-radius: 20px; border: 2px dashed #ffa502;">
+                <div style="font-size: 3rem; color: #ffa502; margin-bottom: 1rem;">📭</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #ffa502; margin-bottom: 0.5rem;">暂无符合条件的数据</div>
+                <div style="color: #666; font-size: 1rem;">请调整筛选条件重新查询</div>
+            </div>
+            """, unsafe_allow_html=True)
     else:
-        st.warning("暂无库存数据")
+        st.markdown("""
+        <div style="text-align: center; padding: 3rem; 
+                    background: linear-gradient(135deg, rgba(255, 71, 87, 0.1), rgba(255, 71, 87, 0.05));
+                    border-radius: 20px; border: 2px dashed #ff4757;">
+            <div style="font-size: 3rem; color: #ff4757; margin-bottom: 1rem;">📦</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #ff4757; margin-bottom: 0.5rem;">暂无库存数据</div>
+            <div style="color: #666; font-size: 1rem;">请检查数据文件是否正确加载</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 # 页脚
 st.markdown("---")
