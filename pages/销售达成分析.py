@@ -1592,23 +1592,82 @@ def main():
         st.error("🚫 请先登录系统")
         st.stop()
     
+    # 添加页面加载动画
+    if 'page_loaded' not in st.session_state:
+        with st.empty():
+            st.markdown("""
+            <div style="display: flex; justify-content: center; align-items: center; height: 200px;">
+                <div style="text-align: center;">
+                    <div class="loading" style="width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #667eea; border-radius: 50%; margin: 0 auto 20px;"></div>
+                    <p style="color: #667eea; font-weight: 600;">正在加载销售分析系统...</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            import time
+            time.sleep(1.5)
+        st.session_state.page_loaded = True
+    
     # 主页面内容
     st.markdown("""
     <div class="main-header">
         <h1>🎯 销售达成分析</h1>
-        <p>全渠道销售业绩综合分析系统</p>
+        <p style="font-size: 1.2rem; margin-top: 0.5rem; opacity: 0.9;">全渠道销售业绩综合分析系统</p>
+        <div style="margin-top: 1rem;">
+            <span style="background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem;">
+                📊 实时数据 | 🔄 自动更新 | 📈 智能分析
+            </span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
+    # 添加实时时间显示
+    time_container = st.container()
+    with time_container:
+        current_time = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
+        st.markdown(f"""
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <p style="color: #6b7280; font-size: 0.9rem;">
+                📅 最后更新时间: <span style="color: #667eea; font-weight: 600;">{current_time}</span>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
     # 加载数据
-    with st.spinner('正在加载数据...'):
+    with st.spinner('🔄 正在加载数据...'):
         data = load_data()
     
     if data is None:
+        st.error("❌ 数据加载失败，请检查数据文件")
         return
+    
+    # 数据加载成功提示
+    st.success("✅ 数据加载成功！", icon="🎉")
     
     # 计算总体指标
     metrics = calculate_overview_metrics(data)
+    
+    # 添加快捷操作按钮
+    st.markdown("### 🚀 快捷操作")
+    col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
+    
+    with col_btn1:
+        if st.button("📊 刷新数据", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+    
+    with col_btn2:
+        if st.button("📈 导出报告", use_container_width=True):
+            st.info("📋 报告导出功能开发中...")
+    
+    with col_btn3:
+        if st.button("🔔 设置提醒", use_container_width=True):
+            st.info("⏰ 提醒设置功能开发中...")
+    
+    with col_btn4:
+        if st.button("📧 分享报告", use_container_width=True):
+            st.info("✉️ 分享功能开发中...")
+    
+    st.markdown("---")
     
     # 创建标签页
     tab_names = [
@@ -1622,6 +1681,19 @@ def main():
     
     # Tab 1: 销售达成总览
     with tabs[0]:
+        # 添加进度条动画
+        st.markdown("### 📈 2025年销售业绩概览")
+        
+        progress_col1, progress_col2 = st.columns([3, 1])
+        with progress_col1:
+            progress_value = min(metrics['total_achievement'] / 100, 1.0)
+            st.progress(progress_value)
+        with progress_col2:
+            st.metric("", f"{metrics['total_achievement']:.1f}%", 
+                     f"{metrics['total_achievement'] - 100:.1f}%" if metrics['total_achievement'] >= 100 else f"{100 - metrics['total_achievement']:.1f}%")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
         # 增强的指标卡片布局 - 2行3列
         col1, col2, col3 = st.columns(3)
         
@@ -1689,61 +1761,58 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        # 添加动态数据洞察卡片
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 创建动态洞察卡片
-        insight_col1, insight_col2 = st.columns(2)
-        
-        with insight_col1:
-            # 计算增长趋势
-            trend_direction = "📈" if metrics['total_achievement'] > 90 else "📉"
-            trend_text = "业绩表现优秀" if metrics['total_achievement'] > 90 else "需要加强努力"
-            
-            st.markdown(f"""
-            <div class="metric-card" style="background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 5px solid #0ea5e9;">
-                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-                    <span style="font-size: 3rem; margin-right: 1rem;">{trend_direction}</span>
-                    <div>
-                        <div class="metric-label" style="color: #0ea5e9; font-size: 1.1rem;">💡 智能洞察</div>
-                        <div class="metric-sublabel" style="margin-top: 0.5rem;">{trend_text}</div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with insight_col2:
-            # 计算渠道对比
-            stronger_channel = "TT" if metrics['tt_achievement'] > metrics['mt_achievement'] else "MT"
-            weaker_channel = "MT" if stronger_channel == "TT" else "TT"
-            performance_gap = abs(metrics['tt_achievement'] - metrics['mt_achievement'])
-            
-            st.markdown(f"""
-            <div class="metric-card" style="background: linear-gradient(145deg, #fefce8 0%, #fef3c7 100%); border-left: 5px solid #f59e0b;">
-                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-                    <span style="font-size: 3rem; margin-right: 1rem;">⚖️</span>
-                    <div>
-                        <div class="metric-label" style="color: #f59e0b; font-size: 1.1rem;">🎯 渠道建议</div>
-                        <div class="metric-sublabel" style="margin-top: 0.5rem;">{stronger_channel}渠道领先{weaker_channel} {performance_gap:.1f}%</div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+
     
     # Tab 2: MT渠道分析
     with tabs[1]:
+        st.markdown("### 🏪 MT渠道深度分析")
+        
+        # 添加MT渠道概要
+        mt_col1, mt_col2, mt_col3 = st.columns(3)
+        with mt_col1:
+            st.metric("MT总销售额", f"¥{metrics['mt_sales']/10000:.0f}万", f"{metrics['mt_achievement']-100:.1f}%")
+        with mt_col2:
+            st.metric("MT达成率", f"{metrics['mt_achievement']:.1f}%", "vs 目标100%")
+        with mt_col3:
+            st.metric("渠道占比", f"{metrics['mt_ratio']:.1f}%", "vs TT渠道")
+        
         fig = create_mt_comprehensive_analysis(data)
         st.plotly_chart(fig, use_container_width=True)
     
     # Tab 3: TT渠道分析
     with tabs[2]:
+        st.markdown("### 🏢 TT渠道深度分析")
+        
+        # 添加TT渠道概要
+        tt_col1, tt_col2, tt_col3 = st.columns(3)
+        with tt_col1:
+            st.metric("TT总销售额", f"¥{metrics['tt_sales']/10000:.0f}万", f"{metrics['tt_achievement']-100:.1f}%")
+        with tt_col2:
+            st.metric("TT达成率", f"{metrics['tt_achievement']:.1f}%", "vs 目标100%")
+        with tt_col3:
+            st.metric("渠道占比", f"{metrics['tt_ratio']:.1f}%", "vs MT渠道")
+        
         fig = create_tt_comprehensive_analysis(data)
         st.plotly_chart(fig, use_container_width=True)
     
     # Tab 4: 全渠道对比
     with tabs[3]:
+        st.markdown("### 📊 全渠道对比分析")
+        
+        # 添加全渠道概要
+        all_col1, all_col2, all_col3 = st.columns(3)
+        with all_col1:
+            st.metric("总销售额", f"¥{metrics['total_sales']/10000:.0f}万", f"{metrics['total_achievement']-100:.1f}%")
+        with all_col2:
+            st.metric("整体达成率", f"{metrics['total_achievement']:.1f}%", "vs 目标100%")
+        with all_col3:
+            target_gap = metrics['total_target'] - metrics['total_sales']
+            st.metric("目标缺口", f"¥{abs(target_gap)/10000:.0f}万", "需要补足" if target_gap > 0 else "已超额")
+        
         fig = create_all_channel_comprehensive_analysis(data)
         st.plotly_chart(fig, use_container_width=True)
+    
+
 
 if __name__ == "__main__":
     main()
