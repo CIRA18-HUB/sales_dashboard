@@ -190,53 +190,24 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
     }
     
-    /* 图表容器样式 */
-    .chart-container {
-        background: white !important;
-        border-radius: 16px;
-        padding: 2rem;
-        margin: 1.5rem 0;
+    /* 直接对Plotly图表应用圆角样式 */
+    .stPlotlyChart {
+        border-radius: 16px !important;
+        overflow: hidden !important;
         box-shadow: 0 8px 25px rgba(0,0,0,0.06), 0 3px 10px rgba(0,0,0,0.03);
         border: 1px solid rgba(0,0,0,0.05);
-        animation: containerFadeIn 0.8s ease-out;
-    }
-    
-    /* 为 Streamlit 的 container 添加样式 - 关键修复 */
-    div[data-testid="stVerticalBlock"] > div:has(.chart-container-marker) {
-        background: white !important;
-        border-radius: 20px;
-        padding: 2rem;
         margin: 1.5rem 0;
-        box-shadow: 
-            0 15px 35px rgba(0,0,0,0.08),
-            0 5px 15px rgba(0,0,0,0.03);
-        border: 1px solid rgba(255,255,255,0.5);
-        position: relative;
-        overflow: visible;
     }
     
-    /* 确保图表本身也有白色背景 */
-    div[data-testid="stVerticalBlock"] > div:has(.chart-container-marker) .stPlotlyChart {
-        background: white !important;
-        border-radius: 12px;
-        padding: 1rem;
-    }
-    
-    /* 通用的Plotly图表容器样式 */
+    /* 确保图表内部背景为白色 */
     .js-plotly-plot {
         background: white !important;
+        border-radius: 16px !important;
     }
     
     .plot-container {
         background: white !important;
-    }
-    
-    /* 强制所有Plotly图表背景为白色 */
-    .stPlotlyChart {
-        background: white !important;
-        border-radius: 12px;
-        padding: 1rem;
-        margin: 0.5rem 0;
+        border-radius: 16px !important;
     }
     
     /* 洞察卡片 */
@@ -279,17 +250,11 @@ st.markdown("""
     .metric-card:nth-child(4) { animation-delay: 0.4s; }
     .metric-card:nth-child(5) { animation-delay: 0.5s; }
     
-    @keyframes containerFadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
     /* 响应式 */
     @media (max-width: 768px) {
         .metric-value, .big-value { font-size: 1.8rem; }
         .metric-card { padding: 1rem; margin: 0.5rem 0; }
         .main-header { padding: 1.5rem 0; }
-        .chart-container { padding: 1rem; }
     }
     
     /* 确保文字颜色 */
@@ -841,15 +806,10 @@ def main():
     
     # Tab 2: 健康诊断
     with tabs[1]:
-        # 创建白色背景容器
-        st.markdown('<div class="chart-wrapper">', unsafe_allow_html=True)
-        
         if 'health_radar' in charts:
             st.markdown('<div class="chart-title">客户健康状态综合评估</div>', unsafe_allow_html=True)
             st.markdown('<div class="chart-subtitle">多维度评估客户群体整体健康状况</div>', unsafe_allow_html=True)
             st.plotly_chart(charts['health_radar'], use_container_width=True, key="health_radar")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
         
         # 健康度评分
         health_score = (metrics['normal_rate'] * 0.4 + metrics['target_achievement_rate'] * 0.3 + metrics['high_value_rate'] * 0.3)
@@ -866,57 +826,42 @@ def main():
     # Tab 3: 风险评估
     with tabs[2]:
         # Top20客户分析
-        st.markdown('<div class="chart-wrapper">', unsafe_allow_html=True)
         st.markdown('<div class="chart-title">Top 20 客户贡献度分析</div>', unsafe_allow_html=True)
         st.markdown('<div class="chart-subtitle">展示前20大客户的销售额分布和累计贡献度</div>', unsafe_allow_html=True)
         
         if 'top20' in charts:
             st.plotly_chart(charts['top20'], use_container_width=True, key="top20_chart")
         
-        st.markdown('</div>', unsafe_allow_html=True)
-        
         # 区域风险矩阵  
-        st.markdown('<div class="chart-wrapper">', unsafe_allow_html=True)
         st.markdown('<div class="chart-title">区域客户依赖风险矩阵</div>', unsafe_allow_html=True)
         st.markdown('<div class="chart-subtitle">评估各区域的客户集中度风险</div>', unsafe_allow_html=True)
         
         if 'risk_matrix' in charts:
             st.plotly_chart(charts['risk_matrix'], use_container_width=True, key="risk_matrix_chart")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 4: 价值分层
     with tabs[3]:
-        st.markdown('<div class="chart-wrapper">', unsafe_allow_html=True)
         st.markdown('<div class="chart-title">客户价值流动分析</div>', unsafe_allow_html=True)
         st.markdown('<div class="chart-subtitle">展示客户在不同价值层级间的分布</div>', unsafe_allow_html=True)
         
         if 'sankey' in charts:
             st.plotly_chart(charts['sankey'], use_container_width=True, key="sankey_chart")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 5: 目标追踪
     with tabs[4]:
-        st.markdown('<div class="chart-wrapper">', unsafe_allow_html=True)
         st.markdown('<div class="chart-title">客户目标达成分析</div>', unsafe_allow_html=True)
         st.markdown('<div class="chart-subtitle">评估各客户的销售目标完成情况</div>', unsafe_allow_html=True)
         
         if 'target_scatter' in charts:
             st.plotly_chart(charts['target_scatter'], use_container_width=True, key="target_scatter_chart")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 6: 趋势分析
     with tabs[5]:
-        st.markdown('<div class="chart-wrapper">', unsafe_allow_html=True)
         st.markdown('<div class="chart-title">销售趋势分析</div>', unsafe_allow_html=True)
         st.markdown('<div class="chart-subtitle">追踪销售额和订单数的月度变化趋势</div>', unsafe_allow_html=True)
         
         if 'trend' in charts:
             st.plotly_chart(charts['trend'], use_container_width=True, key="trend_chart")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
         
         # 趋势洞察
         st.markdown("""
