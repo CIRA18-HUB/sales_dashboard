@@ -22,96 +22,317 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
     st.switch_page("登陆界面haha.py")
     st.stop()
 
-# 统一的CSS样式
+# 统一的增强CSS样式 - 继承自销售达成分析的高级样式
 st.markdown("""
 <style>
-    /* 主容器样式 */
-    .main-container {
+    /* 导入Google字体 */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    
+    /* 全局字体和背景 */
+    .stApp {
+        font-family: 'Inter', sans-serif;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-        padding: 2rem;
+        background-attachment: fixed;
     }
     
-    /* 页面标题样式 */
+    /* 添加浮动粒子背景动画 */
+    .stApp::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: 
+            radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 2px, transparent 2px),
+            radial-gradient(circle at 75% 75%, rgba(255,255,255,0.1) 2px, transparent 2px);
+        background-size: 100px 100px;
+        animation: float 20s linear infinite;
+        pointer-events: none;
+        z-index: -1;
+    }
+    
+    @keyframes float {
+        0% { transform: translateY(0px) translateX(0px); }
+        25% { transform: translateY(-20px) translateX(10px); }
+        50% { transform: translateY(0px) translateX(-10px); }
+        75% { transform: translateY(-10px) translateX(5px); }
+        100% { transform: translateY(0px) translateX(0px); }
+    }
+    
+    /* 主容器背景 */
+    .main .block-container {
+        background: rgba(255,255,255,0.95);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-top: 2rem;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    /* 页面标题样式 - 增强动画 */
     .page-header {
         text-align: center;
-        background: rgba(255, 255, 255, 0.95);
-        padding: 2rem;
-        border-radius: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+        background-size: 200% 200%;
+        color: white;
+        padding: 3rem 2rem;
+        border-radius: 25px;
         margin-bottom: 2rem;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        backdrop-filter: blur(20px);
+        animation: gradientShift 4s ease infinite, fadeInScale 1.5s ease-out, glow 2s ease-in-out infinite alternate;
+        box-shadow: 
+            0 20px 40px rgba(102, 126, 234, 0.4),
+            0 5px 15px rgba(0,0,0,0.1),
+            inset 0 1px 0 rgba(255,255,255,0.1);
+        position: relative;
+        overflow: hidden;
+        transform: perspective(1000px) rotateX(0deg);
+        transition: transform 0.3s ease;
+    }
+    
+    .page-header:hover {
+        transform: perspective(1000px) rotateX(-2deg) scale(1.02);
+        box-shadow: 
+            0 25px 50px rgba(102, 126, 234, 0.5),
+            0 10px 30px rgba(0,0,0,0.15);
+    }
+    
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.15), transparent);
+        animation: shimmer 3s linear infinite;
+    }
+    
+    .page-header::after {
+        content: '✨';
+        position: absolute;
+        top: 10%;
+        right: 10%;
+        font-size: 2rem;
+        animation: sparkle 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes glow {
+        from { box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4), 0 5px 15px rgba(0,0,0,0.1); }
+        to { box-shadow: 0 25px 50px rgba(102, 126, 234, 0.6), 0 8px 20px rgba(0,0,0,0.15); }
+    }
+    
+    @keyframes sparkle {
+        0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        50% { transform: scale(1.3) rotate(180deg); opacity: 0.7; }
+    }
+    
+    @keyframes gradientShift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+    
+    @keyframes shimmer {
+        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+    }
+    
+    @keyframes fadeInScale {
+        from { 
+            opacity: 0; 
+            transform: translateY(-50px) scale(0.8) rotateX(-10deg); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0) scale(1) rotateX(0deg); 
+        }
     }
     
     .page-title {
-        font-size: 3rem;
+        font-size: 3.2rem;
         font-weight: 800;
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
         margin-bottom: 1rem;
+        line-height: 1.1;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .page-subtitle {
-        color: #666;
-        font-size: 1.2rem;
+        font-size: 1.3rem;
         font-weight: 400;
+        opacity: 0.9;
+        margin-top: 0.5rem;
     }
     
-    /* 指标卡片样式 */
+    /* 增强的指标卡片样式 */
     .metric-card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        padding: 2.5rem 2rem;
+        border-radius: 25px;
+        box-shadow: 
+            0 15px 35px rgba(0,0,0,0.08),
+            0 5px 15px rgba(0,0,0,0.03),
+            inset 0 1px 0 rgba(255,255,255,0.9);
         text-align: center;
+        height: 100%;
+        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        animation: slideUpStagger 1s ease-out;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.3);
+        backdrop-filter: blur(10px);
         border-left: 4px solid #667eea;
     }
     
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+        transition: left 0.8s ease;
+    }
+    
+    .metric-card::after {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: linear-gradient(45deg, #667eea, #764ba2, #667eea);
+        border-radius: 25px;
+        z-index: -1;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
     .metric-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        transform: translateY(-15px) scale(1.05) rotateY(5deg);
+        box-shadow: 
+            0 30px 60px rgba(0,0,0,0.15),
+            0 15px 30px rgba(102, 126, 234, 0.2);
+        border-color: rgba(102, 126, 234, 0.3);
+        animation: pulse 1.5s infinite;
+    }
+    
+    .metric-card:hover::before {
+        left: 100%;
+    }
+    
+    .metric-card:hover::after {
+        opacity: 0.1;
+    }
+    
+    @keyframes slideUpStagger {
+        from { 
+            opacity: 0; 
+            transform: translateY(60px) scale(0.8) rotateX(-15deg); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0) scale(1) rotateX(0deg); 
+        }
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
     }
     
     .metric-value {
-        font-size: 2.5rem;
-        font-weight: bold;
-        background: linear-gradient(45deg, #667eea, #764ba2);
+        font-size: 3.2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+        background-size: 200% 200%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem;
+        background-clip: text;
+        margin-bottom: 1rem;
+        animation: textGradient 4s ease infinite, bounce 2s ease-in-out infinite;
+        line-height: 1;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+        40% { transform: translateY(-3px); }
+        60% { transform: translateY(-2px); }
+    }
+    
+    @keyframes textGradient {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
     }
     
     .metric-label {
-        color: #666;
-        font-size: 1rem;
-        font-weight: 500;
+        color: #374151;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
     }
     
     .metric-description {
-        color: #888;
+        color: #6b7280;
         font-size: 0.9rem;
-        margin-top: 0.5rem;
+        margin-top: 0.8rem;
+        font-weight: 500;
+        font-style: italic;
     }
     
     /* 图表容器样式 */
     .chart-container {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
-        border-radius: 15px;
-        padding: 1.5rem;
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 25px;
+        padding: 2rem;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        box-shadow: 
+            0 15px 35px rgba(0,0,0,0.08),
+            inset 0 1px 0 rgba(255,255,255,0.9);
+        border: 1px solid rgba(255,255,255,0.3);
+        animation: chartFadeIn 1.2s ease-out;
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .chart-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.02), transparent);
+        animation: chartShimmer 8s linear infinite;
+    }
+    
+    @keyframes chartShimmer {
+        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+    }
+    
+    @keyframes chartFadeIn {
+        from { 
+            opacity: 0; 
+            transform: translateY(30px) scale(0.95); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0) scale(1); 
+        }
     }
     
     .chart-title {
-        font-size: 1.5rem;
+        font-size: 1.6rem;
         font-weight: 700;
         color: #333;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
         text-align: center;
         background: linear-gradient(45deg, #667eea, #764ba2);
         -webkit-background-clip: text;
@@ -122,44 +343,170 @@ st.markdown("""
     .insight-box {
         background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
         border-left: 4px solid #667eea;
-        border-radius: 10px;
-        padding: 1rem;
+        border-radius: 15px;
+        padding: 1.5rem;
         margin-top: 1rem;
+        animation: insightGlow 3s ease-in-out infinite alternate;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .insight-box::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+        animation: insightSweep 4s ease-in-out infinite;
+    }
+    
+    @keyframes insightGlow {
+        from { border-color: #667eea; }
+        to { border-color: #764ba2; }
+    }
+    
+    @keyframes insightSweep {
+        0% { left: -100%; }
+        50% { left: 100%; }
+        100% { left: -100%; }
     }
     
     .insight-title {
         font-weight: 700;
         color: #333;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.8rem;
+        font-size: 1.1rem;
     }
     
     .insight-content {
         color: #666;
         line-height: 1.6;
+        font-size: 1rem;
     }
     
-    /* 标签页样式 */
+    /* 标签页样式增强 */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background: rgba(255, 255, 255, 0.1);
-        padding: 0.5rem;
-        border-radius: 15px;
+        gap: 15px;
+        background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
+        padding: 1rem;
+        border-radius: 20px;
+        box-shadow: 
+            inset 0 2px 4px rgba(0,0,0,0.06),
+            0 4px 8px rgba(0,0,0,0.04);
         backdrop-filter: blur(10px);
     }
     
     .stTabs [data-baseweb="tab"] {
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 10px;
-        color: white;
-        font-weight: 600;
-        border: none;
-        padding: 0.5rem 1rem;
+        height: 65px;
+        padding: 0 35px;
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 15px;
+        border: 1px solid rgba(102, 126, 234, 0.15);
+        font-weight: 700;
+        font-size: 1rem;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+    
+    .stTabs [data-baseweb="tab"]::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.15), transparent);
+        transition: left 0.8s ease;
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        transform: translateY(-5px) scale(1.05);
+        box-shadow: 0 15px 30px rgba(102, 126, 234, 0.2);
+        border-color: rgba(102, 126, 234, 0.4);
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover::before {
+        left: 100%;
     }
     
     .stTabs [aria-selected="true"] {
-        background: rgba(255, 255, 255, 0.9);
-        color: #333;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 
+            0 15px 40px rgba(102, 126, 234, 0.4),
+            0 5px 15px rgba(0,0,0,0.1);
+        animation: activeTab 0.5s ease;
     }
+    
+    .stTabs [aria-selected="true"]::before {
+        display: none;
+    }
+    
+    @keyframes activeTab {
+        0% { transform: scale(0.95); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1.02); }
+    }
+    
+    /* 动画卡片延迟 */
+    .metric-card:nth-child(1) { animation-delay: 0.1s; }
+    .metric-card:nth-child(2) { animation-delay: 0.2s; }
+    .metric-card:nth-child(3) { animation-delay: 0.3s; }
+    .metric-card:nth-child(4) { animation-delay: 0.4s; }
+    .metric-card:nth-child(5) { animation-delay: 0.5s; }
+    .metric-card:nth-child(6) { animation-delay: 0.6s; }
+    .metric-card:nth-child(7) { animation-delay: 0.7s; }
+    .metric-card:nth-child(8) { animation-delay: 0.8s; }
+    
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .metric-value {
+            font-size: 2.5rem;
+        }
+        .metric-card {
+            padding: 2rem 1.5rem;
+        }
+        .page-header {
+            padding: 2rem 1rem;
+        }
+        .page-title {
+            font-size: 2.5rem;
+        }
+    }
+    
+    /* 加载动画 */
+    @keyframes loading {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .loading {
+        animation: loading 2s linear infinite;
+    }
+    
+    /* 成功动画 */
+    @keyframes success {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    
+    .success {
+        animation: success 0.6s ease-in-out;
+    }
+    
+    /* 特殊风险等级颜色 */
+    .risk-extreme { border-left-color: #ff4757 !important; }
+    .risk-high { border-left-color: #ff6348 !important; }
+    .risk-medium { border-left-color: #ffa502 !important; }
+    .risk-low { border-left-color: #2ed573 !important; }
+    .risk-minimal { border-left-color: #5352ed !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -440,7 +787,7 @@ def create_risk_distribution_pie(processed_inventory):
     fig.update_layout(
         title="库存风险等级分布",
         title_x=0.5,
-        font=dict(size=14),
+        font=dict(size=14, family="Inter, sans-serif"),
         showlegend=True,
         legend=dict(
             orientation="h",
@@ -474,6 +821,7 @@ def create_risk_value_analysis(processed_inventory):
         marker_color=colors,
         text=[f'¥{v:.1f}M' for v in risk_value.values],
         textposition='auto',
+        textfont=dict(color='white', size=12, family="Inter, sans-serif"),
         hovertemplate="<b>%{x}</b><br>" +
                       "价值: ¥%{y:.1f}M<br>" +
                       "<extra></extra>"
@@ -484,10 +832,10 @@ def create_risk_value_analysis(processed_inventory):
         title_x=0.5,
         xaxis_title="风险等级",
         yaxis_title="价值 (百万元)",
-        font=dict(size=14),
+        font=dict(size=14, family="Inter, sans-serif"),
         height=400,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(248, 250, 252, 0.8)',
         xaxis=dict(gridcolor='rgba(200,200,200,0.3)'),
         yaxis=dict(gridcolor='rgba(200,200,200,0.3)')
     )
@@ -521,10 +869,10 @@ def create_age_distribution(processed_inventory):
         title_x=0.5,
         xaxis_title="库龄 (天)",
         yaxis_title="批次数量",
-        font=dict(size=14),
+        font=dict(size=14, family="Inter, sans-serif"),
         height=400,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(248, 250, 252, 0.8)',
         xaxis=dict(gridcolor='rgba(200,200,200,0.3)'),
         yaxis=dict(gridcolor='rgba(200,200,200,0.3)')
     )
@@ -532,13 +880,22 @@ def create_age_distribution(processed_inventory):
     return fig
 
 def create_high_risk_bubble(processed_inventory):
-    """创建高风险批次气泡图"""
+    """创建高风险批次气泡图 - 修复版本"""
     high_risk_data = processed_inventory[
         processed_inventory['风险等级'].isin(['极高风险', '高风险'])
     ].head(20)
     
     if high_risk_data.empty:
-        return go.Figure()
+        # 返回空图表
+        fig = go.Figure()
+        fig.update_layout(
+            title="高风险批次优先级分析 (无数据)",
+            title_x=0.5,
+            height=400,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(248, 250, 252, 0.8)'
+        )
+        return fig
     
     fig = go.Figure()
     
@@ -546,13 +903,20 @@ def create_high_risk_bubble(processed_inventory):
                               ('高风险', COLOR_SCHEME['risk_high'])]:
         risk_subset = high_risk_data[high_risk_data['风险等级'] == risk_level]
         if not risk_subset.empty:
+            # 修复marker size计算，确保数据有效性
+            quantities = risk_subset['数量'].fillna(0)  # 填充NaN值
+            marker_sizes = np.clip(quantities / 10, 8, 50)  # 限制大小范围，避免异常值
+            
+            # 确保没有无效值
+            marker_sizes = np.where(np.isfinite(marker_sizes), marker_sizes, 15)  # 用默认值替换无效值
+            
             fig.add_trace(go.Scatter(
                 x=risk_subset['库龄'],
                 y=risk_subset['批次价值'],
                 mode='markers',
                 name=risk_level,
                 marker=dict(
-                    size=risk_subset['数量'] / 10,
+                    size=marker_sizes,
                     sizemode='diameter',
                     sizemin=8,
                     sizemax=50,
@@ -564,8 +928,9 @@ def create_high_risk_bubble(processed_inventory):
                 hovertemplate="<b>%{text}</b><br>" +
                               "库龄: %{x}天<br>" +
                               "价值: ¥%{y:,.0f}<br>" +
-                              "数量: %{marker.size}箱<br>" +
-                              "<extra></extra>"
+                              "数量: %{customdata}箱<br>" +
+                              "<extra></extra>",
+                customdata=risk_subset['数量']
             ))
     
     fig.update_layout(
@@ -573,10 +938,10 @@ def create_high_risk_bubble(processed_inventory):
         title_x=0.5,
         xaxis_title="库龄 (天)",
         yaxis_title="批次价值 (元)",
-        font=dict(size=14),
+        font=dict(size=14, family="Inter, sans-serif"),
         height=400,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(248, 250, 252, 0.8)',
         xaxis=dict(gridcolor='rgba(200,200,200,0.3)'),
         yaxis=dict(gridcolor='rgba(200,200,200,0.3)')
     )
@@ -596,7 +961,7 @@ def create_forecast_accuracy_trend(forecast_accuracy):
             mode='lines+markers',
             name='预测准确率',
             line=dict(color=COLOR_SCHEME['primary'], width=3),
-            marker=dict(size=8)
+            marker=dict(size=8, color=COLOR_SCHEME['primary'])
         )])
     else:
         monthly_acc = forecast_accuracy.groupby(
@@ -610,7 +975,7 @@ def create_forecast_accuracy_trend(forecast_accuracy):
             mode='lines+markers',
             name='预测准确率',
             line=dict(color=COLOR_SCHEME['primary'], width=3),
-            marker=dict(size=8)
+            marker=dict(size=8, color=COLOR_SCHEME['primary'])
         )])
     
     # 添加目标线
@@ -622,10 +987,10 @@ def create_forecast_accuracy_trend(forecast_accuracy):
         title_x=0.5,
         xaxis_title="月份",
         yaxis_title="预测准确率 (%)",
-        font=dict(size=14),
+        font=dict(size=14, family="Inter, sans-serif"),
         height=400,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(248, 250, 252, 0.8)',
         xaxis=dict(gridcolor='rgba(200,200,200,0.3)'),
         yaxis=dict(gridcolor='rgba(200,200,200,0.3)')
     )
@@ -671,8 +1036,9 @@ with tab1:
     
     with col2:
         health_score = 100 - metrics['high_risk_ratio']
+        health_class = "risk-low" if health_score > 80 else "risk-medium" if health_score > 60 else "risk-high"
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card {health_class}">
             <div class="metric-value">{health_score:.1f}%</div>
             <div class="metric-label">💚 库存健康度</div>
             <div class="metric-description">{'健康' if health_score > 80 else '需关注' if health_score > 60 else '风险'}</div>
@@ -689,8 +1055,9 @@ with tab1:
         """, unsafe_allow_html=True)
     
     with col4:
+        risk_class = "risk-extreme" if metrics['high_risk_ratio'] > 25 else "risk-high" if metrics['high_risk_ratio'] > 15 else "risk-medium"
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card {risk_class}">
             <div class="metric-value">{metrics['high_risk_ratio']:.1f}%</div>
             <div class="metric-label">⚠️ 高风险占比</div>
             <div class="metric-description">需要紧急处理的批次</div>
@@ -701,8 +1068,9 @@ with tab1:
     col5, col6, col7, col8 = st.columns(4)
     
     with col5:
+        age_class = "risk-extreme" if metrics['avg_age'] > 90 else "risk-high" if metrics['avg_age'] > 60 else "risk-medium" if metrics['avg_age'] > 30 else "risk-low"
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card {age_class}">
             <div class="metric-value">{metrics['avg_age']:.0f}天</div>
             <div class="metric-label">⏰ 平均库龄</div>
             <div class="metric-description">库存批次平均天数</div>
@@ -710,8 +1078,9 @@ with tab1:
         """, unsafe_allow_html=True)
     
     with col6:
+        forecast_class = "risk-low" if metrics['forecast_accuracy'] > 85 else "risk-medium" if metrics['forecast_accuracy'] > 75 else "risk-high"
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card {forecast_class}">
             <div class="metric-value">{metrics['forecast_accuracy']:.1f}%</div>
             <div class="metric-label">🎯 预测准确率</div>
             <div class="metric-description">销售预测精度水平</div>
@@ -720,7 +1089,7 @@ with tab1:
     
     with col7:
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card risk-extreme">
             <div class="metric-value">¥{metrics['high_risk_value']:.1f}M</div>
             <div class="metric-label">🚨 高风险价值</div>
             <div class="metric-description">高风险批次总价值</div>
@@ -729,8 +1098,9 @@ with tab1:
     
     with col8:
         turnover_rate = 365 / metrics['avg_age'] if metrics['avg_age'] > 0 else 0
+        turnover_class = "risk-low" if turnover_rate > 10 else "risk-medium" if turnover_rate > 6 else "risk-high"
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card {turnover_class}">
             <div class="metric-value">{turnover_rate:.1f}</div>
             <div class="metric-label">🔄 周转率</div>
             <div class="metric-description">年库存周转次数</div>
@@ -835,7 +1205,7 @@ with tab3:
         
         st.markdown(f"""
         <div style="text-align: center; padding: 2rem;">
-            <div style="font-size: 3rem; color: {COLOR_SCHEME['primary']};">
+            <div style="font-size: 3rem; background: linear-gradient(135deg, {COLOR_SCHEME['primary']}, {COLOR_SCHEME['secondary']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
                 {current_acc:.1f}%
             </div>
             <div style="font-size: 1.2rem; color: #666; margin-bottom: 1rem;">
@@ -879,7 +1249,8 @@ with tab3:
             yaxis_title="频次",
             height=400,
             paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
+            plot_bgcolor='rgba(248, 250, 252, 0.8)',
+            font=dict(family="Inter, sans-serif")
         )
         
         st.plotly_chart(fig, use_container_width=True)
@@ -1056,7 +1427,7 @@ with tab5:
     # ROI计算
     promotion_cost = metrics['high_risk_value'] * 0.15  # 假设促销成本为价值的15%
     expected_recovery = metrics['high_risk_value'] * 0.8  # 预期回收80%
-    roi = (expected_recovery - promotion_cost) / promotion_cost * 100
+    roi = (expected_recovery - promotion_cost) / promotion_cost * 100 if promotion_cost > 0 else 0
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -1078,7 +1449,7 @@ with tab5:
         st.metric(
             label="💎 预期回收金额",
             value=f"¥{expected_recovery:.1f}M",
-            delta=f"+{(expected_recovery-metrics['high_risk_value'])/metrics['high_risk_value']*100:.1f}%"
+            delta=f"+{(expected_recovery-metrics['high_risk_value'])/metrics['high_risk_value']*100:.1f}%" if metrics['high_risk_value'] > 0 else None
         )
     
     with col4:
@@ -1113,9 +1484,9 @@ with tab5:
 # 页脚
 st.markdown("---")
 st.markdown(
-    """
-    <div style='text-align: center; color: #666;'>
-        <p>🚀 Powered by Streamlit & Plotly | 智能数据分析平台</p>
+    f"""
+    <div style='text-align: center; color: #666; font-family: "Inter", sans-serif;'>
+        <p>🚀 Powered by Streamlit & Plotly | 智能数据分析平台 | 最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
     </div>
     """,
     unsafe_allow_html=True
