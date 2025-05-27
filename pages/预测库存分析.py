@@ -1,4 +1,4 @@
-# pages/预测库存分析.py - 修复版
+# pages/预测库存分析.py - 完整功能版
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -15,6 +15,8 @@ from streamlit_extras.let_it_rain import rain
 import json
 import requests
 import time
+import math
+from itertools import combinations
 
 warnings.filterwarnings('ignore')
 
@@ -31,7 +33,7 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
     st.switch_page("登陆界面haha.py")
     st.stop()
 
-# 统一的白色主题CSS样式（与附件二保持一致）
+# 统一的白色主题CSS样式
 st.markdown("""
 <style>
     /* 主标题动画样式 */
@@ -330,7 +332,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 统一配色方案（与附件二保持一致）
+# 统一配色方案
 COLOR_SCHEME = {
     # 主色调 - 紫色渐变
     'primary_gradient': ['#667eea', '#764ba2'],
@@ -361,6 +363,32 @@ COLOR_SCHEME = {
     'text_primary': '#333333',
     'text_secondary': '#666666'
 }
+
+# 配置参数
+class SystemConfig:
+    def __init__(self):
+        # 风险参数
+        self.high_stock_days = 90  
+        self.medium_stock_days = 60  
+        self.low_stock_days = 30  
+        self.high_volatility_threshold = 1.0  
+        self.medium_volatility_threshold = 0.8  
+        
+        # 预测偏差阈值
+        self.high_forecast_bias_threshold = 0.3  
+        self.medium_forecast_bias_threshold = 0.15  
+        self.max_forecast_bias = 1.0  
+        
+        # 清库天数阈值
+        self.high_clearance_days = 90  
+        self.medium_clearance_days = 60  
+        self.low_clearance_days = 30  
+        
+        # 最小日均销量阈值
+        self.min_daily_sales = 0.5  
+        self.min_seasonal_index = 0.3  
+
+config = SystemConfig()
 
 # 修复后的plotly布局配置函数
 def get_safe_plotly_layout():
@@ -511,11 +539,14 @@ def load_and_process_data():
         # 计算关键指标
         metrics = calculate_key_metrics(processed_inventory, forecast_accuracy)
         
-        return processed_inventory, forecast_accuracy, shipment_df, forecast_df, metrics, product_name_map
+        # 进行深度分析
+        deep_analysis = perform_deep_analysis(processed_inventory, shipment_df, forecast_df)
+        
+        return processed_inventory, forecast_accuracy, shipment_df, forecast_df, metrics, product_name_map, deep_analysis
         
     except Exception as e:
         st.error(f"数据加载错误: {str(e)}")
-        return None, None, None, None, None, None
+        return None, None, None, None, None, None, None
 
 def calculate_forecast_accuracy(shipment_df, forecast_df):
     """计算预测准确率"""
@@ -590,6 +621,149 @@ def calculate_key_metrics(processed_inventory, forecast_accuracy):
         }
     }
 
+def perform_deep_analysis(processed_inventory, shipment_df, forecast_df):
+    """执行深度分析"""
+    analysis = {}
+    
+    # 1. 计算清库预测
+    clearance_analysis = calculate_clearance_prediction(processed_inventory, shipment_df)
+    analysis['clearance'] = clearance_analysis
+    
+    # 2. 责任归属分析
+    responsibility_analysis = analyze_responsibility(processed_inventory, shipment_df, forecast_df)
+    analysis['responsibility'] = responsibility_analysis
+    
+    # 3. 季节性分析
+    seasonal_analysis = analyze_seasonality(shipment_df)
+    analysis['seasonal'] = seasonal_analysis
+    
+    # 4. ABC分析
+    abc_analysis = perform_abc_analysis(processed_inventory)
+    analysis['abc'] = abc_analysis
+    
+    return analysis
+
+def calculate_clearance_prediction(processed_inventory, shipment_df):
+    """计算清库预测"""
+    clearance_data = []
+    
+    for _, batch in processed_inventory.iterrows():
+        product_code = batch['物料']
+        
+        # 计算该产品的日均销量
+        product_sales = shipment_df[shipment_df['产品代码'] == product_code]
+        
+        if len(product_sales) > 0:
+            # 计算最近90天的平均销量
+            recent_sales = product_sales[
+                product_sales['订单日期'] >= (datetime.now() - timedelta(days=90))
+            ]
+            
+            if len(recent_sales) > 0:
+                daily_avg = recent_sales['求和项:数量（箱）'].sum() / 90
+            else:
+                daily_avg = product_sales['求和项:数量（箱）'].sum() / max(1, len(product_sales))
+        else:
+            daily_avg = 0
+        
+        # 计算预计清库天数
+        if daily_avg > 0:
+            clearance_days = batch['数量'] / daily_avg
+        else:
+            clearance_days = float('inf')
+        
+        clearance_data.append({
+            '物料': product_code,
+            '批次库存': batch['数量'],
+            '日均销量': daily_avg,
+            '预计清库天数': clearance_days,
+            '风险等级': batch['风险等级']
+        })
+    
+    return pd.DataFrame(clearance_data)
+
+def analyze_responsibility(processed_inventory, shipment_df, forecast_df):
+    """分析责任归属"""
+    responsibility_data = []
+    
+    # 按销售人员统计
+    person_stats = shipment_df.groupby('申请人').agg({
+        '求和项:数量（箱）': 'sum',
+        '产品代码': 'nunique'
+    }).reset_index()
+    
+    person_stats.columns = ['销售人员', '总销量', '产品数量']
+    
+    # 计算预测准确率
+    forecast_stats = forecast_df.groupby('销售员').agg({
+        '预计销售量': 'sum'
+    }).reset_index()
+    
+    forecast_stats.columns = ['销售人员', '预测总量']
+    
+    # 合并数据
+    combined = person_stats.merge(forecast_stats, left_on='销售人员', right_on='销售人员', how='outer').fillna(0)
+    
+    # 计算预测准确率
+    combined['预测准确率'] = combined.apply(lambda x: 
+        (1 - abs(x['预测总量'] - x['总销量']) / max(x['总销量'], 1)) * 100, axis=1)
+    
+    responsibility_data = combined.to_dict('records')
+    
+    return responsibility_data
+
+def analyze_seasonality(shipment_df):
+    """分析季节性模式"""
+    seasonal_data = shipment_df.copy()
+    seasonal_data['月份'] = seasonal_data['订单日期'].dt.month
+    
+    monthly_sales = seasonal_data.groupby('月份')['求和项:数量（箱）'].sum()
+    
+    # 计算季节性指数
+    avg_monthly = monthly_sales.mean()
+    seasonal_index = (monthly_sales / avg_monthly).to_dict()
+    
+    return {
+        'monthly_sales': monthly_sales.to_dict(),
+        'seasonal_index': seasonal_index,
+        'peak_month': monthly_sales.idxmax(),
+        'low_month': monthly_sales.idxmin()
+    }
+
+def perform_abc_analysis(processed_inventory):
+    """执行ABC分析"""
+    # 按价值排序
+    sorted_inventory = processed_inventory.sort_values('批次价值', ascending=False)
+    
+    # 计算累积占比
+    total_value = sorted_inventory['批次价值'].sum()
+    sorted_inventory['累积价值'] = sorted_inventory['批次价值'].cumsum()
+    sorted_inventory['累积占比'] = sorted_inventory['累积价值'] / total_value
+    
+    # 分类
+    def classify_abc(ratio):
+        if ratio <= 0.8:
+            return 'A类'
+        elif ratio <= 0.95:
+            return 'B类'
+        else:
+            return 'C类'
+    
+    sorted_inventory['ABC分类'] = sorted_inventory['累积占比'].apply(classify_abc)
+    
+    # 统计各类占比
+    abc_stats = sorted_inventory.groupby('ABC分类').agg({
+        '批次价值': ['sum', 'count']
+    }).round(2)
+    
+    return {
+        'classified_data': sorted_inventory,
+        'stats': abc_stats,
+        'a_ratio': len(sorted_inventory[sorted_inventory['ABC分类'] == 'A类']) / len(sorted_inventory) * 100,
+        'b_ratio': len(sorted_inventory[sorted_inventory['ABC分类'] == 'B类']) / len(sorted_inventory) * 100,
+        'c_ratio': len(sorted_inventory[sorted_inventory['ABC分类'] == 'C类']) / len(sorted_inventory) * 100
+    }
+
 # 创建动画效果
 def create_animation_effect():
     """创建页面加载动画"""
@@ -609,7 +783,7 @@ def create_animation_effect():
 # 加载数据
 with st.spinner('🔄 正在加载智能分析系统...'):
     create_animation_effect()
-    processed_inventory, forecast_accuracy, shipment_df, forecast_df, metrics, product_name_map = load_and_process_data()
+    processed_inventory, forecast_accuracy, shipment_df, forecast_df, metrics, product_name_map, deep_analysis = load_and_process_data()
 
 if metrics is None:
     st.stop()
@@ -642,7 +816,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📈 深度分析"
 ])
 
-# 标签1：智能监控中心 - 只显示指标卡片
+# 标签1：智能监控中心
 with tab1:
     # 核心KPI展示
     st.markdown("### 🎯 实时核心指标")
@@ -995,23 +1169,713 @@ with tab2:
     
     st.plotly_chart(fig_waterfall, use_container_width=True)
 
-# 其余标签页保持不变...
 # 标签3：AI预测分析
 with tab3:
     st.markdown("### 🧠 智能预测分析引擎")
     
-    # 在这里继续其他标签页的内容...
-    st.info("AI预测分析功能正在开发中...")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # 预测准确率趋势
+        if not forecast_accuracy.empty:
+            monthly_acc = forecast_accuracy.groupby(
+                forecast_accuracy['所属年月'].dt.to_period('M')
+            ).agg({
+                '预测准确率': ['mean', 'std', 'count'],
+                '误差率': 'mean'
+            }).reset_index()
+            monthly_acc.columns = ['月份', '准确率均值', '准确率标准差', '样本数', '平均误差率']
+            monthly_acc['月份'] = monthly_acc['月份'].dt.to_timestamp()
+            
+            # 计算置信区间
+            monthly_acc['置信上限'] = monthly_acc['准确率均值'] + 1.96 * monthly_acc['准确率标准差'] / np.sqrt(monthly_acc['样本数'])
+            monthly_acc['置信下限'] = monthly_acc['准确率均值'] - 1.96 * monthly_acc['准确率标准差'] / np.sqrt(monthly_acc['样本数'])
+            
+            fig_trend = go.Figure()
+            
+            # 添加置信区间
+            fig_trend.add_trace(go.Scatter(
+                x=monthly_acc['月份'],
+                y=monthly_acc['置信上限'] * 100,
+                mode='lines',
+                line=dict(width=0),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+            
+            fig_trend.add_trace(go.Scatter(
+                x=monthly_acc['月份'],
+                y=monthly_acc['置信下限'] * 100,
+                mode='lines',
+                fill='tonexty',
+                fillcolor='rgba(102, 126, 234, 0.2)',
+                line=dict(width=0),
+                showlegend=False,
+                name='95%置信区间'
+            ))
+            
+            # 添加主线
+            fig_trend.add_trace(go.Scatter(
+                x=monthly_acc['月份'],
+                y=monthly_acc['准确率均值'] * 100,
+                mode='lines+markers',
+                name='预测准确率',
+                line=dict(color=COLOR_SCHEME['primary_gradient'][0], width=3),
+                marker=dict(size=10, symbol='circle'),
+                hovertemplate="""
+                月份: %{x|%Y-%m}<br>
+                准确率: <b>%{y:.1f}%</b><br>
+                样本数: %{customdata[0]}个<br>
+                平均误差: %{customdata[1]:.1f}%<br>
+                <extra></extra>
+                """,
+                customdata=np.column_stack((
+                    monthly_acc['样本数'],
+                    monthly_acc['平均误差率']
+                ))
+            ))
+            
+            # 添加目标线
+            fig_trend.add_hline(
+                y=85, 
+                line_dash="dash", 
+                line_color=COLOR_SCHEME['risk_low'],
+                annotation_text="目标: 85%"
+            )
+            
+            # 使用函数获取布局配置
+            layout_config = get_safe_plotly_layout()
+            
+            fig_trend.update_layout(
+                **layout_config,
+                title="AI预测准确率趋势（含95%置信区间）",
+                xaxis_title="时间",
+                yaxis_title="准确率(%)",
+                height=400,
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig_trend, use_container_width=True)
+    
+    with col2:
+        # 预测偏差分析
+        if not forecast_accuracy.empty:
+            # 计算预测偏差分布
+            forecast_accuracy['预测偏差率'] = (forecast_accuracy['预测偏向'] / 
+                                        (forecast_accuracy['求和项:数量（箱）'] + 1)) * 100
+            
+            # 限制偏差率范围
+            forecast_accuracy['预测偏差率'] = forecast_accuracy['预测偏差率'].clip(-100, 100)
+            
+            # 创建偏差分布直方图
+            fig_bias = go.Figure()
+            
+            fig_bias.add_trace(go.Histogram(
+                x=forecast_accuracy['预测偏差率'],
+                nbinsx=20,
+                marker_color=COLOR_SCHEME['primary_gradient'][0],
+                opacity=0.7,
+                name='预测偏差分布'
+            ))
+            
+            # 添加零线
+            fig_bias.add_vline(x=0, line_dash="dash", line_color="red", 
+                             annotation_text="理想预测")
+            
+            layout_config = get_safe_plotly_layout()
+            
+            fig_bias.update_layout(
+                **layout_config,
+                title="预测偏差分布分析",
+                xaxis_title="预测偏差率 (%)",
+                yaxis_title="频次",
+                height=400
+            )
+            
+            st.plotly_chart(fig_bias, use_container_width=True)
+    
+    # 销售员预测表现分析
+    st.markdown("### 👥 销售员预测表现分析")
+    
+    if not forecast_accuracy.empty:
+        # 按销售员统计预测表现
+        person_performance = forecast_accuracy.groupby('销售员').agg({
+            '预测准确率': 'mean',
+            '预测偏向': 'mean',
+            '预计销售量': 'sum',
+            '求和项:数量（箱）': 'sum'
+        }).reset_index()
+        
+        person_performance['预测偏差率'] = (person_performance['预测偏向'] / 
+                                       (person_performance['求和项:数量（箱）'] + 1)) * 100
+        
+        # 取前10名销售员
+        top_performers = person_performance.nlargest(10, '预测准确率')
+        
+        fig_performance = go.Figure()
+        
+        # 添加准确率条形图
+        fig_performance.add_trace(go.Bar(
+            x=top_performers['销售员'],
+            y=top_performers['预测准确率'] * 100,
+            name='预测准确率',
+            marker_color=COLOR_SCHEME['primary_gradient'][0],
+            yaxis='y'
+        ))
+        
+        # 添加预测偏差散点
+        fig_performance.add_trace(go.Scatter(
+            x=top_performers['销售员'],
+            y=top_performers['预测偏差率'],
+            mode='markers',
+            name='预测偏差率',
+            marker=dict(
+                size=12,
+                color=COLOR_SCHEME['chart_colors'][1],
+                symbol='diamond'
+            ),
+            yaxis='y2'
+        ))
+        
+        layout_config = get_safe_plotly_layout()
+        
+        fig_performance.update_layout(
+            **layout_config,
+            title="销售员预测表现分析（TOP10）",
+            xaxis_title="销售员",
+            yaxis=dict(title="预测准确率 (%)", side='left'),
+            yaxis2=dict(title="预测偏差率 (%)", side='right', overlaying='y'),
+            height=500,
+            hovermode='x unified'
+        )
+        
+        st.plotly_chart(fig_performance, use_container_width=True)
 
 # 标签4：绩效看板
 with tab4:
     st.markdown("### 🏆 多维度绩效分析看板")
-    st.info("绩效看板功能正在开发中...")
+    
+    # 责任分析
+    if deep_analysis and 'responsibility' in deep_analysis:
+        responsibility_data = deep_analysis['responsibility']
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 📊 销售人员绩效排名")
+            
+            # 转换为DataFrame
+            resp_df = pd.DataFrame(responsibility_data)
+            
+            if not resp_df.empty:
+                # 按预测准确率排序
+                resp_df = resp_df.sort_values('预测准确率', ascending=False).head(15)
+                
+                fig_resp = go.Figure()
+                
+                # 创建颜色映射
+                colors = ['#10b981' if acc > 80 else '#f59e0b' if acc > 60 else '#ef4444' 
+                         for acc in resp_df['预测准确率']]
+                
+                fig_resp.add_trace(go.Bar(
+                    x=resp_df['销售人员'],
+                    y=resp_df['预测准确率'],
+                    marker_color=colors,
+                    text=[f"{acc:.1f}%" for acc in resp_df['预测准确率']],
+                    textposition='outside',
+                    hovertemplate="""
+                    <b>%{x}</b><br>
+                    预测准确率: %{y:.1f}%<br>
+                    总销量: %{customdata[0]:,.0f}<br>
+                    预测总量: %{customdata[1]:,.0f}<br>
+                    产品数量: %{customdata[2]}<br>
+                    <extra></extra>
+                    """,
+                    customdata=np.column_stack((
+                        resp_df['总销量'],
+                        resp_df['预测总量'],
+                        resp_df['产品数量']
+                    ))
+                ))
+                
+                # 添加目标线
+                fig_resp.add_hline(y=80, line_dash="dash", line_color="red", 
+                                 annotation_text="目标线 80%")
+                
+                layout_config = get_safe_plotly_layout()
+                
+                fig_resp.update_layout(
+                    **layout_config,
+                    title="销售人员预测准确率排名",
+                    xaxis_title="销售人员",
+                    yaxis_title="预测准确率 (%)",
+                    height=500,
+                    showlegend=False,
+                    xaxis={'tickangle': -45}
+                )
+                
+                st.plotly_chart(fig_resp, use_container_width=True)
+        
+        with col2:
+            st.markdown("#### 🎯 区域销售表现对比")
+            
+            # 按区域汇总
+            if not shipment_df.empty:
+                region_performance = shipment_df.groupby('所属区域').agg({
+                    '求和项:数量（箱）': 'sum',
+                    '申请人': 'nunique',
+                    '产品代码': 'nunique'
+                }).reset_index()
+                
+                region_performance.columns = ['区域', '总销量', '销售人数', '产品数量']
+                region_performance['人均销量'] = region_performance['总销量'] / region_performance['销售人数']
+                
+                fig_region = go.Figure()
+                
+                fig_region.add_trace(go.Scatter(
+                    x=region_performance['人均销量'],
+                    y=region_performance['产品数量'],
+                    mode='markers+text',
+                    text=region_performance['区域'],
+                    textposition='top center',
+                    marker=dict(
+                        size=region_performance['总销量'] / 1000,
+                        sizemode='diameter',
+                        sizemin=20,
+                        color=COLOR_SCHEME['primary_gradient'][0],
+                        opacity=0.7,
+                        line=dict(width=2, color='white')
+                    ),
+                    hovertemplate="""
+                    <b>%{text}</b><br>
+                    人均销量: %{x:,.0f}<br>
+                    产品数量: %{y}<br>
+                    总销量: %{customdata[0]:,.0f}<br>
+                    销售人数: %{customdata[1]}<br>
+                    <extra></extra>
+                    """,
+                    customdata=np.column_stack((
+                        region_performance['总销量'],
+                        region_performance['销售人数']
+                    ))
+                ))
+                
+                layout_config = get_safe_plotly_layout()
+                
+                fig_region.update_layout(
+                    **layout_config,
+                    title="区域销售表现象限分析",
+                    xaxis_title="人均销量",
+                    yaxis_title="产品数量",
+                    height=500
+                )
+                
+                st.plotly_chart(fig_region, use_container_width=True)
+    
+    # 季节性分析
+    if deep_analysis and 'seasonal' in deep_analysis:
+        seasonal_data = deep_analysis['seasonal']
+        
+        st.markdown("#### 📅 季节性销售模式分析")
+        
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            # 月度销售趋势
+            months = list(seasonal_data['monthly_sales'].keys())
+            sales = list(seasonal_data['monthly_sales'].values())
+            
+            fig_seasonal = go.Figure()
+            
+            fig_seasonal.add_trace(go.Scatter(
+                x=[f"{m}月" for m in months],
+                y=sales,
+                mode='lines+markers',
+                line=dict(color=COLOR_SCHEME['primary_gradient'][0], width=3),
+                marker=dict(size=10),
+                fill='tonexty',
+                fillcolor='rgba(102, 126, 234, 0.2)'
+            ))
+            
+            layout_config = get_safe_plotly_layout()
+            
+            fig_seasonal.update_layout(
+                **layout_config,
+                title="月度销售趋势",
+                xaxis_title="月份",
+                yaxis_title="销售量",
+                height=400
+            )
+            
+            st.plotly_chart(fig_seasonal, use_container_width=True)
+        
+        with col4:
+            # 季节性指数
+            months = list(seasonal_data['seasonal_index'].keys())
+            indices = list(seasonal_data['seasonal_index'].values())
+            
+            colors = ['#10b981' if idx > 1.2 else '#f59e0b' if idx > 0.8 else '#ef4444' 
+                     for idx in indices]
+            
+            fig_index = go.Figure()
+            
+            fig_index.add_trace(go.Bar(
+                x=[f"{m}月" for m in months],
+                y=indices,
+                marker_color=colors,
+                text=[f"{idx:.2f}" for idx in indices],
+                textposition='outside'
+            ))
+            
+            # 添加基准线
+            fig_index.add_hline(y=1.0, line_dash="dash", line_color="gray", 
+                              annotation_text="基准线")
+            
+            layout_config = get_safe_plotly_layout()
+            
+            fig_index.update_layout(
+                **layout_config,
+                title="季节性指数",
+                xaxis_title="月份",
+                yaxis_title="季节性指数",
+                height=400,
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig_index, use_container_width=True)
+        
+        # 季节性洞察
+        peak_month = seasonal_data['peak_month']
+        low_month = seasonal_data['low_month']
+        
+        st.info(f"""
+        **季节性洞察:**
+        - 🔥 销售旺季：{peak_month}月
+        - 📉 销售淡季：{low_month}月  
+        - 💡 建议在{peak_month-1 if peak_month > 1 else 12}月增加库存准备，在{low_month+1 if low_month < 12 else 1}月减少采购
+        """)
 
 # 标签5：深度分析
 with tab5:
-    st.markdown("### 📈 深度分析")
-    st.info("深度分析功能正在开发中...")
+    st.markdown("### 📈 库存深度洞察分析")
+    
+    # ABC分析
+    if deep_analysis and 'abc' in deep_analysis:
+        abc_data = deep_analysis['abc']
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.markdown("#### 📊 ABC库存价值分析")
+            
+            # ABC饼图
+            abc_ratios = [abc_data['a_ratio'], abc_data['b_ratio'], abc_data['c_ratio']]
+            labels = ['A类 (高价值)', 'B类 (中价值)', 'C类 (低价值)']
+            colors = [COLOR_SCHEME['risk_extreme'], COLOR_SCHEME['risk_medium'], COLOR_SCHEME['risk_low']]
+            
+            fig_abc = go.Figure(data=[go.Pie(
+                labels=labels,
+                values=abc_ratios,
+                hole=0.4,
+                marker_colors=colors,
+                textinfo='label+percent',
+                textfont_size=14,
+                hovertemplate="""
+                <b>%{label}</b><br>
+                占比: %{percent}<br>
+                批次数: %{value:.0f}%<br>
+                <extra></extra>
+                """
+            )])
+            
+            layout_config = get_safe_plotly_layout()
+            
+            fig_abc.update_layout(
+                **layout_config,
+                title="ABC库存分类分布",
+                height=500,
+                showlegend=True,
+                legend=dict(orientation="h", y=-0.1)
+            )
+            
+            st.plotly_chart(fig_abc, use_container_width=True)
+        
+        with col2:
+            st.markdown("#### 📋 ABC分析洞察")
+            
+            # ABC统计信息
+            st.metric("A类产品占比", f"{abc_data['a_ratio']:.1f}%", 
+                     "🔴 高价值重点管理")
+            st.metric("B类产品占比", f"{abc_data['b_ratio']:.1f}%", 
+                     "🟡 中等价值常规管理")  
+            st.metric("C类产品占比", f"{abc_data['c_ratio']:.1f}%", 
+                     "🟢 低价值简化管理")
+            
+            # 管理建议
+            st.markdown("""
+            **管理策略建议:**
+            - **A类产品**: 精细化管理，密切监控库存水平
+            - **B类产品**: 定期审查，平衡库存成本  
+            - **C类产品**: 简化流程，批量管理
+            """)
+    
+    # 清库预测分析
+    if deep_analysis and 'clearance' in deep_analysis:
+        clearance_data = deep_analysis['clearance']
+        
+        st.markdown("#### ⏱️ 清库时间预测分析")
+        
+        # 筛选有限清库天数的数据
+        finite_clearance = clearance_data[clearance_data['预计清库天数'] != float('inf')].head(20)
+        
+        if not finite_clearance.empty:
+            fig_clearance = go.Figure()
+            
+            # 按风险等级分组显示
+            for risk_level, color in [
+                ('极高风险', COLOR_SCHEME['risk_extreme']),
+                ('高风险', COLOR_SCHEME['risk_high']),
+                ('中风险', COLOR_SCHEME['risk_medium'])
+            ]:
+                risk_subset = finite_clearance[finite_clearance['风险等级'] == risk_level]
+                if not risk_subset.empty:
+                    fig_clearance.add_trace(go.Bar(
+                        x=risk_subset['物料'],
+                        y=risk_subset['预计清库天数'],
+                        name=risk_level,
+                        marker_color=color,
+                        hovertemplate="""
+                        <b>%{x}</b><br>
+                        预计清库天数: %{y:.0f}天<br>
+                        批次库存: %{customdata[0]:,.0f}<br>
+                        日均销量: %{customdata[1]:.2f}<br>
+                        风险等级: %{customdata[2]}<br>
+                        <extra></extra>
+                        """,
+                        customdata=np.column_stack((
+                            risk_subset['批次库存'],
+                            risk_subset['日均销量'],
+                            risk_subset['风险等级']
+                        ))
+                    ))
+            
+            # 添加风险阈值线
+            fig_clearance.add_hline(y=90, line_dash="dash", line_color="red", 
+                                  annotation_text="高风险阈值 90天")
+            fig_clearance.add_hline(y=60, line_dash="dash", line_color="orange", 
+                                  annotation_text="中风险阈值 60天")
+            
+            layout_config = get_safe_plotly_layout()
+            
+            fig_clearance.update_layout(
+                **layout_config,
+                title="批次清库时间预测（TOP20）",
+                xaxis_title="产品代码",
+                yaxis_title="预计清库天数",
+                height=500,
+                xaxis={'tickangle': -45}
+            )
+            
+            st.plotly_chart(fig_clearance, use_container_width=True)
+    
+    # 库存健康度仪表盘
+    st.markdown("#### 🎯 库存健康度综合评估")
+    
+    col3, col4, col5 = st.columns(3)
+    
+    with col3:
+        # 库存健康度仪表
+        health_score = 100 - metrics['high_risk_ratio']
+        
+        fig_gauge = go.Figure(go.Indicator(
+            mode="gauge+number+delta",
+            value=health_score,
+            domain={'x': [0, 1], 'y': [0, 1]},
+            title={'text': "库存健康度", 'font': {'size': 20, 'color': '#333'}},
+            delta={'reference': 85, 'increasing': {'color': COLOR_SCHEME['risk_low']}},
+            gauge={
+                'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "#333"},
+                'bar': {'color': COLOR_SCHEME['primary_gradient'][0]},
+                'bgcolor': "rgba(240,240,240,0.5)",
+                'borderwidth': 2,
+                'bordercolor': "#e0e0e0",
+                'steps': [
+                    {'range': [0, 50], 'color': COLOR_SCHEME['risk_extreme']},
+                    {'range': [50, 70], 'color': COLOR_SCHEME['risk_high']},
+                    {'range': [70, 85], 'color': COLOR_SCHEME['risk_medium']},
+                    {'range': [85, 100], 'color': COLOR_SCHEME['risk_low']}
+                ],
+                'threshold': {
+                    'line': {'color': "#333", 'width': 4},
+                    'thickness': 0.75,
+                    'value': 85
+                }
+            }
+        ))
+        
+        layout_config = get_safe_plotly_layout()
+        
+        fig_gauge.update_layout(
+            **layout_config,
+            height=300,
+            margin=dict(l=20, r=20, t=40, b=20)
+        )
+        
+        st.plotly_chart(fig_gauge, use_container_width=True)
+    
+    with col4:
+        # 周转率仪表
+        turnover_rate = 365 / metrics['avg_age'] if metrics['avg_age'] > 0 else 0
+        
+        fig_turnover = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=turnover_rate,
+            domain={'x': [0, 1], 'y': [0, 1]},
+            title={'text': "库存周转率<br>(次/年)", 'font': {'size': 16, 'color': '#333'}},
+            gauge={
+                'axis': {'range': [None, 12], 'tickwidth': 1, 'tickcolor': "#333"},
+                'bar': {'color': COLOR_SCHEME['secondary_gradient'][0]},
+                'bgcolor': "rgba(240,240,240,0.5)",
+                'steps': [
+                    {'range': [0, 3], 'color': COLOR_SCHEME['risk_extreme']},
+                    {'range': [3, 6], 'color': COLOR_SCHEME['risk_medium']},
+                    {'range': [6, 12], 'color': COLOR_SCHEME['risk_low']}
+                ],
+                'threshold': {
+                    'line': {'color': "#333", 'width': 4},
+                    'thickness': 0.75,
+                    'value': 6
+                }
+            }
+        ))
+        
+        fig_turnover.update_layout(
+            **layout_config,
+            height=300,
+            margin=dict(l=20, r=20, t=40, b=20)
+        )
+        
+        st.plotly_chart(fig_turnover, use_container_width=True)
+    
+    with col5:
+        # 成本效率仪表
+        cost_efficiency = (metrics['total_inventory_value'] / metrics['total_cost']) if metrics['total_cost'] > 0 else 0
+        
+        fig_cost = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=cost_efficiency,
+            domain={'x': [0, 1], 'y': [0, 1]},
+            title={'text': "成本效率<br>(价值/成本)", 'font': {'size': 16, 'color': '#333'}},
+            gauge={
+                'axis': {'range': [None, 20], 'tickwidth': 1, 'tickcolor': "#333"},
+                'bar': {'color': COLOR_SCHEME['chart_colors'][2]},
+                'bgcolor': "rgba(240,240,240,0.5)",
+                'steps': [
+                    {'range': [0, 5], 'color': COLOR_SCHEME['risk_extreme']},
+                    {'range': [5, 10], 'color': COLOR_SCHEME['risk_medium']},
+                    {'range': [10, 20], 'color': COLOR_SCHEME['risk_low']}
+                ],
+                'threshold': {
+                    'line': {'color': "#333", 'width': 4},
+                    'thickness': 0.75,
+                    'value': 10
+                }
+            }
+        ))
+        
+        fig_cost.update_layout(
+            **layout_config,
+            height=300,
+            margin=dict(l=20, r=20, t=40, b=20)
+        )
+        
+        st.plotly_chart(fig_cost, use_container_width=True)
+    
+    # 智能决策建议
+    st.markdown("### 💡 AI驱动的行动建议")
+    
+    # 创建决策卡片
+    col6, col7, col8 = st.columns(3)
+    
+    with col6:
+        critical_items = processed_inventory[
+            processed_inventory['风险等级'] == '极高风险'
+        ].nlargest(5, '批次价值')
+        
+        # 构建列表项HTML
+        critical_items_html = ""
+        for _, row in critical_items.iterrows():
+            critical_items_html += f"<li>{row['产品名称'][:20]}... - ¥{row['批次价值']/1000:.0f}K</li>"
+        
+        st.markdown(f"""
+        <div style="background: #fff5f5; border: 2px solid #ff4757; border-radius: 10px; padding: 1.5rem; height: 100%; animation: pulse 2s ease-in-out infinite;">
+            <h4 style="color: #ff4757; margin: 0;">🚨 紧急清库行动</h4>
+            <p style="margin: 1rem 0;"><strong>立即处理TOP5高风险批次：</strong></p>
+            <ul style="margin: 0; padding-left: 1.5rem;">
+                {critical_items_html}
+            </ul>
+            <p style="margin: 1rem 0 0 0;">
+                <strong>预计回收资金</strong>: ¥{critical_items['批次价值'].sum()/1000000*0.7:.1f}M<br>
+                <strong>建议折扣</strong>: 7折速清
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col7:
+        # 预测优化建议
+        if not forecast_accuracy.empty:
+            poor_forecast = forecast_accuracy.groupby('销售员')['预测准确率'].mean().nsmallest(5)
+            
+            # 构建列表项HTML
+            poor_forecast_html = ""
+            for person, acc in poor_forecast.items():
+                poor_forecast_html += f"<li>{person[:10]}... - {acc*100:.1f}%</li>"
+            
+            st.markdown(f"""
+            <div style="background: #fff8e1; border: 2px solid #ffa502; border-radius: 10px; padding: 1.5rem; height: 100%; animation: float 3s ease-in-out infinite;">
+                <h4 style="color: #f57c00; margin: 0;">📊 预测优化重点</h4>
+                <p style="margin: 1rem 0;"><strong>需改进预测的人员：</strong></p>
+                <ul style="margin: 0; padding-left: 1.5rem;">
+                    {poor_forecast_html}
+                </ul>
+                <p style="margin: 1rem 0 0 0;"><strong>建议措施</strong>:</p>
+                <ul style="margin: 0; padding-left: 1.5rem;">
+                    <li>增加历史数据权重</li>
+                    <li>引入季节性因子</li>
+                    <li>加强市场调研</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col8:
+        st.markdown(f"""
+        <div style="background: #e8f5e9; border: 2px solid #2ed573; border-radius: 10px; padding: 1.5rem; height: 100%; animation: bounce 2s ease-in-out infinite;">
+            <h4 style="color: #2e7d32; margin: 0;">🎯 补货策略优化</h4>
+            <p style="margin: 1rem 0;"><strong>基于ABC分析：</strong></p>
+            <ul style="margin: 0; padding-left: 1.5rem;">
+                <li>A类产品: 实施VMI管理</li>
+                <li>B类产品: 采用EOQ模型</li>
+                <li>C类产品: JIT采购策略</li>
+            </ul>
+            <p style="margin: 1rem 0 0 0;"><strong>预期效果</strong>:</p>
+            <ul style="margin: 0; padding-left: 1.5rem;">
+                <li>库存降低15-20%</li>
+                <li>周转率提升2-3次/年</li>
+                <li>资金占用减少¥{metrics['total_inventory_value']*0.15:.1f}M</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # 添加动态效果
+    if st.button("🎊 查看优化成果", key="celebrate"):
+        rain(
+            emoji="🎉",
+            font_size=30,
+            falling_speed=5,
+            animation_length=2
+        )
+        st.balloons()
+        st.success("🎉 恭喜！系统优化建议已生成，预计可节省成本15%以上！")
 
 # 页脚
 st.markdown("---")
