@@ -261,6 +261,15 @@ st.markdown("""
     h1, h2, h3, h4, h5, h6 { color: #1f2937 !important; }
     p, span, div { color: #374151; }
     
+    /* 优化Plotly图表中文字体 */
+    .plotly .gtitle {
+        font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Arial", sans-serif !important;
+    }
+    
+    .plotly .g-gtitle {
+        font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Arial", sans-serif !important;
+    }
+    
     /* 图表标题容器 */
     .chart-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1327,45 +1336,53 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
     # 4. 价值分层桑基图
     if not metrics['rfm_df'].empty:
         try:
-            source, target, value, labels, colors = [], [], [], ['全部客户'], ['#667eea']
-            # 使用更好的配色方案
+            source, target, value, labels, colors = [], [], [], [f'全部客户\n{total_count}家'], ['#9b59b6']  # 紫色作为起点
+            # 使用更鲜明的配色方案
             customer_types = [
-                ('钻石客户', '#ff6b6b'),  # 红色
-                ('黄金客户', '#feca57'),  # 金色
-                ('白银客户', '#a29bfe'),  # 银紫色
-                ('潜力客户', '#48dbfb'),  # 天蓝色
-                ('流失风险', '#ee5a6f')   # 暗红色
+                ('💎 钻石客户', '#e74c3c'),  # 鲜红色 - 最高价值
+                ('🏆 黄金客户', '#f39c12'),  # 金橙色 - 高价值
+                ('🥈 白银客户', '#3498db'),  # 天蓝色 - 中等价值
+                ('🌟 潜力客户', '#2ecc71'),  # 翠绿色 - 有潜力
+                ('⚠️ 流失风险', '#95a5a6')   # 灰色 - 风险客户
             ]
             
             node_idx = 1
             link_colors = []  # 添加连接线颜色
             
+            # 统计总客户数
+            total_count = len(metrics['rfm_df'])
+            
             for ct, color in customer_types:
-                count = len(metrics['rfm_df'][metrics['rfm_df']['类型'] == ct])
+                # 去掉emoji来匹配原始数据
+                ct_clean = ct.split(' ')[-1] if ' ' in ct else ct
+                count = len(metrics['rfm_df'][metrics['rfm_df']['类型'] == ct_clean])
                 if count > 0:
-                    labels.append(f"{ct}\n{count}家")
+                    # 显示客户数和占比
+                    percentage = count / total_count * 100
+                    labels.append(f"{ct}\n{count}家\n({percentage:.1f}%)")
                     colors.append(color)
                     source.append(0)
                     target.append(node_idx)
                     value.append(count)
-                    # 为连接线添加渐变颜色
-                    link_colors.append(f'rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.4)')
+                    # 为连接线添加半透明的渐变颜色
+                    link_colors.append(f'rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.5)')
                     node_idx += 1
             
             if source:
                 fig_sankey = go.Figure(data=[go.Sankey(
+                    textfont=dict(
+                        size=16,  # 增大字体
+                        family="Microsoft YaHei, Arial, sans-serif",  # 使用支持中文的字体
+                        color="black"  # 黑色文字（会自动根据背景调整）
+                    ),
                     node=dict(
-                        pad=20,
-                        thickness=25,
-                        line=dict(color="white", width=2),
+                        pad=25,  # 增加节点间距
+                        thickness=30,  # 增加节点厚度
+                        line=dict(color="white", width=3),  # 白色边框更明显
                         label=labels,
                         color=colors,
-                        # 增加字体设置
-                        font=dict(
-                            size=14,
-                            family="Arial, sans-serif",
-                            color="white"
-                        )
+                        # 悬停信息
+                        hovertemplate='<b>%{label}</b><extra></extra>'
                     ),
                     link=dict(
                         source=source,
@@ -1373,26 +1390,114 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                         value=value,
                         color=link_colors,  # 使用渐变颜色
                         # 增加悬停信息
-                        hovertemplate='%{source.label} → %{target.label}<br>客户数: %{value}<extra></extra>'
+                        customdata=[f"{v/total_count*100:.1f}%" for v in value],
+                        hovertemplate='%{source.label} → %{target.label}<br>客户数: %{value}<br>占比: %{customdata}<extra></extra>'
                     ),
                     # 优化方向
-                    orientation='h'
+                    orientation='h',
+                    arrangement='snap'  # 自动对齐
                 )])
                 
                 fig_sankey.update_layout(
                     title=dict(
-                        text="客户价值分层流向图",
-                        font=dict(size=16, color='#2d3748')
+                        text="客户价值分层流向分析",
+                        font=dict(size=20, color='#2d3748', family="Microsoft YaHei, Arial, sans-serif"),
+                        x=0.5,
+                        xanchor='center'
                     ),
-                    height=500,
-                    margin=dict(t=80, b=60, l=60, r=60),
-                    paper_bgcolor='white',
+                    height=550,  # 增加高度
+                    margin=dict(t=100, b=80, l=80, r=80),  # 增加边距
+                    paper_bgcolor='#f8f9fa',  # 浅灰背景
                     plot_bgcolor='white',
-                    font=dict(size=14, family="Arial, sans-serif")
+                    font=dict(size=16, family="Microsoft YaHei, Arial, sans-serif"),
+                    # 添加注释说明
+                    annotations=[
+                        dict(
+                            text="客户价值从左到右分层展示，颜色深浅代表价值高低",
+                            xref="paper", yref="paper",
+                            x=0.5, y=-0.1,
+                            xanchor='center',
+                            showarrow=False,
+                            font=dict(size=12, color='#6b7280')
+                        )
+                    ]
                 )
                 charts['sankey'] = fig_sankey
+                
+                # 添加成功标记
+                print(f"✅ 桑基图创建成功，包含 {len(source)} 个客户类型，总计 {total_count} 个客户")
+                
         except Exception as e:
             print(f"桑基图创建失败: {e}")
+            # 如果失败，创建一个饼图作为备选
+            try:
+                customer_type_counts = metrics['rfm_df']['类型'].value_counts()
+                
+                # 使用相同的颜色映射
+                color_map = {
+                    '钻石客户': ('#e74c3c', '💎'),
+                    '黄金客户': ('#f39c12', '🏆'),
+                    '白银客户': ('#3498db', '🥈'),
+                    '潜力客户': ('#2ecc71', '🌟'),
+                    '流失风险': ('#95a5a6', '⚠️')
+                }
+                
+                # 准备数据
+                labels_pie = []
+                values_pie = []
+                colors_pie = []
+                
+                for customer_type, (color, emoji) in color_map.items():
+                    if customer_type in customer_type_counts.index:
+                        count = customer_type_counts[customer_type]
+                        percentage = count / len(metrics['rfm_df']) * 100
+                        labels_pie.append(f"{emoji} {customer_type}<br>{count}家 ({percentage:.1f}%)")
+                        values_pie.append(count)
+                        colors_pie.append(color)
+                
+                # 创建饼图
+                fig_pie = go.Figure(data=[go.Pie(
+                    labels=labels_pie,
+                    values=values_pie,
+                    hole=0.4,  # 环形图
+                    marker=dict(
+                        colors=colors_pie,
+                        line=dict(color='white', width=2)
+                    ),
+                    textfont=dict(size=14, family="Microsoft YaHei, Arial, sans-serif"),
+                    textposition='outside',
+                    textinfo='label',
+                    hovertemplate='<b>%{label}</b><br>客户数: %{value}<br>占比: %{percent}<extra></extra>'
+                )])
+                
+                fig_pie.update_layout(
+                    title=dict(
+                        text="客户价值分层分布",
+                        font=dict(size=20, color='#2d3748', family="Microsoft YaHei, Arial, sans-serif"),
+                        x=0.5,
+                        xanchor='center'
+                    ),
+                    height=500,
+                    showlegend=True,
+                    plot_bgcolor='white',
+                    paper_bgcolor='#f8f9fa',
+                    margin=dict(t=100, b=80, l=80, r=80),
+                    # 在中心添加总数
+                    annotations=[
+                        dict(
+                            text=f'<b>总客户数</b><br>{len(metrics["rfm_df"])}家',
+                            x=0.5, y=0.5,
+                            font=dict(size=18, family="Microsoft YaHei", color='#2d3748'),
+                            showarrow=False
+                        )
+                    ]
+                )
+                
+                charts['sankey'] = fig_pie
+                print("✅ 使用饼图替代桑基图显示客户价值分层")
+                
+            except Exception as e2:
+                print(f"备选图表也创建失败: {e2}")
     
     # 5. 月度趋势图
     if not sales_data.empty:
@@ -1847,7 +1952,73 @@ def main():
         ''', unsafe_allow_html=True)
         
         if 'sankey' in charts:
+            # 先显示汇总指标
+            if not metrics['rfm_df'].empty:
+                st.markdown("#### 📊 价值分层关键指标")
+                col1, col2, col3, col4 = st.columns(4)
+                
+                total_revenue = metrics['rfm_df']['M'].sum()
+                top_revenue = metrics['rfm_df'][metrics['rfm_df']['类型'].isin(['钻石客户', '黄金客户'])]['M'].sum()
+                risk_revenue = metrics['rfm_df'][metrics['rfm_df']['类型'] == '流失风险']['M'].sum()
+                avg_customer_value = total_revenue / len(metrics['rfm_df']) if len(metrics['rfm_df']) > 0 else 0
+                
+                with col1:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-value">{format_amount(total_revenue)}</div>
+                        <div class="metric-label">总客户价值</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    top_percentage = (top_revenue / total_revenue * 100) if total_revenue > 0 else 0
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-value">{top_percentage:.1f}%</div>
+                        <div class="metric-label">高价值客户贡献度</div>
+                        <div class="metric-sublabel">钻石+黄金客户</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col3:
+                    risk_percentage = (risk_revenue / total_revenue * 100) if total_revenue > 0 else 0
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-value" style="color: #e74c3c !important;">{risk_percentage:.1f}%</div>
+                        <div class="metric-label">风险客户价值占比</div>
+                        <div class="metric-sublabel">需要立即关注</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col4:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-value">{format_amount(avg_customer_value)}</div>
+                        <div class="metric-label">平均客户价值</div>
+                        <div class="metric-sublabel">年度平均</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                st.markdown("")  # 添加空行
+            
+            # 显示桑基图
             st.plotly_chart(charts['sankey'], use_container_width=True, key="sankey_chart")
+            
+            # 添加价值分层说明
+            st.markdown("""
+            <div class='insight-card'>
+                <h4>💡 价值分层说明</h4>
+                <ul>
+                    <li><span style='color: #e74c3c; font-size: 1.2em;'>●</span> <strong>💎 钻石客户</strong>：近期活跃、高频率、高金额的核心客户</li>
+                    <li><span style='color: #f39c12; font-size: 1.2em;'>●</span> <strong>🏆 黄金客户</strong>：表现良好、贡献稳定的重要客户</li>
+                    <li><span style='color: #3498db; font-size: 1.2em;'>●</span> <strong>🥈 白银客户</strong>：有一定贡献但仍有提升空间的客户</li>
+                    <li><span style='color: #2ecc71; font-size: 1.2em;'>●</span> <strong>🌟 潜力客户</strong>：需要培育和激活的客户群体</li>
+                    <li><span style='color: #95a5a6; font-size: 1.2em;'>●</span> <strong>⚠️ 流失风险</strong>：长期未下单或订单减少的风险客户</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.info("💡 暂无客户价值分层数据。请确保已加载客户销售数据。")
     
     # Tab 5: 目标追踪
     with tabs[4]:
