@@ -1319,9 +1319,10 @@ def main():
     
     # Tab 2: BCG产品矩阵
     with tabs[1]:
-        # 选择维度控件 - 包装在容器中
-        with st.container():
-            st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        # 选择维度控件 - 使用占位符方式包装在容器中
+        container1 = st.container()
+        with container1:
+            _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
             bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
             
             # 获取分析数据
@@ -1334,15 +1335,16 @@ def main():
                 selected_region = st.selectbox("🗺️ 选择区域", regions)
                 product_analysis = create_bcg_matrix(data, 'regional', selected_region)
                 title = f"{selected_region}区域 BCG产品矩阵"
-            st.markdown('</div>', unsafe_allow_html=True)
+            _end = st.markdown('</div>', unsafe_allow_html=True)
         
-        # 显示BCG矩阵图表 - 包装在容器中
+        # 显示BCG矩阵图表 - 使用占位符方式包装在容器中
         if len(product_analysis) > 0:
-            with st.container():
-                st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            container2 = st.container()
+            with container2:
+                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 fig = plot_bcg_matrix(product_analysis, title=title)
                 st.plotly_chart(fig, use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                _end = st.markdown('</div>', unsafe_allow_html=True)
             
             # JBP符合度分析
             total_sales = product_analysis['sales'].sum()
@@ -1387,9 +1389,10 @@ def main():
             # 计算有效率并显示在标题中
             effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
             
-            # 促销活动效果图表 - 包装在容器中
-            with st.container():
-                st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 促销活动效果图表 - 使用占位符方式包装在容器中
+            container3 = st.container()
+            with container3:
+                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 st.markdown(f"""
                 <div class="promo-header">
                     <h2>🚀 全国促销活动有效性分析</h2>
@@ -1400,7 +1403,7 @@ def main():
                 fig = create_optimized_promotion_chart(promo_results)
                 if fig:
                     st.plotly_chart(fig, use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                _end = st.markdown('</div>', unsafe_allow_html=True)
             
             # 促销洞察分析
             with st.expander("💡 促销活动深度洞察", expanded=True):
@@ -1431,11 +1434,12 @@ def main():
     
     # Tab 4: 星品新品达成
     with tabs[3]:
-        # 选择控件 - 包装在容器中
-        with st.container():
-            st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        # 选择控件 - 使用占位符方式包装在容器中
+        container4 = st.container()
+        with container4:
+            _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
             view_type = st.radio("选择分析视角", ["按区域", "按销售员", "趋势分析"], horizontal=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            _end = st.markdown('</div>', unsafe_allow_html=True)
         
         sales_df = data['sales_df']
         star_products = data['star_products']
@@ -1443,9 +1447,10 @@ def main():
         star_new_products = list(set(star_products + new_products))
         
         if view_type == "按区域":
-            # 区域分析 - 包装在容器中
-            with st.container():
-                st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 区域分析 - 使用占位符方式包装在容器中
+            container5 = st.container()
+            with container5:
+                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 
                 # 区域分析
                 region_stats = []
@@ -1511,12 +1516,13 @@ def main():
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                _end = st.markdown('</div>', unsafe_allow_html=True)
         
         elif view_type == "按销售员":
-            # 销售员分析 - 包装在容器中
-            with st.container():
-                st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 销售员分析 - 使用占位符方式包装在容器中
+            container6 = st.container()
+            with container6:
+                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 
                 # 销售员分析
                 salesperson_stats = []
@@ -1586,12 +1592,13 @@ def main():
                 
                 achieved_count = person_df['achieved'].sum()
                 st.info(f"📊 达成率统计：{achieved_count}/{len(person_df)}人达标（{achieved_count/len(person_df)*100:.1f}%）")
-                st.markdown('</div>', unsafe_allow_html=True)
+                _end = st.markdown('</div>', unsafe_allow_html=True)
         
         else:  # 趋势分析
-            # 趋势分析 - 包装在容器中
-            with st.container():
-                st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 趋势分析 - 使用占位符方式包装在容器中
+            container7 = st.container()
+            with container7:
+                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 
                 # 趋势分析
                 monthly_stats = []
@@ -1651,26 +1658,28 @@ def main():
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                _end = st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 5: 市场网络与覆盖分析
     with tabs[4]:
-        # 选择控件 - 包装在容器中
-        with st.container():
-            st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        # 选择控件 - 使用占位符方式包装在容器中
+        container8 = st.container()
+        with container8:
+            _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
             analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析"], horizontal=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            _end = st.markdown('</div>', unsafe_allow_html=True)
         
         if analysis_type == "🔗 产品关联网络":
-            # 产品关联网络 - 包装在容器中
-            with st.container():
-                st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 产品关联网络 - 使用占位符方式包装在容器中
+            container9 = st.container()
+            with container9:
+                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 st.subheader("产品关联网络分析")
                 
                 # 创建基于真实数据的2D网络图
                 network_fig = create_real_product_network(data)
                 st.plotly_chart(network_fig, use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                _end = st.markdown('</div>', unsafe_allow_html=True)
             
             # 关联分析洞察
             with st.expander("💡 产品关联营销策略", expanded=True):
@@ -1695,14 +1704,15 @@ def main():
                     """)
         
         else:  # 区域覆盖分析
-            # 区域覆盖分析 - 包装在容器中
-            with st.container():
-                st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 区域覆盖分析 - 使用占位符方式包装在容器中
+            container10 = st.container()
+            with container10:
+                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
                 
                 # 创建更易读的区域覆盖率分析
                 fig, coverage_df = create_regional_coverage_analysis(data)
                 st.plotly_chart(fig, use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                _end = st.markdown('</div>', unsafe_allow_html=True)
             
             # 覆盖率分析洞察
             col1, col2 = st.columns(2)
