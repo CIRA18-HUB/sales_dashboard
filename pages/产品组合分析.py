@@ -579,6 +579,9 @@ def calculate_comprehensive_metrics(data):
     promo_results = analyze_promotion_effectiveness_enhanced(data)
     promo_effectiveness = (promo_results['is_effective'].sum() / len(promo_results) * 100) if len(promo_results) > 0 else 0
     
+    # 有效产品率
+    effective_rate_all = calculate_effective_products_rate(sales_2025, data['dashboard_products'])
+    
     return {
         'total_sales': total_sales,
         'star_ratio': star_ratio,
@@ -586,7 +589,8 @@ def calculate_comprehensive_metrics(data):
         'total_ratio': total_ratio,
         'penetration_rate': penetration_rate,
         'jbp_status': jbp_status,
-        'promo_effectiveness': promo_effectiveness
+        'promo_effectiveness': promo_effectiveness,
+        'effective_products_rate': effective_rate_all
     }
 
 def analyze_product_bcg_comprehensive(sales_df, dashboard_products):
@@ -1220,6 +1224,140 @@ def create_optimized_promotion_chart(promo_results):
     
     return fig
 
+# 新增：计算有效产品率
+def calculate_effective_products_rate(sales_df, dashboard_products):
+    """计算有效产品率（月均销售≥15箱）"""
+    # 过滤仪表盘产品
+    df = sales_df[sales_df['产品代码'].isin(dashboard_products)]
+    
+    # 计算每个产品的月均销售箱数
+    product_monthly = df.groupby('产品代码').agg({
+        '箱数': 'sum',
+        '发运月份': 'nunique'
+    })
+    
+    product_monthly['月均箱数'] = product_monthly['箱数'] / product_monthly['发运月份']
+    
+    # 计算有效产品数
+    effective_products = (product_monthly['月均箱数'] >= 15).sum()
+    total_products = len(product_monthly)
+    
+    return (effective_products / total_products * 100) if total_products > 0 else 0
+
+# 新增：有效产品详细分析
+def analyze_effective_products(data, dimension='national', selected_region=None):
+    """分析有效产品（月均销售≥15箱）"""
+    sales_df = data['sales_df']
+    dashboard_products = data['dashboard_products']
+    
+    # 根据维度过滤数据
+    if dimension == 'regional' and selected_region:
+        df = sales_df[(sales_df['产品代码'].isin(dashboard_products)) & 
+                     (sales_df['区域'] == selected_region)]
+    else:
+        df = sales_df[sales_df['产品代码'].isin(dashboard_products)]
+    
+    # 计算每个产品的月均销售
+    product_stats = []
+    for product in dashboard_products:
+        product_data = df[df['产品代码'] == product]
+        
+        if len(product_data) > 0:
+            total_boxes = product_data['箱数'].sum()
+            total_sales = product_data['销售额'].sum()
+            months_sold = product_data['发运月份'].nunique()
+            
+            monthly_avg_boxes = total_boxes / months_sold if months_sold > 0 else 0
+            is_effective = monthly_avg_boxes >= 15
+            
+            # 获取产品名称
+            product_name = product_data['产品简称'].iloc[0]
+            
+            product_stats.append({
+                'product_code': product,
+                'product_name': product_name,
+                'total_boxes': total_boxes,
+                'total_sales': total_sales,
+                'months_sold': months_sold,
+                'monthly_avg_boxes': monthly_avg_boxes,
+                'is_effective': is_effective,
+                'effectiveness_gap': max(0, 15 - monthly_avg_boxes)
+            })
+    
+    return pd.DataFrame(product_stats)
+
+# 新增：创建有效产品分析图表
+def create_effective_products_chart(product_df, title="有效产品分析"):
+    """创建有效产品分析图表"""
+    if len(product_df) == 0:
+        return go.Figure()
+    
+    # 排序：有效产品在前，按月均箱数降序
+    product_df = product_df.sort_values(['is_effective', 'monthly_avg_boxes'], 
+                                        ascending=[False, False])
+    
+    # 只显示前30个产品，避免图表过于拥挤
+    display_df = product_df.head(30)
+    
+    colors = ['#10b981' if eff else '#ef4444' for eff in display_df['is_effective']]
+    
+    fig = go.Figure()
+    
+    hover_texts = []
+    for _, row in display_df.iterrows():
+        status = "✅ 有效" if row['is_effective'] else "❌ 无效"
+        gap_text = f"距离标准还差: {row['effectiveness_gap']:.1f}箱" if not row['is_effective'] else "超出标准: {row['monthly_avg_boxes']-15:.1f}箱"
+        
+        hover_text = f"""<b>{row['product_name']} ({row['product_code']})</b><br>
+<b>月均销售:</b> {row['monthly_avg_boxes']:.1f}箱<br>
+<b>有效性:</b> {status}<br>
+<b>{gap_text}</b><br>
+<br><b>详细数据:</b><br>
+- 总销售箱数: {row['total_boxes']:,.0f}箱<br>
+- 总销售额: ¥{row['total_sales']:,.0f}<br>
+- 销售月数: {row['months_sold']}个月<br>
+<br><b>策略建议:</b><br>
+{'继续保持良好势头，可作为主推产品' if row['is_effective'] else '需要加强市场推广，提升销售表现'}"""
+        hover_texts.append(hover_text)
+    
+    fig.add_trace(go.Bar(
+        x=display_df['product_name'],
+        y=display_df['monthly_avg_boxes'],
+        marker=dict(color=colors, line=dict(width=0)),
+        text=[f"{val:.1f}" for val in display_df['monthly_avg_boxes']],
+        textposition='outside',
+        textfont=dict(size=10),
+        hovertemplate='%{customdata}<extra></extra>',
+        customdata=hover_texts
+    ))
+    
+    # 添加有效产品线
+    fig.add_hline(y=15, line_dash="dash", line_color="red", 
+                 annotation_text="有效产品标准: 15箱/月", 
+                 annotation_position="right")
+    
+    # 计算统计信息
+    total_products = len(product_df)
+    effective_count = product_df['is_effective'].sum()
+    effectiveness_rate = (effective_count / total_products * 100) if total_products > 0 else 0
+    
+    fig.update_layout(
+        title=dict(
+            text=f"<b>{title}</b><br>有效产品率: {effectiveness_rate:.1f}% ({effective_count}/{total_products})",
+            font=dict(size=20),
+            x=0.5
+        ),
+        xaxis=dict(title="产品名称", tickangle=-45),
+        yaxis=dict(title="月均销售 (箱)", range=[0, max(display_df['monthly_avg_boxes'].max() * 1.2, 20)]),
+        height=600,
+        showlegend=False,
+        hovermode='closest',
+        plot_bgcolor='white',
+        bargap=0.2
+    )
+    
+    return fig, effectiveness_rate
+
 # 主页面
 def main():
     st.markdown("""
@@ -1319,35 +1457,31 @@ def main():
             """, unsafe_allow_html=True)
         
         with col8:
-            # 第8个卡片可以放其他重要指标，比如产品数量
-            total_products = len(data['dashboard_products'])
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">{total_products}</div>
-                <div class="metric-label">📦 仪表盘产品数</div>
+                <div class="metric-value">{metrics['effective_products_rate']:.1f}%</div>
+                <div class="metric-label">📦 有效产品率</div>
+                <div class="metric-sublabel">月均≥15箱</div>
             </div>
             """, unsafe_allow_html=True)
     
     # Tab 2: BCG产品矩阵
     with tabs[1]:
-        # 选择维度控件 - 包装在容器中
-        with st.container():
-            st.markdown('<div class="content-container">', unsafe_allow_html=True)
-            bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
-            
-            # 获取分析数据
-            if bcg_dimension == "🌏 全国维度":
-                product_analysis = create_bcg_matrix(data, 'national')
-                title = "BCG产品矩阵"
-                selected_region = None
-            else:
-                regions = data['sales_df']['区域'].unique()
-                selected_region = st.selectbox("🗺️ 选择区域", regions)
-                product_analysis = create_bcg_matrix(data, 'regional', selected_region)
-                title = f"{selected_region}区域 BCG产品矩阵"
-            st.markdown('</div>', unsafe_allow_html=True)
+        # 选择维度控件
+        bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
         
-        # 显示BCG矩阵图表 - 不使用容器包装
+        # 获取分析数据
+        if bcg_dimension == "🌏 全国维度":
+            product_analysis = create_bcg_matrix(data, 'national')
+            title = "BCG产品矩阵"
+            selected_region = None
+        else:
+            regions = data['sales_df']['区域'].unique()
+            selected_region = st.selectbox("🗺️ 选择区域", regions)
+            product_analysis = create_bcg_matrix(data, 'regional', selected_region)
+            title = f"{selected_region}区域 BCG产品矩阵"
+        
+        # 显示BCG矩阵图表
         if len(product_analysis) > 0:
             fig = plot_bcg_matrix(product_analysis, title=title)
             st.plotly_chart(fig, use_container_width=True)
@@ -1395,7 +1529,7 @@ def main():
             # 计算有效率并显示在标题中
             effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
             
-            # 促销活动效果图表 - 不使用容器包装
+            # 促销活动效果图表
             st.markdown(f"""
             <div class="promo-header">
                 <h2>🚀 全国促销活动有效性分析</h2>
@@ -1435,12 +1569,9 @@ def main():
             st.info("暂无全国促销活动数据")
     
     # Tab 4: 星品新品达成
-    with tabs[4]:
-        # 选择控件 - 包装在容器中
-        with st.container():
-            st.markdown('<div class="content-container">', unsafe_allow_html=True)
-            view_type = st.radio("选择分析视角", ["按区域", "按销售员", "趋势分析"], horizontal=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+    with tabs[3]:
+        # 选择控件
+        view_type = st.radio("选择分析视角", ["按区域", "按销售员", "趋势分析"], horizontal=True)
         
         sales_df = data['sales_df']
         star_products = data['star_products']
@@ -1448,7 +1579,6 @@ def main():
         star_new_products = list(set(star_products + new_products))
         
         if view_type == "按区域":
-            # 区域分析 - 不使用容器包装
             # 区域分析
             region_stats = []
             for region in sales_df['区域'].unique():
@@ -1515,7 +1645,6 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
         
         elif view_type == "按销售员":
-            # 销售员分析 - 不使用容器包装
             # 销售员分析
             salesperson_stats = []
             for person in sales_df['销售员'].unique():
@@ -1586,7 +1715,6 @@ def main():
             st.info(f"📊 达成率统计：{achieved_count}/{len(person_df)}人达标（{achieved_count/len(person_df)*100:.1f}%）")
         
         else:  # 趋势分析
-            # 趋势分析 - 不使用容器包装
             # 趋势分析
             monthly_stats = []
             
@@ -1648,14 +1776,11 @@ def main():
     
     # Tab 5: 市场网络与覆盖分析
     with tabs[4]:
-        # 选择控件 - 包装在容器中
-        with st.container():
-            st.markdown('<div class="content-container">', unsafe_allow_html=True)
-            analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析"], horizontal=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+        # 选择控件
+        analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析", "✅ 有效产品分析"], horizontal=True)
         
         if analysis_type == "🔗 产品关联网络":
-            # 产品关联网络 - 不使用容器包装
+            # 产品关联网络
             st.subheader("产品关联网络分析")
             
             # 创建基于真实数据的2D网络图
@@ -1684,8 +1809,8 @@ def main():
                     - 开发新的组合套装产品
                     """)
         
-        else:  # 区域覆盖分析
-            # 区域覆盖分析 - 不使用容器包装
+        elif analysis_type == "📍 区域覆盖分析":
+            # 区域覆盖分析
             # 创建更易读的区域覆盖率分析
             fig, coverage_df = create_regional_coverage_analysis(data)
             st.plotly_chart(fig, use_container_width=True)
@@ -1715,6 +1840,64 @@ def main():
                     """)
                 else:
                     st.success("✅ 所有区域覆盖率均达到80%以上")
+        
+        else:  # 有效产品分析
+            st.subheader("有效产品分析（月均销售≥15箱）")
+            
+            # 选择维度
+            eff_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
+            
+            if eff_dimension == "🌏 全国维度":
+                product_analysis = analyze_effective_products(data, 'national')
+                title = "全国有效产品分析"
+            else:
+                regions = data['sales_df']['区域'].unique()
+                selected_region = st.selectbox("选择区域", regions)
+                product_analysis = analyze_effective_products(data, 'regional', selected_region)
+                title = f"{selected_region}区域有效产品分析"
+            
+            if len(product_analysis) > 0:
+                fig, effectiveness_rate = create_effective_products_chart(product_analysis, title)
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # 有效产品洞察
+                with st.expander("💡 有效产品分析洞察", expanded=True):
+                    col1, col2, col3 = st.columns(3)
+                    
+                    effective_products = product_analysis[product_analysis['is_effective'] == True]
+                    ineffective_products = product_analysis[product_analysis['is_effective'] == False]
+                    
+                    with col1:
+                        st.metric("有效产品数", f"{len(effective_products)}个", 
+                                 f"{effectiveness_rate:.1f}%")
+                        st.caption("月均销售≥15箱")
+                    
+                    with col2:
+                        if len(effective_products) > 0:
+                            avg_sales = effective_products['monthly_avg_boxes'].mean()
+                            st.metric("有效产品月均销售", f"{avg_sales:.1f}箱", 
+                                     f"高于标准{avg_sales-15:.1f}箱")
+                        else:
+                            st.metric("有效产品月均销售", "0箱", "无有效产品")
+                    
+                    with col3:
+                        if len(ineffective_products) > 0:
+                            gap_avg = ineffective_products['effectiveness_gap'].mean()
+                            st.metric("无效产品平均差距", f"{gap_avg:.1f}箱", 
+                                     f"{len(ineffective_products)}个产品需提升")
+                        else:
+                            st.metric("无效产品平均差距", "0箱", "全部达标")
+                    
+                    # 策略建议
+                    st.info(f"""
+                    **📋 策略建议**
+                    - 有效产品（{len(effective_products)}个）：继续保持良好销售势头，可作为主推产品
+                    - 接近标准产品：月均销售10-15箱的产品，稍加推广即可达标
+                    - 低效产品：月均销售低于10箱的产品，需要重新评估市场定位
+                    - 区域差异：不同区域的有效产品可能不同，需因地制宜
+                    """)
+            else:
+                st.warning("暂无产品数据")
 
 if __name__ == "__main__":
     main()
