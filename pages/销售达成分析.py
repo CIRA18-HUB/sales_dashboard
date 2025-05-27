@@ -1688,47 +1688,6 @@ def main():
                 <div class="metric-sublabel">{better_channel}渠道达成率更高</div>
             </div>
             """, unsafe_allow_html=True)
-        
-        # 添加动态数据洞察卡片
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 创建动态洞察卡片
-        insight_col1, insight_col2 = st.columns(2)
-        
-        with insight_col1:
-            # 计算增长趋势
-            trend_direction = "📈" if metrics['total_achievement'] > 90 else "📉"
-            trend_text = "业绩表现优秀" if metrics['total_achievement'] > 90 else "需要加强努力"
-            
-            st.markdown(f"""
-            <div class="metric-card" style="background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 5px solid #0ea5e9;">
-                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-                    <span style="font-size: 3rem; margin-right: 1rem;">{trend_direction}</span>
-                    <div>
-                        <div class="metric-label" style="color: #0ea5e9; font-size: 1.1rem;">💡 智能洞察</div>
-                        <div class="metric-sublabel" style="margin-top: 0.5rem;">{trend_text}</div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with insight_col2:
-            # 计算渠道对比
-            stronger_channel = "TT" if metrics['tt_achievement'] > metrics['mt_achievement'] else "MT"
-            weaker_channel = "MT" if stronger_channel == "TT" else "TT"
-            performance_gap = abs(metrics['tt_achievement'] - metrics['mt_achievement'])
-            
-            st.markdown(f"""
-            <div class="metric-card" style="background: linear-gradient(145deg, #fefce8 0%, #fef3c7 100%); border-left: 5px solid #f59e0b;">
-                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-                    <span style="font-size: 3rem; margin-right: 1rem;">⚖️</span>
-                    <div>
-                        <div class="metric-label" style="color: #f59e0b; font-size: 1.1rem;">🎯 渠道建议</div>
-                        <div class="metric-sublabel" style="margin-top: 0.5rem;">{stronger_channel}渠道领先{weaker_channel} {performance_gap:.1f}%</div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
     
     # Tab 2: MT渠道分析
     with tabs[1]:
