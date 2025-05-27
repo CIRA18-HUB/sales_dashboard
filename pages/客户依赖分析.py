@@ -190,6 +190,77 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
     }
     
+    /* 直接对Plotly图表应用圆角样式 */
+    .stPlotlyChart {
+        border-radius: 16px !important;
+        overflow: hidden !important;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.06), 0 3px 10px rgba(0,0,0,0.03);
+        border: 1px solid rgba(0,0,0,0.05);
+        margin: 1.5rem 0;
+    }
+    
+    /* 确保图表内部背景为白色 */
+    .js-plotly-plot {
+        background: white !important;
+        border-radius: 16px !important;
+    }
+    
+    .plot-container {
+        background: white !important;
+        border-radius: 16px !important;
+    }
+    
+    /* 洞察卡片 */
+    .insight-card {
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        border-left: 4px solid #667eea; border-radius: 12px;
+        padding: 1.2rem; margin: 0.8rem 0;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+        animation: slideInLeft 0.6s ease-out;
+        transition: all 0.3s ease;
+    }
+    
+    .insight-card:hover {
+        transform: translateX(5px) translateY(-2px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.12);
+    }
+    
+    @keyframes slideInLeft {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .insight-card h4 {
+        color: #1f2937; margin-bottom: 0.8rem;
+        font-weight: 700; font-size: 1rem;
+    }
+    
+    .insight-card ul {
+        color: #374151; line-height: 1.5; margin: 0; padding-left: 1rem;
+    }
+    
+    .insight-card li {
+        margin-bottom: 0.3rem; color: #4a5568; font-size: 0.9rem;
+    }
+    
+    /* 动画延迟 */
+    .metric-card:nth-child(1) { animation-delay: 0.1s; }
+    .metric-card:nth-child(2) { animation-delay: 0.2s; }
+    .metric-card:nth-child(3) { animation-delay: 0.3s; }
+    .metric-card:nth-child(4) { animation-delay: 0.4s; }
+    .metric-card:nth-child(5) { animation-delay: 0.5s; }
+    
+    /* 响应式 */
+    @media (max-width: 768px) {
+        .metric-value, .big-value { font-size: 1.8rem; }
+        .metric-card { padding: 1rem; margin: 0.5rem 0; }
+        .main-header { padding: 1.5rem 0; }
+    }
+    
+    /* 确保文字颜色 */
+    h1, h2, h3, h4, h5, h6 { color: #1f2937 !important; }
+    p, span, div { color: #374151; }
+    
     /* 图表标题容器 */
     .chart-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -269,148 +340,6 @@ st.markdown("""
             opacity: 1;
             transform: translateX(0);
         }
-    }
-    
-    /* 直接对Plotly图表应用圆角样式 */
-    .stPlotlyChart {
-        border-radius: 16px !important;
-        overflow: hidden !important;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.06), 0 3px 10px rgba(0,0,0,0.03);
-        border: 1px solid rgba(0,0,0,0.05);
-        margin: 1.5rem 0;
-    }
-    
-    /* 确保图表内部背景为白色 */
-    .js-plotly-plot {
-        background: white !important;
-        border-radius: 16px !important;
-    }
-    
-    .plot-container {
-        background: white !important;
-        border-radius: 16px !important;
-    }
-    
-    /* 洞察卡片 */
-    .insight-card {
-        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        border-left: 4px solid #667eea; border-radius: 12px;
-        padding: 1.2rem; margin: 0.8rem 0;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.06);
-        animation: slideInLeft 0.6s ease-out;
-        transition: all 0.3s ease;
-    }
-    
-    .insight-card:hover {
-        transform: translateX(5px) translateY(-2px);
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.12);
-    }
-    
-    @keyframes slideInLeft {
-        from { opacity: 0; transform: translateX(-20px); }
-        to { opacity: 1; transform: translateX(0); }
-    }
-    
-    .insight-card h4 {
-        color: #1f2937; margin-bottom: 0.8rem;
-        font-weight: 700; font-size: 1rem;
-    }
-    
-    .insight-card ul {
-        color: #374151; line-height: 1.5; margin: 0; padding-left: 1rem;
-    }
-    
-    .insight-card li {
-        margin-bottom: 0.3rem; color: #4a5568; font-size: 0.9rem;
-    }
-    
-    /* 动画延迟 */
-    .metric-card:nth-child(1) { animation-delay: 0.1s; }
-    .metric-card:nth-child(2) { animation-delay: 0.2s; }
-    .metric-card:nth-child(3) { animation-delay: 0.3s; }
-    .metric-card:nth-child(4) { animation-delay: 0.4s; }
-    .metric-card:nth-child(5) { animation-delay: 0.5s; }
-    
-    /* 响应式 */
-    @media (max-width: 768px) {
-        .metric-value, .big-value { font-size: 1.8rem; }
-        .metric-card { padding: 1rem; margin: 0.5rem 0; }
-        .main-header { padding: 1.5rem 0; }
-    }
-    
-    /* 确保文字颜色 */
-    h1, h2, h3, h4, h5, h6 { color: #1f2937 !important; }
-    p, span, div { color: #374151; }
-    
-    /* 客户周期监测样式 */
-    .timeline-container {
-        background: white;
-        border-radius: 16px;
-        padding: 2rem;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.06);
-        margin: 1.5rem 0;
-    }
-    
-    .customer-selector {
-        background: #f8fafc;
-        padding: 1rem;
-        border-radius: 10px;
-        margin-bottom: 1.5rem;
-    }
-    
-    .timeline-stats {
-        display: flex;
-        justify-content: space-between;
-        background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        margin-bottom: 1.5rem;
-    }
-    
-    .stat-item {
-        text-align: center;
-    }
-    
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #667eea;
-    }
-    
-    .stat-label {
-        font-size: 0.8rem;
-        color: #6b7280;
-        margin-top: 0.2rem;
-    }
-    
-    /* 预警卡片样式 */
-    .alert-card {
-        background: #fef3c7;
-        border-left: 4px solid #f59e0b;
-        padding: 1rem;
-        border-radius: 8px;
-        margin: 0.5rem 0;
-        transition: all 0.3s ease;
-    }
-    
-    .alert-card:hover {
-        transform: translateX(5px);
-        box-shadow: 0 5px 15px rgba(245, 158, 11, 0.2);
-    }
-    
-    .alert-card.high {
-        background: #fee2e2;
-        border-left-color: #ef4444;
-    }
-    
-    .alert-card.medium {
-        background: #fef3c7;
-        border-left-color: #f59e0b;
-    }
-    
-    .alert-card.low {
-        background: #dbeafe;
-        border-left-color: #3b82f6;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -590,200 +519,239 @@ def format_amount(amount):
     else:
         return f"¥{amount:,.0f}"
 
-def analyze_customer_cycles(sales_data, customer_name, lookback_days=365):
-    """分析客户下单周期"""
-    # 筛选指定客户的订单
-    customer_orders = sales_data[sales_data['经销商名称'] == customer_name].copy()
-    customer_orders = customer_orders.sort_values('订单日期')
+def calculate_customer_cycles(sales_data, current_year):
+    """计算客户下单周期和异常行为"""
+    # 获取最近12个月的数据
+    end_date = sales_data['订单日期'].max()
+    start_date = end_date - timedelta(days=365)
+    recent_data = sales_data[sales_data['订单日期'] >= start_date].copy()
     
-    # 计算最近一年的订单
-    cutoff_date = datetime.now() - timedelta(days=lookback_days)
-    recent_orders = customer_orders[customer_orders['订单日期'] >= cutoff_date]
+    # 计算每个客户的订单间隔
+    customer_cycles = []
     
-    if len(recent_orders) < 2:
-        return {
-            'orders': recent_orders,
-            'avg_cycle': 0,
-            'std_cycle': 0,
-            'last_order_days': 0,
-            'anomalies': [],
-            'prediction': None
-        }
-    
-    # 计算订单间隔
-    intervals = []
-    anomalies = []
-    
-    for i in range(1, len(recent_orders)):
-        interval = (recent_orders.iloc[i]['订单日期'] - recent_orders.iloc[i-1]['订单日期']).days
-        intervals.append(interval)
+    for customer in recent_data['经销商名称'].unique():
+        customer_orders = recent_data[recent_data['经销商名称'] == customer].sort_values('订单日期')
         
-        # 记录每个订单的间隔信息
-        recent_orders.loc[recent_orders.index[i], '间隔天数'] = interval
+        if len(customer_orders) < 2:
+            continue
+            
+        # 计算订单间隔
+        order_dates = customer_orders['订单日期'].tolist()
+        intervals = []
+        order_details = []
+        
+        for i in range(1, len(order_dates)):
+            interval = (order_dates[i] - order_dates[i-1]).days
+            intervals.append(interval)
+            
+            order_details.append({
+                '日期': order_dates[i-1],
+                '下一单日期': order_dates[i],
+                '间隔天数': interval,
+                '金额': customer_orders.iloc[i-1]['金额']
+            })
+        
+        # 添加最后一个订单
+        last_order = customer_orders.iloc[-1]
+        days_since_last = (end_date - order_dates[-1]).days
+        order_details.append({
+            '日期': order_dates[-1],
+            '下一单日期': None,
+            '间隔天数': days_since_last,
+            '金额': last_order['金额'],
+            '距今天数': days_since_last
+        })
+        
+        if intervals:
+            avg_interval = np.mean(intervals)
+            std_interval = np.std(intervals) if len(intervals) > 1 else 0
+            
+            # 预测下次订单时间
+            predicted_date = order_dates[-1] + timedelta(days=int(avg_interval))
+            
+            customer_cycles.append({
+                '客户': customer,
+                '总销售额': customer_orders['金额'].sum(),
+                '订单次数': len(customer_orders),
+                '平均间隔': avg_interval,
+                '间隔标准差': std_interval,
+                '最后订单日期': order_dates[-1],
+                '距今天数': days_since_last,
+                '预测下单日期': predicted_date,
+                '订单详情': order_details,
+                '异常状态': '正常' if days_since_last <= avg_interval * 1.5 else 
+                           '轻度异常' if days_since_last <= avg_interval * 2 else '严重异常'
+            })
     
-    # 计算平均周期和标准差
-    avg_cycle = np.mean(intervals) if intervals else 0
-    std_cycle = np.std(intervals) if intervals else 0
+    # 按总销售额排序，获取Top 20
+    cycles_df = pd.DataFrame(customer_cycles)
+    if not cycles_df.empty:
+        cycles_df = cycles_df.nlargest(20, '总销售额')
     
-    # 识别异常
-    for i in range(len(recent_orders)):
-        if i > 0 and '间隔天数' in recent_orders.columns:
-            interval = recent_orders.iloc[i]['间隔天数']
-            if interval > avg_cycle * 1.5:
-                anomalies.append({
-                    'date': recent_orders.iloc[i]['订单日期'],
-                    'interval': interval,
-                    'severity': '高' if interval > avg_cycle * 2 else '中',
-                    'amount': recent_orders.iloc[i]['金额']
-                })
-    
-    # 计算最后订单距今天数
-    last_order_date = recent_orders.iloc[-1]['订单日期']
-    last_order_days = (datetime.now() - last_order_date).days
-    
-    # 预测下次订单时间
-    if avg_cycle > 0:
-        predicted_date = last_order_date + timedelta(days=int(avg_cycle))
-        days_until_next = (predicted_date - datetime.now()).days
-        prediction = {
-            'date': predicted_date,
-            'days_until': days_until_next,
-            'overdue': days_until_next < 0
-        }
-    else:
-        prediction = None
-    
-    return {
-        'orders': recent_orders,
-        'avg_cycle': avg_cycle,
-        'std_cycle': std_cycle,
-        'last_order_days': last_order_days,
-        'anomalies': anomalies,
-        'prediction': prediction,
-        'intervals': intervals
-    }
+    return cycles_df
 
-def create_customer_timeline(cycle_analysis):
-    """创建客户时间轴可视化"""
-    orders = cycle_analysis['orders']
-    avg_cycle = cycle_analysis['avg_cycle']
-    anomalies = cycle_analysis['anomalies']
-    
-    if len(orders) < 2:
-        return None
-    
-    # 创建时间轴图
+def create_timeline_chart(cycles_df):
+    """创建客户下单时间轴图表"""
     fig = go.Figure()
     
-    # 添加订单点
-    colors = []
-    sizes = []
-    hover_texts = []
-    
-    anomaly_dates = [a['date'] for a in anomalies]
-    
-    for i, row in orders.iterrows():
-        # 确定颜色
-        if row['订单日期'] in anomaly_dates:
-            severity = next(a['severity'] for a in anomalies if a['date'] == row['订单日期'])
-            color = '#ef4444' if severity == '高' else '#f59e0b'
-        else:
-            color = '#10b981'
-        colors.append(color)
+    # 为每个客户创建一条时间轴
+    for idx, customer_data in cycles_df.iterrows():
+        y_position = idx
+        orders = customer_data['订单详情']
         
-        # 确定大小（基于金额）
-        size = min(50, max(15, row['金额'] / 10000))
-        sizes.append(size)
+        # 绘制订单点和连线
+        for i, order in enumerate(orders):
+            # 确定点的颜色和符号
+            if order.get('距今天数'):
+                # 最后一个订单
+                if customer_data['异常状态'] == '严重异常':
+                    color = '#e74c3c'
+                    symbol = 'x'
+                    size = 15
+                elif customer_data['异常状态'] == '轻度异常':
+                    color = '#f39c12'
+                    symbol = 'triangle-up'
+                    size = 12
+                else:
+                    color = '#27ae60'
+                    symbol = 'circle'
+                    size = 10
+            else:
+                # 历史订单
+                interval = order['间隔天数']
+                avg_interval = customer_data['平均间隔']
+                if interval > avg_interval * 1.5:
+                    color = '#f39c12'
+                    symbol = 'triangle-up'
+                    size = 12
+                else:
+                    color = '#27ae60'
+                    symbol = 'circle'
+                    size = 10
+            
+            # 添加订单点
+            hover_text = f"订单日期: {order['日期'].strftime('%Y-%m-%d')}<br>"
+            hover_text += f"订单金额: ¥{order['金额']:,.0f}<br>"
+            if order.get('下一单日期'):
+                hover_text += f"间隔天数: {order['间隔天数']}天"
+            else:
+                hover_text += f"距今天数: {order['间隔天数']}天<br>"
+                hover_text += f"状态: {customer_data['异常状态']}"
+            
+            fig.add_trace(go.Scatter(
+                x=[order['日期']], y=[y_position],
+                mode='markers',
+                marker=dict(size=size, color=color, symbol=symbol),
+                hovertemplate=hover_text + '<extra></extra>',
+                showlegend=False
+            ))
+            
+            # 添加间隔线
+            if order.get('下一单日期') and i < len(orders) - 1:
+                fig.add_trace(go.Scatter(
+                    x=[order['日期'], order['下一单日期']], 
+                    y=[y_position, y_position],
+                    mode='lines',
+                    line=dict(color='rgba(150,150,150,0.5)', width=2),
+                    hoverinfo='skip',
+                    showlegend=False
+                ))
+                
+                # 添加间隔天数标注
+                mid_date = order['日期'] + (order['下一单日期'] - order['日期']) / 2
+                fig.add_annotation(
+                    x=mid_date, y=y_position,
+                    text=f"{order['间隔天数']}天",
+                    showarrow=False,
+                    yshift=15,
+                    font=dict(size=10, color='#666')
+                )
         
-        # 创建悬停文本
-        interval_text = f"间隔: {int(row.get('间隔天数', 0))}天" if '间隔天数' in row and pd.notna(row.get('间隔天数')) else "首单"
-        hover_text = f"日期: {row['订单日期'].strftime('%Y-%m-%d')}<br>金额: {format_amount(row['金额'])}<br>{interval_text}"
-        hover_texts.append(hover_text)
-    
-    # 添加订单散点
-    fig.add_trace(go.Scatter(
-        x=orders['订单日期'],
-        y=[1] * len(orders),
-        mode='markers+text',
-        marker=dict(
-            size=sizes,
-            color=colors,
-            line=dict(color='white', width=2),
-            symbol='circle'
-        ),
-        text=[f"{int(row.get('间隔天数', 0))}天" if '间隔天数' in row and pd.notna(row.get('间隔天数')) else "" 
-              for _, row in orders.iterrows()],
-        textposition="top center",
-        hovertext=hover_texts,
-        hoverinfo='text',
-        name='订单'
-    ))
-    
-    # 添加连接线
-    for i in range(len(orders) - 1):
+        # 添加平均周期基准线
         fig.add_shape(
             type="line",
-            x0=orders.iloc[i]['订单日期'],
-            y0=1,
-            x1=orders.iloc[i+1]['订单日期'],
-            y1=1,
-            line=dict(color="#e5e7eb", width=2, dash="solid")
+            x0=orders[0]['日期'], x1=customer_data['最后订单日期'] + timedelta(days=30),
+            y0=y_position - 0.3, y1=y_position - 0.3,
+            line=dict(color="rgba(102, 126, 234, 0.3)", width=2, dash="dash"),
         )
-    
-    # 添加平均周期参考线
-    if avg_cycle > 0 and len(orders) > 0:
-        last_date = orders.iloc[-1]['订单日期']
-        for i in range(3):  # 显示未来3个预期周期
-            ref_date = last_date + timedelta(days=int(avg_cycle) * (i + 1))
-            if ref_date <= datetime.now() + timedelta(days=90):  # 只显示90天内的预测
-                fig.add_vline(
-                    x=ref_date, 
-                    line_dash="dash", 
-                    line_color="#667eea",
-                    opacity=0.3 - i * 0.1,
-                    annotation_text=f"预期{i+1}" if i < 2 else None
-                )
+        
+        # 添加预测下单点
+        if customer_data['预测下单日期'] > datetime.now():
+            fig.add_trace(go.Scatter(
+                x=[customer_data['预测下单日期']], y=[y_position],
+                mode='markers',
+                marker=dict(size=10, color='rgba(102, 126, 234, 0.5)', 
+                           symbol='circle-open', line=dict(width=2)),
+                hovertemplate=f"预测下单日期: {customer_data['预测下单日期'].strftime('%Y-%m-%d')}<extra></extra>",
+                showlegend=False
+            ))
+            
+            # 连接最后订单到预测点
+            fig.add_trace(go.Scatter(
+                x=[customer_data['最后订单日期'], customer_data['预测下单日期']], 
+                y=[y_position, y_position],
+                mode='lines',
+                line=dict(color='rgba(102, 126, 234, 0.3)', width=2, dash='dot'),
+                hoverinfo='skip',
+                showlegend=False
+            ))
     
     # 更新布局
     fig.update_layout(
-        title="客户订单时间轴",
-        xaxis_title="时间",
-        yaxis=dict(visible=False, range=[0.5, 1.5]),
-        height=400,
-        hovermode='closest',
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        showlegend=False,
+        height=max(600, len(cycles_df) * 40),
         xaxis=dict(
+            title="时间",
             showgrid=True,
             gridwidth=1,
             gridcolor='rgba(0,0,0,0.05)',
-            rangeselector=dict(
-                buttons=list([
-                    dict(count=1, label="1月", step="month", stepmode="backward"),
-                    dict(count=3, label="3月", step="month", stepmode="backward"),
-                    dict(count=6, label="6月", step="month", stepmode="backward"),
-                    dict(count=1, label="1年", step="year", stepmode="backward"),
-                    dict(step="all", label="全部")
-                ])
-            ),
-            rangeslider=dict(visible=True),
-            type="date"
-        )
+            type='date'
+        ),
+        yaxis=dict(
+            title="客户",
+            tickmode='array',
+            tickvals=list(range(len(cycles_df))),
+            ticktext=[f"{row['客户'][:15]}..." if len(row['客户']) > 15 else row['客户'] 
+                     for _, row in cycles_df.iterrows()],
+            showgrid=False,
+            autorange='reversed'
+        ),
+        hovermode='closest',
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+        margin=dict(l=150, r=50, t=20, b=60),
+        dragmode='pan'
     )
     
-    # 添加注释
-    fig.add_annotation(
-        text=f"平均周期: {avg_cycle:.1f}天",
-        xref="paper", yref="paper",
-        x=0.02, y=0.98,
-        showarrow=False,
-        bgcolor="#667eea",
-        bordercolor="#667eea",
-        borderwidth=1,
-        font=dict(color="white", size=12),
-        opacity=0.8
-    )
+    # 添加图例
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], mode='markers',
+        marker=dict(size=10, color='#27ae60', symbol='circle'),
+        legendgroup='status', showlegend=True, name='正常'
+    ))
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], mode='markers',
+        marker=dict(size=12, color='#f39c12', symbol='triangle-up'),
+        legendgroup='status', showlegend=True, name='轻度异常'
+    ))
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], mode='markers',
+        marker=dict(size=15, color='#e74c3c', symbol='x'),
+        legendgroup='status', showlegend=True, name='严重异常'
+    ))
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], mode='markers',
+        marker=dict(size=10, color='rgba(102, 126, 234, 0.5)', 
+                   symbol='circle-open', line=dict(width=2)),
+        legendgroup='status', showlegend=True, name='预测'
+    ))
+    
+    fig.update_layout(legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1
+    ))
     
     return fig
 
@@ -1160,123 +1128,150 @@ def main():
     
     # Tab 3: 风险评估
     with tabs[2]:
-        # 客户下单周期监测
-        st.markdown('''
-        <div class="chart-header">
-            <div class="chart-title">🔍 客户下单周期监测系统</div>
-            <div class="chart-subtitle">实时追踪客户订单规律，智能预警异常行为</div>
-        </div>
-        ''', unsafe_allow_html=True)
+        # 创建子标签页
+        risk_subtabs = st.tabs(["📊 客户贡献分析", "🕐 下单周期监测", "⚠️ 异常行为提醒"])
         
-        # 获取Top 20客户列表
-        if not metrics['rfm_df'].empty:
-            top20_list = metrics['rfm_df'].nlargest(20, 'M')['客户'].tolist()
+        with risk_subtabs[0]:
+            # Top20客户分析
+            st.markdown('''
+            <div class="chart-header">
+                <div class="chart-title">Top 20 客户贡献度分析</div>
+                <div class="chart-subtitle">展示前20大客户的销售额分布和累计贡献度</div>
+            </div>
+            ''', unsafe_allow_html=True)
             
-            # 客户选择器
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                selected_customer = st.selectbox(
-                    "选择客户查看详情",
-                    options=top20_list,
-                    format_func=lambda x: f"{x} - {metrics['rfm_df'][metrics['rfm_df']['客户']==x]['类型'].values[0]}"
-                )
+            if 'top20' in charts:
+                st.plotly_chart(charts['top20'], use_container_width=True, key="top20_chart")
             
-            if selected_customer:
-                # 分析选中客户
-                cycle_analysis = analyze_customer_cycles(sales_data, selected_customer)
+            # 区域风险矩阵  
+            st.markdown('''
+            <div class="chart-header">
+                <div class="chart-title">区域客户依赖风险矩阵</div>
+                <div class="chart-subtitle">评估各区域的客户集中度风险</div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            if 'risk_matrix' in charts:
+                st.plotly_chart(charts['risk_matrix'], use_container_width=True, key="risk_matrix_chart")
+        
+        with risk_subtabs[1]:
+            # 下单周期监测
+            st.markdown('''
+            <div class="chart-header">
+                <div class="chart-title">客户下单周期监测</div>
+                <div class="chart-subtitle">追踪Top 20客户的下单规律，识别异常行为</div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            # 计算客户周期数据
+            if sales_data is not None and not sales_data.empty:
+                cycles_df = calculate_customer_cycles(sales_data, metrics['current_year'])
                 
-                # 显示统计信息
-                col1, col2, col3, col4 = st.columns(4)
-                
-                with col1:
-                    st.markdown(f"""
-                    <div class="timeline-stats">
-                        <div class="stat-item">
-                            <div class="stat-value">{cycle_analysis['avg_cycle']:.0f}天</div>
-                            <div class="stat-label">平均周期</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col2:
-                    st.markdown(f"""
-                    <div class="timeline-stats">
-                        <div class="stat-item">
-                            <div class="stat-value">{cycle_analysis['last_order_days']}天</div>
-                            <div class="stat-label">距上次订单</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col3:
-                    if cycle_analysis['prediction']:
-                        days_text = f"{abs(cycle_analysis['prediction']['days_until'])}天{'前' if cycle_analysis['prediction']['overdue'] else '后'}"
-                        color = '#ef4444' if cycle_analysis['prediction']['overdue'] else '#10b981'
-                    else:
-                        days_text = "无法预测"
-                        color = '#6b7280'
+                if not cycles_df.empty:
+                    # 显示时间轴图表
+                    timeline_fig = create_timeline_chart(cycles_df)
+                    st.plotly_chart(timeline_fig, use_container_width=True, key="timeline_chart")
                     
-                    st.markdown(f"""
-                    <div class="timeline-stats">
-                        <div class="stat-item">
-                            <div class="stat-value" style="color: {color};">{days_text}</div>
-                            <div class="stat-label">预计下单</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col4:
-                    anomaly_count = len(cycle_analysis['anomalies'])
-                    st.markdown(f"""
-                    <div class="timeline-stats">
-                        <div class="stat-item">
-                            <div class="stat-value" style="color: {'#ef4444' if anomaly_count > 0 else '#10b981'};">{anomaly_count}次</div>
-                            <div class="stat-label">异常记录</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                # 显示时间轴
-                timeline_fig = create_customer_timeline(cycle_analysis)
-                if timeline_fig:
-                    st.plotly_chart(timeline_fig, use_container_width=True)
-                
-                # 显示异常预警
-                if cycle_analysis['anomalies']:
-                    st.markdown("### 🚨 异常行为提醒")
-                    for anomaly in cycle_analysis['anomalies']:
-                        severity_class = 'high' if anomaly['severity'] == '高' else 'medium'
+                    # 显示统计信息
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    normal_count = len(cycles_df[cycles_df['异常状态'] == '正常'])
+                    mild_count = len(cycles_df[cycles_df['异常状态'] == '轻度异常'])
+                    severe_count = len(cycles_df[cycles_df['异常状态'] == '严重异常'])
+                    
+                    with col1:
                         st.markdown(f"""
-                        <div class="alert-card {severity_class}">
-                            <strong>{anomaly['date'].strftime('%Y-%m-%d')}</strong> - 
-                            间隔{anomaly['interval']}天（超出平均周期{anomaly['interval']/cycle_analysis['avg_cycle']:.1f}倍）
-                            - 订单金额: {format_amount(anomaly['amount'])}
+                        <div class="metric-card">
+                            <div class="metric-value" style="color: #27ae60 !important;">{normal_count}</div>
+                            <div class="metric-label">正常客户</div>
                         </div>
                         """, unsafe_allow_html=True)
+                    
+                    with col2:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div class="metric-value" style="color: #f39c12 !important;">{mild_count}</div>
+                            <div class="metric-label">轻度异常</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col3:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div class="metric-value" style="color: #e74c3c !important;">{severe_count}</div>
+                            <div class="metric-label">严重异常</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col4:
+                        avg_cycle = cycles_df['平均间隔'].mean()
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div class="metric-value">{avg_cycle:.0f}天</div>
+                            <div class="metric-label">平均下单周期</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.info("暂无足够的订单数据进行周期分析")
+            else:
+                st.info("暂无订单数据")
         
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Top20客户分析
-        st.markdown('''
-        <div class="chart-header">
-            <div class="chart-title">Top 20 客户贡献度分析</div>
-            <div class="chart-subtitle">展示前20大客户的销售额分布和累计贡献度</div>
-        </div>
-        ''', unsafe_allow_html=True)
-        
-        if 'top20' in charts:
-            st.plotly_chart(charts['top20'], use_container_width=True, key="top20_chart")
-        
-        # 区域风险矩阵  
-        st.markdown('''
-        <div class="chart-header">
-            <div class="chart-title">区域客户依赖风险矩阵</div>
-            <div class="chart-subtitle">评估各区域的客户集中度风险</div>
-        </div>
-        ''', unsafe_allow_html=True)
-        
-        if 'risk_matrix' in charts:
-            st.plotly_chart(charts['risk_matrix'], use_container_width=True, key="risk_matrix_chart")
+        with risk_subtabs[2]:
+            # 异常行为提醒
+            st.markdown('''
+            <div class="chart-header">
+                <div class="chart-title">异常行为实时提醒</div>
+                <div class="chart-subtitle">需要立即关注的客户异常行为</div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            if sales_data is not None and not sales_data.empty and 'cycles_df' in locals() and not cycles_df.empty:
+                # 筛选异常客户
+                abnormal_customers = cycles_df[cycles_df['异常状态'] != '正常'].copy()
+                
+                if not abnormal_customers.empty:
+                    # 按异常严重程度排序
+                    abnormal_customers['严重度'] = abnormal_customers['异常状态'].map({
+                        '轻度异常': 1, '严重异常': 2
+                    })
+                    abnormal_customers = abnormal_customers.sort_values('严重度', ascending=False)
+                    
+                    # 显示异常客户列表
+                    for _, customer in abnormal_customers.iterrows():
+                        status_color = '#e74c3c' if customer['异常状态'] == '严重异常' else '#f39c12'
+                        status_icon = '🔴' if customer['异常状态'] == '严重异常' else '⚠️'
+                        
+                        # 计算风险描述
+                        days_overdue = customer['距今天数'] - customer['平均间隔']
+                        risk_desc = f"已超过正常周期 {days_overdue:.0f} 天未下单"
+                        
+                        st.markdown(f"""
+                        <div class="insight-card" style="border-left-color: {status_color};">
+                            <h4>{status_icon} {customer['客户']}</h4>
+                            <ul>
+                                <li><strong>异常状态：</strong>{customer['异常状态']}</li>
+                                <li><strong>最后订单：</strong>{customer['最后订单日期'].strftime('%Y-%m-%d')} ({customer['距今天数']}天前)</li>
+                                <li><strong>平均周期：</strong>{customer['平均间隔']:.0f}天</li>
+                                <li><strong>风险描述：</strong>{risk_desc}</li>
+                                <li><strong>建议行动：</strong>{'立即联系客户了解情况' if customer['异常状态'] == '严重异常' else '密切关注，准备跟进'}</li>
+                            </ul>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # 导出按钮
+                    if st.button("📥 导出异常客户清单", key="export_abnormal"):
+                        export_df = abnormal_customers[['客户', '异常状态', '最后订单日期', '距今天数', '平均间隔']].copy()
+                        csv = export_df.to_csv(index=False, encoding='utf-8-sig')
+                        st.download_button(
+                            label="下载CSV文件",
+                            data=csv,
+                            file_name=f"异常客户清单_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv"
+                        )
+                else:
+                    st.success("✅ 所有客户下单行为正常，无需特别关注")
+            else:
+                st.info("暂无数据")
     
     # Tab 4: 价值分层
     with tabs[3]:
