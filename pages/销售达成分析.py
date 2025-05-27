@@ -505,7 +505,6 @@ def create_mt_comprehensive_analysis(data):
     
     # 2. 区域销售分布
     regional_data = sales_data[sales_data['渠道类型'] == 'MT'].groupby('所属区域')['销售额'].sum().sort_values(ascending=True)
-    regional_targets = mt_data.groupby('所属区域')['月度指标'].sum() if '所属区域' in mt_data.columns else {}
     
     fig.add_trace(
         go.Bar(
@@ -699,7 +698,7 @@ def create_mt_comprehensive_analysis(data):
     
     return fig
 
-# 创建综合分析图 - TT渠道
+# 创建综合分析图 - TT渠道 (修复版本)
 @st.cache_data
 def create_tt_comprehensive_analysis(data):
     """创建TT渠道综合分析图"""
@@ -841,7 +840,7 @@ def create_tt_comprehensive_analysis(data):
         annotation_text="目标线 100%"
     )
     
-    # 2. 区域销售分布
+    # 2. 区域销售分布 - 修复customdata2错误
     regional_data = sales_data[sales_data['渠道类型'] == 'TT'].groupby('所属区域')['销售额'].sum().sort_values(ascending=True)
     
     fig.add_trace(
@@ -861,12 +860,14 @@ def create_tt_comprehensive_analysis(data):
                 '<b>TT渠道区域分析</b><br>' +
                 '区域: %{y}<br>' +
                 '销售额: ¥%{x:,.0f}<br>' +
-                '占TT总额: %{customdata:.1f}%<br>' +
-                '排名: 第%{customdata2}名' +
+                '占TT总额: %{customdata[0]:.1f}%<br>' +
+                '排名: 第%{customdata[1]}名' +
                 '<extra></extra>'
             ),
-            customdata=[v/regional_data.sum()*100 for v in regional_data.values],
-            customdata2=list(range(len(regional_data), 0, -1))
+            customdata=list(zip(
+                [v/regional_data.sum()*100 for v in regional_data.values],
+                list(range(len(regional_data), 0, -1))
+            ))
         ),
         row=1, col=2
     )
