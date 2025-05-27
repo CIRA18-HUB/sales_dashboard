@@ -261,11 +261,7 @@ def calculate_comprehensive_metrics(data):
     penetration_rate = (new_customers / total_customers * 100) if total_customers > 0 else 0
     
     # BCG分析 - 计算JBP符合度
-    current_year = sales_df['发运月份'].dt.year.max()
-    current_data = sales_df[sales_df['发运月份'].dt.year == current_year]
-    current_data = current_data[current_data['产品代码'].isin(dashboard_products)]
-    
-    product_analysis = analyze_product_bcg_comprehensive(current_data, dashboard_products)
+    product_analysis = analyze_product_bcg_comprehensive(sales_df[sales_df['产品代码'].isin(dashboard_products)], dashboard_products)
     
     total_bcg_sales = product_analysis['sales'].sum()
     cow_sales = product_analysis[product_analysis['category'] == 'cow']['sales'].sum()
@@ -882,182 +878,6 @@ def create_real_product_network(data):
     )
     
     return fig
-    """基于真实销售数据创建3D产品关联网络图"""
-    sales_df = data['sales_df']
-    dashboard_products = data['dashboard_products']
-    
-    # 只分析仪表盘产品
-    sales_df_filtered = sales_df[sales_df['产品代码'].isin(dashboard_products)]
-    
-    # 计算产品关联度（基于共同客户购买）
-    product_pairs = []
-    
-    # 限制显示前15个产品以保证3D效果清晰
-    products_to_analyze = dashboard_products[:15]
-    
-    for prod1, prod2 in combinations(products_to_analyze, 2):
-        # 找出同时购买这两个产品的客户
-        customers_prod1 = set(sales_df_filtered[sales_df_filtered['产品代码'] == prod1]['客户名称'].unique())
-        customers_prod2 = set(sales_df_filtered[sales_df_filtered['产品代码'] == prod2]['客户名称'].unique())
-        
-        common_customers = customers_prod1.intersection(customers_prod2)
-        total_customers = customers_prod1.union(customers_prod2)
-        
-        if len(total_customers) > 0:
-            correlation = len(common_customers) / len(total_customers)
-            
-            if correlation > 0.3:  # 只显示关联度大于30%的
-                # 获取产品名称
-                name1 = sales_df_filtered[sales_df_filtered['产品代码'] == prod1]['产品简称'].iloc[0] if len(sales_df_filtered[sales_df_filtered['产品代码'] == prod1]) > 0 else prod1
-                name2 = sales_df_filtered[sales_df_filtered['产品代码'] == prod2]['产品简称'].iloc[0] if len(sales_df_filtered[sales_df_filtered['产品代码'] == prod2]) > 0 else prod2
-                
-                product_pairs.append((name1, name2, correlation, len(common_customers)))
-    
-    # 构建节点列表
-    nodes = set()
-    for pair in product_pairs:
-        nodes.add(pair[0])
-        nodes.add(pair[1])
-    
-    nodes = list(nodes)
-    
-    # 创建3D节点位置
-    n_nodes = len(nodes)
-    pos_3d = {}
-    
-    # 使用球形分布
-    for i, node in enumerate(nodes):
-        theta = 2 * np.pi * i / n_nodes
-        phi = np.pi * (i + 1) / (n_nodes + 1)
-        
-        x = np.sin(phi) * np.cos(theta)
-        y = np.sin(phi) * np.sin(theta)
-        z = np.cos(phi)
-        
-        pos_3d[node] = (x, y, z)
-    
-    fig = go.Figure()
-    
-    # 添加3D边
-    for pair in product_pairs:
-        x0, y0, z0 = pos_3d[pair[0]]
-        x1, y1, z1 = pos_3d[pair[1]]
-        
-        # 边的颜色和宽度根据关联度
-        color_intensity = int(255 * pair[2])
-        color = f'rgba({color_intensity}, {100}, {255-color_intensity}, {pair[2]})'
-        
-        # 创建曲线边
-        t = np.linspace(0, 1, 20)
-        # 添加一些曲率
-        mid_x = (x0 + x1) / 2 + 0.2 * np.sin(pair[2] * np.pi)
-        mid_y = (y0 + y1) / 2 + 0.2 * np.cos(pair[2] * np.pi)
-        mid_z = (z0 + z1) / 2 + 0.2
-        
-        x_curve = x0 * (1-t)**2 + 2 * mid_x * t * (1-t) + x1 * t**2
-        y_curve = y0 * (1-t)**2 + 2 * mid_y * t * (1-t) + y1 * t**2
-        z_curve = z0 * (1-t)**2 + 2 * mid_z * t * (1-t) + z1 * t**2
-        
-        fig.add_trace(go.Scatter3d(
-            x=x_curve, y=y_curve, z=z_curve,
-            mode='lines',
-            line=dict(width=pair[2]*20, color=color),
-            hoverinfo='text',
-            text=f"""<b>产品关联分析</b><br>
-产品1: {pair[0]}<br>
-产品2: {pair[1]}<br>
-关联度: {pair[2]:.1%}<br>
-共同客户数: {pair[3]}<br>
-<br><b>营销洞察:</b><br>
-• 这两个产品有{pair[2]:.0%}的客户重叠<br>
-• 适合捆绑销售，预计可提升{pair[2]*30:.0f}%销量<br>
-• 建议在促销时同时推广<br>
-• 可设计组合套装，提高客单价""",
-            showlegend=False
-        ))
-    
-    # 添加3D节点
-    node_x = [pos_3d[node][0] for node in nodes]
-    node_y = [pos_3d[node][1] for node in nodes]
-    node_z = [pos_3d[node][2] for node in nodes]
-    
-    # 计算节点重要性（基于连接数）
-    node_sizes = []
-    node_colors = []
-    node_details = []
-    
-    for node in nodes:
-        connections = sum(1 for pair in product_pairs if node in pair[:2])
-        total_correlation = sum(pair[2] for pair in product_pairs if node in pair[:2])
-        node_sizes.append(20 + connections * 5)
-        node_colors.append(connections)
-        
-        # 获取产品销售数据
-        product_data = sales_df_filtered[sales_df_filtered['产品简称'] == node]
-        if len(product_data) > 0:
-            total_sales = product_data['销售额'].sum()
-            customer_count = product_data['客户名称'].nunique()
-        else:
-            total_sales = 0
-            customer_count = 0
-        
-        detail = f"""<b>{node}</b><br>
-<br><b>网络分析:</b><br>
-• 关联产品数: {connections}<br>
-• 平均关联度: {total_correlation/connections if connections > 0 else 0:.1%}<br>
-• 总销售额: ¥{total_sales:,.0f}<br>
-• 客户数: {customer_count}<br>
-<br><b>产品定位:</b><br>
-{'• 核心产品，适合作为引流主打' if connections >= 5 else 
-'• 重要连接点，适合交叉销售' if connections >= 3 else 
-'• 特色产品，可独立推广'}<br>
-<br><b>策略建议:</b><br>
-{'• 作为促销活动的核心产品<br>• 与多个产品组合销售<br>• 重点培养忠实客户' if connections >= 5 else
-'• 选择2-3个关联产品捆绑<br>• 开发组合套装<br>• 提升客户粘性' if connections >= 3 else
-'• 挖掘独特卖点<br>• 寻找目标客户群<br>• 差异化营销'}"""
-        
-        node_details.append(detail)
-    
-    fig.add_trace(go.Scatter3d(
-        x=node_x, y=node_y, z=node_z,
-        mode='markers+text',
-        marker=dict(
-            size=node_sizes,
-            color=node_colors,
-            colorscale='Viridis',
-            showscale=True,
-            colorbar=dict(title='连接数'),
-            line=dict(width=2, color='white')
-        ),
-        text=nodes,
-        textposition='top center',
-        textfont=dict(size=10, color='black', weight='bold'),
-        hoverinfo='text',
-        hovertext=node_details,
-        showlegend=False
-    ))
-    
-    # 更新3D布局
-    fig.update_layout(
-        title=dict(
-            text="<b>3D产品关联网络分析</b><br><sub>基于客户购买行为的产品关联度</sub>",
-            font=dict(size=20)
-        ),
-        scene=dict(
-            xaxis=dict(showgrid=False, showticklabels=False, title=''),
-            yaxis=dict(showgrid=False, showticklabels=False, title=''),
-            zaxis=dict(showgrid=False, showticklabels=False, title=''),
-            camera=dict(
-                eye=dict(x=1.5, y=1.5, z=1.5),
-                center=dict(x=0, y=0, z=0)
-            ),
-            aspectmode='cube'
-        ),
-        height=700,
-        hovermode='closest'
-    )
-    
-    return fig
 
 # 创建优化的促销活动柱状图
 def create_optimized_promotion_chart(promo_results):
@@ -1557,7 +1377,7 @@ def main():
     
     # Tab 5: 市场网络与覆盖分析
     with tabs[4]:
-                    analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析"], horizontal=True)
+        analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析"], horizontal=True)
         
         if analysis_type == "🔗 产品关联网络":
             st.subheader("产品关联网络分析")
