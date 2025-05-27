@@ -133,23 +133,6 @@ st.markdown("""
     .metric-card:nth-child(2) { animation-delay: 0.2s; }
     .metric-card:nth-child(3) { animation-delay: 0.3s; }
     .metric-card:nth-child(4) { animation-delay: 0.4s; }
-    
-    /* 搜索框样式 */
-    .search-container {
-        background: white;
-        padding: 1rem;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 1rem;
-    }
-    
-    /* BCG矩阵控制面板 */
-    .bcg-controls {
-        background: rgba(248,249,250,0.8);
-        padding: 1rem;
-        border-radius: 10px;
-        margin-bottom: 1rem;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -341,8 +324,8 @@ def analyze_product_bcg_comprehensive(sales_df, dashboard_products):
     
     return pd.DataFrame(product_stats)
 
-def create_interactive_bcg_matrix(data, dimension='national', selected_region=None):
-    """创建交互式BCG矩阵分析"""
+def create_bcg_matrix(data, dimension='national', selected_region=None):
+    """创建BCG矩阵分析"""
     sales_df = data['sales_df']
     dashboard_products = data['dashboard_products']
     
@@ -359,30 +342,10 @@ def create_interactive_bcg_matrix(data, dimension='national', selected_region=No
             return region_analysis
         return pd.DataFrame()
 
-def plot_interactive_bcg_matrix(product_df, title="BCG产品矩阵", search_term="", selected_category="全部"):
-    """绘制交互式BCG矩阵图"""
+def plot_interactive_bcg_matrix(product_df, title="BCG产品矩阵"):
+    """绘制简化的BCG矩阵图"""
     if len(product_df) == 0:
         return go.Figure()
-    
-    # 筛选数据
-    filtered_df = product_df.copy()
-    
-    # 搜索筛选
-    if search_term:
-        mask = filtered_df['name'].str.contains(search_term, case=False, na=False) | \
-               filtered_df['product'].str.contains(search_term, case=False, na=False)
-        filtered_df = filtered_df[mask]
-    
-    # 类别筛选
-    if selected_category != "全部":
-        category_map = {
-            "明星产品": "star",
-            "问号产品": "question", 
-            "现金牛产品": "cow",
-            "瘦狗产品": "dog"
-        }
-        if selected_category in category_map:
-            filtered_df = filtered_df[filtered_df['category'] == category_map[selected_category]]
     
     fig = go.Figure()
     
@@ -420,7 +383,7 @@ def plot_interactive_bcg_matrix(product_df, title="BCG产品矩阵", search_term
     
     # 绘制产品气泡
     for category in ['star', 'question', 'cow', 'dog']:
-        cat_data = filtered_df[filtered_df['category'] == category]
+        cat_data = product_df[product_df['category'] == category]
         if len(cat_data) > 0:
             # 优化位置分布
             positions = optimize_smart_grid_positions(cat_data, category)
@@ -439,14 +402,6 @@ def plot_interactive_bcg_matrix(product_df, title="BCG产品矩阵", search_term
 <br><b>策略建议：</b><br>{get_strategy_suggestion(category)}"""
                 hover_texts.append(hover_text)
             
-            # 高亮搜索结果
-            opacity = 1.0 if not search_term else 0.3
-            if search_term:
-                search_mask = cat_data['name'].str.contains(search_term, case=False, na=False) | \
-                             cat_data['product'].str.contains(search_term, case=False, na=False)
-                if search_mask.any():
-                    opacity = 1.0
-            
             fig.add_trace(go.Scatter(
                 x=positions['x'],
                 y=positions['y'],
@@ -454,7 +409,7 @@ def plot_interactive_bcg_matrix(product_df, title="BCG产品矩阵", search_term
                 marker=dict(
                     size=sizes,
                     color=bubble_colors[category],
-                    opacity=opacity,
+                    opacity=0.8,
                     line=dict(width=2, color='white')
                 ),
                 text=cat_data['name'].apply(lambda x: x[:6] + '..' if len(x) > 6 else x),
@@ -490,11 +445,10 @@ def plot_interactive_bcg_matrix(product_df, title="BCG产品矩阵", search_term
         fig.add_annotation(**ann)
     
     # 添加产品统计
-    total_products = len(filtered_df)
-    all_products = len(product_df)
+    total_products = len(product_df)
     fig.add_annotation(
         x=0.5, y=95,
-        text=f"<b>显示 {total_products}/{all_products} 个产品</b>",
+        text=f"<b>共分析 {total_products} 个仪表盘产品</b>",
         showarrow=False,
         font=dict(size=14, color='black'),
         bgcolor='rgba(255,255,255,0.9)',
@@ -1032,50 +986,24 @@ def main():
             </div>
             """, unsafe_allow_html=True)
     
-    # Tab 2: 交互式BCG产品矩阵
+    # Tab 2: BCG产品矩阵
     with tabs[1]:
         bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
         
-        # 交互控制面板
-        st.markdown('<div class="bcg-controls">', unsafe_allow_html=True)
-        
-        control_col1, control_col2, control_col3 = st.columns([1, 1, 1])
-        
-        with control_col1:
-            search_term = st.text_input("🔍 搜索产品", placeholder="输入产品名称或代码...")
-        
-        with control_col2:
-            category_filter = st.selectbox(
-                "📂 筛选类别", 
-                ["全部", "明星产品", "问号产品", "现金牛产品", "瘦狗产品"]
-            )
-        
-        with control_col3:
-            if bcg_dimension == "🗺️ 分区域维度":
-                regions = data['sales_df']['区域'].unique()
-                selected_region = st.selectbox("🗺️ 选择区域", regions)
-            else:
-                selected_region = None
-                st.write("")  # 占位
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
         # 获取分析数据
         if bcg_dimension == "🌏 全国维度":
-            product_analysis = create_interactive_bcg_matrix(data, 'national')
+            product_analysis = create_bcg_matrix(data, 'national')
             title = "BCG产品矩阵"
+            selected_region = None
         else:
-            product_analysis = create_interactive_bcg_matrix(data, 'regional', selected_region)
+            regions = data['sales_df']['区域'].unique()
+            selected_region = st.selectbox("🗺️ 选择区域", regions)
+            product_analysis = create_bcg_matrix(data, 'regional', selected_region)
             title = f"{selected_region}区域 BCG产品矩阵"
         
-        # 显示交互式图表
+        # 显示BCG矩阵图表
         if len(product_analysis) > 0:
-            fig = plot_interactive_bcg_matrix(
-                product_analysis, 
-                title=title, 
-                search_term=search_term, 
-                selected_category=category_filter
-            )
+            fig = plot_interactive_bcg_matrix(product_analysis, title=title)
             st.plotly_chart(fig, use_container_width=True)
             
             # JBP符合度分析
@@ -1110,54 +1038,8 @@ def main():
                              "✅ 符合" if dog_ratio <= 10 else "❌ 不符合",
                              delta_color="normal" if dog_ratio <= 10 else "inverse")
                     st.caption("目标: ≤10%")
-            
-            # 产品详情表格
-            if search_term or category_filter != "全部":
-                st.subheader("🔍 筛选结果详情")
-                
-                # 筛选逻辑
-                filtered_df = product_analysis.copy()
-                if search_term:
-                    mask = filtered_df['name'].str.contains(search_term, case=False, na=False) | \
-                           filtered_df['product'].str.contains(search_term, case=False, na=False)
-                    filtered_df = filtered_df[mask]
-                
-                if category_filter != "全部":
-                    category_map = {
-                        "明星产品": "star",
-                        "问号产品": "question", 
-                        "现金牛产品": "cow",
-                        "瘦狗产品": "dog"
-                    }
-                    if category_filter in category_map:
-                        filtered_df = filtered_df[filtered_df['category'] == category_map[category_filter]]
-                
-                if len(filtered_df) > 0:
-                    display_df = filtered_df[['name', 'product', 'market_share', 'real_growth_rate', 'sales', 'category']].copy()
-                    display_df.columns = ['产品名称', '产品代码', '市场份额(%)', '增长率(%)', '销售额(¥)', '分类']
-                    
-                    # 格式化数值
-                    display_df['市场份额(%)'] = display_df['市场份额(%)'].apply(lambda x: f"{x:.2f}%")
-                    display_df['增长率(%)'] = display_df['增长率(%)'].apply(lambda x: f"{x:.1f}%")
-                    display_df['销售额(¥)'] = display_df['销售额(¥)'].apply(lambda x: f"¥{x:,.0f}")
-                    
-                    # 分类中文映射
-                    category_chinese = {
-                        'star': '⭐ 明星产品',
-                        'question': '❓ 问号产品',
-                        'cow': '🐄 现金牛产品',
-                        'dog': '🐕 瘦狗产品'
-                    }
-                    display_df['分类'] = display_df['分类'].map(category_chinese)
-                    
-                    st.dataframe(display_df, use_container_width=True, hide_index=True)
-                else:
-                    st.info("没有符合筛选条件的产品")
         else:
             st.warning("该区域暂无产品数据")
-    
-    # Tab 3: 全国促销活动有效性
-    with tabs[2]:
         promo_results = analyze_promotion_effectiveness_enhanced(data)
         
         if len(promo_results) > 0:
