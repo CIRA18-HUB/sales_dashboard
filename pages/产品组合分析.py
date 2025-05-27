@@ -464,6 +464,13 @@ st.markdown("""
     .stSelectbox > div > div {
         background: rgba(255,255,255,0.9) !important;
         color: #1f2937 !important;
+        border-radius: 10px;
+        border: 1px solid rgba(102, 126, 234, 0.2);
+    }
+    
+    .stSelectbox label {
+        color: #374151 !important;
+        font-weight: 600;
     }
     
     .stRadio > div {
@@ -1038,15 +1045,35 @@ def create_regional_coverage_analysis(data):
     return fig, df
 
 # 产品关联网络图
-def create_real_product_network(data):
+def create_real_product_network(data, product_filter='all'):
     """基于真实销售数据创建产品关联网络图"""
     sales_df = data['sales_df']
     dashboard_products = data['dashboard_products']
+    star_products = data['star_products']
+    new_products = data['new_products']
+    promotion_df = data['promotion_df']
     
-    sales_df_filtered = sales_df[sales_df['产品代码'].isin(dashboard_products)]
+    # 获取促销产品列表
+    promo_products = promotion_df[promotion_df['所属区域'] == '全国']['产品代码'].unique().tolist()
+    
+    # 根据筛选条件过滤产品
+    if product_filter == 'star':
+        filtered_products = [p for p in dashboard_products if p in star_products][:15]  # 限制15个避免过于拥挤
+        filter_title = "星品"
+    elif product_filter == 'new':
+        filtered_products = [p for p in dashboard_products if p in new_products][:15]
+        filter_title = "新品"
+    elif product_filter == 'promo':
+        filtered_products = [p for p in dashboard_products if p in promo_products][:15]
+        filter_title = "促销品"
+    else:
+        filtered_products = dashboard_products[:20]  # 全部产品限制前20个
+        filter_title = "全部产品"
+    
+    sales_df_filtered = sales_df[sales_df['产品代码'].isin(filtered_products)]
     product_pairs = []
     
-    for prod1, prod2 in combinations(dashboard_products[:20], 2):
+    for prod1, prod2 in combinations(filtered_products, 2):
         customers_prod1 = set(sales_df_filtered[sales_df_filtered['产品代码'] == prod1]['客户名称'].unique())
         customers_prod2 = set(sales_df_filtered[sales_df_filtered['产品代码'] == prod2]['客户名称'].unique())
         
@@ -1068,6 +1095,18 @@ def create_real_product_network(data):
         nodes.add(pair[1])
     
     nodes = list(nodes)
+    
+    # 如果没有节点，返回空图
+    if len(nodes) == 0:
+        fig = go.Figure()
+        fig.update_layout(
+            title=dict(text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>暂无满足条件的产品关联</i>", font=dict(size=20)),
+            xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            height=700,
+            plot_bgcolor='rgba(248,249,250,0.5)'
+        )
+        return fig
     
     pos = {}
     angle_step = 2 * np.pi / len(nodes)
@@ -1110,6 +1149,8 @@ def create_real_product_network(data):
     
     node_sizes = []
     node_details = []
+    node_colors = []
+    
     for node in nodes:
         connections = sum(1 for pair in product_pairs if node in pair[:2])
         total_correlation = sum(pair[2] for pair in product_pairs if node in pair[:2])
@@ -1119,11 +1160,44 @@ def create_real_product_network(data):
         if len(product_data) > 0:
             total_sales = product_data['销售额'].sum()
             customer_count = product_data['客户名称'].nunique()
+            product_code = product_data['产品代码'].iloc[0]
         else:
             total_sales = 0
             customer_count = 0
+            # 尝试通过产品代码查找
+            all_product_data = sales_df[sales_df['产品简称'] == node]
+            if len(all_product_data) > 0:
+                product_code = all_product_data['产品代码'].iloc[0]
+            else:
+                product_code = ""
+        
+        # 判断产品类型并设置颜色
+        product_types = []
+        if product_code in star_products:
+            product_types.append("星品")
+        if product_code in new_products:
+            product_types.append("新品")
+        if product_code in promo_products:
+            product_types.append("促销品")
+        
+        # 设置颜色优先级：促销品 > 新品 > 星品 > 常规品
+        if product_code in promo_products:
+            node_color = '#FF5722'  # 橙红色
+        elif product_code in new_products:
+            node_color = '#4CAF50'  # 绿色
+        elif product_code in star_products:
+            node_color = '#FFC107'  # 金色
+        else:
+            node_color = '#667eea'  # 默认紫色
+        
+        if not product_types:
+            product_types.append("常规品")
+        
+        node_colors.append(node_color)
+        product_type_text = "、".join(product_types) if product_types else "常规品"
         
         detail = f"""<b>{node}</b><br>
+<b>产品类型:</b> {product_type_text}<br>
 <br><b>网络分析:</b><br>
 - 关联产品数: {connections}<br>
 - 平均关联度: {total_correlation/connections if connections > 0 else 0:.1%}<br>
@@ -1146,7 +1220,7 @@ def create_real_product_network(data):
         mode='markers+text',
         marker=dict(
             size=node_sizes,
-            color='#667eea',
+            color=node_colors,
             line=dict(width=2, color='white')
         ),
         text=nodes,
@@ -1157,13 +1231,39 @@ def create_real_product_network(data):
         showlegend=False
     ))
     
+    # 添加图例
+    if product_filter == 'all':
+        legend_items = [
+            ('星品', '#FFC107'),
+            ('新品', '#4CAF50'),
+            ('促销品', '#FF5722'),
+            ('常规品', '#667eea')
+        ]
+        for i, (label, color) in enumerate(legend_items):
+            fig.add_trace(go.Scatter(
+                x=[None],
+                y=[None],
+                mode='markers',
+                marker=dict(size=12, color=color),
+                name=label,
+                showlegend=True
+            ))
+    
     fig.update_layout(
-        title=dict(text="<b>产品关联网络分析</b>", font=dict(size=20)),
+        title=dict(text=f"<b>{filter_title}产品关联网络分析</b>", font=dict(size=20)),
         xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
         yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
         height=700,
         plot_bgcolor='rgba(248,249,250,0.5)',
-        hovermode='closest'
+        hovermode='closest',
+        showlegend=product_filter == 'all',
+        legend=dict(
+            x=1.05,
+            y=1,
+            bgcolor='rgba(255,255,255,0.9)',
+            bordercolor='rgba(0,0,0,0.2)',
+            borderwidth=1
+        )
     )
     
     return fig
@@ -1421,7 +1521,7 @@ def main():
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-value">{sales_text}</div>
-                <div class="metric-label">💰 2025年总销售额</div>
+                <div class="metric-label">💰 2025总销售额</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1447,7 +1547,7 @@ def main():
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-value">{metrics['promo_effectiveness']:.0f}%</div>
-                <div class="metric-label">🚀 全国促销有效性</div>
+                <div class="metric-label" style="font-size: 0.95rem;">🚀 促销有效性</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1510,8 +1610,8 @@ def main():
             st.markdown(f"""
             <div class="metric-card" style="animation-delay: 1.0s;">
                 <div class="metric-value">{metrics['avg_effective_sales']:.0f}箱</div>
-                <div class="metric-label">📈 有效产品月均</div>
-                <div class="metric-sublabel">平均销售量</div>
+                <div class="metric-label">📈 月均销售量</div>
+                <div class="metric-sublabel">有效产品平均</div>
             </div>
             """, unsafe_allow_html=True)
     
@@ -1833,8 +1933,33 @@ def main():
             # 产品关联网络
             st.subheader("产品关联网络分析")
             
+            # 添加产品筛选器
+            col1, col2 = st.columns([1, 3])
+            with col1:
+                product_filter = st.selectbox(
+                    "🎯 筛选产品类型",
+                    options=['all', 'star', 'new', 'promo'],
+                    format_func=lambda x: {
+                        'all': '全部产品',
+                        'star': '⭐ 星品',
+                        'new': '🌟 新品',
+                        'promo': '🚀 促销品'
+                    }[x],
+                    key="network_filter"
+                )
+            
+            with col2:
+                if product_filter == 'all':
+                    st.info("💡 **节点颜色说明**: 🟡 星品 | 🟢 新品 | 🟠 促销品 | 🟣 常规品")
+                elif product_filter == 'star':
+                    st.info("⭐ **星品关联网络**: 展示所有星品之间的客户关联关系")
+                elif product_filter == 'new':
+                    st.info("🌟 **新品关联网络**: 展示所有新品之间的客户关联关系")
+                else:
+                    st.info("🚀 **促销品关联网络**: 展示所有促销产品之间的客户关联关系")
+            
             # 创建基于真实数据的2D网络图
-            network_fig = create_real_product_network(data)
+            network_fig = create_real_product_network(data, product_filter)
             st.plotly_chart(network_fig, use_container_width=True)
             
             # 关联分析洞察
