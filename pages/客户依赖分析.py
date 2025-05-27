@@ -210,20 +210,26 @@ st.markdown("""
     
     /* Streamlit图表容器修复 */
     .content-section .stPlotlyChart {
-        background: white;
+        background: white !important;
         border-radius: 8px;
-        padding: 0.5rem;
-        margin: 0.5rem 0;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        padding: 1rem;
+        margin: 1rem 0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         border: 1px solid rgba(0,0,0,0.05);
         position: relative;
         overflow: hidden;
     }
     
-    /* 强制图表在容器内 */
+    /* 强制图表在容器内且背景为白色 */
     .content-section .js-plotly-plot {
         border-radius: 6px;
         overflow: hidden;
+        background: white !important;
+    }
+    
+    /* 确保图表div背景为白色 */
+    .content-section .plot-container {
+        background: white !important;
     }
     
     /* 图表工具栏样式 */
@@ -516,8 +522,8 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
         ),
         showlegend=True, height=450, 
         margin=dict(t=40, b=40, l=40, r=40),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
+        paper_bgcolor='white',
+        plot_bgcolor='white'
     )
     charts['health_radar'] = fig_radar
     
@@ -555,8 +561,8 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
         fig_top20.update_layout(
             height=500, hovermode='x unified', 
             margin=dict(t=60, b=100, l=60, r=60),
-            plot_bgcolor='rgba(0,0,0,0)', 
-            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='white', 
+            paper_bgcolor='white',
             showlegend=True
         )
         charts['top20'] = fig_top20
@@ -596,8 +602,8 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
             yaxis=dict(title="最大客户依赖度(%)", gridcolor='rgba(200,200,200,0.3)',
                       range=[0, max(100, metrics['region_stats']['最大客户依赖度'].max() * 1.1)]),
             height=500, showlegend=False, 
-            plot_bgcolor='rgba(0,0,0,0)', 
-            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='white', 
+            paper_bgcolor='white',
             margin=dict(t=80, b=60, l=60, r=60)
         )
         charts['risk_matrix'] = fig_risk
@@ -630,8 +636,8 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                 fig_sankey.update_layout(
                     height=500, 
                     margin=dict(t=60, b=60, l=60, r=60),
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)'
+                    paper_bgcolor='white',
+                    plot_bgcolor='white'
                 )
                 charts['sankey'] = fig_sankey
         except Exception as e:
@@ -665,8 +671,8 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
             fig_trend.update_layout(
                 height=450, hovermode='x unified',
                 margin=dict(t=60, b=60, l=60, r=60),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
+                paper_bgcolor='white',
+                plot_bgcolor='white'
             )
             
             charts['trend'] = fig_trend
@@ -706,7 +712,10 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                 
                 fig_scatter.update_layout(
                     xaxis_title="目标金额", yaxis_title="实际金额", height=500,
-                    hovermode='closest', plot_bgcolor='white'
+                    hovermode='closest', 
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(t=60, b=60, l=60, r=60)
                 )
                 charts['target_scatter'] = fig_scatter
         except Exception as e:
