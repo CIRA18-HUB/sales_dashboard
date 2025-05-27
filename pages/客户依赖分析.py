@@ -589,6 +589,8 @@ def calculate_customer_cycles(sales_data, current_year):
         cycles_df = cycles_df.nlargest(20, '总销售额')
     
     return cycles_df
+
+def calculate_risk_prediction(sales_data, current_date=None):
     """计算客户风险预测模型"""
     if current_date is None:
         current_date = datetime.now()
@@ -1052,12 +1054,33 @@ def create_timeline_chart(cycles_df):
     )
     
     # 添加今日标记线
-    fig.add_vline(
-        x=datetime.now(),
-        line_dash="dash",
-        line_color="rgba(102, 126, 234, 0.5)",
-        annotation_text="今日",
-        annotation_position="top"
+    current_date = datetime.now()
+    fig.add_shape(
+        type="line",
+        x0=current_date,
+        x1=current_date,
+        y0=0,
+        y1=1,
+        yref="paper",
+        line=dict(
+            color="rgba(102, 126, 234, 0.5)",
+            width=2,
+            dash="dash"
+        )
+    )
+    
+    # 添加今日标注
+    fig.add_annotation(
+        x=current_date,
+        y=1.02,
+        yref="paper",
+        text="今日",
+        showarrow=False,
+        font=dict(size=12, color="rgba(102, 126, 234, 0.8)"),
+        bgcolor="rgba(255, 255, 255, 0.8)",
+        bordercolor="rgba(102, 126, 234, 0.5)",
+        borderwidth=1,
+        borderpad=4
     )
     
     # 添加图例
