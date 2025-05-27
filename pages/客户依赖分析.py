@@ -750,7 +750,7 @@ def calculate_risk_prediction(sales_data, current_date=None):
 
 def create_risk_dashboard(risk_df):
     """创建风险仪表盘"""
-    # 1. 风险分布图
+    # 1. 风险分布图（增强悬停信息）
     fig_dist = go.Figure()
     
     # 按风险等级分组
@@ -760,6 +760,14 @@ def create_risk_dashboard(risk_df):
     for level, color in zip(risk_levels, colors):
         level_data = risk_df[risk_df['风险等级'] == level]
         if not level_data.empty:
+            # 准备悬停信息
+            hover_customers = level_data.head(10)  # 显示前10个客户
+            hover_text = f"<b>{level}</b><br>客户数: {len(level_data)}<br><br><b>客户列表：</b><br>"
+            for _, customer in hover_customers.iterrows():
+                hover_text += f"• {customer['客户']} (风险:{customer['流失风险概率']:.0f}%)<br>"
+            if len(level_data) > 10:
+                hover_text += f"... 还有{len(level_data)-10}个客户"
+            
             fig_dist.add_trace(go.Bar(
                 name=level,
                 x=[level],
@@ -767,7 +775,7 @@ def create_risk_dashboard(risk_df):
                 marker_color=color,
                 text=len(level_data),
                 textposition='auto',
-                hovertemplate=f'{level}<br>客户数: %{{y}}<br><extra></extra>'
+                hovertemplate=hover_text + '<extra></extra>'
             ))
     
     fig_dist.update_layout(
@@ -777,19 +785,48 @@ def create_risk_dashboard(risk_df):
         height=400,
         showlegend=False,
         plot_bgcolor='white',
-        paper_bgcolor='white'
+        paper_bgcolor='white',
+        hoverlabel=dict(
+            bgcolor="white",
+            font_size=12,
+            font_family="Arial"
+        )
     )
     
-    # 2. 风险概率分布直方图
+    # 2. 风险概率分布直方图（增强悬停信息）
     fig_hist = go.Figure()
     
-    fig_hist.add_trace(go.Histogram(
-        x=risk_df['流失风险概率'],
-        nbinsx=20,
+    # 创建直方图数据
+    hist_data = np.histogram(risk_df['流失风险概率'], bins=20, range=(0, 100))
+    bin_centers = (hist_data[1][:-1] + hist_data[1][1:]) / 2
+    
+    # 为每个bin准备客户列表
+    hover_texts = []
+    for i in range(len(hist_data[0])):
+        bin_min = hist_data[1][i]
+        bin_max = hist_data[1][i+1]
+        bin_customers = risk_df[(risk_df['流失风险概率'] >= bin_min) & (risk_df['流失风险概率'] < bin_max)]
+        
+        hover_text = f"<b>风险区间: {bin_min:.0f}%-{bin_max:.0f}%</b><br>"
+        hover_text += f"客户数: {len(bin_customers)}<br><br>"
+        
+        if len(bin_customers) > 0:
+            hover_text += "<b>客户列表：</b><br>"
+            for _, customer in bin_customers.head(5).iterrows():
+                hover_text += f"• {customer['客户']} ({customer['流失风险概率']:.1f}%)<br>"
+            if len(bin_customers) > 5:
+                hover_text += f"... 还有{len(bin_customers)-5}个客户"
+        
+        hover_texts.append(hover_text)
+    
+    fig_hist.add_trace(go.Bar(
+        x=bin_centers,
+        y=hist_data[0],
         marker_color='#667eea',
         opacity=0.7,
         name='客户分布',
-        hovertemplate='风险概率: %{x:.0f}%<br>客户数: %{y}<extra></extra>'
+        hovertemplate='%{hovertext}<extra></extra>',
+        hovertext=hover_texts
     ))
     
     # 添加风险区间标注
@@ -809,10 +846,15 @@ def create_risk_dashboard(risk_df):
         height=400,
         showlegend=False,
         plot_bgcolor='white',
-        paper_bgcolor='white'
+        paper_bgcolor='white',
+        hoverlabel=dict(
+            bgcolor="white",
+            font_size=12,
+            font_family="Arial"
+        )
     )
     
-    # 3. 风险矩阵散点图
+    # 3. 风险矩阵散点图（优化显示）
     fig_matrix = go.Figure()
     
     # 为每个客户创建散点
@@ -834,16 +876,20 @@ def create_risk_dashboard(risk_df):
                     f"<b>🎯 建议行动：</b><br>" + \
                     f"<span style='color:{customer['风险颜色']}'>{customer['建议行动']}</span>"
         
+        # 只为高风险客户显示标签
+        show_text = customer['流失风险概率'] >= 70
+        
         fig_matrix.add_trace(go.Scatter(
             x=[customer['断单风险']],
             y=[customer['减量风险']],
-            mode='markers+text',
+            mode='markers+text' if show_text else 'markers',
             marker=dict(
-                size=15,
+                size=12,
                 color=customer['风险颜色'],
-                line=dict(color='white', width=2)
+                line=dict(color='white', width=2),
+                opacity=0.8
             ),
-            text=customer['客户'][:8] + '...' if len(customer['客户']) > 8 else customer['客户'],
+            text=customer['客户'][:8] + '...' if len(customer['客户']) > 8 and show_text else '',
             textposition='top center',
             textfont=dict(size=9),
             name=customer['风险等级'],
@@ -1043,31 +1089,6 @@ def create_timeline_chart(cycles_df):
                 showlegend=False
             ))
     
-    # 更新布局
-    fig.update_layout(
-        height=max(800, len(cycles_df) * 60),  # 调整高度以适应20个客户
-        xaxis=dict(
-            title="时间轴",
-            showgrid=True,
-            gridwidth=1,
-            gridcolor='rgba(0,0,0,0.05)',
-            type='date',
-            tickformat='%Y-%m',
-            dtick='M1'
-        ),
-        yaxis=dict(
-            showticklabels=False,
-            showgrid=False,
-            range=[-0.5, len(cycles_df) * 1.3 - 0.5],  # 调整范围以匹配新的y位置
-            autorange='reversed'
-        ),
-        hovermode='closest',
-        paper_bgcolor='white',
-        plot_bgcolor='rgba(250, 250, 250, 0.8)',
-        margin=dict(l=150, r=50, t=60, b=60),  # 增加左边距以容纳客户名称
-        dragmode='pan'
-    )
-    
     # 添加交替背景（提高可读性）
     for i in range(0, len(cycles_df), 2):
         fig.add_shape(
@@ -1125,6 +1146,31 @@ def create_timeline_chart(cycles_df):
         bordercolor="rgba(102, 126, 234, 0.5)",
         borderwidth=1,
         borderpad=4
+    )
+    
+    # 更新布局
+    fig.update_layout(
+        height=max(800, len(cycles_df) * 60),  # 调整高度以适应20个客户
+        xaxis=dict(
+            title="时间轴",
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(0,0,0,0.05)',
+            type='date',
+            tickformat='%Y-%m',
+            dtick='M1'
+        ),
+        yaxis=dict(
+            showticklabels=False,
+            showgrid=False,
+            range=[-0.5, len(cycles_df) * 1.3 - 0.5],  # 调整范围以匹配新的y位置
+            autorange='reversed'
+        ),
+        hovermode='closest',
+        paper_bgcolor='white',
+        plot_bgcolor='rgba(250, 250, 250, 0.8)',
+        margin=dict(l=150, r=50, t=60, b=60),  # 增加左边距以容纳客户名称
+        dragmode='pan'
     )
     
     # 添加图例
