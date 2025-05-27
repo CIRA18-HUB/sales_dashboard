@@ -54,7 +54,7 @@ def load_lottie_url(url: str):
     except:
         return None
 
-# 与销售达成分析完全一致的CSS样式
+# 统一的CSS样式
 st.markdown("""
 <style>
     /* 导入Google字体 */
@@ -181,18 +181,18 @@ st.markdown("""
         }
     }
     
-    /* 增强的指标卡片样式 */
+    /* 统一的指标卡片样式 */
     .metric-card {
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        padding: 2.5rem 2rem;
-        border-radius: 25px;
+        padding: 1.8rem 1.5rem;
+        border-radius: 20px;
         box-shadow: 
-            0 15px 35px rgba(0,0,0,0.08),
-            0 5px 15px rgba(0,0,0,0.03),
+            0 10px 25px rgba(0,0,0,0.08),
+            0 4px 10px rgba(0,0,0,0.03),
             inset 0 1px 0 rgba(255,255,255,0.9);
         text-align: center;
         height: 100%;
-        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         animation: slideUpStagger 1s ease-out;
         position: relative;
         overflow: hidden;
@@ -219,17 +219,17 @@ st.markdown("""
         right: -2px;
         bottom: -2px;
         background: linear-gradient(45deg, #667eea, #764ba2, #667eea);
-        border-radius: 25px;
+        border-radius: 20px;
         z-index: -1;
         opacity: 0;
         transition: opacity 0.3s ease;
     }
     
     .metric-card:hover {
-        transform: translateY(-15px) scale(1.05) rotateY(5deg);
+        transform: translateY(-8px) scale(1.03) rotateY(2deg);
         box-shadow: 
-            0 30px 60px rgba(0,0,0,0.15),
-            0 15px 30px rgba(102, 126, 234, 0.2);
+            0 20px 40px rgba(0,0,0,0.12),
+            0 10px 20px rgba(102, 126, 234, 0.15);
         border-color: rgba(102, 126, 234, 0.3);
     }
     
@@ -244,7 +244,7 @@ st.markdown("""
     @keyframes slideUpStagger {
         from { 
             opacity: 0; 
-            transform: translateY(60px) scale(0.8) rotateX(-15deg); 
+            transform: translateY(40px) scale(0.9) rotateX(-10deg); 
         }
         to { 
             opacity: 1; 
@@ -252,15 +252,33 @@ st.markdown("""
         }
     }
     
+    /* 金额显示样式 - 统一格式 */
     .metric-value {
-        font-size: 3.2rem;
+        font-size: 2.5rem;
         font-weight: 800;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
         background-size: 200% 200%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        margin-bottom: 1rem;
+        color: #667eea;
+        margin-bottom: 0.8rem;
+        animation: textGradient 4s ease infinite, bounce 2s ease-in-out infinite;
+        line-height: 1.1;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* 大数值显示样式 */
+    .big-value {
+        font-size: 3.5rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+        background-size: 200% 200%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        color: #667eea;
+        margin-bottom: 0.5rem;
         animation: textGradient 4s ease infinite, bounce 2s ease-in-out infinite;
         line-height: 1;
         text-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -268,8 +286,8 @@ st.markdown("""
     
     @keyframes bounce {
         0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-        40% { transform: translateY(-3px); }
-        60% { transform: translateY(-2px); }
+        40% { transform: translateY(-2px); }
+        60% { transform: translateY(-1px); }
     }
     
     @keyframes textGradient {
@@ -279,27 +297,77 @@ st.markdown("""
     
     .metric-label {
         color: #374151;
-        font-size: 1.1rem;
+        font-size: 1rem;
         font-weight: 700;
-        margin-top: 0.8rem;
-        letter-spacing: 0.5px;
+        margin-top: 0.6rem;
+        letter-spacing: 0.3px;
         text-transform: uppercase;
     }
     
     .metric-sublabel {
         color: #6b7280;
-        font-size: 0.9rem;
-        margin-top: 0.8rem;
+        font-size: 0.85rem;
+        margin-top: 0.6rem;
         font-weight: 500;
         font-style: italic;
     }
     
+    /* 紧凑型指标卡片 */
+    .compact-metric-card {
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        padding: 1.2rem 1rem;
+        border-radius: 15px;
+        box-shadow: 
+            0 8px 20px rgba(0,0,0,0.06),
+            0 3px 8px rgba(0,0,0,0.03),
+            inset 0 1px 0 rgba(255,255,255,0.9);
+        text-align: center;
+        height: 120px;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        animation: slideUpStagger 1s ease-out;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.3);
+        backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .compact-metric-card:hover {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 
+            0 15px 30px rgba(0,0,0,0.1),
+            0 8px 15px rgba(102, 126, 234, 0.1);
+    }
+    
+    .compact-value {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        color: #667eea;
+        margin-bottom: 0.3rem;
+        line-height: 1;
+    }
+    
+    .compact-label {
+        color: #374151;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 0;
+        letter-spacing: 0.2px;
+    }
+    
     /* 标签页样式增强 */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 15px;
+        gap: 10px;
         background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
-        padding: 1rem;
-        border-radius: 20px;
+        padding: 0.8rem;
+        border-radius: 15px;
         box-shadow: 
             inset 0 2px 4px rgba(0,0,0,0.06),
             0 4px 8px rgba(0,0,0,0.04);
@@ -307,81 +375,54 @@ st.markdown("""
     }
     
     .stTabs [data-baseweb="tab"] {
-        height: 65px;
-        padding: 0 35px;
+        height: 50px;
+        padding: 0 25px;
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        border-radius: 15px;
+        border-radius: 12px;
         border: 1px solid rgba(102, 126, 234, 0.15);
-        font-weight: 700;
-        font-size: 1rem;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         position: relative;
         overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-    }
-    
-    .stTabs [data-baseweb="tab"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.15), transparent);
-        transition: left 0.8s ease;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.05);
     }
     
     .stTabs [data-baseweb="tab"]:hover {
-        transform: translateY(-5px) scale(1.05);
-        box-shadow: 0 15px 30px rgba(102, 126, 234, 0.2);
-        border-color: rgba(102, 126, 234, 0.4);
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover::before {
-        left: 100%;
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.15);
+        border-color: rgba(102, 126, 234, 0.3);
     }
     
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        transform: translateY(-3px) scale(1.02);
+        transform: translateY(-2px) scale(1.01);
         box-shadow: 
-            0 15px 40px rgba(102, 126, 234, 0.4),
-            0 5px 15px rgba(0,0,0,0.1);
-        animation: activeTab 0.5s ease;
-    }
-    
-    .stTabs [aria-selected="true"]::before {
-        display: none;
+            0 10px 25px rgba(102, 126, 234, 0.3),
+            0 4px 10px rgba(0,0,0,0.1);
+        animation: activeTab 0.4s ease;
     }
     
     @keyframes activeTab {
-        0% { transform: scale(0.95); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1.02); }
+        0% { transform: scale(0.98); }
+        50% { transform: scale(1.03); }
+        100% { transform: scale(1.01); }
     }
-    
-    /* 动画卡片延迟 */
-    .metric-card:nth-child(1) { animation-delay: 0.1s; }
-    .metric-card:nth-child(2) { animation-delay: 0.2s; }
-    .metric-card:nth-child(3) { animation-delay: 0.3s; }
-    .metric-card:nth-child(4) { animation-delay: 0.4s; }
-    .metric-card:nth-child(5) { animation-delay: 0.5s; }
-    .metric-card:nth-child(6) { animation-delay: 0.6s; }
     
     /* 统一容器样式 - 适用于所有内容区域 */
     .content-container, .chart-container, .insight-container, .analysis-container {
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        border-radius: 25px;
+        border-radius: 20px;
         padding: 2rem;
         margin: 1.5rem 0;
         box-shadow: 
-            0 15px 35px rgba(0,0,0,0.1),
-            0 5px 15px rgba(0,0,0,0.03),
+            0 12px 30px rgba(0,0,0,0.08),
+            0 4px 12px rgba(0,0,0,0.03),
             inset 0 1px 0 rgba(255,255,255,0.9);
         border: 1px solid rgba(255,255,255,0.3);
-        animation: containerFadeIn 1.2s ease-out;
+        animation: containerFadeIn 1s ease-out;
         backdrop-filter: blur(10px);
         position: relative;
         overflow: hidden;
@@ -389,10 +430,10 @@ st.markdown("""
     }
     
     .content-container:hover, .chart-container:hover, .insight-container:hover, .analysis-container:hover {
-        transform: translateY(-5px);
+        transform: translateY(-3px);
         box-shadow: 
-            0 25px 50px rgba(0,0,0,0.15),
-            0 10px 25px rgba(102, 126, 234, 0.1);
+            0 20px 40px rgba(0,0,0,0.12),
+            0 8px 20px rgba(102, 126, 234, 0.08);
     }
     
     .content-container::before, .chart-container::before, .insight-container::before, .analysis-container::before {
@@ -415,7 +456,7 @@ st.markdown("""
     @keyframes containerFadeIn {
         from { 
             opacity: 0; 
-            transform: translateY(30px) scale(0.95); 
+            transform: translateY(20px) scale(0.98); 
         }
         to { 
             opacity: 1; 
@@ -429,80 +470,57 @@ st.markdown("""
         margin: 1rem 0;
     }
     
-    /* 添加脉动效果 */
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
-    }
-    
-    .metric-card:hover {
-        animation: pulse 1.5s infinite;
-    }
-    
     /* 洞察卡片 - 统一样式 */
     .insight-card {
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
         border: 1px solid rgba(102, 126, 234, 0.2);
         border-left: 4px solid #667eea;
-        border-radius: 20px;
-        padding: 2rem;
-        margin: 1.5rem 0;
-        animation: insightSlide 0.8s ease-out;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        animation: insightSlide 0.6s ease-out;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         box-shadow: 
-            0 8px 25px rgba(0,0,0,0.08),
-            0 3px 10px rgba(0,0,0,0.03),
+            0 6px 20px rgba(0,0,0,0.06),
+            0 2px 8px rgba(0,0,0,0.03),
             inset 0 1px 0 rgba(255,255,255,0.9);
         backdrop-filter: blur(10px);
         position: relative;
         overflow: hidden;
     }
     
-    .insight-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
-        transition: left 0.8s ease;
-    }
-    
     .insight-card:hover {
-        transform: translateX(10px) translateY(-5px) scale(1.02);
+        transform: translateX(8px) translateY(-3px) scale(1.01);
         box-shadow: 
-            0 15px 40px rgba(102, 126, 234, 0.15),
-            0 8px 20px rgba(0,0,0,0.08);
+            0 12px 30px rgba(102, 126, 234, 0.12),
+            0 6px 15px rgba(0,0,0,0.06);
         border-left-color: #5a67d8;
-    }
-    
-    .insight-card:hover::before {
-        left: 100%;
     }
     
     .insight-card h4 {
         color: #1f2937;
         margin-bottom: 1rem;
         font-weight: 700;
-        font-size: 1.2rem;
+        font-size: 1.1rem;
     }
     
     .insight-card ul {
         color: #374151;
         line-height: 1.6;
+        margin: 0;
+        padding-left: 1rem;
     }
     
     .insight-card li {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.4rem;
         color: #4a5568;
+        font-size: 0.95rem;
     }
     
     @keyframes insightSlide {
         from {
             opacity: 0;
-            transform: translateX(-50px);
+            transform: translateX(-30px);
         }
         to {
             opacity: 1;
@@ -510,93 +528,27 @@ st.markdown("""
         }
     }
     
+    /* 动画延迟 */
+    .metric-card:nth-child(1) { animation-delay: 0.1s; }
+    .metric-card:nth-child(2) { animation-delay: 0.2s; }
+    .metric-card:nth-child(3) { animation-delay: 0.3s; }
+    .metric-card:nth-child(4) { animation-delay: 0.4s; }
+    .metric-card:nth-child(5) { animation-delay: 0.5s; }
+    
     /* 响应式设计 */
     @media (max-width: 768px) {
-        .metric-value {
-            font-size: 2.5rem;
+        .metric-value, .big-value {
+            font-size: 2rem;
         }
-        .metric-card {
-            padding: 2rem 1.5rem;
+        .compact-value {
+            font-size: 1.5rem;
+        }
+        .metric-card, .compact-metric-card {
+            padding: 1rem;
         }
         .main-header {
             padding: 2rem 0;
         }
-    }
-    
-    /* 添加加载动画 */
-    @keyframes loading {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    .loading {
-        animation: loading 2s linear infinite;
-    }
-    
-    /* 成功动画 */
-    @keyframes success {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
-    }
-    
-    .success {
-        animation: success 0.6s ease-in-out;
-    }
-    
-    /* 新增的客户价值卡片动画 */
-    .value-card-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.5rem;
-        margin: 2rem 0;
-    }
-    
-    .value-card {
-        background: white;
-        border-radius: 15px;
-        padding: 2rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        text-align: center;
-        position: relative;
-        overflow: hidden;
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-    
-    .value-card:hover {
-        transform: translateY(-10px) scale(1.05);
-        box-shadow: 0 12px 24px rgba(0,0,0,0.15);
-    }
-    
-    .value-card-icon {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        animation: iconFloat 3s ease-in-out infinite;
-    }
-    
-    @keyframes iconFloat {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-10px); }
-    }
-    
-    .value-card-number {
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        color: #2d3748;
-    }
-    
-    .value-card-label {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #4a5568;
-        margin-bottom: 0.3rem;
-    }
-    
-    .value-card-desc {
-        font-size: 0.9rem;
-        color: #718096;
     }
     
     /* 图表说明悬停提示 */
@@ -624,30 +576,15 @@ st.markdown("""
         background: #5a67d8;
     }
     
-    .chart-info-tooltip {
-        position: absolute;
-        top: 40px;
-        right: 0;
-        background: rgba(0, 0, 0, 0.9);
-        color: white;
-        padding: 1rem;
-        border-radius: 8px;
-        width: 300px;
-        font-size: 0.9rem;
-        line-height: 1.5;
-        display: none;
-        z-index: 100;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    /* 标题样式 */
+    h1, h2, h3, h4, h5, h6 {
+        color: #1f2937 !important;
+        font-weight: 700 !important;
     }
     
-    .chart-info:hover + .chart-info-tooltip {
-        display: block;
-        animation: tooltipFadeIn 0.3s ease;
-    }
-    
-    @keyframes tooltipFadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
+    /* 文本颜色确保可读性 */
+    p, span, div {
+        color: #374151;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -660,10 +597,8 @@ def load_and_process_data():
         # 模拟加载动画
         loading_placeholder = st.empty()
         loading_placeholder.markdown("""
-        <div class="loading-animation">
-            <div class="loading-dot"></div>
-            <div class="loading-dot"></div>
-            <div class="loading-dot"></div>
+        <div style="text-align: center; padding: 2rem;">
+            <div style="font-size: 1.2rem; color: #667eea;">正在加载数据...</div>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1217,7 +1152,6 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
                 
                 # 安全的布局更新
                 fig_scatter.update_layout(
-                    title="客户目标达成分析",
                     xaxis_title="目标金额",
                     yaxis_title="实际金额",
                     height=800,
@@ -1261,11 +1195,6 @@ def create_chart_with_tooltip(chart, title, subtitle, tooltip_text, key):
     with container:
         st.markdown(f"""
         <div class="chart-container">
-            <div class="chart-info">?</div>
-            <div class="chart-info-tooltip">
-                <strong>图表说明</strong><br>
-                {tooltip_text}
-            </div>
             <div style="margin-bottom: 1.5rem;">
                 <h3 style="margin: 0; color: #1f2937; font-size: 1.3rem; font-weight: 700;">{title}</h3>
                 <p style="margin: 0.8rem 0 0 0; color: #6b7280; font-size: 1rem; line-height: 1.5;">{subtitle}</p>
@@ -1274,6 +1203,16 @@ def create_chart_with_tooltip(chart, title, subtitle, tooltip_text, key):
         """, unsafe_allow_html=True)
         
         st.plotly_chart(chart, use_container_width=True, key=key)
+
+# 格式化金额显示
+def format_amount(amount):
+    """格式化金额显示"""
+    if amount >= 100000000:  # 亿
+        return f"¥{amount/100000000:.2f}亿"
+    elif amount >= 10000:  # 万
+        return f"¥{amount/10000:.0f}万"
+    else:
+        return f"¥{amount:,.0f}"
 
 # 主应用逻辑
 def main():
@@ -1310,16 +1249,18 @@ def main():
         "📉 趋势洞察分析"
     ])
     
-    # Tab 1: 关键指标总览 - 优化后的指标卡片
+    # Tab 1: 关键指标总览 - 优化布局
     with tabs[0]:
+        st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        
         # 第一行：核心业务指标
-        st.markdown("### 核心业务指标")
+        st.markdown("### 📊 核心业务指标")
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">¥{metrics['total_sales']/100000000:.2f}亿</div>
+                <div class="big-value">{format_amount(metrics['total_sales'])}</div>
                 <div class="metric-label">💰 年度销售总额</div>
                 <div class="metric-sublabel">同比 <span style="color: {'#48bb78' if metrics['growth_rate'] > 0 else '#f56565'};">{'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%</span></div>
             </div>
@@ -1337,7 +1278,7 @@ def main():
         with col3:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value" style="color: {'#f56565' if metrics['max_dependency'] > 30 else '#667eea'};">
+                <div class="metric-value" style="color: {'#f56565' if metrics['max_dependency'] > 30 else '#667eea'} !important;">
                     {metrics['max_dependency']:.1f}%
                 </div>
                 <div class="metric-label">⚠️ 最高区域风险</div>
@@ -1354,134 +1295,82 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        # 第二行：客户分布指标
-        st.markdown("### 客户分布指标")
+        # 第二行：客户分布指标 - 紧凑布局
+        st.markdown("### 👥 客户分布指标")
         col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
             st.markdown(f"""
-            <div class="metric-card" style="height: 160px;">
-                <div class="value-card-icon">💎</div>
-                <div class="value-card-number">{metrics['diamond_customers']}</div>
-                <div class="value-card-label">钻石客户</div>
-                <div class="value-card-desc">核心战略客户</div>
+            <div class="compact-metric-card">
+                <div style="font-size: 2rem; margin-bottom: 0.3rem;">💎</div>
+                <div class="compact-value">{metrics['diamond_customers']}</div>
+                <div class="compact-label">钻石客户</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
             st.markdown(f"""
-            <div class="metric-card" style="height: 160px;">
-                <div class="value-card-icon">🏆</div>
-                <div class="value-card-number">{metrics['gold_customers']}</div>
-                <div class="value-card-label">黄金客户</div>
-                <div class="value-card-desc">重要价值客户</div>
+            <div class="compact-metric-card">
+                <div style="font-size: 2rem; margin-bottom: 0.3rem;">🏆</div>
+                <div class="compact-value">{metrics['gold_customers']}</div>
+                <div class="compact-label">黄金客户</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col3:
             st.markdown(f"""
-            <div class="metric-card" style="height: 160px;">
-                <div class="value-card-icon">🥈</div>
-                <div class="value-card-number">{metrics['silver_customers']}</div>
-                <div class="value-card-label">白银客户</div>
-                <div class="value-card-desc">基础稳定客户</div>
+            <div class="compact-metric-card">
+                <div style="font-size: 2rem; margin-bottom: 0.3rem;">🥈</div>
+                <div class="compact-value">{metrics['silver_customers']}</div>
+                <div class="compact-label">白银客户</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col4:
             st.markdown(f"""
-            <div class="metric-card" style="height: 160px;">
-                <div class="value-card-icon">🌟</div>
-                <div class="value-card-number">{metrics['potential_customers']}</div>
-                <div class="value-card-label">潜力客户</div>
-                <div class="value-card-desc">待开发客户</div>
+            <div class="compact-metric-card">
+                <div style="font-size: 2rem; margin-bottom: 0.3rem;">🌟</div>
+                <div class="compact-value">{metrics['potential_customers']}</div>
+                <div class="compact-label">潜力客户</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col5:
             st.markdown(f"""
-            <div class="metric-card" style="height: 160px;">
-                <div class="value-card-icon">⚠️</div>
-                <div class="value-card-number" style="color: #f56565;">{metrics['risk_customers']}</div>
-                <div class="value-card-label">流失风险</div>
-                <div class="value-card-desc">需要挽回</div>
+            <div class="compact-metric-card">
+                <div style="font-size: 2rem; margin-bottom: 0.3rem;">⚠️</div>
+                <div class="compact-value" style="color: #f56565 !important;">{metrics['risk_customers']}</div>
+                <div class="compact-label">流失风险</div>
             </div>
             """, unsafe_allow_html=True)
         
-        # 第三行：客户状态统计
-        st.markdown("### 客户状态统计")
+        # 第三行：客户状态统计 - 紧凑布局
+        st.markdown("### 📈 客户状态统计")
         col1, col2, col3 = st.columns(3)
         
         with col1:
             st.markdown(f"""
-            <div class="metric-card" style="height: 140px;">
-                <div class="metric-label">📊 总客户数</div>
-                <div class="metric-value">{metrics['total_customers']}</div>
-                <div class="metric-sublabel">全部注册客户</div>
+            <div class="compact-metric-card" style="height: 100px;">
+                <div class="compact-value">{metrics['total_customers']}</div>
+                <div class="compact-label">📊 总客户数</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
             st.markdown(f"""
-            <div class="metric-card" style="height: 140px;">
-                <div class="metric-label">✅ 正常客户</div>
-                <div class="metric-value" style="color: #48bb78;">{metrics['normal_customers']}</div>
-                <div class="metric-sublabel">占比 {metrics['normal_rate']:.1f}%</div>
+            <div class="compact-metric-card" style="height: 100px;">
+                <div class="compact-value" style="color: #48bb78 !important;">{metrics['normal_customers']}</div>
+                <div class="compact-label">✅ 正常客户</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col3:
             st.markdown(f"""
-            <div class="metric-card" style="height: 140px;">
-                <div class="metric-label">❌ 闭户客户</div>
-                <div class="metric-value" style="color: #f56565;">{metrics['closed_customers']}</div>
-                <div class="metric-sublabel">占比 {(100 - metrics['normal_rate']):.1f}%</div>
+            <div class="compact-metric-card" style="height: 100px;">
+                <div class="compact-value" style="color: #f56565 !important;">{metrics['closed_customers']}</div>
+                <div class="compact-label">❌ 闭户客户</div>
             </div>
             """, unsafe_allow_html=True)
-        
-        # 核心洞察总结
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        st.markdown('<div class="insight-container">', unsafe_allow_html=True)
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            st.markdown("""
-            <div class='insight-card'>
-                <h4>💡 业务健康状况</h4>
-                <ul style='margin: 0; padding-left: 20px;'>
-                    <li>{0}年销售额达¥{1:,.2f}，同比{2}</li>
-                    <li>客户群体整体健康，但存在{3}家流失风险客户需要重点关注</li>
-                    <li>高价值客户群体贡献了约{4:.1f}%的销售额</li>
-                    <li>前20%客户贡献{5:.1f}%销售额，集中度{6}</li>
-                </ul>
-            </div>
-            """.format(
-                metrics['current_year'],
-                metrics['total_sales'],
-                f"增长{metrics['growth_rate']:.1f}%" if metrics['growth_rate'] > 0 else f"下降{abs(metrics['growth_rate']):.1f}%",
-                metrics['risk_customers'],
-                metrics['high_value_rate'] * 1.5,  # 估算值
-                metrics.get('concentration_rate', 0),
-                '偏高' if metrics.get('concentration_rate', 0) > 80 else '合理'
-            ), unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("""
-            <div class='insight-card'>
-                <h4>🎯 管理建议</h4>
-                <ul style='margin: 0; padding-left: 20px;'>
-                    <li>立即启动{0}家流失风险客户的挽回计划</li>
-                    <li>重点监控{1}区域的大客户依赖风险</li>
-                    <li>培育{2}家潜力客户，提升整体客户价值</li>
-                    <li>优化产品组合，提高客户满意度和粘性</li>
-                </ul>
-            </div>
-            """.format(
-                metrics['risk_customers'],
-                metrics['max_dependency_region'],
-                metrics['potential_customers']
-            ), unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -1495,15 +1384,7 @@ def main():
                 charts['health_radar'],
                 "客户健康状态综合评估",
                 "多维度评估客户群体的整体健康状况（悬停查看详情）",
-                "• <b>使用说明</b>：将鼠标悬停在雷达图的各个维度上查看详细信息<br>" +
-                "• <b>维度说明</b>：<br>" +
-                "  - 健康度：正常运营客户占比<br>" +
-                "  - 目标达成：完成销售目标的客户比例<br>" +
-                "  - 价值贡献：高价值客户占比<br>" +
-                "  - 活跃度：近期有交易的客户比例<br>" +
-                "  - 稳定性：区域依赖度的反向指标<br>" +
-                "• <b>解读方法</b>：蓝色区域越大越好，红色虚线为目标基准<br>" +
-                "• <b>管理建议</b>：重点关注低于基准线的维度，制定改善计划",
+                "使用说明：将鼠标悬停在雷达图的各个维度上查看详细信息",
                 "health_radar_chart"
             )
         
@@ -1520,21 +1401,21 @@ def main():
             <div class="metric-card" style='background: linear-gradient(135deg, #667eea, #764ba2); 
                       color: white; padding: 3rem; border-radius: 20px; 
                       text-align: center; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);'>
-                <h1 style='font-size: 4rem; margin: 0; font-weight: 800;'>{health_score:.1f}</h1>
-                <p style='font-size: 1.5rem; margin: 1rem 0 0 0; font-weight: 600;'>综合健康度评分</p>
+                <h1 style='font-size: 4rem; margin: 0; font-weight: 800; color: white !important;'>{health_score:.1f}</h1>
+                <p style='font-size: 1.5rem; margin: 1rem 0 0 0; font-weight: 600; color: white !important;'>综合健康度评分</p>
                 <hr style='border-color: rgba(255,255,255,0.3); margin: 2rem 0;'>
                 <div style='display: flex; justify-content: space-around; text-align: center;'>
                     <div>
-                        <p style='margin: 0; font-size: 1.8rem; font-weight: 700;'>{metrics['normal_rate']:.1f}%</p>
-                        <p style='margin: 0.3rem 0 0 0; opacity: 0.9;'>正常率</p>
+                        <p style='margin: 0; font-size: 1.8rem; font-weight: 700; color: white !important;'>{metrics['normal_rate']:.1f}%</p>
+                        <p style='margin: 0.3rem 0 0 0; opacity: 0.9; color: white !important;'>正常率</p>
                     </div>
                     <div>
-                        <p style='margin: 0; font-size: 1.8rem; font-weight: 700;'>{metrics['target_achievement_rate']:.1f}%</p>
-                        <p style='margin: 0.3rem 0 0 0; opacity: 0.9;'>达成率</p>
+                        <p style='margin: 0; font-size: 1.8rem; font-weight: 700; color: white !important;'>{metrics['target_achievement_rate']:.1f}%</p>
+                        <p style='margin: 0.3rem 0 0 0; opacity: 0.9; color: white !important;'>达成率</p>
                     </div>
                     <div>
-                        <p style='margin: 0; font-size: 1.8rem; font-weight: 700;'>{metrics['high_value_rate']:.1f}%</p>
-                        <p style='margin: 0.3rem 0 0 0; opacity: 0.9;'>价值率</p>
+                        <p style='margin: 0; font-size: 1.8rem; font-weight: 700; color: white !important;'>{metrics['high_value_rate']:.1f}%</p>
+                        <p style='margin: 0.3rem 0 0 0; opacity: 0.9; color: white !important;'>价值率</p>
                     </div>
                 </div>
             </div>
@@ -1660,10 +1541,7 @@ def main():
                 fig_top20,
                 "客户贡献度分析 (Top 20)",
                 "展示前20大客户的销售额分布和累计贡献度",
-                "• <b>图表说明</b>：蓝色柱状图表示各客户销售额，橙色折线表示累计占比<br>" +
-                "• <b>关注重点</b>：红色虚线表示贡献80%销售额的分界线<br>" +
-                "• <b>风险评估</b>：如果少数客户贡献过多销售额，说明客户集中度过高<br>" +
-                "• <b>管理建议</b>：平衡客户结构，避免过度依赖少数大客户",
+                "图表说明：蓝色柱状图表示各客户销售额，橙色折线表示累计占比。红色虚线表示贡献80%销售额的分界线。",
                 "top20_chart"
             )
             
@@ -1703,7 +1581,7 @@ def main():
                 
                 st.markdown(f"""
                 <div class="metric-card">
-                    <div class="metric-value" style="color: {risk_color};">{risk_level}风险</div>
+                    <div class="metric-value" style="color: {risk_color} !important;">{risk_level}风险</div>
                     <div class="metric-label">客户集中度评估</div>
                     <div class="metric-sublabel">Top20占比 {top20_customers['销售额占比'].sum():.1f}%</div>
                 </div>
@@ -1725,91 +1603,94 @@ def main():
             col_chart, col_details = st.columns([3, 2])
             
             with col_chart:
-                # 创建风险评估矩阵
-                fig_risk_matrix = go.Figure()
-                
-                # 添加风险区域背景
-                fig_risk_matrix.add_shape(
-                    type="rect", x0=0, y0=30, x1=100, y1=100,
-                    fillcolor="rgba(231, 76, 60, 0.1)", layer="below",
-                    line=dict(width=0)
-                )
-                fig_risk_matrix.add_shape(
-                    type="rect", x0=0, y0=15, x1=100, y1=30,
-                    fillcolor="rgba(243, 156, 18, 0.1)", layer="below",
-                    line=dict(width=0)
-                )
-                fig_risk_matrix.add_shape(
-                    type="rect", x0=0, y0=0, x1=100, y1=15,
-                    fillcolor="rgba(39, 174, 96, 0.1)", layer="below",
-                    line=dict(width=0)
-                )
-                
-                # 添加散点
-                for _, region in metrics['region_stats'].iterrows():
-                    color = '#e74c3c' if region['最大客户依赖度'] > 30 else '#f39c12' if region['最大客户依赖度'] > 15 else '#27ae60'
-                    fig_risk_matrix.add_trace(go.Scatter(
-                        x=[region['客户数']],
-                        y=[region['最大客户依赖度']],
-                        mode='markers+text',
-                        marker=dict(
-                            size=max(20, min(80, region['总销售额']/50000)),
-                            color=color,
-                            line=dict(color='white', width=3),
-                            opacity=0.8
+                # 创建风险评估矩阵 - 修复版本
+                try:
+                    fig_risk_matrix = go.Figure()
+                    
+                    # 添加风险区域背景
+                    fig_risk_matrix.add_shape(
+                        type="rect", x0=0, y0=30, x1=100, y1=100,
+                        fillcolor="rgba(231, 76, 60, 0.1)", layer="below",
+                        line=dict(width=0)
+                    )
+                    fig_risk_matrix.add_shape(
+                        type="rect", x0=0, y0=15, x1=100, y1=30,
+                        fillcolor="rgba(243, 156, 18, 0.1)", layer="below",
+                        line=dict(width=0)
+                    )
+                    fig_risk_matrix.add_shape(
+                        type="rect", x0=0, y0=0, x1=100, y1=15,
+                        fillcolor="rgba(39, 174, 96, 0.1)", layer="below",
+                        line=dict(width=0)
+                    )
+                    
+                    # 添加散点
+                    for _, region in metrics['region_stats'].iterrows():
+                        color = '#e74c3c' if region['最大客户依赖度'] > 30 else '#f39c12' if region['最大客户依赖度'] > 15 else '#27ae60'
+                        fig_risk_matrix.add_trace(go.Scatter(
+                            x=[region['客户数']],
+                            y=[region['最大客户依赖度']],
+                            mode='markers+text',
+                            marker=dict(
+                                size=max(20, min(80, region['总销售额']/50000)),
+                                color=color,
+                                line=dict(color='white', width=3),
+                                opacity=0.8
+                            ),
+                            text=region['区域'],
+                            textposition="top center",
+                            textfont=dict(size=14, family='Arial Black', color='black'),
+                            name=region['区域'],
+                            hovertemplate=f"<b style='font-size: 18px;'>{region['区域']}</b><br><br>" +
+                                         f"<b>客户数:</b> {region['客户数']}家<br>" +
+                                         f"<b>依赖度:</b> <span style='color: {color}; font-weight: bold;'>{region['最大客户依赖度']:.1f}%</span><br>" +
+                                         f"<b>总销售:</b> ¥{region['总销售额']/10000:.1f}万<br>" +
+                                         f"<b>最大客户:</b> {region['最大客户']}<extra></extra>",
+                        ))
+                    
+                    # 添加风险线
+                    fig_risk_matrix.add_hline(
+                        y=30, line_dash="dash", line_color="#e74c3c", line_width=3,
+                        annotation_text="高风险线(30%)", annotation_position="right",
+                        annotation_font=dict(size=14, color="#e74c3c", family='Arial Black')
+                    )
+                    fig_risk_matrix.add_hline(
+                        y=15, line_dash="dash", line_color="#f39c12", line_width=2,
+                        annotation_text="中风险线(15%)", annotation_position="right",
+                        annotation_font=dict(size=14, color="#f39c12", family='Arial Black')
+                    )
+                    
+                    # 安全的布局更新
+                    max_dependency_safe = max(100, metrics['region_stats']['最大客户依赖度'].max() * 1.1) if len(metrics['region_stats']) > 0 else 100
+                    
+                    fig_risk_matrix.update_layout(
+                        xaxis=dict(
+                            title="客户数量",
+                            titlefont=dict(size=16),
+                            tickfont=dict(size=14),
+                            gridcolor='rgba(200, 200, 200, 0.3)',
+                            showgrid=True
                         ),
-                        text=region['区域'],
-                        textposition="top center",
-                        textfont=dict(size=14, family='Arial Black', color='black'),
-                        name=region['区域'],
-                        hovertemplate=f"<b style='font-size: 18px;'>{region['区域']}</b><br><br>" +
-                                     f"<b>客户数:</b> {region['客户数']}家<br>" +
-                                     f"<b>依赖度:</b> <span style='color: {color}; font-weight: bold;'>{region['最大客户依赖度']:.1f}%</span><br>" +
-                                     f"<b>总销售:</b> ¥{region['总销售额']/10000:.1f}万<br>" +
-                                     f"<b>最大客户:</b> {region['最大客户']}<extra></extra>",
-                    ))
-                
-                # 添加风险线
-                fig_risk_matrix.add_hline(
-                    y=30, line_dash="dash", line_color="#e74c3c", line_width=3,
-                    annotation_text="高风险线(30%)", annotation_position="right",
-                    annotation_font=dict(size=14, color="#e74c3c", family='Arial Black')
-                )
-                fig_risk_matrix.add_hline(
-                    y=15, line_dash="dash", line_color="#f39c12", line_width=2,
-                    annotation_text="中风险线(15%)", annotation_position="right",
-                    annotation_font=dict(size=14, color="#f39c12", family='Arial Black')
-                )
-                
-                fig_risk_matrix.update_layout(
-                    title=dict(
-                        text="区域客户依赖风险矩阵",
-                        font=dict(size=20, family='Arial Black')
-                    ),
-                    xaxis=dict(
-                        title="客户数量",
-                        titlefont=dict(size=16),
-                        tickfont=dict(size=14),
-                        gridcolor='rgba(200, 200, 200, 0.3)',
-                        showgrid=True
-                    ),
-                    yaxis=dict(
-                        title="最大客户依赖度(%)",
-                        titlefont=dict(size=16),
-                        tickfont=dict(size=14),
-                        gridcolor='rgba(200, 200, 200, 0.3)',
-                        showgrid=True,
-                        range=[0, max(100, metrics['region_stats']['最大客户依赖度'].max() * 1.1)]
-                    ),
-                    height=600,
-                    showlegend=False,
-                    hovermode='closest',
-                    plot_bgcolor='white',
-                    paper_bgcolor='white',
-                    margin=dict(t=80, b=60, l=60, r=60)
-                )
-                
-                st.plotly_chart(fig_risk_matrix, use_container_width=True)
+                        yaxis=dict(
+                            title="最大客户依赖度(%)",
+                            titlefont=dict(size=16),
+                            tickfont=dict(size=14),
+                            gridcolor='rgba(200, 200, 200, 0.3)',
+                            showgrid=True,
+                            range=[0, max_dependency_safe]
+                        ),
+                        height=600,
+                        showlegend=False,
+                        hovermode='closest',
+                        plot_bgcolor='white',
+                        paper_bgcolor='white',
+                        margin=dict(t=40, b=60, l=60, r=60)
+                    )
+                    
+                    st.plotly_chart(fig_risk_matrix, use_container_width=True)
+                    
+                except Exception as e:
+                    st.error(f"区域风险矩阵图表创建失败: {e}")
             
             with col_details:
                 # 显示风险详情
@@ -1826,8 +1707,8 @@ def main():
                     for _, region in high_risk.iterrows():
                         st.markdown(f"""
                         <div class="metric-card" style='background: rgba(231, 76, 60, 0.1); 
-                                  border-left: 4px solid #e74c3c; height: auto;'>
-                            <div class="metric-label" style="color: #e74c3c;">{region['区域']}</div>
+                                  border-left: 4px solid #e74c3c; height: auto; padding: 1rem;'>
+                            <div class="metric-label" style="color: #e74c3c !important;">{region['区域']}</div>
                             <div class="metric-sublabel">依赖度: {region['最大客户依赖度']:.1f}% | 
                             最大客户: {region['最大客户'][:20]}...</div>
                         </div>
@@ -1838,8 +1719,8 @@ def main():
                     for _, region in medium_risk.iterrows():
                         st.markdown(f"""
                         <div class="metric-card" style='background: rgba(243, 156, 18, 0.1); 
-                                  border-left: 4px solid #f39c12; height: auto;'>
-                            <div class="metric-label" style="color: #f39c12;">{region['区域']}</div>
+                                  border-left: 4px solid #f39c12; height: auto; padding: 1rem;'>
+                            <div class="metric-label" style="color: #f39c12 !important;">{region['区域']}</div>
                             <div class="metric-sublabel">依赖度: {region['最大客户依赖度']:.1f}% | 
                             最大客户: {region['最大客户'][:20]}...</div>
                         </div>
@@ -1850,8 +1731,8 @@ def main():
                     for _, region in low_risk.iterrows():
                         st.markdown(f"""
                         <div class="metric-card" style='background: rgba(39, 174, 96, 0.1); 
-                                  border-left: 4px solid #27ae60; height: auto;'>
-                            <div class="metric-label" style="color: #27ae60;">{region['区域']}</div>
+                                  border-left: 4px solid #27ae60; height: auto; padding: 1rem;'>
+                            <div class="metric-label" style="color: #27ae60 !important;">{region['区域']}</div>
                             <div class="metric-sublabel">依赖度: {region['最大客户依赖度']:.1f}% | 
                             客户数: {region['客户数']}家</div>
                         </div>
@@ -1870,14 +1751,7 @@ def main():
                 charts['sankey'],
                 "客户价值流动分析",
                 "展示客户在不同价值层级间的分布与流动",
-                """• <b>图表说明</b>：桑基图展示客户价值分层流动<br>
-                • <b>分层标准</b>：<br>
-                  - 钻石客户：R≤30天, F≥12次, M≥100万<br>
-                  - 黄金客户：R≤60天, F≥8次, M≥50万<br>
-                  - 白银客户：R≤90天, F≥6次, M≥20万<br>
-                  - 流失风险：R>180天或F<3次<br>
-                • <b>二级分层</b>：根据销售额中位数分为高/低贡献<br>
-                • <b>管理策略</b>：针对不同层级客户制定差异化策略""",
+                "桑基图展示客户价值分层流动。分层标准：钻石客户(R≤30天,F≥12次,M≥100万)、黄金客户(R≤60天,F≥8次,M≥50万)等。",
                 "sankey_chart"
             )
         
@@ -1887,14 +1761,7 @@ def main():
                 charts['sunburst'],
                 "客户贡献度层次分析",
                 "深入了解各类客户的销售贡献结构",
-                """• <b>使用方法</b>：点击扇形区域可以下钻查看详情<br>
-                • <b>颜色含义</b>：<br>
-                  - 红色：钻石客户（最高价值）<br>
-                  - 橙色：黄金客户（高价值）<br>
-                  - 灰色：白银客户（中等价值）<br>
-                  - 蓝色：潜力客户（待开发）<br>
-                  - 紫色：流失风险（需挽回）<br>
-                • <b>数据解读</b>：扇形大小代表销售额贡献""",
+                "使用方法：点击扇形区域可以下钻查看详情。扇形大小代表销售额贡献。",
                 "sunburst_chart"
             )
         
@@ -1910,16 +1777,7 @@ def main():
                 charts['target_scatter'],
                 "客户目标达成分析",
                 "评估各客户的销售目标完成情况",
-                """• <b>图表解读</b>：<br>
-                  - 红色虚线：100%目标线<br>
-                  - 橙色虚线：80%达成线<br>
-                  - 气泡大小：代表达成率<br>
-                  - 气泡颜色：绿色(达成)、黄色(接近)、红色(未达成)<br>
-                • <b>分析要点</b>：<br>
-                  - 线上方：超额完成<br>
-                  - 线附近：基本达成<br>
-                  - 线下方：未达成<br>
-                • <b>管理建议</b>：重点关注红色气泡客户""",
+                "红色虚线：100%目标线，橙色虚线：80%达成线。气泡大小代表达成率，颜色表示达成状态。",
                 "target_scatter_chart"
             )
         
@@ -1935,14 +1793,7 @@ def main():
                 charts['trend'],
                 "销售趋势分析",
                 "追踪销售额和订单数的月度变化趋势",
-                """• <b>双轴图表</b>：<br>
-                  - 蓝色面积：月度销售额（左轴）<br>
-                  - 红色虚线：月度订单数（右轴）<br>
-                • <b>分析维度</b>：<br>
-                  - 销售额趋势：业务规模变化<br>
-                  - 订单数趋势：交易活跃度<br>
-                  - 两者关系：客单价变化<br>
-                • <b>洞察价值</b>：识别季节性规律和异常波动""",
+                "双轴图表：蓝色面积表示月度销售额，红色虚线表示月度订单数。可识别季节性规律和异常波动。",
                 "trend_chart"
             )
         
