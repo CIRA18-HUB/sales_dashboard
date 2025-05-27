@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import warnings
 
@@ -22,7 +23,7 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
     st.switch_page("登陆界面haha.py")
     st.stop()
 
-# 统一的增强CSS样式 - 全面优化
+# 统一的增强CSS样式
 st.markdown("""
 <style>
     /* 导入Google字体 */
@@ -60,7 +61,7 @@ st.markdown("""
         100% { transform: translateY(0px) translateX(0px); }
     }
     
-    /* 主容器背景 - 增强不透明度 */
+    /* 主容器背景 */
     .main .block-container {
         background: rgba(255,255,255,0.98) !important;
         border-radius: 20px;
@@ -71,7 +72,7 @@ st.markdown("""
         border: 1px solid rgba(255,255,255,0.2);
     }
     
-    /* 页面标题样式 - 增强动画 */
+    /* 页面标题样式 */
     .page-header {
         text-align: center;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
@@ -80,22 +81,12 @@ st.markdown("""
         padding: 3rem 2rem;
         border-radius: 25px;
         margin-bottom: 2rem;
-        animation: gradientShift 4s ease infinite, fadeInScale 1.5s ease-out, glow 2s ease-in-out infinite alternate;
+        animation: gradientShift 4s ease infinite, fadeInScale 1.5s ease-out;
         box-shadow: 
             0 20px 40px rgba(102, 126, 234, 0.4),
-            0 5px 15px rgba(0,0,0,0.1),
-            inset 0 1px 0 rgba(255,255,255,0.1);
+            0 5px 15px rgba(0,0,0,0.1);
         position: relative;
         overflow: hidden;
-        transform: perspective(1000px) rotateX(0deg);
-        transition: transform 0.3s ease;
-    }
-    
-    .page-header:hover {
-        transform: perspective(1000px) rotateX(-2deg) scale(1.02);
-        box-shadow: 
-            0 25px 50px rgba(102, 126, 234, 0.5),
-            0 10px 30px rgba(0,0,0,0.15);
     }
     
     .page-header::before {
@@ -107,25 +98,6 @@ st.markdown("""
         height: 200%;
         background: linear-gradient(45deg, transparent, rgba(255,255,255,0.15), transparent);
         animation: shimmer 3s linear infinite;
-    }
-    
-    .page-header::after {
-        content: '✨';
-        position: absolute;
-        top: 10%;
-        right: 10%;
-        font-size: 2rem;
-        animation: sparkle 1.5s ease-in-out infinite;
-    }
-    
-    @keyframes glow {
-        from { box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4), 0 5px 15px rgba(0,0,0,0.1); }
-        to { box-shadow: 0 25px 50px rgba(102, 126, 234, 0.6), 0 8px 20px rgba(0,0,0,0.15); }
-    }
-    
-    @keyframes sparkle {
-        0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
-        50% { transform: scale(1.3) rotate(180deg); opacity: 0.7; }
     }
     
     @keyframes gradientShift {
@@ -141,11 +113,11 @@ st.markdown("""
     @keyframes fadeInScale {
         from { 
             opacity: 0; 
-            transform: translateY(-50px) scale(0.8) rotateX(-10deg); 
+            transform: translateY(-50px) scale(0.8); 
         }
         to { 
             opacity: 1; 
-            transform: translateY(0) scale(1) rotateX(0deg); 
+            transform: translateY(0) scale(1); 
         }
     }
     
@@ -164,117 +136,53 @@ st.markdown("""
         margin-top: 0.5rem;
     }
     
-    /* 统一的卡片容器样式 - 确保所有内容都有统一背景 */
-    .metric-card, .content-container, .chart-container, .insight-box, .filter-container {
+    /* 统一的卡片容器样式 */
+    .metric-card, .content-container, .chart-container, .insight-box {
         background: rgba(255,255,255,0.98) !important;
         border-radius: 25px;
         padding: 2rem;
         margin-bottom: 2rem;
         box-shadow: 
             0 15px 35px rgba(0,0,0,0.08),
-            0 5px 15px rgba(0,0,0,0.03),
-            inset 0 1px 0 rgba(255,255,255,0.9);
+            0 5px 15px rgba(0,0,0,0.03);
         border: 1px solid rgba(255,255,255,0.3);
         animation: slideUpStagger 1s ease-out;
         backdrop-filter: blur(10px);
-        position: relative;
-        overflow: hidden;
-        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transition: all 0.3s ease;
         border-left: 4px solid #667eea;
     }
     
-    /* 指标卡片特殊样式 */
     .metric-card {
         text-align: center;
         height: 100%;
         padding: 2.5rem 2rem;
     }
     
-    .metric-card::before, .content-container::before, .chart-container::before, 
-    .insight-box::before, .filter-container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
-        transition: left 0.8s ease;
-    }
-    
-    .metric-card::after {
-        content: '';
-        position: absolute;
-        top: -2px;
-        left: -2px;
-        right: -2px;
-        bottom: -2px;
-        background: linear-gradient(45deg, #667eea, #764ba2, #667eea);
-        border-radius: 25px;
-        z-index: -1;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-    
-    .metric-card:hover, .content-container:hover, .chart-container:hover, 
-    .insight-box:hover, .filter-container:hover {
-        transform: translateY(-15px) scale(1.05);
-        box-shadow: 
-            0 30px 60px rgba(0,0,0,0.15),
-            0 15px 30px rgba(102, 126, 234, 0.2);
-        border-color: rgba(102, 126, 234, 0.3);
-        animation: pulse 1.5s infinite;
-    }
-    
-    .metric-card:hover::before, .content-container:hover::before, .chart-container:hover::before,
-    .insight-box:hover::before, .filter-container:hover::before {
-        left: 100%;
-    }
-    
-    .metric-card:hover::after {
-        opacity: 0.1;
+    .metric-card:hover, .content-container:hover, .chart-container:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 25px 50px rgba(0,0,0,0.12);
     }
     
     @keyframes slideUpStagger {
         from { 
             opacity: 0; 
-            transform: translateY(60px) scale(0.8) rotateX(-15deg); 
+            transform: translateY(30px); 
         }
         to { 
             opacity: 1; 
-            transform: translateY(0) scale(1) rotateX(0deg); 
+            transform: translateY(0); 
         }
-    }
-    
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
     }
     
     .metric-value {
         font-size: 3.2rem;
         font-weight: 800;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
-        background-size: 200% 200%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
         margin-bottom: 1rem;
-        animation: textGradient 4s ease infinite, bounce 2s ease-in-out infinite;
         line-height: 1;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    @keyframes bounce {
-        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-        40% { transform: translateY(-3px); }
-        60% { transform: translateY(-2px); }
-    }
-    
-    @keyframes textGradient {
-        0%, 100% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
     }
     
     .metric-label {
@@ -308,37 +216,10 @@ st.markdown("""
     
     /* 洞察框样式 */
     .insight-box {
-        background: rgba(255,255,255,0.98) !important;
         border-left: 4px solid #667eea;
         border-radius: 15px;
         padding: 1.5rem;
         margin-top: 1rem;
-        position: relative;
-        overflow: hidden;
-        transition: all 0.3s ease;
-    }
-    
-    .insight-box:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 12px 25px rgba(102, 126, 234, 0.15);
-        border-color: rgba(102, 126, 234, 0.4);
-    }
-    
-    .insight-box::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
-        animation: insightSweep 3s ease-in-out infinite;
-    }
-    
-    @keyframes insightSweep {
-        0% { left: -100%; }
-        50% { left: 100%; }
-        100% { left: -100%; }
     }
     
     .insight-title {
@@ -354,53 +235,13 @@ st.markdown("""
         font-size: 1rem;
     }
     
-    /* 确保所有文本在容器内都有正确的颜色 */
-    .metric-card *, .content-container *, .chart-container *, .insight-box *, .filter-container * {
-        color: #333 !important;
-    }
-    
-    .metric-card .metric-label, .metric-card .metric-description {
-        color: #374151 !important;
-    }
-    
-    .insight-box .insight-title {
-        color: #333 !important;
-    }
-    
-    .insight-box .insight-content {
-        color: #666 !important;
-    }
-    
-    /* Streamlit组件样式覆盖 */
-    .stSelectbox > div > div {
-        background: rgba(255,255,255,0.95) !important;
-        border-radius: 10px !important;
-        border: 2px solid rgba(102, 126, 234, 0.2) !important;
-    }
-    
-    .stNumberInput > div > div > input {
-        background: rgba(255,255,255,0.95) !important;
-        border-radius: 10px !important;
-        border: 2px solid rgba(102, 126, 234, 0.2) !important;
-        color: #333 !important;
-    }
-    
-    .stMultiSelect > div > div {
-        background: rgba(255,255,255,0.95) !important;
-        border-radius: 10px !important;
-        border: 2px solid rgba(102, 126, 234, 0.2) !important;
-    }
-    
     /* 标签页样式增强 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 15px;
         background: rgba(248, 250, 252, 0.95) !important;
         padding: 1rem;
         border-radius: 20px;
-        box-shadow: 
-            inset 0 2px 4px rgba(0,0,0,0.06),
-            0 4px 8px rgba(0,0,0,0.04);
-        backdrop-filter: blur(10px);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
     }
     
     .stTabs [data-baseweb="tab"] {
@@ -411,61 +252,21 @@ st.markdown("""
         border: 1px solid rgba(102, 126, 234, 0.15);
         font-weight: 700;
         font-size: 1rem;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
         color: #333 !important;
     }
     
-    .stTabs [data-baseweb="tab"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.15), transparent);
-        transition: left 0.8s ease;
-    }
-    
     .stTabs [data-baseweb="tab"]:hover {
-        transform: translateY(-5px) scale(1.05);
-        box-shadow: 0 15px 30px rgba(102, 126, 234, 0.2);
-        border-color: rgba(102, 126, 234, 0.4);
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover::before {
-        left: 100%;
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.2);
     }
     
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: white !important;
         border: none;
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 
-            0 15px 40px rgba(102, 126, 234, 0.4),
-            0 5px 15px rgba(0,0,0,0.1);
-        animation: activeTab 0.5s ease;
-    }
-    
-    .stTabs [aria-selected="true"]::before {
-        display: none;
-    }
-    
-    @keyframes activeTab {
-        0% { transform: scale(0.95); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1.02); }
-    }
-    
-    /* 数据表格样式 */
-    .stDataFrame {
-        background: rgba(255,255,255,0.98) !important;
-        border-radius: 15px !important;
-        overflow: hidden !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.08) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
     }
     
     /* 特殊风险等级颜色 */
@@ -475,43 +276,12 @@ st.markdown("""
     .risk-low { border-left-color: #2ed573 !important; }
     .risk-minimal { border-left-color: #5352ed !important; }
     
-    /* 页脚样式优化 */
-    .footer-text {
-        text-align: center;
-        color: rgba(255, 255, 255, 0.8) !important;
-        font-family: "Inter", sans-serif;
-        font-size: 0.8rem !important;
-        margin-top: 2rem;
-        padding: 1rem;
-        background: rgba(102, 126, 234, 0.1);
-        border-radius: 10px;
-        backdrop-filter: blur(5px);
-    }
-    
-    /* 动画卡片延迟 */
-    .metric-card:nth-child(1) { animation-delay: 0.1s; }
-    .metric-card:nth-child(2) { animation-delay: 0.2s; }
-    .metric-card:nth-child(3) { animation-delay: 0.3s; }
-    .metric-card:nth-child(4) { animation-delay: 0.4s; }
-    .metric-card:nth-child(5) { animation-delay: 0.5s; }
-    .metric-card:nth-child(6) { animation-delay: 0.6s; }
-    .metric-card:nth-child(7) { animation-delay: 0.7s; }
-    .metric-card:nth-child(8) { animation-delay: 0.8s; }
-    
     /* 响应式设计 */
     @media (max-width: 768px) {
-        .metric-value {
-            font-size: 2.5rem;
-        }
-        .metric-card {
-            padding: 2rem 1.5rem;
-        }
-        .page-header {
-            padding: 2rem 1rem;
-        }
-        .page-title {
-            font-size: 2.5rem;
-        }
+        .metric-value { font-size: 2.5rem; }
+        .metric-card { padding: 2rem 1.5rem; }
+        .page-header { padding: 2rem 1rem; }
+        .page-title { font-size: 2.5rem; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -531,7 +301,7 @@ COLOR_SCHEME = {
 # 数据加载函数
 @st.cache_data
 def load_and_process_data():
-    """加载和处理所有数据 - 仅使用真实数据"""
+    """加载和处理所有数据"""
     try:
         # 读取数据文件
         shipment_df = pd.read_excel('2409~250224出货数据.xlsx')
@@ -620,47 +390,17 @@ def load_and_process_data():
         
         processed_inventory = pd.DataFrame(batch_data)
         
-        # 计算预测准确率
-        forecast_accuracy = calculate_forecast_accuracy(shipment_df, forecast_df)
-        
         # 计算关键指标
-        metrics = calculate_key_metrics(processed_inventory, forecast_accuracy)
+        metrics = calculate_key_metrics(processed_inventory)
         
-        return processed_inventory, forecast_accuracy, shipment_df, forecast_df, metrics, product_name_map
+        return processed_inventory, shipment_df, forecast_df, metrics, product_name_map
     
     except Exception as e:
         st.error(f"数据加载失败: {str(e)}")
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), {}, {}
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), {}, {}
 
-def calculate_forecast_accuracy(shipment_df, forecast_df):
-    """计算预测准确率"""
-    try:
-        # 按月份和产品聚合实际销量
-        shipment_monthly = shipment_df.groupby([
-            shipment_df['订单日期'].dt.to_period('M'),
-            '产品代码'
-        ])['求和项:数量（箱）'].sum().reset_index()
-        shipment_monthly['年月'] = shipment_monthly['订单日期'].dt.to_timestamp()
-        
-        # 合并预测和实际数据
-        merged = forecast_df.merge(
-            shipment_monthly,
-            left_on=['所属年月', '产品代码'],
-            right_on=['年月', '产品代码'],
-            how='inner'
-        )
-        
-        # 计算预测准确率
-        merged['预测误差'] = abs(merged['预计销售量'] - merged['求和项:数量（箱）'])
-        merged['预测准确率'] = 1 - (merged['预测误差'] / (merged['求和项:数量（箱）'] + 1))
-        merged['预测准确率'] = merged['预测准确率'].clip(0, 1)
-        
-        return merged
-    except:
-        return pd.DataFrame()
-
-def calculate_key_metrics(processed_inventory, forecast_accuracy):
-    """计算关键指标 - 仅使用真实数据"""
+def calculate_key_metrics(processed_inventory):
+    """计算关键指标"""
     if processed_inventory.empty:
         return {
             'total_batches': 0,
@@ -669,7 +409,6 @@ def calculate_key_metrics(processed_inventory, forecast_accuracy):
             'total_inventory_value': 0,
             'high_risk_value_ratio': 0,
             'avg_age': 0,
-            'forecast_accuracy': 0,
             'high_risk_value': 0,
             'risk_counts': {
                 'extreme': 0,
@@ -691,7 +430,6 @@ def calculate_key_metrics(processed_inventory, forecast_accuracy):
     high_risk_value_ratio = (high_risk_value / processed_inventory['批次价值'].sum() * 100) if processed_inventory['批次价值'].sum() > 0 else 0
     
     avg_age = processed_inventory['库龄'].mean()
-    forecast_acc = forecast_accuracy['预测准确率'].mean() * 100 if not forecast_accuracy.empty else 0
     
     # 风险分布统计
     risk_counts = processed_inventory['风险等级'].value_counts().to_dict()
@@ -703,7 +441,6 @@ def calculate_key_metrics(processed_inventory, forecast_accuracy):
         'total_inventory_value': round(total_inventory_value, 2),
         'high_risk_value_ratio': round(high_risk_value_ratio, 1),
         'avg_age': round(avg_age, 0),
-        'forecast_accuracy': round(forecast_acc, 1) if forecast_acc > 0 else 0,
         'high_risk_value': round(high_risk_value / 1000000, 1),
         'risk_counts': {
             'extreme': risk_counts.get('极高风险', 0),
@@ -714,183 +451,68 @@ def calculate_key_metrics(processed_inventory, forecast_accuracy):
         }
     }
 
-# 预测分析相关函数
-def safe_mean(series, default=0):
-    """安全地计算Series的均值，处理空值和异常"""
-    if series is None or len(series) == 0 or (hasattr(series, 'empty') and series.empty) or (
-            hasattr(series, 'isna') and series.isna().all()):
-        return default
+def process_forecast_analysis(shipment_df, forecast_df):
+    """处理预测分析数据 - 只使用当年数据"""
     try:
-        if hasattr(series, 'mean'):
-            return series.mean()
-        import numpy as np
-        return np.nanmean(series)
-    except (OverflowError, ValueError, TypeError, ZeroDivisionError):
-        return default
-
-def calculate_unified_accuracy(actual, forecast):
-    """统一计算准确率的函数，适用于全国和区域"""
-    if actual == 0 and forecast == 0:
-        return 1.0
-    if actual == 0:
-        return 0.0
-    diff_rate = (actual - forecast) / actual
-    return max(0, 1 - abs(diff_rate))
-
-def get_common_months(actual_df, forecast_df):
-    """获取两个数据集共有的月份"""
-    try:
-        actual_months = set(actual_df['所属年月'].unique())
-        forecast_months = set(forecast_df['所属年月'].unique())
-        common_months = sorted(list(actual_months.intersection(forecast_months)))
-        return common_months
-    except:
-        return []
-
-def filter_data(data, months=None, regions=None):
-    """统一的数据筛选函数"""
-    filtered_data = data.copy()
-    if months and len(months) > 0:
-        filtered_data = filtered_data[filtered_data['所属年月'].isin(months)]
-    if regions and len(regions) > 0:
-        filtered_data = filtered_data[filtered_data['所属区域'].isin(regions)]
-    return filtered_data
-
-def process_forecast_data(actual_df, forecast_df):
-    """处理预测数据并计算关键指标 - 修复版本"""
-    try:
-        # 检查必需的列是否存在
-        required_actual_cols = ['所属年月', '产品代码', '求和项:数量（箱）']
-        required_forecast_cols = ['所属年月', '产品代码', '预计销售量']
+        current_year = datetime.now().year
         
-        # 检查实际数据列
-        missing_actual_cols = [col for col in required_actual_cols if col not in actual_df.columns]
-        if missing_actual_cols:
-            st.warning(f"实际数据缺少列: {missing_actual_cols}")
-            
-        # 检查预测数据列
-        missing_forecast_cols = [col for col in required_forecast_cols if col not in forecast_df.columns]
-        if missing_forecast_cols:
-            st.warning(f"预测数据缺少列: {missing_forecast_cols}")
-            
-        # 如果缺少关键列，创建空的DataFrame返回
-        if missing_actual_cols or missing_forecast_cols:
-            return pd.DataFrame()
+        # 筛选当年数据
+        shipment_current_year = shipment_df[shipment_df['订单日期'].dt.year == current_year].copy()
+        forecast_current_year = forecast_df[forecast_df['所属年月'].dt.year == current_year].copy()
         
-        # 检查是否有区域列，如果没有则创建默认区域
-        if '所属区域' not in actual_df.columns:
-            actual_df = actual_df.copy()
-            actual_df['所属区域'] = '默认区域'
-            
-        if '所属区域' not in forecast_df.columns:
-            forecast_df = forecast_df.copy()
-            forecast_df['所属区域'] = '默认区域'
+        if shipment_current_year.empty or forecast_current_year.empty:
+            return None
         
-        # 按月份、区域、产品码汇总数据
-        actual_monthly = actual_df.groupby(['所属年月', '所属区域', '产品代码']).agg({
+        # 按月份和产品汇总实际销量
+        shipment_monthly = shipment_current_year.groupby([
+            shipment_current_year['订单日期'].dt.to_period('M'),
+            '产品代码',
+            '所属区域'
+        ]).agg({
             '求和项:数量（箱）': 'sum'
         }).reset_index()
-
-        forecast_monthly = forecast_df.groupby(['所属年月', '所属区域', '产品代码']).agg({
+        shipment_monthly['年月'] = shipment_monthly['订单日期'].dt.to_timestamp()
+        
+        # 按月份和产品汇总预测销量
+        forecast_monthly = forecast_current_year.groupby([
+            forecast_current_year['所属年月'].dt.to_period('M'),
+            '产品代码',
+            '所属大区'
+        ]).agg({
             '预计销售量': 'sum'
         }).reset_index()
-
-        # 合并预测和实际数据
-        merged_monthly = pd.merge(
-            actual_monthly,
+        forecast_monthly['年月'] = forecast_monthly['所属年月'].dt.to_timestamp()
+        
+        # 统一区域名称
+        forecast_monthly = forecast_monthly.rename(columns={'所属大区': '所属区域'})
+        
+        # 合并数据
+        merged_data = pd.merge(
+            shipment_monthly,
             forecast_monthly,
-            on=['所属年月', '所属区域', '产品代码'],
+            on=['年月', '产品代码', '所属区域'],
             how='outer'
+        ).fillna(0)
+        
+        # 计算准确率和差异
+        merged_data['实际销量'] = merged_data['求和项:数量（箱）']
+        merged_data['预测销量'] = merged_data['预计销售量']
+        merged_data['差异量'] = merged_data['实际销量'] - merged_data['预测销量']
+        
+        # 计算准确率
+        merged_data['准确率'] = merged_data.apply(
+            lambda row: 1 - abs(row['差异量']) / max(row['实际销量'], 1) if row['实际销量'] > 0 else 
+                       (1 if row['预测销量'] == 0 else 0),
+            axis=1
         )
-
-        # 填充缺失值为0
-        merged_monthly['求和项:数量（箱）'] = merged_monthly['求和项:数量（箱）'].fillna(0)
-        merged_monthly['预计销售量'] = merged_monthly['预计销售量'].fillna(0)
-
-        # 计算差异和准确率
-        merged_monthly['数量差异'] = merged_monthly['求和项:数量（箱）'] - merged_monthly['预计销售量']
-        merged_monthly['数量差异率'] = np.where(
-            merged_monthly['求和项:数量（箱）'] > 0,
-            merged_monthly['数量差异'] / merged_monthly['求和项:数量（箱）'] * 100,
-            np.where(
-                merged_monthly['预计销售量'] > 0,
-                -100,
-                0
-            )
-        )
-
-        # 准确率
-        merged_monthly['数量准确率'] = np.where(
-            (merged_monthly['求和项:数量（箱）'] > 0) | (merged_monthly['预计销售量'] > 0),
-            np.maximum(0, 100 - np.abs(merged_monthly['数量差异率'])) / 100,
-            1
-        )
-
-        return merged_monthly
+        merged_data['准确率'] = merged_data['准确率'].clip(0, 1)
+        
+        return merged_data
     
     except Exception as e:
-        st.error(f"预测数据处理失败: {str(e)}")
-        return pd.DataFrame()
+        st.error(f"预测分析处理失败: {str(e)}")
+        return None
 
-def calculate_national_accuracy(merged_df):
-    """计算全国的预测准确率"""
-    try:
-        if merged_df.empty:
-            return {'monthly': pd.DataFrame(), 'overall': {'数量准确率': 0}}
-            
-        monthly_summary = merged_df.groupby('所属年月').agg({
-            '求和项:数量（箱）': 'sum',
-            '预计销售量': 'sum'
-        }).reset_index()
-
-        monthly_summary['数量差异'] = monthly_summary['求和项:数量（箱）'] - monthly_summary['预计销售量']
-        monthly_summary['数量准确率'] = monthly_summary.apply(
-            lambda row: calculate_unified_accuracy(row['求和项:数量（箱）'], row['预计销售量']),
-            axis=1
-        )
-
-        overall = {
-            '数量准确率': safe_mean(monthly_summary['数量准确率'], 0)
-        }
-
-        return {
-            'monthly': monthly_summary,
-            'overall': overall
-        }
-    except Exception as e:
-        st.error(f"全国准确率计算失败: {str(e)}")
-        return {'monthly': pd.DataFrame(), 'overall': {'数量准确率': 0}}
-
-def calculate_regional_accuracy(merged_df):
-    """计算各区域的预测准确率"""
-    try:
-        if merged_df.empty:
-            return {'region_monthly': pd.DataFrame(), 'region_overall': pd.DataFrame()}
-            
-        region_monthly_summary = merged_df.groupby(['所属年月', '所属区域']).agg({
-            '求和项:数量（箱）': 'sum',
-            '预计销售量': 'sum'
-        }).reset_index()
-
-        region_monthly_summary['数量差异'] = region_monthly_summary['求和项:数量（箱）'] - region_monthly_summary['预计销售量']
-        region_monthly_summary['数量准确率'] = region_monthly_summary.apply(
-            lambda row: calculate_unified_accuracy(row['求和项:数量（箱）'], row['预计销售量']),
-            axis=1
-        )
-
-        region_overall = region_monthly_summary.groupby('所属区域').agg({
-            '数量准确率': lambda x: safe_mean(x, 0)
-        }).reset_index()
-
-        return {
-            'region_monthly': region_monthly_summary,
-            'region_overall': region_overall
-        }
-    except Exception as e:
-        st.error(f"区域准确率计算失败: {str(e)}")
-        return {'region_monthly': pd.DataFrame(), 'region_overall': pd.DataFrame()}
-
-# 创建图表函数
 def create_integrated_risk_analysis(processed_inventory):
     """创建整合的风险分析图表"""
     try:
@@ -923,7 +545,6 @@ def create_integrated_risk_analysis(processed_inventory):
         ]
         
         # 创建子图布局
-        from plotly.subplots import make_subplots
         fig = make_subplots(
             rows=2, cols=2,
             subplot_titles=("风险等级分布", "各风险等级价值分布", "库存批次库龄分布", "高风险批次优先级分析"),
@@ -994,28 +615,15 @@ def create_integrated_risk_analysis(processed_inventory):
     
     except Exception as e:
         st.error(f"风险分析图表创建失败: {str(e)}")
-        fig = go.Figure()
-        fig.update_layout(
-            title="风险分析 (错误)",
-            annotations=[
-                dict(
-                    text=f"图表创建失败: {str(e)}",
-                    xref="paper", yref="paper",
-                    x=0.5, y=0.5,
-                    xanchor='center', yanchor='middle',
-                    font=dict(size=16, color="red")
-                )
-            ]
-        )
-        return fig
+        return go.Figure()
 
-def create_forecast_accuracy_trend(forecast_accuracy):
-    """创建预测准确率趋势图"""
+def create_comprehensive_forecast_analysis(merged_data):
+    """创建综合的预测分析图表"""
     try:
-        if forecast_accuracy.empty:
+        if merged_data is None or merged_data.empty:
             fig = go.Figure()
             fig.update_layout(
-                title="预测准确率月度趋势 (无数据)",
+                title="预测分析 (无数据)",
                 annotations=[
                     dict(
                         text="暂无预测数据",
@@ -1026,54 +634,156 @@ def create_forecast_accuracy_trend(forecast_accuracy):
                     )
                 ]
             )
-            return fig
+            return fig, {}, pd.DataFrame(), pd.DataFrame()
         
-        monthly_acc = forecast_accuracy.groupby(
-            forecast_accuracy['所属年月'].dt.to_period('M')
-        )['预测准确率'].mean().reset_index()
-        monthly_acc['年月'] = monthly_acc['所属年月'].dt.to_timestamp()
+        # 1. 全国各区域重点SKU分析 (销售额占比80%的产品)
+        total_sales_by_product = merged_data.groupby('产品代码')['实际销量'].sum().sort_values(ascending=False)
+        total_sales = total_sales_by_product.sum()
+        cumsum_pct = total_sales_by_product.cumsum() / total_sales
+        key_products = total_sales_by_product[cumsum_pct <= 0.8].index.tolist()
         
-        fig = go.Figure(data=[go.Scatter(
-            x=monthly_acc['年月'],
-            y=monthly_acc['预测准确率'] * 100,
-            mode='lines+markers',
-            name='预测准确率',
-            line=dict(color=COLOR_SCHEME['primary'], width=3),
-            marker=dict(size=8, color=COLOR_SCHEME['primary'])
-        )])
+        # 重点SKU的区域准确率分析
+        key_product_analysis = merged_data[merged_data['产品代码'].isin(key_products)].groupby(['产品代码', '所属区域']).agg({
+            '实际销量': 'sum',
+            '预测销量': 'sum',
+            '准确率': 'mean'
+        }).reset_index()
         
-        fig.add_hline(y=85, line_dash="dash", line_color="red", 
-                      annotation_text="目标线 85%")
+        # 2. 全国整体准确率
+        national_accuracy = merged_data.groupby('产品代码').agg({
+            '实际销量': 'sum',
+            '预测销量': 'sum',
+            '准确率': 'mean'
+        }).reset_index()
         
-        fig.update_layout(
-            title="预测准确率月度趋势",
-            xaxis_title="月份",
-            yaxis_title="预测准确率 (%)",
-            height=400
-        )
+        # 计算差异率
+        national_accuracy['差异量'] = national_accuracy['实际销量'] - national_accuracy['预测销量']
+        national_accuracy['差异率'] = (national_accuracy['差异量'] / national_accuracy['实际销量']).fillna(0) * 100
+        national_accuracy['销售占比'] = national_accuracy['实际销量'] / national_accuracy['实际销量'].sum() * 100
         
-        return fig
-    
-    except Exception as e:
-        st.error(f"预测趋势图创建失败: {str(e)}")
-        fig = go.Figure()
-        fig.update_layout(
-            title="预测准确率月度趋势 (错误)",
-            annotations=[
-                dict(
-                    text=f"图表创建失败: {str(e)}",
-                    xref="paper", yref="paper",
-                    x=0.5, y=0.5,
-                    xanchor='center', yanchor='middle',
-                    font=dict(size=16, color="red")
-                )
+        # 3. 区域准确率排名
+        regional_accuracy = merged_data.groupby('所属区域').agg({
+            '实际销量': 'sum',
+            '预测销量': 'sum',
+            '准确率': 'mean'
+        }).reset_index().sort_values('准确率', ascending=False)
+        
+        # 创建综合图表
+        fig = make_subplots(
+            rows=2, cols=2,
+            subplot_titles=(
+                "重点SKU区域准确率热力图", 
+                "产品预测vs实际销量对比(TOP20)", 
+                "区域预测准确率排名",
+                "产品预测差异率vs销售占比"
+            ),
+            specs=[
+                [{"type": "heatmap"}, {"type": "bar"}],
+                [{"type": "bar"}, {"type": "scatter"}]
             ]
         )
-        return fig
+        
+        # 1. 重点SKU区域准确率热力图
+        if not key_product_analysis.empty:
+            pivot_accuracy = key_product_analysis.pivot(index='产品代码', columns='所属区域', values='准确率')
+            fig.add_trace(go.Heatmap(
+                z=pivot_accuracy.values,
+                x=pivot_accuracy.columns,
+                y=pivot_accuracy.index,
+                colorscale='RdYlGn',
+                zmin=0,
+                zmax=1,
+                text=np.round(pivot_accuracy.values * 100, 1),
+                texttemplate='%{text}%',
+                textfont={"size": 10},
+                name="准确率热力图"
+            ), row=1, col=1)
+        
+        # 2. 产品预测vs实际销量对比 (TOP20)
+        top20_products = national_accuracy.nlargest(20, '实际销量')
+        fig.add_trace(go.Bar(
+            name='实际销量',
+            x=top20_products['产品代码'],
+            y=top20_products['实际销量'],
+            marker_color=COLOR_SCHEME['primary'],
+            opacity=0.8
+        ), row=1, col=2)
+        
+        fig.add_trace(go.Bar(
+            name='预测销量',
+            x=top20_products['产品代码'],
+            y=top20_products['预测销量'],
+            marker_color=COLOR_SCHEME['secondary'],
+            opacity=0.6
+        ), row=1, col=2)
+        
+        # 3. 区域预测准确率排名
+        colors_regional = [COLOR_SCHEME['risk_low'] if acc > 0.85 else 
+                          COLOR_SCHEME['risk_medium'] if acc > 0.75 else 
+                          COLOR_SCHEME['risk_high'] for acc in regional_accuracy['准确率']]
+        
+        fig.add_trace(go.Bar(
+            x=regional_accuracy['所属区域'],
+            y=regional_accuracy['准确率'] * 100,
+            marker_color=colors_regional,
+            text=[f'{acc:.1f}%' for acc in regional_accuracy['准确率'] * 100],
+            textposition='auto',
+            name="区域准确率"
+        ), row=2, col=1)
+        
+        # 4. 产品预测差异率vs销售占比散点图
+        fig.add_trace(go.Scatter(
+            x=national_accuracy['销售占比'],
+            y=national_accuracy['差异率'],
+            mode='markers',
+            marker=dict(
+                size=np.minimum(national_accuracy['实际销量']/1000, 30),
+                color=national_accuracy['准确率'],
+                colorscale='RdYlGn',
+                cmin=0,
+                cmax=1,
+                opacity=0.8
+            ),
+            text=national_accuracy['产品代码'],
+            name="产品差异分析"
+        ), row=2, col=2)
+        
+        # 更新布局
+        fig.update_layout(
+            height=1000,
+            showlegend=True,
+            title_text=f"销售预测准确性综合分析 - {datetime.now().year}年数据",
+            title_x=0.5
+        )
+        
+        # 添加目标线
+        fig.add_hline(y=85, line_dash="dash", line_color="red", row=2, col=1, 
+                      annotation_text="目标85%")
+        fig.add_hline(y=0, line_dash="dash", line_color="gray", row=2, col=2,
+                      annotation_text="零差异线")
+        
+        # 计算关键指标
+        key_metrics = {
+            'total_products': len(national_accuracy),
+            'key_products_count': len(key_products),
+            'overall_accuracy': national_accuracy['准确率'].mean() * 100,
+            'best_region': regional_accuracy.iloc[0]['所属区域'] if not regional_accuracy.empty else 'N/A',
+            'best_region_accuracy': regional_accuracy.iloc[0]['准确率'] * 100 if not regional_accuracy.empty else 0,
+            'total_actual_sales': merged_data['实际销量'].sum(),
+            'total_forecast_sales': merged_data['预测销量'].sum(),
+            'overall_diff_rate': ((merged_data['实际销量'].sum() - merged_data['预测销量'].sum()) / 
+                                 merged_data['实际销量'].sum()) * 100 if merged_data['实际销量'].sum() > 0 else 0
+        }
+        
+        return fig, key_metrics, national_accuracy, key_product_analysis
+    
+    except Exception as e:
+        st.error(f"预测分析图表创建失败: {str(e)}")
+        return go.Figure(), {}, pd.DataFrame(), pd.DataFrame()
 
 # 加载数据
 with st.spinner('🔄 正在加载数据...'):
-    processed_inventory, forecast_accuracy, shipment_df, forecast_df, metrics, product_name_map = load_and_process_data()
+    processed_inventory, shipment_df, forecast_df, metrics, product_name_map = load_and_process_data()
 
 # 页面标题
 st.markdown("""
@@ -1087,7 +797,7 @@ st.markdown("""
 tab1, tab2, tab3, tab4 = st.tabs([
     "📊 核心指标总览",
     "🎯 风险分布分析", 
-    "💡 预测准确性分析",
+    "📈 销售预测准确性综合分析",
     "📋 批次详情"
 ])
 
@@ -1151,16 +861,6 @@ with tab1:
         """, unsafe_allow_html=True)
     
     with col6:
-        forecast_class = "risk-low" if metrics['forecast_accuracy'] > 85 else "risk-medium" if metrics['forecast_accuracy'] > 75 else "risk-high"
-        st.markdown(f"""
-        <div class="metric-card {forecast_class}">
-            <div class="metric-value">{metrics['forecast_accuracy']:.1f}%</div>
-            <div class="metric-label">🎯 预测准确率</div>
-            <div class="metric-description">销售预测精度水平</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col7:
         st.markdown(f"""
         <div class="metric-card risk-extreme">
             <div class="metric-value">¥{metrics['high_risk_value']:.1f}M</div>
@@ -1169,7 +869,7 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
     
-    with col8:
+    with col7:
         turnover_rate = 365 / metrics['avg_age'] if metrics['avg_age'] > 0 else 0
         turnover_class = "risk-low" if turnover_rate > 10 else "risk-medium" if turnover_rate > 6 else "risk-high"
         st.markdown(f"""
@@ -1179,12 +879,22 @@ with tab1:
             <div class="metric-description">年库存周转次数</div>
         </div>
         """, unsafe_allow_html=True)
+    
+    with col8:
+        efficiency_score = min(100, (turnover_rate * 10) + (100 - metrics['high_risk_ratio']))
+        efficiency_class = "risk-low" if efficiency_score > 80 else "risk-medium" if efficiency_score > 60 else "risk-high"
+        st.markdown(f"""
+        <div class="metric-card {efficiency_class}">
+            <div class="metric-value">{efficiency_score:.0f}</div>
+            <div class="metric-label">⚡ 管理效率</div>
+            <div class="metric-description">综合管理评分</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 # 标签2：风险分布分析
 with tab2:
     st.markdown("### 🎯 库存风险分布全景分析")
     
-    # 使用整合的风险分析图表
     st.markdown('<div class="content-container">', unsafe_allow_html=True)
     integrated_fig = create_integrated_risk_analysis(processed_inventory)
     st.plotly_chart(integrated_fig, use_container_width=True)
@@ -1203,196 +913,104 @@ with tab2:
     </div>
     """, unsafe_allow_html=True)
 
-# 标签3：预测准确性分析
+# 标签3：销售预测准确性综合分析
 with tab3:
-    st.markdown("### 📈 销售预测准确性综合分析")
+    st.markdown(f"### 📈 销售预测准确性综合分析 - {datetime.now().year}年数据")
     
     # 处理预测数据
-    if not forecast_accuracy.empty and not shipment_df.empty and not forecast_df.empty:
-        try:
-            # 将年月转换为字符串格式以便处理
-            shipment_df_copy = shipment_df.copy()
-            forecast_df_copy = forecast_df.copy()
-            
-            shipment_df_copy['所属年月'] = shipment_df_copy['订单日期'].dt.strftime('%Y-%m')
-            forecast_df_copy['所属年月'] = forecast_df_copy['所属年月'].dt.strftime('%Y-%m')
-            
-            # 获取共有月份
-            common_months = get_common_months(shipment_df_copy, forecast_df_copy)
-            
-            if common_months:
-                # 筛选数据
-                filtered_shipment = shipment_df_copy[shipment_df_copy['所属年月'].isin(common_months)]
-                filtered_forecast = forecast_df_copy[forecast_df_copy['所属年月'].isin(common_months)]
-                
-                # 处理预测数据
-                merged_data = process_forecast_data(filtered_shipment, filtered_forecast)
-                
-                if not merged_data.empty:
-                    # 获取所有可用的月份和区域
-                    all_months = sorted(merged_data['所属年月'].unique())
-                    all_regions = sorted(merged_data['所属区域'].unique())
-                    
-                    # 筛选器
-                    st.markdown("### 📊 分析筛选条件")
-                    st.markdown('<div class="filter-container">', unsafe_allow_html=True)
-                    with st.expander("选择分析范围", expanded=True):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            selected_months = st.multiselect(
-                                "选择分析月份",
-                                options=all_months,
-                                default=all_months[-3:] if len(all_months) >= 3 else all_months,
-                                key="pred_months"
-                            )
-                        with col2:
-                            selected_regions = st.multiselect(
-                                "选择区域",
-                                options=all_regions,
-                                default=all_regions,
-                                key="pred_regions"
-                            )
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    
-                    if selected_months and selected_regions:
-                        # 筛选数据
-                        filtered_merged = filter_data(merged_data, selected_months, selected_regions)
-                        
-                        # 计算准确率指标
-                        national_accuracy = calculate_national_accuracy(filtered_merged)
-                        regional_accuracy = calculate_regional_accuracy(filtered_merged)
-                        
-                        # 第一行：关键指标
-                        st.markdown("### 🎯 预测准确性关键指标")
-                        col1, col2, col3, col4 = st.columns(4)
-                        
-                        # 计算整体指标
-                        total_actual = filtered_merged['求和项:数量（箱）'].sum()
-                        total_forecast = filtered_merged['预计销售量'].sum()
-                        overall_accuracy = national_accuracy['overall']['数量准确率'] * 100
-                        avg_regional_accuracy = regional_accuracy['region_overall']['数量准确率'].mean() * 100 if not regional_accuracy['region_overall'].empty else 0
-                        
-                        with col1:
-                            st.markdown(f"""
-                            <div class="metric-card">
-                                <div class="metric-value">{total_actual:,.0f}</div>
-                                <div class="metric-label">📊 实际销售量</div>
-                                <div class="metric-description">选定期间总销量(箱)</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        with col2:
-                            st.markdown(f"""
-                            <div class="metric-card">
-                                <div class="metric-value">{total_forecast:,.0f}</div>
-                                <div class="metric-label">🎯 预测销售量</div>
-                                <div class="metric-description">选定期间总预测(箱)</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        with col3:
-                            accuracy_class = "risk-low" if overall_accuracy > 85 else "risk-medium" if overall_accuracy > 75 else "risk-high"
-                            st.markdown(f"""
-                            <div class="metric-card {accuracy_class}">
-                                <div class="metric-value">{overall_accuracy:.1f}%</div>
-                                <div class="metric-label">🎯 整体准确率</div>
-                                <div class="metric-description">全国预测精度</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        with col4:
-                            regional_class = "risk-low" if avg_regional_accuracy > 85 else "risk-medium" if avg_regional_accuracy > 75 else "risk-high"
-                            st.markdown(f"""
-                            <div class="metric-card {regional_class}">
-                                <div class="metric-value">{avg_regional_accuracy:.1f}%</div>
-                                <div class="metric-label">🌍 区域平均准确率</div>
-                                <div class="metric-description">各区域平均精度</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        # 第二行：预测趋势分析
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            st.markdown('<div class="content-container">', unsafe_allow_html=True)
-                            st.markdown('<h3 class="chart-title">📈 预测准确率月度趋势</h3>', unsafe_allow_html=True)
-                            
-                            # 创建月度趋势图
-                            monthly_trend = national_accuracy['monthly']
-                            if not monthly_trend.empty:
-                                fig_trend = go.Figure()
-                                fig_trend.add_trace(go.Scatter(
-                                    x=monthly_trend['所属年月'],
-                                    y=monthly_trend['数量准确率'] * 100,
-                                    mode='lines+markers',
-                                    name='准确率',
-                                    line=dict(color=COLOR_SCHEME['primary'], width=3),
-                                    marker=dict(size=8)
-                                ))
-                                fig_trend.add_hline(y=85, line_dash="dash", line_color="red", annotation_text="目标线 85%")
-                                fig_trend.update_layout(
-                                    xaxis_title="月份",
-                                    yaxis_title="准确率 (%)",
-                                    height=400
-                                )
-                                st.plotly_chart(fig_trend, use_container_width=True)
-                            else:
-                                st.warning("暂无月度趋势数据")
-                            st.markdown('</div>', unsafe_allow_html=True)
-                        
-                        with col2:
-                            st.markdown('<div class="content-container">', unsafe_allow_html=True)
-                            st.markdown('<h3 class="chart-title">🌍 各区域预测准确率对比</h3>', unsafe_allow_html=True)
-                            
-                            # 创建区域对比图
-                            region_data = regional_accuracy['region_overall']
-                            if not region_data.empty:
-                                fig_regions = go.Figure()
-                                colors = [COLOR_SCHEME['risk_low'] if acc > 0.85 else 
-                                         COLOR_SCHEME['risk_medium'] if acc > 0.75 else 
-                                         COLOR_SCHEME['risk_high'] for acc in region_data['数量准确率']]
-                                
-                                fig_regions.add_trace(go.Bar(
-                                    x=region_data['所属区域'],
-                                    y=region_data['数量准确率'] * 100,
-                                    marker_color=colors,
-                                    text=[f'{acc:.1f}%' for acc in region_data['数量准确率'] * 100],
-                                    textposition='auto'
-                                ))
-                                fig_regions.add_hline(y=85, line_dash="dash", line_color="red", annotation_text="目标线 85%")
-                                fig_regions.update_layout(
-                                    xaxis_title="区域",
-                                    yaxis_title="准确率 (%)",
-                                    height=400
-                                )
-                                st.plotly_chart(fig_regions, use_container_width=True)
-                            else:
-                                st.warning("暂无区域对比数据")
-                            st.markdown('</div>', unsafe_allow_html=True)
-                        
-                        # 预测改进建议
-                        st.markdown(f"""
-                        <div class="insight-box">
-                            <div class="insight-title">💡 预测准确性改进建议</div>
-                            <div class="insight-content">
-                                • 整体准确率为 {overall_accuracy:.1f}%，{'已达到' if overall_accuracy >= 85 else '距离'}目标85%{'，表现优秀' if overall_accuracy >= 85 else f'还有{85-overall_accuracy:.1f}%提升空间'}<br>
-                                • 区域平均准确率为 {avg_regional_accuracy:.1f}%，建议重点关注准确率低于75%的区域<br>
-                                • 建议加强季节性因子分析，提升历史数据权重，增加市场趋势调研<br>
-                                • 对于准确率较低的产品和销售员，建议进行专项培训和预测方法优化
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    else:
-                        st.warning("请选择至少一个月份和一个区域进行分析。")
-                else:
-                    st.warning("预测数据处理失败，请检查数据格式。")
-            else:
-                st.warning("实际销售数据与预测数据没有共同的月份数据。")
-        except Exception as e:
-            st.error(f"预测分析处理失败: {str(e)}")
+    merged_data = process_forecast_analysis(shipment_df, forecast_df)
+    
+    if merged_data is not None and not merged_data.empty:
+        # 创建综合分析图表
+        forecast_fig, key_metrics, national_analysis, key_product_analysis = create_comprehensive_forecast_analysis(merged_data)
+        
+        # 显示关键指标
+        st.markdown("### 🎯 预测准确性关键指标")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{key_metrics.get('total_actual_sales', 0):,.0f}</div>
+                <div class="metric-label">📊 实际销量</div>
+                <div class="metric-description">{datetime.now().year}年总销量(箱)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{key_metrics.get('total_forecast_sales', 0):,.0f}</div>
+                <div class="metric-label">🎯 预测销量</div>
+                <div class="metric-description">{datetime.now().year}年总预测(箱)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            overall_acc = key_metrics.get('overall_accuracy', 0)
+            accuracy_class = "risk-low" if overall_acc > 85 else "risk-medium" if overall_acc > 75 else "risk-high"
+            st.markdown(f"""
+            <div class="metric-card {accuracy_class}">
+                <div class="metric-value">{overall_acc:.1f}%</div>
+                <div class="metric-label">🎯 整体准确率</div>
+                <div class="metric-description">全国预测精度</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            diff_rate = key_metrics.get('overall_diff_rate', 0)
+            diff_class = "risk-low" if abs(diff_rate) < 5 else "risk-medium" if abs(diff_rate) < 15 else "risk-high"
+            st.markdown(f"""
+            <div class="metric-card {diff_class}">
+                <div class="metric-value">{diff_rate:+.1f}%</div>
+                <div class="metric-label">📊 整体差异率</div>
+                <div class="metric-description">{'预测偏高' if diff_rate < 0 else '预测偏低' if diff_rate > 0 else '预测准确'}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 显示综合分析图表
+        st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        st.plotly_chart(forecast_fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 详细数据表格
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 📋 重点SKU(占比80%)各区域准确率详情")
+            if not key_product_analysis.empty:
+                display_key = key_product_analysis.copy()
+                display_key['准确率'] = (display_key['准确率'] * 100).round(1).astype(str) + '%'
+                display_key['实际销量'] = display_key['实际销量'].astype(int)
+                display_key['预测销量'] = display_key['预测销量'].astype(int)
+                st.dataframe(display_key, use_container_width=True, height=300)
+        
+        with col2:
+            st.markdown("#### 📊 全国产品预测准确率排行(TOP20)")
+            if not national_analysis.empty:
+                top20_display = national_analysis.nlargest(20, '实际销量').copy()
+                top20_display['准确率'] = (top20_display['准确率'] * 100).round(1).astype(str) + '%'
+                top20_display['差异率'] = top20_display['差异率'].round(1).astype(str) + '%'
+                top20_display['销售占比'] = top20_display['销售占比'].round(1).astype(str) + '%'
+                display_cols = ['产品代码', '实际销量', '预测销量', '差异量', '差异率', '销售占比', '准确率']
+                st.dataframe(top20_display[display_cols], use_container_width=True, height=300)
+        
+        # 改进建议
+        st.markdown(f"""
+        <div class="insight-box">
+            <div class="insight-title">💡 预测准确性改进建议</div>
+            <div class="insight-content">
+                • 整体准确率为 {overall_acc:.1f}%，{'已达到' if overall_acc >= 85 else '距离'}目标85%{'，表现优秀' if overall_acc >= 85 else f'还有{85-overall_acc:.1f}%提升空间'}<br>
+                • 最优区域为 {key_metrics.get('best_region', 'N/A')}, 准确率达到 {key_metrics.get('best_region_accuracy', 0):.1f}%<br>
+                • 重点SKU({key_metrics.get('key_products_count', 0)}个产品)占销售额80%，需重点关注其预测精度<br>
+                • 整体预测{'偏高' if diff_rate < 0 else '偏低' if diff_rate > 0 else '较准确'}，差异率为{abs(diff_rate):.1f}%<br>
+                • 建议针对低准确率产品和区域进行专项分析和预测模型优化
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
     else:
-        st.warning("暂无预测准确率数据，请检查数据文件。")
+        st.warning(f"暂无{datetime.now().year}年的预测数据，请检查数据文件是否包含当年数据。")
 
 # 标签4：批次详情
 with tab4:
@@ -1400,7 +1018,6 @@ with tab4:
     
     if not processed_inventory.empty:
         # 筛选控件
-        st.markdown('<div class="filter-container">', unsafe_allow_html=True)
         col1, col2, col3 = st.columns(3)
         
         with col1:
@@ -1425,7 +1042,6 @@ with tab4:
                 max_value=int(processed_inventory['库龄'].max()),
                 value=int(processed_inventory['库龄'].max())
             )
-        st.markdown('</div>', unsafe_allow_html=True)
         
         # 应用筛选
         filtered_data = processed_inventory.copy()
@@ -1490,8 +1106,8 @@ with tab4:
 st.markdown("---")
 st.markdown(
     f"""
-    <div class="footer-text">
-        <p>🚀 Powered by Streamlit & Plotly | 智能数据分析平台 | 最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+    <div style="text-align: center; color: rgba(102, 126, 234, 0.8); font-family: 'Inter', sans-serif; font-size: 0.9rem; margin-top: 2rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 10px;">
+        🚀 Powered by Streamlit & Plotly | 智能数据分析平台 | 最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}
     </div>
     """,
     unsafe_allow_html=True
