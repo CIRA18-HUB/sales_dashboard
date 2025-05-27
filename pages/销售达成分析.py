@@ -79,6 +79,21 @@ st.markdown("""
         margin-top: 0.3rem;
     }
     
+    /* 渠道占比卡片样式 */
+    .channel-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        margin-bottom: 1rem;
+        animation: slideUp 0.6s ease-out;
+    }
+    
+    .channel-card-mt {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    }
+    
     /* 标签页样式增强 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
@@ -113,6 +128,8 @@ st.markdown("""
     .metric-card:nth-child(2) { animation-delay: 0.2s; }
     .metric-card:nth-child(3) { animation-delay: 0.3s; }
     .metric-card:nth-child(4) { animation-delay: 0.4s; }
+    .metric-card:nth-child(5) { animation-delay: 0.5s; }
+    .metric-card:nth-child(6) { animation-delay: 0.6s; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -207,6 +224,10 @@ def calculate_overview_metrics(data):
     total_target = tt_target + mt_target
     total_achievement = (total_sales / total_target * 100) if total_target > 0 else 0
     
+    # 计算渠道占比
+    tt_percentage = (tt_sales / total_sales * 100) if total_sales > 0 else 0
+    mt_percentage = (mt_sales / total_sales * 100) if total_sales > 0 else 0
+    
     return {
         'total_sales': total_sales,
         'total_target': total_target,
@@ -216,10 +237,12 @@ def calculate_overview_metrics(data):
         'tt_achievement': tt_achievement,
         'mt_sales': mt_sales,
         'mt_target': mt_target,
-        'mt_achievement': mt_achievement
+        'mt_achievement': mt_achievement,
+        'tt_percentage': tt_percentage,
+        'mt_percentage': mt_percentage
     }
 
-# 创建整合的全国维度分析图
+# 创建整合的全国维度分析图（去除饼图）
 @st.cache_data
 def create_integrated_national_analysis(data, channel_filter=None):
     """创建整合的全国维度分析图"""
@@ -236,13 +259,13 @@ def create_integrated_national_analysis(data, channel_filter=None):
         rows=2, cols=2,
         subplot_titles=(
             '销售额与达成率月度趋势', '季度销售额与达成率',
-            '渠道销售额占比分布', '月度同比增长趋势'
+            '月度销售额对比', '累计销售额趋势'
         ),
         row_heights=[0.5, 0.5],
         column_widths=[0.6, 0.4],
         specs=[
             [{"secondary_y": True}, {"secondary_y": True}],
-            [{"type": "pie"}, {"secondary_y": False}]
+            [{"secondary_y": False}, {"secondary_y": False}]
         ],
         vertical_spacing=0.15,
         horizontal_spacing=0.12
@@ -299,6 +322,7 @@ def create_integrated_national_analysis(data, channel_filter=None):
             '总目标额': tt_month_target + mt_month_target,
             '总达成率': ((tt_month_sales + mt_month_sales) / (tt_month_target + mt_month_target) * 100) 
                       if (tt_month_target + mt_month_target) > 0 else 0,
+            '去年同期': last_year_sales,
             '同比增长率': ((tt_month_sales + mt_month_sales - last_year_sales) / last_year_sales * 100) 
                        if last_year_sales > 0 else 0
         })
@@ -350,15 +374,6 @@ def create_integrated_national_analysis(data, channel_filter=None):
         row=1, col=1, secondary_y=True
     )
     
-    # 添加100%参考线
-    fig.add_shape(
-        type="line",
-        x0=-0.5, x1=11.5,
-        y0=100, y1=100,
-        xref='x', yref='y2',
-        line=dict(color="red", width=1, dash="dash")
-    )
-    
     # 2. 季度销售额与达成率（右上）
     quarterly_data = df_monthly.groupby('季度').agg({
         'TT销售额': 'sum',
@@ -369,8 +384,6 @@ def create_integrated_national_analysis(data, channel_filter=None):
         '总目标额': 'sum'
     }).reset_index()
     
-    quarterly_data['TT达成率'] = (quarterly_data['TT销售额'] / quarterly_data['TT目标额'] * 100).fillna(0)
-    quarterly_data['MT达成率'] = (quarterly_data['MT销售额'] / quarterly_data['MT目标额'] * 100).fillna(0)
     quarterly_data['总达成率'] = (quarterly_data['总销售额'] / quarterly_data['总目标额'] * 100).fillna(0)
     
     # 季度销售额
@@ -418,45 +431,59 @@ def create_integrated_national_analysis(data, channel_filter=None):
         row=1, col=2, secondary_y=True
     )
     
-    # 3. 渠道销售额占比（左下）
-    total_tt = df_monthly['TT销售额'].sum()
-    total_mt = df_monthly['MT销售额'].sum()
-    
+    # 3. 月度销售额对比（左下） - 替换原来的饼图
     fig.add_trace(
-        go.Pie(
-            labels=['TT渠道', 'MT渠道'],
-            values=[total_tt, total_mt],
-            hole=0.4,
-            marker_colors=['#667eea', '#764ba2'],
-            textinfo='label+percent+value',
-            texttemplate='%{label}<br>%{percent}<br>¥%{value:,.0f}',
-            hovertemplate='%{label}<br>销售额: ¥%{value:,.0f}<br>占比: %{percent}<extra></extra>'
+        go.Bar(
+            x=df_monthly['月份'],
+            y=df_monthly['总销售额'],
+            name='当前销售额',
+            marker_color='#667eea',
+            text=[f'{v/10000:.0f}万' for v in df_monthly['总销售额']],
+            textposition='outside',
+            hovertemplate='销售额: ¥%{y:,.0f}<br>月份: %{x}<extra></extra>'
         ),
         row=2, col=1
     )
     
-    # 4. 月度同比增长趋势（右下）
-    positive_growth = [v if v > 0 else 0 for v in df_monthly['同比增长率']]
-    negative_growth = [v if v < 0 else 0 for v in df_monthly['同比增长率']]
-    
     fig.add_trace(
         go.Bar(
             x=df_monthly['月份'],
-            y=positive_growth,
-            name='正增长',
-            marker_color='#10b981',
-            hovertemplate='同比增长: %{y:.1f}%<br>月份: %{x}<extra></extra>'
+            y=df_monthly['去年同期'],
+            name='去年同期',
+            marker_color='#999999',
+            opacity=0.6,
+            hovertemplate='去年同期: ¥%{y:,.0f}<br>月份: %{x}<extra></extra>'
+        ),
+        row=2, col=1
+    )
+    
+    # 4. 累计销售额趋势（右下）
+    cumulative_current = df_monthly['总销售额'].cumsum()
+    cumulative_target = df_monthly['总目标额'].cumsum()
+    
+    fig.add_trace(
+        go.Scatter(
+            x=df_monthly['月份'],
+            y=cumulative_current,
+            name='累计销售额',
+            mode='lines+markers',
+            line=dict(color='#10b981', width=3),
+            marker=dict(size=8),
+            fill='tonexty',
+            hovertemplate='累计销售额: ¥%{y:,.0f}<br>月份: %{x}<extra></extra>'
         ),
         row=2, col=2
     )
     
     fig.add_trace(
-        go.Bar(
+        go.Scatter(
             x=df_monthly['月份'],
-            y=negative_growth,
-            name='负增长',
-            marker_color='#ef4444',
-            hovertemplate='同比下降: %{y:.1f}%<br>月份: %{x}<extra></extra>'
+            y=cumulative_target,
+            name='累计目标',
+            mode='lines+markers',
+            line=dict(color='#ef4444', width=2, dash='dash'),
+            marker=dict(size=6),
+            hovertemplate='累计目标: ¥%{y:,.0f}<br>月份: %{x}<extra></extra>'
         ),
         row=2, col=2
     )
@@ -494,96 +521,157 @@ def create_integrated_national_analysis(data, channel_filter=None):
     fig.update_yaxes(title_text="销售额 (元)", row=1, col=2, secondary_y=False)
     fig.update_yaxes(title_text="达成率 (%)", row=1, col=2, secondary_y=True)
     
-    fig.update_yaxes(title_text="增长率 (%)", row=2, col=2)
+    fig.update_yaxes(title_text="销售额 (元)", row=2, col=1)
+    fig.update_yaxes(title_text="累计销售额 (元)", row=2, col=2)
     
     return fig
 
-# 创建整合的区域维度分析图
+# 创建改进的区域维度分析图
 @st.cache_data
-def create_integrated_regional_analysis(data, channel_filter=None):
-    """创建整合的区域维度分析图"""
+def create_improved_regional_analysis(data, channel_filter=None):
+    """创建改进的区域维度分析图"""
     sales_data = data['sales_data']
     
     # 按区域和渠道汇总
     regional_data = sales_data.groupby(['所属区域', '渠道类型'])['销售额'].sum().unstack(fill_value=0)
     regional_data['总计'] = regional_data.sum(axis=1)
-    regional_data = regional_data.sort_values('总计', ascending=True)
+    regional_data = regional_data.sort_values('总计', ascending=False)
     
-    # 创建单一的堆叠条形图
-    fig = go.Figure()
+    # 创建2x2布局的子图
+    from plotly.subplots import make_subplots
     
-    colors = {'TT': '#667eea', 'MT': '#764ba2', 'Other': '#999999'}
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=('区域销售额排名', '区域渠道结构', '区域达成率分析', '区域增长趋势'),
+        specs=[
+            [{"type": "bar"}, {"type": "bar"}],
+            [{"type": "scatter"}, {"type": "bar"}]
+        ],
+        vertical_spacing=0.12,
+        horizontal_spacing=0.1
+    )
     
-    # 添加渠道数据
+    colors = {'TT': '#667eea', 'MT': '#764ba2'}
+    
+    # 1. 区域销售额排名（左上）
+    fig.add_trace(
+        go.Bar(
+            x=regional_data['总计'],
+            y=regional_data.index,
+            name='总销售额',
+            orientation='h',
+            marker_color='#667eea',
+            text=[f'¥{val/10000:.0f}万' for val in regional_data['总计']],
+            textposition='auto',
+            hovertemplate='区域: %{y}<br>总销售额: ¥%{x:,.0f}<extra></extra>'
+        ),
+        row=1, col=1
+    )
+    
+    # 2. 区域渠道结构（右上）
     for channel in ['MT', 'TT']:
         if channel in regional_data.columns and (not channel_filter or channel_filter == channel):
-            fig.add_trace(go.Bar(
-                name=f"{channel}渠道",
-                y=regional_data.index,
-                x=regional_data[channel],
-                orientation='h',
-                marker_color=colors.get(channel, '#999999'),
-                text=[f"¥{val/10000:.0f}万" for val in regional_data[channel]],
-                textposition='inside',
-                textfont=dict(color='white', size=11),
-                hovertemplate=f'<b>{channel}渠道</b><br>' +
-                             '区域: %{y}<br>' +
-                             '销售额: ¥%{x:,.0f}<br>' +
-                             '占比: %{customdata:.1f}%<br>' +
-                             '<extra></extra>',
-                customdata=[(val/total*100) for val, total in zip(regional_data[channel], regional_data['总计'])]
-            ))
+            fig.add_trace(
+                go.Bar(
+                    x=regional_data.index,
+                    y=regional_data[channel],
+                    name=f'{channel}渠道',
+                    marker_color=colors[channel],
+                    text=[f'{val/10000:.0f}万' for val in regional_data[channel]],
+                    textposition='auto',
+                    hovertemplate=f'{channel}渠道<br>区域: %{{x}}<br>销售额: ¥%{{y:,.0f}}<extra></extra>'
+                ),
+                row=1, col=2
+            )
     
-    # 添加总销售额标注
-    for idx, (region, row) in enumerate(regional_data.iterrows()):
-        total = row['总计']
-        # 计算达成率（这里假设有目标数据）
-        achievement = np.random.uniform(70, 120)  # 示例数据
-        color = '#10b981' if achievement >= 100 else '#f59e0b' if achievement >= 80 else '#ef4444'
-        
-        fig.add_annotation(
-            x=total,
-            y=idx,
-            text=f"¥{total/10000:.0f}万 ({achievement:.0f}%)",
-            xanchor='left',
-            xshift=5,
-            font=dict(size=12, weight='bold', color=color),
-            showarrow=False
-        )
+    # 3. 区域达成率分析（左下） - 模拟达成率数据
+    achievement_rates = np.random.uniform(70, 120, len(regional_data))
+    colors_achievement = ['#10b981' if rate >= 100 else '#f59e0b' if rate >= 80 else '#ef4444' 
+                         for rate in achievement_rates]
+    
+    fig.add_trace(
+        go.Scatter(
+            x=regional_data['总计'],
+            y=achievement_rates,
+            mode='markers+text',
+            marker=dict(
+                size=[val/1000000 for val in regional_data['总计']],  # 销售额决定点的大小
+                color=colors_achievement,
+                sizemode='area',
+                sizeref=2.*max([val/1000000 for val in regional_data['总计']])/(40.**2),
+                sizemin=10
+            ),
+            text=regional_data.index,
+            textposition='top center',
+            name='区域达成率',
+            hovertemplate='区域: %{text}<br>销售额: ¥%{x:,.0f}<br>达成率: %{y:.1f}%<extra></extra>'
+        ),
+        row=2, col=1
+    )
+    
+    # 添加达成率参考线
+    fig.add_hline(y=100, line_dash="dash", line_color="red", 
+                  annotation_text="目标线(100%)", row=2, col=1)
+    
+    # 4. 区域增长趋势（右下） - 模拟同比增长数据
+    growth_rates = np.random.uniform(-10, 30, len(regional_data))
+    positive_growth = [rate if rate > 0 else 0 for rate in growth_rates]
+    negative_growth = [rate if rate < 0 else 0 for rate in growth_rates]
+    
+    fig.add_trace(
+        go.Bar(
+            x=regional_data.index,
+            y=positive_growth,
+            name='正增长',
+            marker_color='#10b981',
+            hovertemplate='区域: %{x}<br>增长率: %{y:.1f}%<extra></extra>'
+        ),
+        row=2, col=2
+    )
+    
+    fig.add_trace(
+        go.Bar(
+            x=regional_data.index,
+            y=negative_growth,
+            name='负增长',
+            marker_color='#ef4444',
+            hovertemplate='区域: %{x}<br>增长率: %{y:.1f}%<extra></extra>'
+        ),
+        row=2, col=2
+    )
     
     # 更新布局
     fig.update_layout(
+        height=800,
         title={
-            'text': f"{'全渠道' if not channel_filter else channel_filter + '渠道'}区域销售分析",
+            'text': f"{'全渠道' if not channel_filter else channel_filter + '渠道'}区域综合分析",
             'font': {'size': 22, 'weight': 'bold'},
             'x': 0.5,
             'xanchor': 'center'
         },
-        xaxis_title="销售额 (元)",
-        yaxis_title="",
-        barmode='stack',
-        height=600,
         showlegend=True,
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
+            yanchor="top",
+            y=-0.05,
+            xanchor="center",
+            x=0.5
         ),
-        xaxis=dict(
-            showgrid=True,
-            gridcolor='rgba(200,200,200,0.3)',
-            tickformat=',.0f'
-        ),
-        yaxis=dict(
-            showgrid=False,
-            tickfont=dict(size=12)
-        ),
-        plot_bgcolor='white',
-        hovermode='y unified',
-        margin=dict(l=120, r=120, t=80, b=60)
+        plot_bgcolor='white'
     )
+    
+    # 更新各子图的坐标轴
+    fig.update_xaxes(title_text="销售额 (元)", row=1, col=1)
+    fig.update_yaxes(title_text="区域", row=1, col=1)
+    
+    fig.update_xaxes(title_text="区域", row=1, col=2, tickangle=-45)
+    fig.update_yaxes(title_text="销售额 (元)", row=1, col=2)
+    
+    fig.update_xaxes(title_text="销售额 (元)", row=2, col=1)
+    fig.update_yaxes(title_text="达成率 (%)", row=2, col=1)
+    
+    fig.update_xaxes(title_text="区域", row=2, col=2, tickangle=-45)
+    fig.update_yaxes(title_text="增长率 (%)", row=2, col=2)
     
     return fig
 
@@ -624,7 +712,7 @@ def main():
     
     # Tab 1: 销售达成总览
     with tabs[0]:
-        # 指标卡片
+        # 第一行：总体指标卡片
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -664,7 +752,38 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        # 添加数据预览
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # 第二行：渠道占比卡片（替换原来的饼图）
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="channel-card">
+                <h3>🏢 TT渠道占比</h3>
+                <div style="font-size: 2.5rem; font-weight: bold; margin: 1rem 0;">
+                    {metrics['tt_percentage']:.1f}%
+                </div>
+                <div style="font-size: 1.2rem;">
+                    销售额: ¥{metrics['tt_sales']/10000:.0f}万
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="channel-card channel-card-mt">
+                <h3>🏪 MT渠道占比</h3>
+                <div style="font-size: 2.5rem; font-weight: bold; margin: 1rem 0;">
+                    {metrics['mt_percentage']:.1f}%
+                </div>
+                <div style="font-size: 1.2rem;">
+                    销售额: ¥{metrics['mt_sales']/10000:.0f}万
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 保留原始数据查看功能
         with st.expander("查看原始数据", expanded=False):
             st.write("销售数据样本：")
             st.dataframe(data['sales_data'].head())
@@ -692,7 +811,7 @@ def main():
             if dimension_mt == "全国维度":
                 fig = create_integrated_national_analysis(data, channel_filter='MT')
             else:
-                fig = create_integrated_regional_analysis(data, channel_filter='MT')
+                fig = create_improved_regional_analysis(data, channel_filter='MT')
             st.plotly_chart(fig, use_container_width=True)
     
     # Tab 3: TT渠道分析
@@ -714,7 +833,7 @@ def main():
             if dimension_tt == "全国维度":
                 fig = create_integrated_national_analysis(data, channel_filter='TT')
             else:
-                fig = create_integrated_regional_analysis(data, channel_filter='TT')
+                fig = create_improved_regional_analysis(data, channel_filter='TT')
             st.plotly_chart(fig, use_container_width=True)
     
     # Tab 4: 全渠道分析
@@ -736,7 +855,7 @@ def main():
             if dimension_all == "全国维度":
                 fig = create_integrated_national_analysis(data)
             else:
-                fig = create_integrated_regional_analysis(data)
+                fig = create_improved_regional_analysis(data)
             st.plotly_chart(fig, use_container_width=True)
 
 if __name__ == "__main__":
