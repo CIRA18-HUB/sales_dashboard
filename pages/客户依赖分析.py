@@ -9,6 +9,7 @@ from plotly.subplots import make_subplots
 import warnings
 import json
 import time
+import matplotlib.colors as mcolors
 
 # 导入高级组件
 try:
@@ -63,6 +64,26 @@ st.markdown("""
     .stApp {
         background: #f8f9fa;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    }
+    
+    /* 移除streamlit默认的白色分隔线 */
+    .stHorizontalBlock {
+        gap: 0 !important;
+    }
+    
+    section[data-testid="stHorizontalBlock"] > div {
+        flex: 1 1 0% !important;
+    }
+    
+    .element-container {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* 移除默认的padding */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
     }
     
     /* 主标题样式 - 与产品组合分析一致 */
@@ -141,6 +162,11 @@ st.markdown("""
     .metric-card:hover {
         transform: translateY(-8px) scale(1.02);
         box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+    }
+    
+    .metric-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
     }
     
     .metric-value {
@@ -564,6 +590,40 @@ st.markdown("""
         font-size: 0.85rem;
         color: #cbd5e0;
     }
+    /* 新增加载过渡动画 */
+    @keyframes pageLoadFade {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .stApp > div {
+        animation: pageLoadFade 0.5s ease-out;
+    }
+    
+    /* 优化滚动条样式 */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: #764ba2;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -893,22 +953,22 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
         target = []
         value = []
         labels = ['全部客户']
-        colors = ['#e8e8e8']
+        colors = ['#f0f0f0']
         
-        # 客户类型及其对应的颜色
+        # 客户类型及其对应的颜色 - 使用更柔和的颜色
         customer_types = [
-            ('钻石客户', '#e74c3c'),
-            ('黄金客户', '#f39c12'),
-            ('白银客户', '#95a5a6'),
-            ('潜力客户', '#3498db'),
-            ('流失风险', '#9b59b6')
+            ('钻石客户', '#ff6b6b'),  # 柔和红色
+            ('黄金客户', '#ffd93d'),  # 金黄色
+            ('白银客户', '#c0c0c0'),  # 银色
+            ('潜力客户', '#4ecdc4'),  # 青色
+            ('流失风险', '#a8a8a8')   # 灰色
         ]
         
         node_idx = 1
         for ct, color in customer_types:
             count = len(metrics['rfm_df'][metrics['rfm_df']['类型'] == ct])
             if count > 0:
-                labels.append(f"{ct}\n({count}家)")
+                labels.append(f"{ct}\n{count}家")
                 colors.append(color)
                 source.append(0)
                 target.append(node_idx)
@@ -916,49 +976,72 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
                 node_idx += 1
         
         # 添加二级分层（销售额贡献）
+        type_node_mapping = {}
         for idx, (ct, color) in enumerate(customer_types, 1):
             if idx < len(labels):  # 确保节点存在
                 type_customers = metrics['rfm_df'][metrics['rfm_df']['类型'] == ct]
-                if not type_customers.empty:
-                    # 根据销售额分层
-                    high_sales = len(type_customers[type_customers['M'] > type_customers['M'].median()])
-                    low_sales = len(type_customers) - high_sales
+                if not type_customers.empty and ct in [label.split('\n')[0] for label in labels]:
+                    # 找到对应的节点索引
+                    for i, label in enumerate(labels):
+                        if label.startswith(ct):
+                            type_node_mapping[ct] = i
+                            break
                     
-                    if high_sales > 0:
-                        labels.append(f"高贡献\n({high_sales}家)")
-                        colors.append(color)
-                        source.append(idx)
-                        target.append(len(labels) - 1)
-                        value.append(high_sales)
-                    
-                    if low_sales > 0:
-                        labels.append(f"低贡献\n({low_sales}家)")
-                        colors.append('#cccccc')
-                        source.append(idx)
-                        target.append(len(labels) - 1)
-                        value.append(low_sales)
+                    if ct in type_node_mapping:
+                        # 根据销售额分层
+                        median_sales = type_customers['M'].median()
+                        high_sales = len(type_customers[type_customers['M'] > median_sales])
+                        low_sales = len(type_customers) - high_sales
+                        
+                        if high_sales > 0:
+                            labels.append(f"高贡献\n{high_sales}家")
+                            # 使用稍深的颜色表示高贡献
+                            import matplotlib.colors as mcolors
+                            rgb = mcolors.hex2color(color)
+                            darker_rgb = tuple([max(0, c - 0.1) for c in rgb])
+                            darker_color = mcolors.rgb2hex(darker_rgb)
+                            colors.append(darker_color)
+                            source.append(type_node_mapping[ct])
+                            target.append(len(labels) - 1)
+                            value.append(high_sales)
+                        
+                        if low_sales > 0:
+                            labels.append(f"低贡献\n{low_sales}家")
+                            # 使用更浅的颜色表示低贡献
+                            lighter_rgb = tuple([min(1, c + 0.2) for c in rgb])
+                            lighter_color = mcolors.rgb2hex(lighter_rgb)
+                            colors.append(lighter_color)
+                            source.append(type_node_mapping[ct])
+                            target.append(len(labels) - 1)
+                            value.append(low_sales)
         
         fig_sankey = go.Figure(data=[go.Sankey(
             node=dict(
-                pad=15,
-                thickness=20,
-                line=dict(color="black", width=0.5),
+                pad=20,
+                thickness=25,
+                line=dict(color="white", width=2),
                 label=labels,
                 color=colors,
-                hovertemplate='%{label}<br>客户数: %{value}<extra></extra>'
+                hovertemplate='<b>%{label}</b><br>客户数: %{value}<br>占总客户比例: %{percentRoot:.1%}<extra></extra>',
+                x=[0.1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9],
+                y=[0.5, 0.1, 0.3, 0.5, 0.7, 0.9, 0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
             ),
             link=dict(
                 source=source,
                 target=target,
                 value=value,
-                color='rgba(200, 200, 200, 0.3)'
-            )
+                color='rgba(180, 180, 180, 0.3)',
+                hovertemplate='来源: %{source.label}<br>目标: %{target.label}<br>客户数: %{value}<extra></extra>'
+            ),
+            textfont=dict(size=14, color='black', family='Arial')
         )])
         
         fig_sankey.update_layout(
-            height=600,
-            margin=dict(t=40, b=40, l=40, r=40),
-            font=dict(size=12)
+            height=700,
+            margin=dict(t=60, b=60, l=60, r=60),
+            font=dict(size=14, family='Arial', color='black'),
+            paper_bgcolor='white',
+            plot_bgcolor='white'
         )
         
         charts['sankey'] = fig_sankey
@@ -1099,15 +1182,19 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
         
         fig_scatter = go.Figure()
         
-        # 根据达成率设置颜色
+        # 根据达成率设置颜色和大小
         colors = []
+        sizes = []
         for rate in achievement_df['达成率']:
             if rate >= 100:
                 colors.append('#48bb78')  # 绿色
+                sizes.append(max(20, min(80, rate / 2)))
             elif rate >= 80:
-                colors.append('#f39c12')  # 橙色
+                colors.append('#ffd93d')  # 黄色
+                sizes.append(max(15, min(60, rate / 2.5)))
             else:
-                colors.append('#f56565')  # 红色
+                colors.append('#ff6b6b')  # 红色
+                sizes.append(max(10, min(40, rate / 3)))
         
         # 添加散点
         fig_scatter.add_trace(go.Scatter(
@@ -1115,43 +1202,148 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
             y=achievement_df['实际'],
             mode='markers',
             marker=dict(
-                size=achievement_df['达成率'].apply(lambda x: min(max(x/5, 10), 50)),
+                size=sizes,
                 color=colors,
-                line=dict(width=1, color='white'),
-                opacity=0.8
+                line=dict(width=2, color='white'),
+                opacity=0.8,
+                sizemode='diameter',
+                symbol='circle'
             ),
             text=achievement_df['客户'],
             customdata=achievement_df[['达成率', '状态']],
-            hovertemplate='<b>%{text}</b><br>目标: ¥%{x:,.0f}<br>实际: ¥%{y:,.0f}<br>达成率: %{customdata[0]:.1f}%<br>状态: %{customdata[1]}<extra></extra>'
+            hovertemplate='<b style="font-size: 16px;">%{text}</b><br><br>' +
+                         '<b>目标金额:</b> ¥%{x:,.0f}<br>' +
+                         '<b>实际金额:</b> ¥%{y:,.0f}<br>' +
+                         '<b>达成率:</b> <span style="color: %{marker.color}; font-weight: bold;">%{customdata[0]:.1f}%</span><br>' +
+                         '<b>状态:</b> %{customdata[1]}<extra></extra>',
+            hoverlabel=dict(
+                bgcolor="rgba(255, 255, 255, 0.95)",
+                bordercolor="rgba(0,0,0,0.1)",
+                font=dict(size=14, color="black")
+            ),
+            name='客户达成情况'
         ))
         
         # 添加目标线
-        max_val = max(achievement_df['目标'].max(), achievement_df['实际'].max())
+        max_val = max(achievement_df['目标'].max(), achievement_df['实际'].max()) * 1.1
+        
+        # 100%目标线
         fig_scatter.add_trace(go.Scatter(
             x=[0, max_val],
             y=[0, max_val],
             mode='lines',
             name='目标线(100%)',
-            line=dict(color='red', dash='dash'),
-            showlegend=True
+            line=dict(color='#e74c3c', width=3, dash='dash'),
+            showlegend=True,
+            hovertemplate='100%目标线<extra></extra>'
         ))
         
-        # 添加80%达成线
+        # 80%达成线
         fig_scatter.add_trace(go.Scatter(
             x=[0, max_val],
             y=[0, max_val * 0.8],
             mode='lines',
             name='达成线(80%)',
-            line=dict(color='orange', dash='dot'),
-            showlegend=True
+            line=dict(color='#f39c12', width=2, dash='dot'),
+            showlegend=True,
+            hovertemplate='80%达成线<extra></extra>'
         ))
         
+        # 添加背景区域
+        fig_scatter.add_shape(
+            type="rect",
+            x0=0, y0=0, x1=max_val, y1=max_val * 0.8,
+            fillcolor="rgba(255, 107, 107, 0.05)",
+            layer="below",
+            line_width=0
+        )
+        
+        fig_scatter.add_shape(
+            type="rect",
+            x0=0, y0=max_val * 0.8, x1=max_val, y1=max_val,
+            fillcolor="rgba(255, 217, 61, 0.05)",
+            layer="below",
+            line_width=0
+        )
+        
+        fig_scatter.add_shape(
+            type="rect",
+            x0=0, y0=max_val, x1=max_val, y1=max_val * 1.2,
+            fillcolor="rgba(72, 187, 120, 0.05)",
+            layer="below",
+            line_width=0
+        )
+        
+        # 添加注释
+        fig_scatter.add_annotation(
+            x=max_val * 0.9,
+            y=max_val * 0.4,
+            text="<b>未达成区域</b>",
+            showarrow=False,
+            font=dict(size=16, color="#ff6b6b"),
+            opacity=0.5
+        )
+        
+        fig_scatter.add_annotation(
+            x=max_val * 0.9,
+            y=max_val * 0.9,
+            text="<b>基本达成区域</b>",
+            showarrow=False,
+            font=dict(size=16, color="#ffd93d"),
+            opacity=0.5
+        )
+        
+        fig_scatter.add_annotation(
+            x=max_val * 0.9,
+            y=max_val * 1.1,
+            text="<b>超额完成区域</b>",
+            showarrow=False,
+            font=dict(size=16, color="#48bb78"),
+            opacity=0.5
+        )
+        
         fig_scatter.update_layout(
-            xaxis_title="目标金额",
-            yaxis_title="实际金额",
-            height=600,
-            margin=dict(t=40, b=40, l=40, r=40),
-            hovermode='closest'
+            xaxis=dict(
+                title="目标金额",
+                titlefont=dict(size=16),
+                tickfont=dict(size=14),
+                gridcolor='rgba(200, 200, 200, 0.3)',
+                showgrid=True,
+                zeroline=True,
+                zerolinecolor='rgba(200, 200, 200, 0.5)'
+            ),
+            yaxis=dict(
+                title="实际金额",
+                titlefont=dict(size=16),
+                tickfont=dict(size=14),
+                gridcolor='rgba(200, 200, 200, 0.3)',
+                showgrid=True,
+                zeroline=True,
+                zerolinecolor='rgba(200, 200, 200, 0.5)'
+            ),
+            height=800,
+            margin=dict(t=60, b=60, l=60, r=60),
+            hovermode='closest',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            legend=dict(
+                x=0.02,
+                y=0.98,
+                bgcolor='rgba(255, 255, 255, 0.8)',
+                bordercolor='rgba(0, 0, 0, 0.1)',
+                borderwidth=1,
+                font=dict(size=14)
+            )
+        )
+        
+        # 添加动画效果
+        fig_scatter.update_traces(
+            marker=dict(
+                line=dict(width=2, color='white'),
+                size=sizes,
+                sizemode='diameter'
+            ),
+            selector=dict(mode='markers')
         )
         
         charts['target_scatter'] = fig_scatter
@@ -1210,7 +1402,8 @@ def main():
     
     # Tab 1: 关键指标总览 - 优化后的指标卡片
     with tabs[0]:
-        # 核心指标展示
+        # 第一行：核心业务指标
+        st.markdown("### 核心业务指标")
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -1218,7 +1411,7 @@ def main():
             <div class="metric-card">
                 <div class="metric-label">💰 年度销售总额</div>
                 <div class="metric-value data-point">¥{metrics['total_sales']/100000000:.2f}亿</div>
-                <div class="metric-detail">同比 {'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%</div>
+                <div class="metric-detail">同比 <span style="color: {'#48bb78' if metrics['growth_rate'] > 0 else '#f56565'};">{'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%</span></div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1248,6 +1441,91 @@ def main():
                 <div class="metric-label">🎯 目标达成率</div>
                 <div class="metric-value data-point">{metrics['target_achievement_rate']:.1f}%</div>
                 <div class="metric-detail">{metrics['achieved_customers']}/{metrics['total_target_customers']} 家达成</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 第二行：客户分布指标
+        st.markdown("### 客户分布指标")
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card" style="height: 160px;">
+                <div class="metric-icon">💎</div>
+                <div class="metric-value">{metrics['diamond_customers']}</div>
+                <div class="metric-label">钻石客户</div>
+                <div class="metric-detail" style="font-size: 0.8rem;">核心战略客户</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card" style="height: 160px;">
+                <div class="metric-icon">🏆</div>
+                <div class="metric-value">{metrics['gold_customers']}</div>
+                <div class="metric-label">黄金客户</div>
+                <div class="metric-detail" style="font-size: 0.8rem;">重要价值客户</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card" style="height: 160px;">
+                <div class="metric-icon">🥈</div>
+                <div class="metric-value">{metrics['silver_customers']}</div>
+                <div class="metric-label">白银客户</div>
+                <div class="metric-detail" style="font-size: 0.8rem;">基础稳定客户</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown(f"""
+            <div class="metric-card" style="height: 160px;">
+                <div class="metric-icon">🌟</div>
+                <div class="metric-value">{metrics['potential_customers']}</div>
+                <div class="metric-label">潜力客户</div>
+                <div class="metric-detail" style="font-size: 0.8rem;">待开发客户</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col5:
+            st.markdown(f"""
+            <div class="metric-card" style="height: 160px;">
+                <div class="metric-icon">⚠️</div>
+                <div class="metric-value" style="color: #f56565;">{metrics['risk_customers']}</div>
+                <div class="metric-label">流失风险</div>
+                <div class="metric-detail" style="font-size: 0.8rem;">需要挽回</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 第三行：客户状态统计
+        st.markdown("### 客户状态统计")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card" style="height: 140px;">
+                <div class="metric-label">📊 总客户数</div>
+                <div class="metric-value">{metrics['total_customers']}</div>
+                <div class="metric-detail">全部注册客户</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card" style="height: 140px;">
+                <div class="metric-label">✅ 正常客户</div>
+                <div class="metric-value" style="color: #48bb78;">{metrics['normal_customers']}</div>
+                <div class="metric-detail">占比 {metrics['normal_rate']:.1f}%</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card" style="height: 140px;">
+                <div class="metric-label">❌ 闭户客户</div>
+                <div class="metric-value" style="color: #f56565;">{metrics['closed_customers']}</div>
+                <div class="metric-detail">占比 {(100 - metrics['normal_rate']):.1f}%</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1315,60 +1593,38 @@ def main():
                 "health_radar_chart"
             )
         
-        # 客户状态分布（优化展示）
-        if not customer_status.empty:
-            status_counts = customer_status['状态'].value_counts()
-            
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                fig_status = go.Figure()
-                
-                # 使用环形图展示
-                fig_status.add_trace(go.Pie(
-                    labels=status_counts.index,
-                    values=status_counts.values,
-                    hole=0.6,
-                    marker=dict(colors=['#48bb78', '#f56565']),
-                    textinfo='label+percent+value',
-                    textfont=dict(size=14),
-                    hovertemplate='<b>%{label}</b><br>数量: %{value}<br>占比: %{percent}<extra></extra>'
-                ))
-                
-                # 在中心添加总数
-                fig_status.add_annotation(
-                    text=f'<b>{metrics["total_customers"]}</b><br>总客户数',
-                    x=0.5, y=0.5,
-                    font=dict(size=20, color='#2d3748'),
-                    showarrow=False
-                )
-                
-                fig_status.update_layout(
-                    height=400,
-                    margin=dict(t=40, b=40, l=40, r=40),
-                    showlegend=True
-                )
-                
-                st.plotly_chart(fig_status, use_container_width=True)
-            
-            with col2:
-                # 健康度评分卡
-                health_score = (metrics['normal_rate'] * 0.4 + 
-                              metrics['target_achievement_rate'] * 0.3 + 
-                              metrics['high_value_rate'] * 0.3)
-                
-                st.markdown(f"""
-                <div style='background: linear-gradient(135deg, #667eea, #764ba2); 
-                          color: white; padding: 2rem; border-radius: 15px; 
-                          text-align: center; height: 100%;'>
-                    <h2 style='font-size: 3rem; margin: 0;'>{health_score:.1f}</h2>
-                    <p style='font-size: 1.2rem; margin: 0.5rem 0;'>健康度评分</p>
-                    <hr style='border-color: rgba(255,255,255,0.3); margin: 1rem 0;'>
-                    <p style='margin: 0.5rem 0;'>正常率: {metrics['normal_rate']:.1f}%</p>
-                    <p style='margin: 0.5rem 0;'>达成率: {metrics['target_achievement_rate']:.1f}%</p>
-                    <p style='margin: 0.5rem 0;'>价值率: {metrics['high_value_rate']:.1f}%</p>
+        # 健康度评分卡
+        health_score = (metrics['normal_rate'] * 0.4 + 
+                      metrics['target_achievement_rate'] * 0.3 + 
+                      metrics['high_value_rate'] * 0.3)
+        
+        st.markdown("### 综合健康度评分")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        
+        with col2:
+            st.markdown(f"""
+            <div style='background: linear-gradient(135deg, #667eea, #764ba2); 
+                      color: white; padding: 3rem; border-radius: 20px; 
+                      text-align: center; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);'>
+                <h1 style='font-size: 4rem; margin: 0; font-weight: 800;'>{health_score:.1f}</h1>
+                <p style='font-size: 1.5rem; margin: 1rem 0 0 0; font-weight: 600;'>综合健康度评分</p>
+                <hr style='border-color: rgba(255,255,255,0.3); margin: 2rem 0;'>
+                <div style='display: flex; justify-content: space-around; text-align: center;'>
+                    <div>
+                        <p style='margin: 0; font-size: 1.8rem; font-weight: 700;'>{metrics['normal_rate']:.1f}%</p>
+                        <p style='margin: 0.3rem 0 0 0; opacity: 0.9;'>正常率</p>
+                    </div>
+                    <div>
+                        <p style='margin: 0; font-size: 1.8rem; font-weight: 700;'>{metrics['target_achievement_rate']:.1f}%</p>
+                        <p style='margin: 0.3rem 0 0 0; opacity: 0.9;'>达成率</p>
+                    </div>
+                    <div>
+                        <p style='margin: 0; font-size: 1.8rem; font-weight: 700;'>{metrics['high_value_rate']:.1f}%</p>
+                        <p style='margin: 0.3rem 0 0 0; opacity: 0.9;'>价值率</p>
+                    </div>
                 </div>
-                """, unsafe_allow_html=True)
+            </div>
+            """, unsafe_allow_html=True)
         
         st.markdown("</div>", unsafe_allow_html=True)
     
@@ -1377,7 +1633,7 @@ def main():
         st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
         
         # 添加客户贡献度分析 (Top 20)
-        st.markdown("### 客户贡献度分析 (Top 20)")
+        st.markdown("### 📊 客户贡献度分析 (Top 20)")
         
         # 计算Top 20客户贡献度
         if not metrics['rfm_df'].empty:
@@ -1398,11 +1654,23 @@ def main():
                     x=top20_customers['客户'],
                     y=top20_customers['M'],
                     name='销售额',
-                    marker_color='#667eea',
+                    marker=dict(
+                        color='#667eea',
+                        line=dict(color='white', width=2),
+                        opacity=0.9
+                    ),
                     text=[f"¥{val/10000:.0f}万" for val in top20_customers['M']],
                     textposition='outside',
-                    hovertemplate='<b>%{x}</b><br>销售额: ¥%{y:,.0f}<br>占比: %{customdata:.1f}%<extra></extra>',
-                    customdata=top20_customers['销售额占比']
+                    textfont=dict(size=12, color='#667eea', family='Arial Black'),
+                    hovertemplate='<b style="font-size: 16px;">%{x}</b><br><br>' +
+                                 '<b>销售额:</b> ¥%{y:,.0f}<br>' +
+                                 '<b>占比:</b> %{customdata:.1f}%<extra></extra>',
+                    customdata=top20_customers['销售额占比'],
+                    hoverlabel=dict(
+                        bgcolor="rgba(255, 255, 255, 0.95)",
+                        bordercolor="#667eea",
+                        font=dict(size=14)
+                    )
                 ),
                 secondary_y=False,
             )
@@ -1413,9 +1681,12 @@ def main():
                     x=top20_customers['客户'],
                     y=top20_customers['累计占比'],
                     name='累计占比',
-                    mode='lines+markers',
-                    line=dict(color='#ff8800', width=3),
-                    marker=dict(size=8),
+                    mode='lines+markers+text',
+                    line=dict(color='#ff8800', width=4, shape='spline'),
+                    marker=dict(size=10, color='#ff8800', line=dict(width=2, color='white')),
+                    text=[f"{val:.0f}%" if i % 3 == 0 else "" for i, val in enumerate(top20_customers['累计占比'])],
+                    textposition='top center',
+                    textfont=dict(size=12, color='#ff8800', family='Arial Black'),
                     hovertemplate='<b>%{x}</b><br>累计占比: %{y:.1f}%<extra></extra>'
                 ),
                 secondary_y=True,
@@ -1425,29 +1696,59 @@ def main():
             fig_top20.add_hline(
                 y=80, 
                 line_dash="dash", 
-                line_color="red", 
-                annotation_text="贡献80%销售额", 
+                line_color="#e74c3c",
+                line_width=3,
+                annotation_text="贡献80%销售额线", 
                 annotation_position="right",
+                annotation_font=dict(size=14, color="#e74c3c"),
                 secondary_y=True
             )
             
             # 更新布局
-            fig_top20.update_xaxes(title_text="客户名称", tickangle=-45)
-            fig_top20.update_yaxes(title_text="销售额", secondary_y=False)
-            fig_top20.update_yaxes(title_text="累计占比 (%)", range=[0, 100], secondary_y=True)
+            fig_top20.update_xaxes(
+                title_text="客户名称", 
+                tickangle=-45,
+                tickfont=dict(size=12),
+                titlefont=dict(size=16)
+            )
+            fig_top20.update_yaxes(
+                title_text="销售额", 
+                secondary_y=False,
+                tickfont=dict(size=12),
+                titlefont=dict(size=16)
+            )
+            fig_top20.update_yaxes(
+                title_text="累计占比 (%)", 
+                range=[0, 105], 
+                secondary_y=True,
+                tickfont=dict(size=12),
+                titlefont=dict(size=16)
+            )
             
             fig_top20.update_layout(
-                height=500,
+                height=600,
                 hovermode='x unified',
-                margin=dict(t=40, b=100, l=40, r=40),
+                margin=dict(t=60, b=120, l=60, r=60),
                 showlegend=True,
-                legend=dict(x=0.7, y=1)
+                legend=dict(
+                    x=0.02,
+                    y=0.98,
+                    bgcolor='rgba(255, 255, 255, 0.8)',
+                    bordercolor='rgba(0, 0, 0, 0.1)',
+                    borderwidth=1,
+                    font=dict(size=14)
+                ),
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                bargap=0.15,
+                font=dict(family='Arial', size=14)
             )
             
             # 显示图表
             st.plotly_chart(fig_top20, use_container_width=True)
             
-            # 显示关键指标
+            # 显示关键指标 - 使用更美观的卡片样式
+            st.markdown("#### 🎯 关键风险指标")
             col1, col2, col3 = st.columns(3)
             
             # 计算贡献80%销售额的客户数
@@ -1455,118 +1756,219 @@ def main():
             
             with col1:
                 st.markdown(f"""
-                <div style='text-align: center; padding: 1rem; background: #f8f9fa; border-radius: 10px;'>
-                    <h2 style='color: #667eea; margin: 0;'>{customers_for_80}个</h2>
-                    <p style='margin: 0.5rem 0 0 0; color: #718096;'>贡献80%销售的客户数</p>
-                    <p style='margin: 0.2rem 0 0 0; color: #a0aec0; font-size: 0.9rem;'>↑ 占比 {customers_for_80/len(metrics['rfm_df'])*100:.1f}%</p>
+                <div class="metric-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h2 style='margin: 0; font-size: 3rem; font-weight: 800;'>{customers_for_80}个</h2>
+                    <p style='margin: 0.5rem 0; font-size: 1.1rem; font-weight: 600;'>贡献80%销售的客户数</p>
+                    <div style='margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.3);'>
+                        <p style='margin: 0; opacity: 0.9;'>占比 {customers_for_80/len(metrics['rfm_df'])*100:.1f}%</p>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
             
             with col2:
                 st.markdown(f"""
-                <div style='text-align: center; padding: 1rem; background: #f8f9fa; border-radius: 10px;'>
-                    <h2 style='color: #667eea; margin: 0;'>{len(metrics['rfm_df'])}个</h2>
-                    <p style='margin: 0.5rem 0 0 0; color: #718096;'>总客户数</p>
-                    <p style='margin: 0.2rem 0 0 0; color: #a0aec0; font-size: 0.9rem;'>↑ 活跃客户</p>
+                <div class="metric-card" style="background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%); color: white;">
+                    <h2 style='margin: 0; font-size: 3rem; font-weight: 800;'>{len(metrics['rfm_df'])}个</h2>
+                    <p style='margin: 0.5rem 0; font-size: 1.1rem; font-weight: 600;'>总活跃客户数</p>
+                    <div style='margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.3);'>
+                        <p style='margin: 0; opacity: 0.9;'>本年度有交易</p>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
             
             with col3:
                 # 客户集中度风险评估
                 risk_level = "高" if customers_for_80 <= 5 else "中" if customers_for_80 <= 10 else "低"
-                risk_color = "#f56565" if risk_level == "高" else "#ff8800" if risk_level == "中" else "#48bb78"
+                risk_color = "#e74c3c" if risk_level == "高" else "#f39c12" if risk_level == "中" else "#27ae60"
+                risk_gradient = f"linear-gradient(135deg, {risk_color} 0%, {risk_color}dd 100%)"
                 
                 st.markdown(f"""
-                <div style='text-align: center; padding: 1rem; background: #f8f9fa; border-radius: 10px;'>
-                    <h2 style='color: {risk_color}; margin: 0;'>{risk_level}</h2>
-                    <p style='margin: 0.5rem 0 0 0; color: #718096;'>客户集中度风险</p>
-                    <p style='margin: 0.2rem 0 0 0; color: #a0aec0; font-size: 0.9rem;'>前20客户占比 {top20_customers['销售额占比'].sum():.1f}%</p>
+                <div class="metric-card" style="background: {risk_gradient}; color: white;">
+                    <h2 style='margin: 0; font-size: 3rem; font-weight: 800;'>{risk_level}风险</h2>
+                    <p style='margin: 0.5rem 0; font-size: 1.1rem; font-weight: 600;'>客户集中度评估</p>
+                    <div style='margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.3);'>
+                        <p style='margin: 0; opacity: 0.9;'>Top20占比 {top20_customers['销售额占比'].sum():.1f}%</p>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
         
-        st.markdown("<br><hr><br>", unsafe_allow_html=True)
+        st.markdown("<br><hr style='border: 1px solid #e0e0e0; margin: 2rem 0;'><br>", unsafe_allow_html=True)
         
-        # 区域风险分析
-        st.markdown("### 区域客户依赖风险评估")
+        # 区域风险分析 - 优化布局
+        st.markdown("### 🗺️ 区域客户依赖风险评估")
         
         if not metrics['region_stats'].empty:
-            # 创建风险评估矩阵
-            fig_risk_matrix = go.Figure()
+            # 创建两列布局
+            col_chart, col_details = st.columns([3, 2])
             
-            # 添加风险区域背景
-            fig_risk_matrix.add_shape(
-                type="rect", x0=0, y0=30, x1=100, y1=100,
-                fillcolor="rgba(255, 0, 0, 0.1)", layer="below"
-            )
-            fig_risk_matrix.add_shape(
-                type="rect", x0=0, y0=15, x1=100, y1=30,
-                fillcolor="rgba(255, 165, 0, 0.1)", layer="below"
-            )
-            fig_risk_matrix.add_shape(
-                type="rect", x0=0, y0=0, x1=100, y1=15,
-                fillcolor="rgba(0, 255, 0, 0.1)", layer="below"
-            )
-            
-            # 添加散点
-            for _, region in metrics['region_stats'].iterrows():
-                color = '#ff4444' if region['最大客户依赖度'] > 30 else '#ff8800' if region['最大客户依赖度'] > 15 else '#48bb78'
-                fig_risk_matrix.add_trace(go.Scatter(
-                    x=[region['客户数']],
-                    y=[region['最大客户依赖度']],
-                    mode='markers+text',
-                    marker=dict(
-                        size=region['总销售额']/100000,  # 根据销售额调整大小
-                        color=color,
-                        line=dict(color='white', width=2)
+            with col_chart:
+                # 创建风险评估矩阵
+                fig_risk_matrix = go.Figure()
+                
+                # 添加风险区域背景
+                fig_risk_matrix.add_shape(
+                    type="rect", x0=0, y0=30, x1=100, y1=100,
+                    fillcolor="rgba(231, 76, 60, 0.1)", layer="below",
+                    line=dict(width=0)
+                )
+                fig_risk_matrix.add_shape(
+                    type="rect", x0=0, y0=15, x1=100, y1=30,
+                    fillcolor="rgba(243, 156, 18, 0.1)", layer="below",
+                    line=dict(width=0)
+                )
+                fig_risk_matrix.add_shape(
+                    type="rect", x0=0, y0=0, x1=100, y1=15,
+                    fillcolor="rgba(39, 174, 96, 0.1)", layer="below",
+                    line=dict(width=0)
+                )
+                
+                # 添加散点
+                for _, region in metrics['region_stats'].iterrows():
+                    color = '#e74c3c' if region['最大客户依赖度'] > 30 else '#f39c12' if region['最大客户依赖度'] > 15 else '#27ae60'
+                    fig_risk_matrix.add_trace(go.Scatter(
+                        x=[region['客户数']],
+                        y=[region['最大客户依赖度']],
+                        mode='markers+text',
+                        marker=dict(
+                            size=max(20, min(80, region['总销售额']/50000)),  # 根据销售额调整大小
+                            color=color,
+                            line=dict(color='white', width=3),
+                            opacity=0.8
+                        ),
+                        text=region['区域'],
+                        textposition="top center",
+                        textfont=dict(size=14, family='Arial Black', color='black'),
+                        name=region['区域'],
+                        hovertemplate=f"<b style='font-size: 18px;'>{region['区域']}</b><br><br>" +
+                                     f"<b>客户数:</b> {region['客户数']}家<br>" +
+                                     f"<b>依赖度:</b> <span style='color: {color}; font-weight: bold;'>{region['最大客户依赖度']:.1f}%</span><br>" +
+                                     f"<b>总销售:</b> ¥{region['总销售额']/10000:.1f}万<br>" +
+                                     f"<b>最大客户:</b> {region['最大客户']}<extra></extra>",
+                        hoverlabel=dict(
+                            bgcolor="rgba(255, 255, 255, 0.95)",
+                            bordercolor=color,
+                            font=dict(size=14)
+                        )
+                    ))
+                
+                # 添加风险线
+                fig_risk_matrix.add_hline(
+                    y=30, line_dash="dash", line_color="#e74c3c", line_width=3,
+                    annotation_text="高风险线(30%)", annotation_position="right",
+                    annotation_font=dict(size=14, color="#e74c3c", family='Arial Black')
+                )
+                fig_risk_matrix.add_hline(
+                    y=15, line_dash="dash", line_color="#f39c12", line_width=2,
+                    annotation_text="中风险线(15%)", annotation_position="right",
+                    annotation_font=dict(size=14, color="#f39c12", family='Arial Black')
+                )
+                
+                # 添加风险区域标签
+                fig_risk_matrix.add_annotation(
+                    x=metrics['region_stats']['客户数'].max() * 0.9,
+                    y=60,
+                    text="<b>高风险区</b>",
+                    showarrow=False,
+                    font=dict(size=20, color="#e74c3c", family='Arial Black'),
+                    opacity=0.3
+                )
+                
+                fig_risk_matrix.add_annotation(
+                    x=metrics['region_stats']['客户数'].max() * 0.9,
+                    y=22,
+                    text="<b>中风险区</b>",
+                    showarrow=False,
+                    font=dict(size=18, color="#f39c12", family='Arial Black'),
+                    opacity=0.3
+                )
+                
+                fig_risk_matrix.add_annotation(
+                    x=metrics['region_stats']['客户数'].max() * 0.9,
+                    y=7,
+                    text="<b>低风险区</b>",
+                    showarrow=False,
+                    font=dict(size=16, color="#27ae60", family='Arial Black'),
+                    opacity=0.3
+                )
+                
+                fig_risk_matrix.update_layout(
+                    title=dict(
+                        text="区域客户依赖风险矩阵",
+                        font=dict(size=20, family='Arial Black')
                     ),
-                    text=region['区域'],
-                    textposition="top center",
-                    name=region['区域'],
-                    hovertemplate=f"<b>{region['区域']}</b><br>" +
-                                 f"客户数: {region['客户数']}<br>" +
-                                 f"依赖度: {region['最大客户依赖度']:.1f}%<br>" +
-                                 f"总销售: ¥{region['总销售额']/10000:.1f}万<br>" +
-                                 f"最大客户: {region['最大客户']}<extra></extra>"
-                ))
+                    xaxis=dict(
+                        title="客户数量",
+                        titlefont=dict(size=16),
+                        tickfont=dict(size=14),
+                        gridcolor='rgba(200, 200, 200, 0.3)',
+                        showgrid=True
+                    ),
+                    yaxis=dict(
+                        title="最大客户依赖度(%)",
+                        titlefont=dict(size=16),
+                        tickfont=dict(size=14),
+                        gridcolor='rgba(200, 200, 200, 0.3)',
+                        showgrid=True,
+                        range=[0, max(100, metrics['region_stats']['最大客户依赖度'].max() * 1.1)]
+                    ),
+                    height=600,
+                    showlegend=False,
+                    hovermode='closest',
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    margin=dict(t=80, b=60, l=60, r=60)
+                )
+                
+                st.plotly_chart(fig_risk_matrix, use_container_width=True)
             
-            # 添加风险线
-            fig_risk_matrix.add_hline(y=30, line_dash="dash", line_color="red", 
-                                      annotation_text="高风险线", annotation_position="right")
-            fig_risk_matrix.add_hline(y=15, line_dash="dash", line_color="orange", 
-                                      annotation_text="中风险线", annotation_position="right")
-            
-            fig_risk_matrix.update_layout(
-                title="区域客户依赖风险矩阵",
-                xaxis_title="客户数量",
-                yaxis_title="最大客户依赖度(%)",
-                height=500,
-                showlegend=False,
-                hovermode='closest'
-            )
-            
-            create_chart_with_tooltip(
-                fig_risk_matrix,
-                "区域风险分布图",
-                "识别高风险区域，制定风险分散策略",
-                """• <b>用途</b>：评估各区域的大客户依赖风险<br>
-                • <b>风险等级</b>：<br>
-                  - 红色区域(>30%)：高风险，需立即采取行动<br>
-                  - 橙色区域(15-30%)：中风险，需要关注<br>
-                  - 绿色区域(<15%)：低风险，保持监控<br>
-                • <b>气泡大小</b>：代表区域总销售额<br>
-                • <b>管理策略</b>：<br>
-                  - 高风险区域：开发新客户，分散风险<br>
-                  - 中风险区域：培育潜力客户，平衡结构<br>
-                  - 低风险区域：维持现状，持续优化""",
-                "risk_matrix_chart"
-            )
-            
-            # 显示区域详细数据表
-            st.markdown("#### 区域风险详情")
-            region_display = metrics['region_stats'][['区域', '客户数', '总销售额', '最大客户依赖度', '最大客户']].copy()
-            region_display['总销售额'] = region_display['总销售额'].apply(lambda x: f"¥{x/10000:.1f}万")
-            region_display['最大客户依赖度'] = region_display['最大客户依赖度'].apply(lambda x: f"{x:.1f}%")
-            st.dataframe(region_display, use_container_width=True)
+            with col_details:
+                # 显示风险详情
+                st.markdown("#### 🔍 区域风险详情")
+                
+                # 按风险等级分组显示
+                high_risk = metrics['region_stats'][metrics['region_stats']['最大客户依赖度'] > 30]
+                medium_risk = metrics['region_stats'][(metrics['region_stats']['最大客户依赖度'] > 15) & 
+                                                     (metrics['region_stats']['最大客户依赖度'] <= 30)]
+                low_risk = metrics['region_stats'][metrics['region_stats']['最大客户依赖度'] <= 15]
+                
+                if not high_risk.empty:
+                    st.markdown("##### 🔴 高风险区域")
+                    for _, region in high_risk.iterrows():
+                        st.markdown(f"""
+                        <div style='background: rgba(231, 76, 60, 0.1); padding: 1rem; 
+                                  border-radius: 10px; margin-bottom: 0.5rem; 
+                                  border-left: 4px solid #e74c3c;'>
+                            <b>{region['区域']}</b><br>
+                            <small>依赖度: {region['最大客户依赖度']:.1f}% | 
+                            最大客户: {region['最大客户'][:20]}...</small>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                if not medium_risk.empty:
+                    st.markdown("##### 🟡 中风险区域")
+                    for _, region in medium_risk.iterrows():
+                        st.markdown(f"""
+                        <div style='background: rgba(243, 156, 18, 0.1); padding: 1rem; 
+                                  border-radius: 10px; margin-bottom: 0.5rem; 
+                                  border-left: 4px solid #f39c12;'>
+                            <b>{region['区域']}</b><br>
+                            <small>依赖度: {region['最大客户依赖度']:.1f}% | 
+                            最大客户: {region['最大客户'][:20]}...</small>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                if not low_risk.empty:
+                    st.markdown("##### 🟢 低风险区域")
+                    for _, region in low_risk.iterrows():
+                        st.markdown(f"""
+                        <div style='background: rgba(39, 174, 96, 0.1); padding: 1rem; 
+                                  border-radius: 10px; margin-bottom: 0.5rem; 
+                                  border-left: 4px solid #27ae60;'>
+                            <b>{region['区域']}</b><br>
+                            <small>依赖度: {region['最大客户依赖度']:.1f}% | 
+                            客户数: {region['客户数']}家</small>
+                        </div>
+                        """, unsafe_allow_html=True)
         
         st.markdown("</div>", unsafe_allow_html=True)
     
@@ -1608,49 +2010,6 @@ def main():
                 "sunburst_chart"
             )
         
-        # 客户价值统计卡片
-        st.markdown("### 客户价值分布")
-        st.markdown("""
-        <div class="value-card-container">
-            <div class="value-card">
-                <div class="value-card-icon">💎</div>
-                <div class="value-card-number">{0}</div>
-                <div class="value-card-label">钻石客户</div>
-                <div class="value-card-desc">核心战略客户</div>
-            </div>
-            <div class="value-card">
-                <div class="value-card-icon">🏆</div>
-                <div class="value-card-number">{1}</div>
-                <div class="value-card-label">黄金客户</div>
-                <div class="value-card-desc">重要价值客户</div>
-            </div>
-            <div class="value-card">
-                <div class="value-card-icon">🥈</div>
-                <div class="value-card-number">{2}</div>
-                <div class="value-card-label">白银客户</div>
-                <div class="value-card-desc">基础稳定客户</div>
-            </div>
-            <div class="value-card">
-                <div class="value-card-icon">🌟</div>
-                <div class="value-card-number">{3}</div>
-                <div class="value-card-label">潜力客户</div>
-                <div class="value-card-desc">待开发客户</div>
-            </div>
-            <div class="value-card">
-                <div class="value-card-icon">⚠️</div>
-                <div class="value-card-number">{4}</div>
-                <div class="value-card-label">流失风险</div>
-                <div class="value-card-desc">需要挽回</div>
-            </div>
-        </div>
-        """.format(
-            metrics['diamond_customers'],
-            metrics['gold_customers'],
-            metrics['silver_customers'],
-            metrics['potential_customers'],
-            metrics['risk_customers']
-        ), unsafe_allow_html=True)
-        
         st.markdown("</div>", unsafe_allow_html=True)
     
     # Tab 5: 目标达成追踪
@@ -1666,7 +2025,7 @@ def main():
                   - 红色虚线：100%目标线<br>
                   - 橙色虚线：80%达成线<br>
                   - 气泡大小：代表达成率<br>
-                  - 气泡颜色：绿色(达成)、橙色(接近)、红色(未达成)<br>
+                  - 气泡颜色：绿色(达成)、黄色(接近)、红色(未达成)<br>
                 • <b>分析要点</b>：<br>
                   - 线上方：超额完成<br>
                   - 线附近：基本达成<br>
@@ -1674,28 +2033,6 @@ def main():
                 • <b>管理建议</b>：重点关注红色气泡客户""",
                 "target_scatter_chart"
             )
-        
-        # 达成情况统计
-        if not metrics['customer_achievement_details'].empty:
-            st.markdown("### 达成情况统计")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            achievement_df = metrics['customer_achievement_details']
-            excellent = len(achievement_df[achievement_df['达成率'] >= 100])
-            good = len(achievement_df[(achievement_df['达成率'] >= 80) & (achievement_df['达成率'] < 100)])
-            poor = len(achievement_df[achievement_df['达成率'] < 80])
-            
-            with col1:
-                st.metric("超额完成", excellent, f"{excellent/len(achievement_df)*100:.1f}%")
-            with col2:
-                st.metric("基本达成", good, f"{good/len(achievement_df)*100:.1f}%")
-            with col3:
-                st.metric("未达成", poor, f"{poor/len(achievement_df)*100:.1f}%")
-            with col4:
-                avg_rate = achievement_df['达成率'].mean()
-                st.metric("平均达成率", f"{avg_rate:.1f}%", 
-                         f"{'+' if avg_rate >= 80 else ''}{avg_rate-80:.1f}%")
         
         st.markdown("</div>", unsafe_allow_html=True)
     
