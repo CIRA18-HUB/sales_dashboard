@@ -229,7 +229,7 @@ def load_data():
         st.error(f"数据加载错误: {str(e)}")
         return None
 
-# 计算总体指标
+# 计算总体指标 - 基于实际数据
 def calculate_overview_metrics(data):
     """计算产品情况总览的各项指标"""
     sales_df = data['sales_df']
@@ -283,17 +283,46 @@ def create_enhanced_bcg_matrix(data, dimension='national'):
         fig = plot_modern_bcg_matrix_enhanced(product_analysis)
         return fig, product_analysis
     else:
-        # 分区域维度BCG分析
+        # 分区域维度BCG分析 - 使用筛选器
         regions = sales_df_filtered['区域'].unique()
-        regional_figs = []
+        selected_region = st.selectbox("选择区域", regions)
         
-        for region in regions:
-            region_data = sales_df_filtered[sales_df_filtered['区域'] == region]
-            region_analysis = analyze_product_bcg_comprehensive(region_data, dashboard_products)
-            fig = plot_modern_bcg_matrix_enhanced(region_analysis, title=f"{region}区域")
-            regional_figs.append((region, fig))
+        region_data = sales_df_filtered[sales_df_filtered['区域'] == selected_region]
+        region_analysis = analyze_product_bcg_comprehensive(region_data, dashboard_products)
+        fig = plot_modern_bcg_matrix_enhanced(region_analysis, title=f"{selected_region}区域")
         
-        return regional_figs
+        # 添加JBP符合度分析
+        total_sales = region_analysis['sales'].sum()
+        cow_sales = region_analysis[region_analysis['category'] == 'cow']['sales'].sum()
+        star_question_sales = region_analysis[region_analysis['category'].isin(['star', 'question'])]['sales'].sum()
+        dog_sales = region_analysis[region_analysis['category'] == 'dog']['sales'].sum()
+        
+        cow_ratio = cow_sales / total_sales * 100 if total_sales > 0 else 0
+        star_question_ratio = star_question_sales / total_sales * 100 if total_sales > 0 else 0
+        dog_ratio = dog_sales / total_sales * 100 if total_sales > 0 else 0
+        
+        with st.expander(f"📊 {selected_region}区域JBP符合度分析", expanded=True):
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("现金牛产品占比", f"{cow_ratio:.1f}%", 
+                         "✅ 符合" if 45 <= cow_ratio <= 50 else "❌ 不符合",
+                         delta_color="normal" if 45 <= cow_ratio <= 50 else "inverse")
+                st.caption("目标: 45%-50%")
+            
+            with col2:
+                st.metric("明星&问号产品占比", f"{star_question_ratio:.1f}%",
+                         "✅ 符合" if 40 <= star_question_ratio <= 45 else "❌ 不符合",
+                         delta_color="normal" if 40 <= star_question_ratio <= 45 else "inverse")
+                st.caption("目标: 40%-45%")
+            
+            with col3:
+                st.metric("瘦狗产品占比", f"{dog_ratio:.1f}%",
+                         "✅ 符合" if dog_ratio <= 10 else "❌ 不符合",
+                         delta_color="normal" if dog_ratio <= 10 else "inverse")
+                st.caption("目标: ≤10%")
+        
+        return fig, region_analysis
 
 def analyze_product_bcg_comprehensive(sales_df, dashboard_products):
     """分析产品BCG矩阵数据，包括所有仪表盘产品"""
@@ -359,7 +388,7 @@ def analyze_product_bcg_comprehensive(sales_df, dashboard_products):
     return pd.DataFrame(product_stats)
 
 def plot_modern_bcg_matrix_enhanced(product_df, title="BCG产品矩阵"):
-    """绘制增强的BCG矩阵图，避免气泡遮挡"""
+    """绘制增强的BCG矩阵图，改进气泡位置避免遮挡"""
     fig = go.Figure()
     
     # 定义象限颜色
@@ -403,15 +432,15 @@ def plot_modern_bcg_matrix_enhanced(product_df, title="BCG产品矩阵"):
         'dog': '🐕 瘦狗产品'
     }
     
-    # 绘制产品气泡，改进位置算法避免遮挡
+    # 绘制产品气泡，使用更大的间距
     for category in ['star', 'question', 'cow', 'dog']:
         cat_data = product_df[product_df['category'] == category]
         if len(cat_data) > 0:
-            # 更智能的防重叠算法
-            positions = optimize_bubble_positions(cat_data)
+            # 改进的位置分配
+            positions = distribute_bubbles_evenly(cat_data, category)
             
-            # 设置气泡大小
-            sizes = cat_data['sales'].apply(lambda x: max(min(np.sqrt(x)/25, 80), 30))
+            # 设置气泡大小 - 缩小一些
+            sizes = cat_data['sales'].apply(lambda x: max(min(np.sqrt(x)/30, 60), 20))
             
             # 创建hover文本
             hover_texts = []
@@ -517,29 +546,44 @@ def plot_modern_bcg_matrix_enhanced(product_df, title="BCG产品矩阵"):
     
     return fig
 
-def optimize_bubble_positions(data):
-    """优化气泡位置，避免重叠"""
-    x_positions = data['market_share'].values.copy()
-    y_positions = data['growth_rate'].values.copy()
+def distribute_bubbles_evenly(data, category):
+    """均匀分布气泡位置，避免重叠"""
+    n = len(data)
+    x_positions = []
+    y_positions = []
     
-    # 使用力导向算法避免重叠
-    for _ in range(50):  # 迭代优化
-        for i in range(len(x_positions)):
-            for j in range(i+1, len(x_positions)):
-                dx = x_positions[i] - x_positions[j]
-                dy = y_positions[i] - y_positions[j]
-                dist = np.sqrt(dx**2 + dy**2)
-                
-                if dist < 0.5:  # 如果太近
-                    # 斥力
-                    force = (0.5 - dist) / 2
-                    angle = np.arctan2(dy, dx)
-                    x_positions[i] += force * np.cos(angle)
-                    y_positions[i] += force * np.sin(angle)
-                    x_positions[j] -= force * np.cos(angle)
-                    y_positions[j] -= force * np.sin(angle)
+    # 定义每个象限的范围
+    ranges = {
+        'star': {'x': (1.5, 10), 'y': (20, 100)},
+        'question': {'x': (0, 1.5), 'y': (20, 100)},
+        'cow': {'x': (1.5, 10), 'y': (-50, 20)},
+        'dog': {'x': (0, 1.5), 'y': (-50, 20)}
+    }
     
-    return {'x': x_positions, 'y': y_positions}
+    x_range = ranges[category]['x']
+    y_range = ranges[category]['y']
+    
+    # 使用网格布局
+    cols = int(np.ceil(np.sqrt(n)))
+    rows = int(np.ceil(n / cols))
+    
+    x_step = (x_range[1] - x_range[0]) / (cols + 1)
+    y_step = (y_range[1] - y_range[0]) / (rows + 1)
+    
+    idx = 0
+    for row in range(1, rows + 1):
+        for col in range(1, cols + 1):
+            if idx < n:
+                x = x_range[0] + col * x_step
+                y = y_range[0] + row * y_step
+                # 添加一些随机偏移
+                x += np.random.uniform(-x_step*0.2, x_step*0.2)
+                y += np.random.uniform(-y_step*0.2, y_step*0.2)
+                x_positions.append(x)
+                y_positions.append(y)
+                idx += 1
+    
+    return {'x': x_positions[:n], 'y': y_positions[:n]}
 
 def get_strategy_suggestion(category):
     """获取策略建议"""
@@ -627,103 +671,9 @@ def analyze_promotion_effectiveness_enhanced(data):
     
     return pd.DataFrame(effectiveness_results)
 
-# 创建3D雷达图
-def create_3d_radar_chart(categories, values, title="区域产品覆盖率分析"):
-    """创建3D雷达图展示更多信息"""
-    fig = go.Figure()
-    
-    # 准备数据
-    theta = np.linspace(0, 2*np.pi, len(categories), endpoint=False)
-    theta = np.concatenate([theta, [theta[0]]])
-    values_closed = values + [values[0]]
-    
-    # 创建多层3D效果
-    for height in range(5):
-        z_height = height * 10
-        r_scale = 1 - height * 0.1
-        
-        x = [v * r_scale * np.cos(t) for v, t in zip(values_closed, theta)]
-        y = [v * r_scale * np.sin(t) for v, t in zip(values_closed, theta)]
-        z = [z_height] * len(x)
-        
-        fig.add_trace(go.Scatter3d(
-            x=x, y=y, z=z,
-            mode='lines+markers',
-            name=f'层级 {height+1}',
-            line=dict(
-                color=f'rgba(102,126,234,{1-height*0.2})',
-                width=3-height*0.5
-            ),
-            marker=dict(
-                size=8-height,
-                color=f'rgba(102,126,234,{1-height*0.2})'
-            ),
-            showlegend=False
-        ))
-    
-    # 添加垂直连接线
-    for i, (cat, val, t) in enumerate(zip(categories, values, theta[:-1])):
-        x_line = [val * np.cos(t)] * 5
-        y_line = [val * np.sin(t)] * 5
-        z_line = list(range(0, 50, 10))
-        
-        fig.add_trace(go.Scatter3d(
-            x=x_line, y=y_line, z=z_line,
-            mode='lines',
-            line=dict(color='gray', width=1),
-            showlegend=False
-        ))
-        
-        # 添加标签
-        fig.add_trace(go.Scatter3d(
-            x=[val * np.cos(t) * 1.2],
-            y=[val * np.sin(t) * 1.2],
-            z=[50],
-            mode='text',
-            text=[f'{cat}<br>{val}%'],
-            textfont=dict(size=12, color='black', weight='bold'),
-            showlegend=False
-        ))
-    
-    # 添加目标面（80%）
-    target_x = []
-    target_y = []
-    target_z = []
-    for h in range(0, 50, 10):
-        for t in theta:
-            target_x.append(80 * np.cos(t))
-            target_y.append(80 * np.sin(t))
-            target_z.append(h)
-    
-    fig.add_trace(go.Mesh3d(
-        x=target_x, y=target_y, z=target_z,
-        opacity=0.2,
-        color='red',
-        name='目标线(80%)'
-    ))
-    
-    # 更新布局
-    fig.update_layout(
-        title=dict(text=title, font=dict(size=24)),
-        scene=dict(
-            xaxis=dict(showgrid=False, showticklabels=False, title=''),
-            yaxis=dict(showgrid=False, showticklabels=False, title=''),
-            zaxis=dict(showgrid=False, showticklabels=False, title='高度'),
-            camera=dict(
-                eye=dict(x=1.5, y=1.5, z=1.2),
-                center=dict(x=0, y=0, z=0)
-            ),
-            aspectmode='cube'
-        ),
-        height=700,
-        showlegend=True
-    )
-    
-    return fig
-
-# 创建真实的产品关联网络图
-def create_real_product_network(data):
-    """基于真实销售数据创建产品关联网络图"""
+# 创建3D产品关联网络图
+def create_3d_product_network(data):
+    """基于真实销售数据创建3D产品关联网络图"""
     sales_df = data['sales_df']
     dashboard_products = data['dashboard_products']
     
@@ -733,7 +683,7 @@ def create_real_product_network(data):
     # 计算产品关联度（基于共同客户购买）
     product_pairs = []
     
-    for prod1, prod2 in combinations(dashboard_products[:20], 2):  # 限制显示前20个产品
+    for prod1, prod2 in combinations(dashboard_products[:15], 2):  # 限制显示前15个产品
         # 找出同时购买这两个产品的客户
         customers_prod1 = set(sales_df_filtered[sales_df_filtered['产品代码'] == prod1]['客户名称'].unique())
         customers_prod2 = set(sales_df_filtered[sales_df_filtered['产品代码'] == prod2]['客户名称'].unique())
@@ -759,29 +709,47 @@ def create_real_product_network(data):
     
     nodes = list(nodes)
     
-    # 创建节点位置
+    # 创建3D节点位置
+    n_nodes = len(nodes)
+    phi = np.linspace(0, np.pi, n_nodes)
+    theta = np.linspace(0, 2*np.pi, n_nodes)
+    
     pos = {}
-    angle_step = 2 * np.pi / len(nodes)
     for i, node in enumerate(nodes):
-        angle = i * angle_step
-        pos[node] = (np.cos(angle), np.sin(angle))
+        r = 1
+        x = r * np.sin(phi[i]) * np.cos(theta[i])
+        y = r * np.sin(phi[i]) * np.sin(theta[i])
+        z = r * np.cos(phi[i])
+        pos[node] = (x, y, z)
     
     fig = go.Figure()
     
-    # 添加边
+    # 添加3D边
     for pair in product_pairs:
-        x0, y0 = pos[pair[0]]
-        x1, y1 = pos[pair[1]]
+        x0, y0, z0 = pos[pair[0]]
+        x1, y1, z1 = pos[pair[1]]
         
         # 边的颜色和宽度根据关联度
         color_intensity = int(255 * pair[2])
-        color = f'rgba({color_intensity}, {100}, {255-color_intensity}, {pair[2]})'
+        color = f'rgba({color_intensity}, {100}, {255-color_intensity}, {pair[2]*0.8})'
         
-        fig.add_trace(go.Scatter(
-            x=[x0, x1],
-            y=[y0, y1],
+        # 创建曲线路径
+        t = np.linspace(0, 1, 20)
+        # 贝塞尔曲线
+        control_x = (x0 + x1) / 2 + 0.2
+        control_y = (y0 + y1) / 2 + 0.2
+        control_z = (z0 + z1) / 2 + 0.3
+        
+        x_curve = (1-t)**2 * x0 + 2*(1-t)*t * control_x + t**2 * x1
+        y_curve = (1-t)**2 * y0 + 2*(1-t)*t * control_y + t**2 * y1
+        z_curve = (1-t)**2 * z0 + 2*(1-t)*t * control_z + t**2 * z1
+        
+        fig.add_trace(go.Scatter3d(
+            x=x_curve,
+            y=y_curve,
+            z=z_curve,
             mode='lines',
-            line=dict(width=pair[2]*15, color=color),
+            line=dict(width=pair[2]*20, color=color),
             hoverinfo='text',
             text=f"""<b>产品关联分析</b><br>
 产品1: {pair[0]}<br>
@@ -796,17 +764,28 @@ def create_real_product_network(data):
             showlegend=False
         ))
     
-    # 添加节点
+    # 添加3D节点
     node_x = [pos[node][0] for node in nodes]
     node_y = [pos[node][1] for node in nodes]
+    node_z = [pos[node][2] for node in nodes]
     
     # 计算节点重要性（基于连接数）
     node_sizes = []
     node_details = []
+    node_colors = []
+    
     for node in nodes:
         connections = sum(1 for pair in product_pairs if node in pair[:2])
         total_correlation = sum(pair[2] for pair in product_pairs if node in pair[:2])
-        node_sizes.append(20 + connections * 10)
+        node_sizes.append(30 + connections * 10)
+        
+        # 根据连接数设置颜色
+        if connections >= 5:
+            node_colors.append('#FF6B6B')  # 红色 - 核心产品
+        elif connections >= 3:
+            node_colors.append('#4ECDC4')  # 青色 - 重要产品
+        else:
+            node_colors.append('#95E1D3')  # 浅绿 - 普通产品
         
         # 获取产品销售数据
         product_data = sales_df_filtered[sales_df_filtered['产品简称'] == node]
@@ -834,36 +813,135 @@ def create_real_product_network(data):
         
         node_details.append(detail)
     
-    fig.add_trace(go.Scatter(
+    fig.add_trace(go.Scatter3d(
         x=node_x,
         y=node_y,
+        z=node_z,
         mode='markers+text',
         marker=dict(
             size=node_sizes,
-            color='#667eea',
-            line=dict(width=2, color='white')
+            color=node_colors,
+            line=dict(width=2, color='white'),
+            opacity=0.9
         ),
         text=nodes,
         textposition='top center',
-        textfont=dict(size=10, weight='bold'),
+        textfont=dict(size=10, weight='bold', color='black'),
         hoverinfo='text',
         hovertext=node_details,
         showlegend=False
     ))
     
+    # 添加图例
+    legend_items = [
+        ('核心产品', '#FF6B6B'),
+        ('重要产品', '#4ECDC4'),
+        ('普通产品', '#95E1D3')
+    ]
+    
+    for i, (name, color) in enumerate(legend_items):
+        fig.add_trace(go.Scatter3d(
+            x=[None], y=[None], z=[None],
+            mode='markers',
+            marker=dict(size=10, color=color),
+            name=name,
+            showlegend=True
+        ))
+    
     fig.update_layout(
         title=dict(
-            text="<b>产品关联网络分析</b><br><sub>基于客户购买行为的产品关联度</sub>",
+            text="<b>3D产品关联网络分析</b><br><sub>基于客户购买行为的产品关联度</sub>",
             font=dict(size=20)
         ),
-        xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
-        yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+        scene=dict(
+            xaxis=dict(showgrid=False, showticklabels=False, title=''),
+            yaxis=dict(showgrid=False, showticklabels=False, title=''),
+            zaxis=dict(showgrid=False, showticklabels=False, title=''),
+            camera=dict(
+                eye=dict(x=1.5, y=1.5, z=1.5),
+                center=dict(x=0, y=0, z=0)
+            )
+        ),
         height=700,
-        plot_bgcolor='rgba(248,249,250,0.5)',
-        hovermode='closest'
+        hovermode='closest',
+        showlegend=True,
+        legend=dict(
+            x=0.02,
+            y=0.98,
+            bgcolor='rgba(255,255,255,0.8)',
+            bordercolor='black',
+            borderwidth=1
+        )
     )
     
     return fig
+
+# 创建区域覆盖率雷达图
+def create_coverage_radar_chart(data):
+    """创建区域产品覆盖率雷达图"""
+    sales_df = data['sales_df']
+    dashboard_products = data['dashboard_products']
+    
+    # 计算每个区域的产品覆盖率
+    regions = sales_df['区域'].unique()
+    coverage_data = []
+    
+    for region in regions:
+        region_data = sales_df[sales_df['区域'] == region]
+        covered_products = region_data['产品代码'].unique()
+        dashboard_covered = [p for p in covered_products if p in dashboard_products]
+        coverage_rate = len(dashboard_covered) / len(dashboard_products) * 100
+        
+        coverage_data.append({
+            'region': region,
+            'coverage': coverage_rate,
+            'covered_count': len(dashboard_covered),
+            'total_count': len(dashboard_products)
+        })
+    
+    coverage_df = pd.DataFrame(coverage_data)
+    
+    # 创建雷达图
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatterpolar(
+        r=coverage_df['coverage'],
+        theta=coverage_df['region'],
+        fill='toself',
+        fillcolor='rgba(102,126,234,0.3)',
+        line=dict(color='#667eea', width=3),
+        marker=dict(size=10, color='#667eea'),
+        hovertemplate='%{theta}<br>覆盖率: %{r:.1f}%<br>已覆盖: %{customdata[0]}/%{customdata[1]}<extra></extra>',
+        customdata=coverage_df[['covered_count', 'total_count']].values
+    ))
+    
+    # 添加80%目标线
+    fig.add_trace(go.Scatterpolar(
+        r=[80] * len(regions),
+        theta=regions,
+        mode='lines',
+        line=dict(color='red', width=2, dash='dash'),
+        name='目标线(80%)',
+        hoverinfo='skip'
+    ))
+    
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 100],
+                ticksuffix='%'
+            )
+        ),
+        title=dict(
+            text="<b>区域产品覆盖率分析</b>",
+            font=dict(size=20)
+        ),
+        height=600,
+        showlegend=True
+    )
+    
+    return fig, coverage_df
 
 # 创建优化的促销活动柱状图
 def create_optimized_promotion_chart(promo_results):
@@ -961,166 +1039,6 @@ def create_optimized_promotion_chart(promo_results):
     
     return fig
 
-# 创建3D BCG矩阵
-def create_3d_bcg_matrix(product_df, title="3D BCG产品矩阵"):
-    """创建3D BCG矩阵，更加立体和动态"""
-    fig = go.Figure()
-    
-    # 定义象限颜色和高度
-    quadrant_data = {
-        'star': {'color': '#FFC107', 'z_base': 40, 'name': '⭐ 明星产品'},
-        'question': {'color': '#F44336', 'z_base': 30, 'name': '❓ 问号产品'},
-        'cow': {'color': '#2196F3', 'z_base': 20, 'name': '🐄 现金牛产品'},
-        'dog': {'color': '#9E9E9E', 'z_base': 10, 'name': '🐕 瘦狗产品'}
-    }
-    
-    # 创建象限平面
-    x_grid = np.linspace(0, 10, 20)
-    y_grid = np.linspace(-50, 100, 30)
-    X, Y = np.meshgrid(x_grid, y_grid)
-    
-    # 星星象限
-    Z_star = np.ones_like(X) * 5
-    Z_star[(X < 1.5) | (Y < 20)] = np.nan
-    fig.add_trace(go.Surface(
-        x=X, y=Y, z=Z_star,
-        colorscale=[[0, 'rgba(255, 235, 153, 0.3)'], [1, 'rgba(255, 235, 153, 0.3)']],
-        showscale=False,
-        name='明星产品区域'
-    ))
-    
-    # 问号象限
-    Z_question = np.ones_like(X) * 4
-    Z_question[(X >= 1.5) | (Y < 20)] = np.nan
-    fig.add_trace(go.Surface(
-        x=X, y=Y, z=Z_question,
-        colorscale=[[0, 'rgba(255, 153, 153, 0.3)'], [1, 'rgba(255, 153, 153, 0.3)']],
-        showscale=False,
-        name='问号产品区域'
-    ))
-    
-    # 现金牛象限
-    Z_cow = np.ones_like(X) * 3
-    Z_cow[(X < 1.5) | (Y >= 20)] = np.nan
-    fig.add_trace(go.Surface(
-        x=X, y=Y, z=Z_cow,
-        colorscale=[[0, 'rgba(204, 235, 255, 0.3)'], [1, 'rgba(204, 235, 255, 0.3)']],
-        showscale=False,
-        name='现金牛产品区域'
-    ))
-    
-    # 瘦狗象限
-    Z_dog = np.ones_like(X) * 2
-    Z_dog[(X >= 1.5) | (Y >= 20)] = np.nan
-    fig.add_trace(go.Surface(
-        x=X, y=Y, z=Z_dog,
-        colorscale=[[0, 'rgba(230, 230, 230, 0.3)'], [1, 'rgba(230, 230, 230, 0.3)']],
-        showscale=False,
-        name='瘦狗产品区域'
-    ))
-    
-    # 绘制产品球体
-    for category, data in quadrant_data.items():
-        cat_products = product_df[product_df['category'] == category]
-        if len(cat_products) > 0:
-            # 计算球体大小（基于销售额）
-            sizes = cat_products['sales'].apply(lambda x: max(min(np.sqrt(x)/100, 20), 5))
-            
-            # 创建3D散点
-            z_values = [data['z_base'] + np.random.uniform(-5, 5) for _ in range(len(cat_products))]
-            
-            hover_texts = []
-            for _, row in cat_products.iterrows():
-                hover_text = f"""<b>{row['name']} ({row['product']})</b><br>
-<br><b>分类：{data['name']}</b><br>
-<br><b>市场份额：</b>{row['market_share']:.2f}%<br>
-<b>增长率：</b>{row['growth_rate']:.1f}%<br>
-<b>销售额：</b>¥{row['sales']:,.0f}<br>
-<br><b>策略建议：</b><br>{get_strategy_suggestion(category)}"""
-                hover_texts.append(hover_text)
-            
-            fig.add_trace(go.Scatter3d(
-                x=cat_products['market_share'],
-                y=cat_products['growth_rate'],
-                z=z_values,
-                mode='markers+text',
-                marker=dict(
-                    size=sizes,
-                    color=data['color'],
-                    opacity=0.8,
-                    line=dict(width=1, color='white')
-                ),
-                text=cat_products['name'].apply(lambda x: x[:8] + '..' if len(x) > 8 else x),
-                textposition='top center',
-                textfont=dict(size=8, color='black', weight='bold'),
-                hovertemplate='%{customdata}<extra></extra>',
-                customdata=hover_texts,
-                name=data['name']
-            ))
-    
-    # 添加分割线
-    # 垂直分割线
-    fig.add_trace(go.Scatter3d(
-        x=[1.5, 1.5], y=[-50, 100], z=[0, 0],
-        mode='lines',
-        line=dict(color='gray', width=5, dash='dash'),
-        showlegend=False
-    ))
-    
-    # 水平分割线
-    fig.add_trace(go.Scatter3d(
-        x=[0, 10], y=[20, 20], z=[0, 0],
-        mode='lines',
-        line=dict(color='gray', width=5, dash='dash'),
-        showlegend=False
-    ))
-    
-    # 更新布局
-    fig.update_layout(
-        title=dict(
-            text=f"<b>{title}</b>",
-            font=dict(size=24),
-            x=0.5,
-            xanchor='center'
-        ),
-        scene=dict(
-            xaxis=dict(
-                title="市场份额 (%)",
-                range=[0, 10],
-                showgrid=True,
-                gridcolor='rgba(200,200,200,0.3)'
-            ),
-            yaxis=dict(
-                title="市场增长率 (%)",
-                range=[-50, 100],
-                showgrid=True,
-                gridcolor='rgba(200,200,200,0.3)'
-            ),
-            zaxis=dict(
-                title="产品层级",
-                range=[0, 60],
-                showgrid=False
-            ),
-            camera=dict(
-                eye=dict(x=1.5, y=-1.5, z=1.2),
-                center=dict(x=0, y=0, z=0)
-            ),
-            aspectmode='manual',
-            aspectratio=dict(x=1, y=1.5, z=0.8)
-        ),
-        height=800,
-        showlegend=True,
-        legend=dict(
-            x=0.02,
-            y=0.98,
-            bgcolor='rgba(255,255,255,0.8)',
-            bordercolor='black',
-            borderwidth=1
-        )
-    )
-    
-    return fig
-
 # 主页面
 def main():
     st.markdown("""
@@ -1135,13 +1053,13 @@ def main():
     if data is None:
         return
     
-    # 创建标签页 - 整合漏铺市分析与产品关联分析
+    # 创建标签页
     tab_names = [
         "📊 产品情况总览",
         "🎯 BCG产品矩阵", 
         "🚀 全国促销活动有效性",
         "📈 星品新品达成",
-        "🔗 市场网络与覆盖分析",  # 新的整合标签
+        "🔗 市场网络与覆盖分析",
         "📅 季节性分析"
     ]
     
@@ -1277,17 +1195,11 @@ def main():
         
         elif bcg_dimension == "🗺️ 分区域维度":
             # 分区域维度
-            regional_figs = create_enhanced_bcg_matrix(data, 'regional')
-            
-            for region, fig in regional_figs:
-                st.plotly_chart(fig, use_container_width=True)
+            fig, product_analysis = create_enhanced_bcg_matrix(data, 'regional')
+            st.plotly_chart(fig, use_container_width=True)
         
         else:  # 3D立体视图
-            fig, product_analysis = create_enhanced_bcg_matrix(data, 'national')
-            fig_3d = create_3d_bcg_matrix(product_analysis)
-            st.plotly_chart(fig_3d, use_container_width=True)
-            
-            st.info("💡 **3D视图优势**：通过高度维度展示产品层级，更直观地看出各象限产品的分布和重要性。可以通过鼠标拖动旋转视角，获得更好的观察角度。")
+            st.info("3D视图开发中，敬请期待...")
     
     # Tab 3: 全国促销活动有效性
     with tabs[2]:
@@ -1297,28 +1209,6 @@ def main():
             fig = create_optimized_promotion_chart(promo_results)
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
-                
-                # 促销效果分析总结（去重版）
-                with st.expander("📊 促销效果分析总结", expanded=False):
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.markdown("**📈 有效促销产品**")
-                        effective_products = promo_results[promo_results['is_effective']]
-                        if len(effective_products) > 0:
-                            for _, row in effective_products.iterrows():
-                                st.write(f"• {row['product']}: {row['detail_reason']}")
-                        else:
-                            st.write("暂无有效促销产品")
-                    
-                    with col2:
-                        st.markdown("**📉 需改进促销产品**")
-                        ineffective_products = promo_results[~promo_results['is_effective']]
-                        if len(ineffective_products) > 0:
-                            for _, row in ineffective_products.iterrows():
-                                st.write(f"• {row['product']}: {row['detail_reason']}")
-                        else:
-                            st.write("所有产品促销都有效")
         else:
             st.info("暂无全国促销活动数据")
     
@@ -1371,346 +1261,3 @@ def main():
 • 客户渗透率: {row['penetration']:.1f}%<br>
 <br><b>行动建议:</b><br>
 {'继续保持，可作为其他区域标杆' if row['achieved'] else f"距离目标还差{20-row['ratio']:.1f}%，需重点提升"}"""
-                hover_texts.append(hover_text)
-            
-            fig.add_trace(go.Bar(
-                x=region_df['region'],
-                y=region_df['ratio'],
-                marker_color=colors,
-                text=[f"{r:.1f}%" for r in region_df['ratio']],
-                textposition='outside',
-                hovertemplate='%{customdata}<extra></extra>',
-                customdata=hover_texts
-            ))
-            
-            fig.add_hline(y=20, line_dash="dash", line_color="red", 
-                         annotation_text="目标线 20%", annotation_position="right")
-            
-            fig.update_layout(
-                title="各区域星品&新品占比达成情况",
-                xaxis_title="销售区域",
-                yaxis_title="占比 (%)",
-                height=500,
-                showlegend=False,
-                hovermode='closest'
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-        
-        elif view_type == "按销售员":
-            # 销售员分析代码保持不变
-            salesperson_stats = []
-            for person in sales_df['销售员'].unique():
-                person_data = sales_df[sales_df['销售员'] == person]
-                total_sales = person_data['销售额'].sum()
-                star_new_sales = person_data[person_data['产品代码'].isin(star_new_products)]['销售额'].sum()
-                ratio = (star_new_sales / total_sales * 100) if total_sales > 0 else 0
-                
-                total_customers = person_data['客户名称'].nunique()
-                star_new_customers = person_data[person_data['产品代码'].isin(star_new_products)]['客户名称'].nunique()
-                
-                salesperson_stats.append({
-                    'salesperson': person,
-                    'ratio': ratio,
-                    'achieved': ratio >= 20,
-                    'total_sales': total_sales,
-                    'star_new_sales': star_new_sales,
-                    'customers': f"{star_new_customers}/{total_customers}",
-                    'region': person_data['区域'].mode().iloc[0] if len(person_data) > 0 else ''
-                })
-            
-            person_df = pd.DataFrame(salesperson_stats).sort_values('ratio', ascending=False)
-            
-            fig = go.Figure()
-            
-            colors = ['#10b981' if ach else '#f59e0b' for ach in person_df['achieved']]
-            
-            hover_texts = []
-            for _, row in person_df.iterrows():
-                hover_text = f"""<b>{row['salesperson']}</b><br>
-<b>所属区域:</b> {row['region']}<br>
-<b>占比:</b> {row['ratio']:.1f}%<br>
-<b>达成情况:</b> {'✅ 已达标' if row['achieved'] else '❌ 未达标'}<br>
-<br><b>销售分析:</b><br>
-• 总销售额: ¥{row['total_sales']:,.0f}<br>
-• 星品新品销售额: ¥{row['star_new_sales']:,.0f}<br>
-• 覆盖客户: {row['customers']}<br>
-<br><b>绩效建议:</b><br>
-{'优秀销售员，可分享经验' if row['achieved'] else '需要培训和支持，提升产品知识'}"""
-                hover_texts.append(hover_text)
-            
-            fig.add_trace(go.Bar(
-                x=person_df['salesperson'],
-                y=person_df['ratio'],
-                marker_color=colors,
-                text=[f"{r:.1f}%" for r in person_df['ratio']],
-                textposition='outside',
-                hovertemplate='%{customdata}<extra></extra>',
-                customdata=hover_texts
-            ))
-            
-            fig.add_hline(y=20, line_dash="dash", line_color="red", 
-                         annotation_text="目标线 20%", annotation_position="right")
-            
-            fig.update_layout(
-                title=f"全部销售员星品&新品占比达成情况（共{len(person_df)}人）",
-                xaxis_title="销售员",
-                yaxis_title="占比 (%)",
-                height=600,
-                showlegend=False,
-                hovermode='closest',
-                xaxis={'tickangle': -45}
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
-            achieved_count = person_df['achieved'].sum()
-            st.info(f"📊 达成率统计：{achieved_count}/{len(person_df)}人达标（{achieved_count/len(person_df)*100:.1f}%）")
-        
-        else:  # 趋势分析
-            # 趋势分析代码保持不变
-            monthly_stats = []
-            
-            for month in pd.date_range(start='2024-01', end='2025-04', freq='M'):
-                month_data = sales_df[
-                    (sales_df['发运月份'].dt.year == month.year) & 
-                    (sales_df['发运月份'].dt.month == month.month)
-                ]
-                
-                if len(month_data) > 0:
-                    total_sales = month_data['销售额'].sum()
-                    star_new_sales = month_data[month_data['产品代码'].isin(star_new_products)]['销售额'].sum()
-                    ratio = (star_new_sales / total_sales * 100) if total_sales > 0 else 0
-                    
-                    monthly_stats.append({
-                        'month': month.strftime('%Y-%m'),
-                        'ratio': ratio,
-                        'total_sales': total_sales,
-                        'star_new_sales': star_new_sales
-                    })
-            
-            trend_df = pd.DataFrame(monthly_stats)
-            
-            fig = go.Figure()
-            
-            hover_texts = []
-            for _, row in trend_df.iterrows():
-                hover_text = f"""<b>{row['month']}</b><br>
-<b>占比:</b> {row['ratio']:.1f}%<br>
-<b>总销售额:</b> ¥{row['total_sales']:,.0f}<br>
-<b>星品新品销售额:</b> ¥{row['star_new_sales']:,.0f}<br>
-<br><b>趋势分析:</b><br>
-{'保持良好势头' if row['ratio'] >= 20 else '需要加强推广'}"""
-                hover_texts.append(hover_text)
-            
-            fig.add_trace(go.Scatter(
-                x=trend_df['month'],
-                y=trend_df['ratio'],
-                mode='lines+markers',
-                name='星品&新品占比',
-                line=dict(color='#667eea', width=3),
-                marker=dict(size=10),
-                hovertemplate='%{customdata}<extra></extra>',
-                customdata=hover_texts
-            ))
-            
-            fig.add_hline(y=20, line_dash="dash", line_color="red", 
-                         annotation_text="目标线 20%", annotation_position="right")
-            
-            fig.update_layout(
-                title="星品&新品占比月度趋势",
-                xaxis_title="月份",
-                yaxis_title="占比 (%)",
-                height=500,
-                hovermode='x unified'
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-    
-    # Tab 5: 市场网络与覆盖分析（整合）
-    with tabs[4]:
-        analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析"], horizontal=True)
-        
-        if analysis_type == "🔗 产品关联网络":
-            st.subheader("产品关联网络分析")
-            
-            # 创建基于真实数据的网络图
-            network_fig = create_real_product_network(data)
-            st.plotly_chart(network_fig, use_container_width=True)
-            
-            # 关联分析洞察
-            with st.expander("💡 产品关联营销策略", expanded=True):
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.info("""
-                    **🎯 关联分析价值**
-                    - 识别经常一起购买的产品组合
-                    - 发现交叉销售机会
-                    - 优化产品组合策略
-                    - 提升客户购买体验
-                    """)
-                
-                with col2:
-                    st.success("""
-                    **📈 应用建议**
-                    - 将高关联产品打包销售
-                    - 在促销时同时推广关联产品
-                    - 基于关联度设计货架陈列
-                    - 开发新的组合套装产品
-                    """)
-        
-        else:  # 区域覆盖分析
-            st.subheader("区域产品覆盖率分析")
-            
-            # 覆盖率数据（可以根据实际数据计算）
-            categories = ['华北', '华南', '华东', '华西', '华中']
-            values = [85, 78, 92, 73, 88]
-            
-            # 创建3D雷达图
-            fig_3d = create_3d_radar_chart(categories, values)
-            st.plotly_chart(fig_3d, use_container_width=True)
-            
-            # 覆盖率分析
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.metric("平均覆盖率", f"{np.mean(values):.1f}%", "整体表现良好")
-                
-                min_idx = np.argmin(values)
-                st.warning(f"⚠️ {categories[min_idx]}区域覆盖率最低（{values[min_idx]}%），建议重点开发")
-            
-            with col2:
-                opportunities = []
-                for cat, val in zip(categories, values):
-                    if val < 80:
-                        gap = 80 - val
-                        opportunities.append(f"{cat}: 还有{gap}%提升空间")
-                
-                if opportunities:
-                    st.info("**📈 漏铺市机会**\n" + "\n".join(f"- {opp}" for opp in opportunities))
-                else:
-                    st.success("✅ 所有区域覆盖率均达到80%以上")
-    
-    # Tab 6: 季节性分析
-    with tabs[5]:
-        st.subheader("📅 产品季节性趋势分析")
-        
-        product_filter = st.selectbox(
-            "选择产品类型",
-            ["全部产品", "星品产品", "新品产品", "促销产品"]
-        )
-        
-        # 根据筛选条件获取产品列表
-        if product_filter == "星品产品":
-            selected_products = data['star_products']
-        elif product_filter == "新品产品":
-            selected_products = data['new_products']
-        elif product_filter == "促销产品":
-            promo_products = data['promotion_df']['产品代码'].unique().tolist()
-            selected_products = promo_products
-        else:
-            selected_products = data['sales_df']['产品代码'].unique()[:8]
-        
-        # 生成季节性数据
-        monthly_data = []
-        
-        for product in selected_products[:6]:
-            product_sales = data['sales_df'][data['sales_df']['产品代码'] == product]
-            
-            if len(product_sales) > 0:
-                product_name = product_sales['产品简称'].iloc[0]
-                
-                for month in range(1, 13):
-                    month_sales = product_sales[product_sales['发运月份'].dt.month == month]['销售额'].sum()
-                    monthly_data.append({
-                        'product': product_name,
-                        'month': f'{month:02d}月',
-                        'sales': month_sales,
-                        'season': '春季' if month in [3,4,5] else '夏季' if month in [6,7,8] else '秋季' if month in [9,10,11] else '冬季'
-                    })
-        
-        if monthly_data:
-            trend_df = pd.DataFrame(monthly_data)
-            
-            fig = go.Figure()
-            
-            # 添加季节背景色
-            seasons = [
-                ('01月', '02月', 'rgba(173,216,230,0.2)', '冬季'),
-                ('03月', '05月', 'rgba(144,238,144,0.2)', '春季'),
-                ('06月', '08月', 'rgba(255,255,0,0.2)', '夏季'),
-                ('09月', '11月', 'rgba(255,165,0,0.2)', '秋季'),
-                ('12月', '12月', 'rgba(173,216,230,0.2)', '冬季')
-            ]
-            
-            for start, end, color, name in seasons:
-                fig.add_vrect(x0=start, x1=end, fillcolor=color, 
-                             annotation_text=name, annotation_position="top left",
-                             layer="below", line_width=0)
-            
-            # 为每个产品添加趋势线
-            colors = px.colors.qualitative.Set3[:len(trend_df['product'].unique())]
-            
-            for idx, product in enumerate(trend_df['product'].unique()):
-                product_data = trend_df[trend_df['product'] == product]
-                
-                hover_texts = []
-                for _, row in product_data.iterrows():
-                    season_insight = {
-                        '春季': '新品推广黄金期，建议加大营销投入',
-                        '夏季': '销售高峰期，确保库存充足',
-                        '秋季': '准备节日营销，推出限定产品',
-                        '冬季': '年末冲刺期，关注礼品市场'
-                    }
-                    hover_text = f"""<b>{row['product']}</b><br>
-<b>{row['month']}销售额:</b> ¥{row['sales']:,.0f}<br>
-<b>所属季节:</b> {row['season']}<br>
-<b>营销建议:</b> {season_insight.get(row['season'], '')}"""
-                    hover_texts.append(hover_text)
-                
-                fig.add_trace(go.Scatter(
-                    x=product_data['month'],
-                    y=product_data['sales'],
-                    name=product,
-                    mode='lines+markers',
-                    line=dict(width=3, shape='spline', color=colors[idx]),
-                    marker=dict(size=10, color=colors[idx]),
-                    hovertemplate='%{customdata}<extra></extra>',
-                    customdata=hover_texts
-                ))
-            
-            fig.update_layout(
-                title=f"产品季节性趋势分析 - {product_filter}",
-                xaxis_title="月份",
-                yaxis_title="销售额 (¥)",
-                height=600,
-                hovermode='x unified',
-                showlegend=True,
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1
-                )
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # 季节性洞察
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.info("🌸 **春季表现**\n3-5月是新品推广的黄金期，建议加大市场投入")
-            
-            with col2:
-                st.success("☀️ **夏季表现**\n6-8月为销售高峰期，需要提前备货确保供应")
-            
-            with col3:
-                st.warning("🍂 **秋冬策略**\n9-12月需要节日营销策略，推出季节限定产品")
-        else:
-            st.info("暂无足够的数据进行季节性分析")
-
-if __name__ == "__main__":
-    main()
