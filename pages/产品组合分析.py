@@ -654,6 +654,91 @@ def analyze_promotion_effectiveness_enhanced(data):
     
     return pd.DataFrame(effectiveness_results)
 
+# 创建更易读的区域覆盖率分析图
+def create_regional_coverage_analysis(data):
+    """创建更易读的区域产品覆盖率分析"""
+    sales_df = data['sales_df']
+    dashboard_products = data['dashboard_products']
+    
+    # 计算每个区域的产品覆盖情况
+    regional_stats = []
+    regions = sales_df['区域'].unique()
+    
+    for region in regions:
+        region_data = sales_df[sales_df['区域'] == region]
+        
+        # 该区域销售的仪表盘产品数
+        products_sold = region_data[region_data['产品代码'].isin(dashboard_products)]['产品代码'].nunique()
+        total_products = len(dashboard_products)
+        coverage_rate = (products_sold / total_products * 100) if total_products > 0 else 0
+        
+        # 该区域总销售额
+        total_sales = region_data['销售额'].sum()
+        dashboard_sales = region_data[region_data['产品代码'].isin(dashboard_products)]['销售额'].sum()
+        
+        regional_stats.append({
+            'region': region,
+            'coverage_rate': coverage_rate,
+            'products_sold': products_sold,
+            'total_products': total_products,
+            'total_sales': total_sales,
+            'dashboard_sales': dashboard_sales,
+            'gap': max(0, 80 - coverage_rate)  # 与80%目标的差距
+        })
+    
+    df = pd.DataFrame(regional_stats).sort_values('coverage_rate', ascending=True)
+    
+    # 创建水平条形图
+    fig = go.Figure()
+    
+    # 添加实际覆盖率条形
+    fig.add_trace(go.Bar(
+        y=df['region'],
+        x=df['coverage_rate'],
+        orientation='h',
+        name='覆盖率',
+        marker=dict(
+            color=df['coverage_rate'].apply(lambda x: '#10b981' if x >= 80 else '#f59e0b' if x >= 60 else '#ef4444'),
+            line=dict(width=0)
+        ),
+        text=[f"{rate:.1f}% ({sold}/{total}产品)" for rate, sold, total in 
+              zip(df['coverage_rate'], df['products_sold'], df['total_products'])],
+        textposition='inside',
+        textfont=dict(color='white', size=12, weight='bold'),
+        hovertemplate="""<b>%{y}区域</b><br>
+覆盖率: %{x:.1f}%<br>
+已覆盖产品: %{customdata[0]}个<br>
+总产品数: %{customdata[1]}个<br>
+总销售额: ¥%{customdata[2]:,.0f}<br>
+仪表盘产品销售额: ¥%{customdata[3]:,.0f}<br>
+<extra></extra>""",
+        customdata=df[['products_sold', 'total_products', 'total_sales', 'dashboard_sales']].values
+    ))
+    
+    # 添加目标线
+    fig.add_vline(x=80, line_dash="dash", line_color="red", 
+                 annotation_text="目标: 80%", annotation_position="top")
+    
+    # 更新布局
+    fig.update_layout(
+        title=dict(
+            text="<b>区域产品覆盖率分析</b><br><sub>各区域仪表盘产品覆盖情况</sub>",
+            font=dict(size=20)
+        ),
+        xaxis=dict(
+            title="覆盖率 (%)",
+            range=[0, 105],
+            tickformat='.0f'
+        ),
+        yaxis=dict(title=""),
+        height=500,
+        showlegend=False,
+        plot_bgcolor='white',
+        bargap=0.2
+    )
+    
+    return fig, df
+
 # 创建真实的产品关联网络图（2D版本）
 def create_real_product_network(data):
     """基于真实销售数据创建产品关联网络图"""
