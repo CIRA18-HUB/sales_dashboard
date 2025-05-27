@@ -226,7 +226,7 @@ st.markdown("""
     /* 增强的指标卡片样式 */
     .metric-card {
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        padding: 2.5rem 2rem;
+        padding: 2rem 1.5rem;
         border-radius: 25px;
         box-shadow: 
             0 15px 35px rgba(0,0,0,0.08),
@@ -237,9 +237,10 @@ st.markdown("""
         transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         animation: slideUpStagger 1s ease-out;
         position: relative;
-        overflow: hidden;
+        overflow: visible;
         border: 1px solid rgba(255,255,255,0.3);
         backdrop-filter: blur(10px);
+        min-height: 160px;
     }
     
     .metric-card::before {
@@ -296,14 +297,14 @@ st.markdown("""
     }
     
     .metric-value {
-        font-size: 3.2rem;
+        font-size: 2.2rem;
         font-weight: 800;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
         background-size: 200% 200%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        margin-bottom: 1rem;
+        margin-bottom: 0.8rem;
         animation: textGradient 4s ease infinite, bounce 2s ease-in-out infinite;
         line-height: 1;
         text-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -322,17 +323,17 @@ st.markdown("""
     
     .metric-label {
         color: #374151 !important;
-        font-size: 1.1rem;
+        font-size: 1rem;
         font-weight: 700;
-        margin-top: 0.8rem;
-        letter-spacing: 0.5px;
+        margin-top: 0.5rem;
+        letter-spacing: 0.3px;
         text-transform: uppercase;
     }
     
     .metric-sublabel {
         color: #6b7280 !important;
-        font-size: 0.9rem;
-        margin-top: 0.8rem;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
         font-weight: 500;
         font-style: italic;
     }
@@ -413,6 +414,10 @@ st.markdown("""
     .metric-card:nth-child(4) { animation-delay: 0.4s; }
     .metric-card:nth-child(5) { animation-delay: 0.5s; }
     .metric-card:nth-child(6) { animation-delay: 0.6s; }
+    .metric-card:nth-child(7) { animation-delay: 0.7s; }
+    .metric-card:nth-child(8) { animation-delay: 0.8s; }
+    .metric-card:nth-child(9) { animation-delay: 0.9s; }
+    .metric-card:nth-child(10) { animation-delay: 1.0s; }
     
     /* 促销活动有效率标题样式 */
     .promo-header {
@@ -441,10 +446,10 @@ st.markdown("""
     /* 响应式设计 */
     @media (max-width: 768px) {
         .metric-value {
-            font-size: 2.5rem;
+            font-size: 1.8rem;
         }
         .metric-card {
-            padding: 2rem 1.5rem;
+            padding: 1.5rem 1rem;
         }
         .main-header {
             padding: 2rem 0;
@@ -1406,9 +1411,16 @@ def main():
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
+            # 将销售额转换为更简洁的格式
+            sales_display = metrics['total_sales']
+            if sales_display >= 10000:
+                sales_text = f"¥{sales_display/10000:.1f}万"
+            else:
+                sales_text = f"¥{sales_display:.0f}"
+            
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">¥{metrics['total_sales']:,.0f}</div>
+                <div class="metric-value">{sales_text}</div>
                 <div class="metric-label">💰 2025年总销售额</div>
             </div>
             """, unsafe_allow_html=True)
@@ -1426,7 +1438,7 @@ def main():
         with col3:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">{metrics['penetration_rate']:.1f}%</div>
+                <div class="metric-value">{metrics['penetration_rate']:.0f}%</div>
                 <div class="metric-label">📊 新品渗透率</div>
             </div>
             """, unsafe_allow_html=True)
@@ -1434,7 +1446,7 @@ def main():
         with col4:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">{metrics['promo_effectiveness']:.1f}%</div>
+                <div class="metric-value">{metrics['promo_effectiveness']:.0f}%</div>
                 <div class="metric-label">🚀 全国促销有效性</div>
             </div>
             """, unsafe_allow_html=True)
@@ -1447,7 +1459,7 @@ def main():
         with col5:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">{metrics['new_ratio']:.1f}%</div>
+                <div class="metric-value">{metrics['new_ratio']:.0f}%</div>
                 <div class="metric-label">🌟 新品占比</div>
             </div>
             """, unsafe_allow_html=True)
@@ -1455,7 +1467,7 @@ def main():
         with col6:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">{metrics['star_ratio']:.1f}%</div>
+                <div class="metric-value">{metrics['star_ratio']:.0f}%</div>
                 <div class="metric-label">⭐ 星品占比</div>
             </div>
             """, unsafe_allow_html=True)
@@ -1465,16 +1477,16 @@ def main():
             status_text = "✅ 达标" if metrics['total_ratio'] >= 20 else "❌ 未达标"
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">{metrics['total_ratio']:.1f}%</div>
-                <div class="metric-label">🎯 星品&新品总占比</div>
-                <div style="color: {status_color}; font-size: 0.9rem; margin-top: 0.5rem;">{status_text}</div>
+                <div class="metric-value">{metrics['total_ratio']:.0f}%</div>
+                <div class="metric-label" style="font-size: 0.95rem;">🎯 星品&新品占比</div>
+                <div style="color: {status_color}; font-size: 0.85rem; margin-top: 0.5rem;">{status_text}</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col8:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">{metrics['effective_products_rate']:.1f}%</div>
+                <div class="metric-value">{metrics['effective_products_rate']:.0f}%</div>
                 <div class="metric-label">📦 有效产品率</div>
                 <div class="metric-sublabel">月均≥15箱</div>
             </div>
@@ -1482,12 +1494,12 @@ def main():
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # 第三行：有效产品相关指标
-        col9, col10, col11, col12 = st.columns(4)
+        # 第三行：有效产品相关指标（居中显示2个）
+        col_empty1, col9, col10, col_empty2 = st.columns([1, 2, 2, 1])
         
         with col9:
             st.markdown(f"""
-            <div class="metric-card">
+            <div class="metric-card" style="animation-delay: 0.9s;">
                 <div class="metric-value">{metrics['effective_products_count']}</div>
                 <div class="metric-label">✅ 有效产品数</div>
                 <div class="metric-sublabel">月均≥15箱</div>
@@ -1496,31 +1508,10 @@ def main():
         
         with col10:
             st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{metrics['avg_effective_sales']:.1f}箱</div>
+            <div class="metric-card" style="animation-delay: 1.0s;">
+                <div class="metric-value">{metrics['avg_effective_sales']:.0f}箱</div>
                 <div class="metric-label">📈 有效产品月均</div>
                 <div class="metric-sublabel">平均销售量</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col11:
-            total_products = len(data['dashboard_products'])
-            ineffective_count = total_products - metrics['effective_products_count']
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{ineffective_count}</div>
-                <div class="metric-label">❌ 无效产品数</div>
-                <div class="metric-sublabel">需重点提升</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col12:
-            total_products = len(data['dashboard_products'])
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{total_products}</div>
-                <div class="metric-label">📦 仪表盘产品数</div>
-                <div class="metric-sublabel">总产品数量</div>
             </div>
             """, unsafe_allow_html=True)
     
