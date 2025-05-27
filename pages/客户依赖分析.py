@@ -1,4 +1,4 @@
-# pages/客户依赖分析.py - 增强版本
+# pages/客户依赖分析.py
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -9,7 +9,6 @@ from plotly.subplots import make_subplots
 import warnings
 import json
 import time
-import random
 
 # 导入高级组件
 try:
@@ -22,8 +21,8 @@ except:
 try:
     from streamlit_extras.metric_cards import style_metric_cards
     from streamlit_extras.colored_header import colored_header
-    from streamlit_extras.let_it_rain import rain
-    from streamlit_extras.badges import badge
+    from streamlit_extras.add_vertical_space import add_vertical_space
+    from streamlit_card import card
     EXTRAS_AVAILABLE = True
 except:
     EXTRAS_AVAILABLE = False
@@ -54,350 +53,175 @@ def load_lottie_url(url: str):
     except:
         return None
 
-# 增强版CSS样式 - 采用产品组合分析的风格
+# 统一的CSS样式 - 与产品组合分析保持一致
 st.markdown("""
 <style>
     /* 导入字体 */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
-    /* 主背景渐变 */
+    /* 主背景 - 白色简洁风格 */
     .stApp {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        background: #f8f9fa;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-        position: relative;
-        overflow-x: hidden;
     }
     
-    /* 动态背景粒子效果 */
-    @keyframes float {
-        0% { transform: translateY(0px) translateX(0px) rotate(0deg); opacity: 0.8; }
-        25% { transform: translateY(-20px) translateX(10px) rotate(90deg); opacity: 1; }
-        50% { transform: translateY(10px) translateX(-10px) rotate(180deg); opacity: 0.6; }
-        75% { transform: translateY(-10px) translateX(5px) rotate(270deg); opacity: 0.9; }
-        100% { transform: translateY(0px) translateX(0px) rotate(360deg); opacity: 0.8; }
-    }
-    
-    /* 浮动元素背景 */
-    .stApp::before {
-        content: '';
-        position: fixed;
-        width: 200px;
-        height: 200px;
-        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
-        top: 10%;
-        left: 5%;
-        animation: float 12s ease-in-out infinite;
-        z-index: 0;
-    }
-    
-    .stApp::after {
-        content: '';
-        position: fixed;
-        width: 300px;
-        height: 300px;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
-        bottom: 20%;
-        right: 10%;
-        animation: float 15s ease-in-out infinite reverse;
-        z-index: 0;
-    }
-    
-    /* 主标题样式 - 增强动画 */
+    /* 主标题样式 - 与产品组合分析一致 */
     .main-header {
         text-align: center;
         padding: 2rem 0;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
-        color: #2d3748;
-        border-radius: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
         margin-bottom: 2rem;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        animation: slideDown 0.8s ease-out;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    @keyframes slideDown {
-        from { 
-            opacity: 0; 
-            transform: translateY(-50px) scale(0.95); 
-        }
-        to { 
-            opacity: 1; 
-            transform: translateY(0) scale(1); 
-        }
-    }
-    
-    .main-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.1), transparent);
-        animation: shimmer 3s ease-in-out infinite;
-    }
-    
-    @keyframes shimmer {
-        0% { transform: translateX(-100%) translateY(-100%) rotate(0deg); }
-        100% { transform: translateX(100%) translateY(100%) rotate(180deg); }
+        animation: headerSlideDown 0.8s ease-out;
     }
     
     .main-header h1 {
-        font-size: 3rem;
+        font-size: 2.5rem;
         margin-bottom: 0.5rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        animation: glow 3s ease-in-out infinite;
-        position: relative;
-        z-index: 1;
+        animation: titlePulse 3s ease-in-out infinite;
     }
     
-    @keyframes glow {
-        0%, 100% { filter: brightness(1) drop-shadow(0 0 10px rgba(102, 126, 234, 0.5)); }
-        50% { filter: brightness(1.1) drop-shadow(0 0 20px rgba(102, 126, 234, 0.8)); }
-    }
-    
-    /* 指标卡片样式 - 增强版 */
-    .metric-card {
-        background: rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(20px);
-        padding: 2rem;
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        text-align: center;
-        height: 100%;
-        position: relative;
-        overflow: hidden;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        animation: fadeInScale 0.6s ease-out backwards;
-        border: 1px solid rgba(102, 126, 234, 0.1);
-    }
-    
-    .metric-card:nth-child(1) { animation-delay: 0.1s; }
-    .metric-card:nth-child(2) { animation-delay: 0.2s; }
-    .metric-card:nth-child(3) { animation-delay: 0.3s; }
-    .metric-card:nth-child(4) { animation-delay: 0.4s; }
-    .metric-card:nth-child(5) { animation-delay: 0.5s; }
-    
-    @keyframes fadeInScale {
+    @keyframes headerSlideDown {
         from {
+            transform: translateY(-50px);
             opacity: 0;
-            transform: scale(0.8) translateY(20px);
         }
         to {
+            transform: translateY(0);
             opacity: 1;
-            transform: scale(1) translateY(0);
         }
+    }
+    
+    @keyframes titlePulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+    }
+    
+    /* 指标卡片样式 - 统一风格 */
+    .metric-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        text-align: center;
+        height: 100%;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: cardFadeIn 0.6s ease-out;
     }
     
     .metric-card:hover {
-        transform: translateY(-10px) scale(1.02);
-        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.2);
-        border-color: rgba(102, 126, 234, 0.3);
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
     }
     
-    .metric-card::after {
-        content: '';
-        position: absolute;
-        top: -100%;
-        left: -100%;
-        width: 300%;
-        height: 300%;
-        background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
-        animation: rotate 20s linear infinite;
-    }
-    
-    @keyframes rotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-    
-    /* 度量值样式 */
     .metric-value {
-        font-size: 2.5rem;
+        font-size: 2rem;
         font-weight: bold;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        animation: pulse 2s ease-in-out infinite;
-        position: relative;
-        z-index: 1;
-    }
-    
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); filter: brightness(1); }
-        50% { transform: scale(1.05); filter: brightness(1.2); }
+        color: #667eea;
+        animation: numberCount 1.5s ease-out;
     }
     
     .metric-label {
-        color: #4a5568;
-        font-size: 1rem;
-        margin-top: 0.5rem;
-        font-weight: 600;
-        position: relative;
-        z-index: 1;
-    }
-    
-    .metric-delta {
+        color: #666;
         font-size: 0.9rem;
-        font-weight: 600;
         margin-top: 0.5rem;
-        position: relative;
-        z-index: 1;
     }
     
-    .metric-delta.positive {
-        color: #00aa00;
+    @keyframes cardFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     
-    .metric-delta.negative {
-        color: #ff4444;
+    @keyframes numberCount {
+        from { opacity: 0; transform: scale(0.5); }
+        to { opacity: 1; transform: scale(1); }
     }
     
-    /* 标签页样式 - 增强版 */
+    /* 标签页样式 - 统一风格 */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background: rgba(255, 255, 255, 0.95);
-        padding: 0.8rem;
-        border-radius: 20px;
-        backdrop-filter: blur(20px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        gap: 8px;
+        background-color: #f8f9fa;
+        padding: 0.5rem;
+        border-radius: 10px;
     }
     
     .stTabs [data-baseweb="tab"] {
-        height: 60px;
-        padding: 0 30px;
-        background: white;
-        border-radius: 15px;
-        border: 2px solid #e0e0e0;
+        height: 50px;
+        padding: 0 24px;
+        background-color: white;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
         font-weight: 600;
-        font-size: 1rem;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .stTabs [data-baseweb="tab"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 0;
-        height: 100%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        transition: width 0.3s ease;
-        z-index: -1;
+        transition: all 0.3s ease;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        border-color: #667eea;
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover::before {
-        width: 100%;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white !important;
-        border-color: transparent;
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-        transform: translateY(-3px);
+        color: white;
+        animation: tabSelect 0.3s ease;
     }
     
-    /* 图表容器动画增强 */
+    @keyframes tabSelect {
+        from { transform: scale(0.95); }
+        to { transform: scale(1); }
+    }
+    
+    /* 图表容器 - 增强动画 */
     .plot-container {
         background: white;
-        border-radius: 20px;
-        padding: 2rem;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        margin: 1.5rem 0;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-        animation: fadeInUp 0.8s ease-out;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        margin: 1rem 0;
+        transition: all 0.3s ease;
+        animation: slideUp 0.6s ease-out;
     }
     
     .plot-container:hover {
-        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.15);
-        transform: translateY(-5px) scale(1.01);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+        transform: translateY(-2px);
     }
     
-    .plot-container::before {
-        content: '';
-        position: absolute;
-        top: -2px;
-        left: -2px;
-        right: -2px;
-        bottom: -2px;
-        background: linear-gradient(135deg, #667eea, #764ba2, #667eea);
-        border-radius: 20px;
-        opacity: 0;
-        z-index: -1;
-        transition: opacity 0.4s ease;
-        animation: gradientShift 3s ease infinite;
-    }
-    
-    @keyframes gradientShift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    
-    .plot-container:hover::before {
-        opacity: 0.3;
-    }
-    
-    @keyframes fadeInUp {
+    @keyframes slideUp {
         from {
             opacity: 0;
-            transform: translateY(40px) scale(0.95);
+            transform: translateY(30px);
         }
         to {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: translateY(0);
         }
     }
     
-    /* 洞察卡片 - 增强动画 */
+    /* 洞察卡片 - 动画增强 */
     .insight-card {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
-        backdrop-filter: blur(10px);
-        border-left: 5px solid transparent;
-        background-clip: padding-box;
-        border-image: linear-gradient(135deg, #667eea, #764ba2) 1;
-        border-radius: 15px;
-        padding: 2rem;
-        margin: 1.5rem 0;
-        animation: slideInLeft 0.8s ease-out;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border-left: 4px solid #667eea;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        animation: insightSlide 0.8s ease-out;
         transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
     }
     
     .insight-card:hover {
         transform: translateX(10px);
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
     }
     
-    .insight-card h3 {
-        color: #667eea;
-        margin-bottom: 1rem;
-        font-size: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    @keyframes slideInLeft {
+    @keyframes insightSlide {
         from {
             opacity: 0;
             transform: translateX(-50px);
@@ -408,152 +232,140 @@ st.markdown("""
         }
     }
     
-    /* 增强按钮样式 */
+    /* 按钮样式 */
     .stButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        border-radius: 15px;
-        padding: 1rem 2.5rem;
+        border-radius: 8px;
+        padding: 0.5rem 1.5rem;
         font-weight: 600;
-        font-size: 1rem;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .stButton > button::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-        transition: width 0.6s, height 0.6s;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .stButton > button:hover {
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
     
-    .stButton > button:active::before {
-        width: 300px;
-        height: 300px;
+    /* 动态背景粒子效果 */
+    @keyframes float {
+        0% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-20px) rotate(180deg); }
+        100% { transform: translateY(0px) rotate(360deg); }
+    }
+    
+    .floating-icon {
+        position: fixed;
+        font-size: 20px;
+        opacity: 0.1;
+        animation: float 6s ease-in-out infinite;
+        pointer-events: none;
+        z-index: 0;
+    }
+    
+    /* 高级卡片样式 */
+    .advanced-card {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        animation: cardEntry 0.8s ease-out;
+    }
+    
+    .advanced-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+        transition: left 0.5s;
+    }
+    
+    .advanced-card:hover::before {
+        left: 100%;
+    }
+    
+    @keyframes cardEntry {
+        from {
+            opacity: 0;
+            transform: scale(0.9) rotateX(10deg);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) rotateX(0);
+        }
     }
     
     /* 数据点动画 */
     .data-point {
         display: inline-block;
-        padding: 0.5rem 1rem;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        border-radius: 10px;
-        margin: 0.25rem;
-        font-weight: 600;
-        animation: bounce 2s ease-in-out infinite;
-        animation-delay: calc(var(--i) * 0.1s);
-        transition: all 0.3s ease;
+        animation: dataPulse 2s ease-in-out infinite;
     }
     
-    .data-point:hover {
-        transform: scale(1.1) rotate(5deg);
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-    }
-    
-    @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-10px); }
-    }
-    
-    /* 特殊效果容器 */
-    .special-container {
-        position: relative;
-        padding: 2rem;
-        border-radius: 20px;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-    }
-    
-    .special-container::before {
-        content: '';
-        position: absolute;
-        top: -100%;
-        left: -100%;
-        width: 300%;
-        height: 300%;
-        background: conic-gradient(from 0deg, transparent, rgba(102, 126, 234, 0.1), transparent);
-        animation: rotate 10s linear infinite;
+    @keyframes dataPulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.8; }
     }
     
     /* 加载动画 */
-    .loading-spinner {
-        display: inline-block;
-        width: 50px;
-        height: 50px;
-        border: 3px solid rgba(102, 126, 234, 0.1);
+    .loading-animation {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+    
+    .loading-dot {
+        width: 15px;
+        height: 15px;
+        margin: 0 5px;
+        background: #667eea;
         border-radius: 50%;
-        border-top-color: #667eea;
-        animation: spin 1s ease-in-out infinite;
+        animation: loadingBounce 1.4s ease-in-out infinite both;
     }
     
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
+    .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dot:nth-child(2) { animation-delay: -0.16s; }
     
-    /* 悬停信息增强 */
-    .hover-info {
-        position: relative;
-        display: inline-block;
-        cursor: help;
-    }
-    
-    .hover-info:hover .tooltip {
-        opacity: 1;
-        visibility: visible;
-        transform: translateY(-10px);
-    }
-    
-    .tooltip {
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.9);
-        color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        font-size: 0.9rem;
-        white-space: nowrap;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
-        z-index: 1000;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    }
-    
-    /* 响应式优化 */
-    @media (max-width: 768px) {
-        .main-header h1 {
-            font-size: 2rem;
+    @keyframes loadingBounce {
+        0%, 80%, 100% {
+            transform: scale(0);
         }
-        
-        .metric-value {
-            font-size: 1.8rem;
+        40% {
+            transform: scale(1);
         }
-        
-        .stTabs [data-baseweb="tab"] {
-            padding: 0 15px;
-            height: 50px;
-        }
+    }
+    
+    /* 提示框美化 */
+    div[data-testid="stMetricValue"] {
+        font-size: 2.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: valueShine 3s ease-in-out infinite;
+    }
+    
+    @keyframes valueShine {
+        0%, 100% { filter: brightness(1); }
+        50% { filter: brightness(1.2); }
     }
 </style>
+""", unsafe_allow_html=True)
+
+# 添加浮动背景图标
+st.markdown("""
+<div class="floating-icon" style="top: 10%; left: 10%;">👥</div>
+<div class="floating-icon" style="top: 20%; right: 15%; animation-delay: 1s;">📊</div>
+<div class="floating-icon" style="bottom: 30%; left: 5%; animation-delay: 2s;">💼</div>
+<div class="floating-icon" style="bottom: 10%; right: 10%; animation-delay: 3s;">📈</div>
 """, unsafe_allow_html=True)
 
 # 数据加载和处理函数
@@ -561,14 +373,23 @@ st.markdown("""
 def load_and_process_data():
     """加载并处理客户数据"""
     try:
-        # 使用相对路径加载数据文件
+        # 模拟加载动画
+        loading_placeholder = st.empty()
+        loading_placeholder.markdown("""
+        <div class="loading-animation">
+            <div class="loading-dot"></div>
+            <div class="loading-dot"></div>
+            <div class="loading-dot"></div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 加载数据
         customer_status = pd.read_excel("客户状态.xlsx")
         customer_status.columns = ['客户名称', '状态']
         
         sales_data = pd.read_excel("客户月度销售达成.xlsx")
         sales_data.columns = ['订单日期', '发运月份', '经销商名称', '金额']
         
-        # 处理金额字段
         sales_data['金额'] = pd.to_numeric(
             sales_data['金额'].astype(str).str.replace(',', '').str.replace('，', ''),
             errors='coerce'
@@ -579,7 +400,8 @@ def load_and_process_data():
         monthly_data = pd.read_excel("客户月度指标.xlsx")
         monthly_data.columns = ['客户', '月度指标', '月份', '往年同期', '所属大区']
         
-        # 计算所有指标
+        loading_placeholder.empty()
+        
         current_year = datetime.now().year
         metrics = calculate_metrics(customer_status, sales_data, monthly_data, current_year)
         
@@ -596,7 +418,6 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     normal_customers = len(customer_status[customer_status['状态'] == '正常'])
     closed_customers = len(customer_status[customer_status['状态'] == '闭户'])
     normal_rate = (normal_customers / total_customers * 100) if total_customers > 0 else 0
-    closed_rate = (closed_customers / total_customers * 100) if total_customers > 0 else 0
     
     # 2. 当年销售数据
     current_year_sales = sales_data[sales_data['订单日期'].dt.year == current_year]
@@ -607,896 +428,771 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     last_year_total = monthly_data['往年同期'].sum()
     growth_rate = ((total_sales - last_year_total) / last_year_total * 100) if last_year_total > 0 else 0
     
-    # 4. 集中度分析（帕累托分析）
-    customer_sales = current_year_sales.groupby('经销商名称')['金额'].sum().sort_values(ascending=False)
-    customer_sales_cum = customer_sales.cumsum()
-    total_customer_sales = customer_sales.sum()
+    # 4. 区域风险分析
+    customer_region_map = monthly_data[['客户', '所属大区']].drop_duplicates()
+    sales_with_region = current_year_sales.merge(
+        customer_region_map, 
+        left_on='经销商名称', 
+        right_on='客户', 
+        how='left'
+    )
     
-    # 计算贡献度
-    top_20_percent_count = int(len(customer_sales) * 0.2)
-    top_20_sales = customer_sales.head(top_20_percent_count).sum()
-    pareto_ratio = (top_20_sales / total_customer_sales * 100) if total_customer_sales > 0 else 0
+    # 计算每个大区的依赖度
+    region_details = []
+    max_dependency = 0
+    max_dependency_region = ""
     
-    # 找到贡献80%销售额的客户数量
-    customers_for_80_percent = (customer_sales_cum <= total_customer_sales * 0.8).sum() + 1
-    concentration_ratio = (customers_for_80_percent / len(customer_sales) * 100) if len(customer_sales) > 0 else 0
-    
-    # 5. 客户层级分析
-    customer_tiers = []
-    for idx, (customer, sales) in enumerate(customer_sales.items()):
-        contribution = (sales / total_customer_sales * 100) if total_customer_sales > 0 else 0
-        cumulative_contribution = (customer_sales_cum.iloc[idx] / total_customer_sales * 100) if total_customer_sales > 0 else 0
+    if not sales_with_region.empty and '所属大区' in sales_with_region.columns:
+        region_groups = sales_with_region.groupby('所属大区')
         
-        # 确定客户层级
-        if idx < 3:
-            tier = 'S级战略客户'
-            tier_color = '#e74c3c'
-        elif contribution >= 2:
-            tier = 'A级核心客户'
-            tier_color = '#f39c12'
-        elif contribution >= 1:
-            tier = 'B级重要客户'
-            tier_color = '#3498db'
-        elif contribution >= 0.5:
-            tier = 'C级普通客户'
-            tier_color = '#2ecc71'
-        else:
-            tier = 'D级长尾客户'
-            tier_color = '#95a5a6'
+        for region, group in region_groups:
+            if pd.notna(region):
+                customer_sales = group.groupby('经销商名称')['金额'].sum().sort_values(ascending=False)
+                max_customer_sales = customer_sales.max()
+                total_region_sales = customer_sales.sum()
+                customer_count = customer_sales.count()
+                
+                if total_region_sales > 0:
+                    dependency = (max_customer_sales / total_region_sales * 100)
+                    if dependency > max_dependency:
+                        max_dependency = dependency
+                        max_dependency_region = region
+                    
+                    top3_customers = customer_sales.head(3)
+                    top3_info = [
+                        {
+                            'name': name,
+                            'sales': sales,
+                            'percentage': sales / total_region_sales * 100
+                        }
+                        for name, sales in top3_customers.items()
+                    ]
+                    
+                    region_details.append({
+                        '区域': region,
+                        '总销售额': total_region_sales,
+                        '客户数': customer_count,
+                        '平均销售额': total_region_sales / customer_count if customer_count > 0 else 0,
+                        '最大客户依赖度': dependency,
+                        '最大客户': customer_sales.index[0],
+                        '最大客户销售额': max_customer_sales,
+                        'TOP3客户': top3_info
+                    })
         
-        customer_tiers.append({
-            '客户': customer,
-            '销售额': sales,
-            '贡献度': contribution,
-            '累计贡献': cumulative_contribution,
-            '层级': tier,
-            '颜色': tier_color,
-            '排名': idx + 1
-        })
+        if region_details:
+            region_stats = pd.DataFrame(region_details)
+    else:
+        region_stats = pd.DataFrame()
     
-    tiers_df = pd.DataFrame(customer_tiers)
+    # 5. RFM客户价值分析
+    current_date = datetime.now()
+    customer_rfm = []
     
-    # 6. 客户活跃度分析
-    customer_activity = []
-    current_month = datetime.now().month
+    customer_actual_sales = current_year_sales.groupby('经销商名称')['金额'].sum()
     
-    for customer in customer_sales.index:
+    for customer in customer_actual_sales.index:
         customer_orders = current_year_sales[current_year_sales['经销商名称'] == customer]
-        monthly_orders = customer_orders.groupby(customer_orders['订单日期'].dt.month)['金额'].sum()
         
-        # 计算活跃月份数
-        active_months = len(monthly_orders)
-        avg_monthly_sales = customer_orders['金额'].sum() / current_month
+        last_order_date = customer_orders['订单日期'].max()
+        recency = (current_date - last_order_date).days
+        frequency = len(customer_orders)
+        monetary = customer_orders['金额'].sum()
         
-        # 计算订单频率趋势
-        if len(monthly_orders) >= 3:
-            recent_3_months = monthly_orders.tail(3).mean()
-            early_months = monthly_orders.head(3).mean()
-            trend = ((recent_3_months - early_months) / early_months * 100) if early_months > 0 else 0
+        # 确定客户类型
+        if recency <= 30 and frequency >= 12 and monetary >= 1000000:
+            customer_type = '钻石客户'
+        elif recency <= 60 and frequency >= 8 and monetary >= 500000:
+            customer_type = '黄金客户'
+        elif recency <= 90 and frequency >= 6 and monetary >= 200000:
+            customer_type = '白银客户'
+        elif recency > 180 or frequency < 3:
+            customer_type = '流失风险'
         else:
-            trend = 0
+            customer_type = '潜力客户'
         
-        # 活跃度评分
-        activity_score = (active_months / current_month * 40 + 
-                         min(avg_monthly_sales / 500000 * 30, 30) +
-                         min(trend / 100 * 30, 30))
-        
-        if activity_score >= 80:
-            activity_level = '高度活跃'
-            risk_level = '低风险'
-        elif activity_score >= 60:
-            activity_level = '中度活跃'
-            risk_level = '中风险'
-        elif activity_score >= 40:
-            activity_level = '低度活跃'
-            risk_level = '高风险'
-        else:
-            activity_level = '濒临流失'
-            risk_level = '极高风险'
-        
-        customer_activity.append({
+        customer_rfm.append({
             '客户': customer,
-            '活跃月份': active_months,
-            '月均销售': avg_monthly_sales,
-            '趋势': trend,
-            '活跃度评分': activity_score,
-            '活跃度': activity_level,
-            '风险等级': risk_level
+            'R': recency,
+            'F': frequency,
+            'M': monetary,
+            '类型': customer_type,
+            '最近购买': last_order_date.strftime('%Y-%m-%d')
         })
     
-    activity_df = pd.DataFrame(customer_activity)
+    rfm_df = pd.DataFrame(customer_rfm) if customer_rfm else pd.DataFrame()
     
-    # 7. 区域集中度分析
-    region_concentration = []
-    for region in monthly_data['所属大区'].unique():
-        if pd.notna(region):
-            region_customers = monthly_data[monthly_data['所属大区'] == region]['客户'].unique()
-            region_sales = current_year_sales[current_year_sales['经销商名称'].isin(region_customers)]
+    # 统计各类客户数量
+    if not rfm_df.empty:
+        customer_type_counts = rfm_df['类型'].value_counts()
+        diamond_customers = customer_type_counts.get('钻石客户', 0)
+        gold_customers = customer_type_counts.get('黄金客户', 0)
+        silver_customers = customer_type_counts.get('白银客户', 0)
+        risk_customers = customer_type_counts.get('流失风险', 0)
+        potential_customers = customer_type_counts.get('潜力客户', 0)
+    else:
+        diamond_customers = gold_customers = silver_customers = risk_customers = potential_customers = 0
+    
+    high_value_rate = ((diamond_customers + gold_customers) / normal_customers * 100) if normal_customers > 0 else 0
+    
+    # 6. 目标达成分析
+    current_year_str = str(current_year)
+    current_year_targets = monthly_data[monthly_data['月份'].astype(str).str.startswith(current_year_str)]
+    
+    customer_targets = current_year_targets.groupby('客户')['月度指标'].sum()
+    
+    achieved_customers = 0
+    total_target_customers = 0
+    customer_achievement_details = []
+    
+    for customer in customer_targets.index:
+        target = customer_targets[customer]
+        actual = customer_actual_sales.get(customer, 0)
+        if target > 0:
+            total_target_customers += 1
+            achievement_rate = (actual / target * 100)
+            if actual >= target * 0.8:
+                achieved_customers += 1
             
-            if len(region_sales) > 0:
-                region_total = region_sales['金额'].sum()
-                region_customer_sales = region_sales.groupby('经销商名称')['金额'].sum().sort_values(ascending=False)
-                
-                # 计算HHI指数（赫芬达尔指数）
-                market_shares = (region_customer_sales / region_total * 100)
-                hhi = (market_shares ** 2).sum()
-                
-                # 计算CR3（前3大客户集中度）
-                cr3 = market_shares.head(3).sum()
-                
-                # 判断集中度类型
-                if hhi > 2500:
-                    concentration_type = '高度集中'
-                    risk_type = '高风险'
-                elif hhi > 1500:
-                    concentration_type = '中度集中'
-                    risk_type = '中风险'
-                else:
-                    concentration_type = '分散型'
-                    risk_type = '低风险'
-                
-                region_concentration.append({
-                    '区域': region,
-                    'HHI指数': hhi,
-                    'CR3': cr3,
-                    '客户数': len(region_customer_sales),
-                    '总销售额': region_total,
-                    '集中度类型': concentration_type,
-                    '风险类型': risk_type,
-                    '最大客户': region_customer_sales.index[0] if len(region_customer_sales) > 0 else '',
-                    '最大客户占比': market_shares.iloc[0] if len(market_shares) > 0 else 0
-                })
+            customer_achievement_details.append({
+                '客户': customer,
+                '目标': target,
+                '实际': actual,
+                '达成率': achievement_rate,
+                '状态': '达成' if achievement_rate >= 80 else '未达成'
+            })
     
-    concentration_df = pd.DataFrame(region_concentration)
+    target_achievement_rate = (achieved_customers / total_target_customers * 100) if total_target_customers > 0 else 0
     
     return {
         'total_customers': total_customers,
         'normal_customers': normal_customers,
         'closed_customers': closed_customers,
         'normal_rate': normal_rate,
-        'closed_rate': closed_rate,
         'total_sales': total_sales,
         'avg_customer_contribution': avg_customer_contribution,
+        'region_stats': region_stats,
+        'max_dependency': max_dependency,
+        'max_dependency_region': max_dependency_region,
+        'risk_threshold': 30.0,
+        'target_achievement_rate': target_achievement_rate,
+        'achieved_customers': achieved_customers,
+        'total_target_customers': total_target_customers,
+        'diamond_customers': diamond_customers,
+        'gold_customers': gold_customers,
+        'silver_customers': silver_customers,
+        'potential_customers': potential_customers,
+        'risk_customers': risk_customers,
+        'high_value_rate': high_value_rate,
         'growth_rate': growth_rate,
-        'pareto_ratio': pareto_ratio,
-        'concentration_ratio': concentration_ratio,
-        'customers_for_80_percent': customers_for_80_percent,
         'current_year': current_year,
-        'tiers_df': tiers_df,
-        'activity_df': activity_df,
-        'concentration_df': concentration_df,
-        'customer_sales': customer_sales
+        'rfm_df': rfm_df,
+        'customer_achievement_details': pd.DataFrame(customer_achievement_details) if customer_achievement_details else pd.DataFrame()
     }
 
 # 创建高级可视化图表
-def create_advanced_visualizations(metrics, sales_data, monthly_data):
-    """创建高级交互式可视化"""
+def create_advanced_charts(metrics, sales_data, monthly_data):
+    """创建高级交互式图表"""
     charts = {}
     
-    # 1. 客户层级分布太阳图
-    tiers_df = metrics['tiers_df']
+    # 1. 客户健康状态雷达图（替代仪表盘）
+    categories = ['健康度', '目标达成', '价值贡献', '活跃度', '稳定性']
     
-    # 准备太阳图数据
-    tier_groups = tiers_df.groupby('层级').agg({
-        '销售额': 'sum',
-        '客户': 'count'
-    }).reset_index()
-    tier_groups.columns = ['层级', '销售额', '客户数']
+    values = [
+        metrics['normal_rate'],
+        metrics['target_achievement_rate'],
+        metrics['high_value_rate'],
+        (metrics['normal_customers'] - metrics['risk_customers']) / metrics['normal_customers'] * 100,
+        (100 - metrics['max_dependency'])
+    ]
     
-    # 创建太阳图
-    fig_sunburst = go.Figure()
+    fig_radar = go.Figure()
     
-    # 为每个层级创建客户数据
-    labels = ['全部客户']
-    parents = ['']
-    values = [metrics['total_sales']]
-    colors = ['#667eea']
-    hover_text = [f"总销售额: ¥{metrics['total_sales']:,.0f}<br>客户总数: {len(tiers_df)}"]
+    fig_radar.add_trace(go.Scatterpolar(
+        r=values,
+        theta=categories,
+        fill='toself',
+        name='当前状态',
+        fillcolor='rgba(102, 126, 234, 0.3)',
+        line=dict(color='#667eea', width=2),
+        hovertemplate='%{theta}: %{r:.1f}%<extra></extra>'
+    ))
     
-    tier_colors = {
-        'S级战略客户': '#e74c3c',
-        'A级核心客户': '#f39c12',
-        'B级重要客户': '#3498db',
-        'C级普通客户': '#2ecc71',
-        'D级长尾客户': '#95a5a6'
-    }
+    # 添加基准线
+    fig_radar.add_trace(go.Scatterpolar(
+        r=[85, 80, 70, 85, 70],
+        theta=categories,
+        fill='toself',
+        name='目标基准',
+        fillcolor='rgba(255, 99, 71, 0.1)',
+        line=dict(color='#ff6347', width=2, dash='dash'),
+        hovertemplate='%{theta} 目标: %{r:.1f}%<extra></extra>'
+    ))
     
-    for tier in ['S级战略客户', 'A级核心客户', 'B级重要客户', 'C级普通客户', 'D级长尾客户']:
-        tier_data = tiers_df[tiers_df['层级'] == tier]
-        if len(tier_data) > 0:
-            labels.append(tier)
-            parents.append('全部客户')
-            values.append(tier_data['销售额'].sum())
-            colors.append(tier_colors[tier])
-            hover_text.append(
-                f"{tier}<br>销售额: ¥{tier_data['销售额'].sum():,.0f}<br>"
-                f"客户数: {len(tier_data)}<br>"
-                f"平均贡献: ¥{tier_data['销售额'].mean():,.0f}"
+    fig_radar.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 100],
+                ticksuffix='%'
             )
-            
-            # 添加具体客户（限制每个层级显示前5个）
-            for _, customer in tier_data.head(5).iterrows():
-                labels.append(customer['客户'])
-                parents.append(tier)
-                values.append(customer['销售额'])
-                colors.append(tier_colors[tier])
-                hover_text.append(
-                    f"{customer['客户']}<br>"
-                    f"销售额: ¥{customer['销售额']:,.0f}<br>"
-                    f"贡献度: {customer['贡献度']:.2f}%<br>"
-                    f"排名: 第{customer['排名']}位"
-                )
-    
-    fig_sunburst.add_trace(go.Sunburst(
-        labels=labels,
-        parents=parents,
-        values=values,
-        branchvalues="total",
-        marker=dict(colors=colors, line=dict(color="white", width=2)),
-        hovertext=hover_text,
-        hoverinfo="text",
-        textfont=dict(size=14, color="white"),
-        insidetextorientation='radial'
-    ))
-    
-    fig_sunburst.update_layout(
-        title={
-            'text': '客户层级价值分布图',
-            'x': 0.5,
-            'xanchor': 'center',
-            'font': {'size': 20}
-        },
-        height=600,
-        margin=dict(t=80, b=20, l=20, r=20)
-    )
-    
-    charts['sunburst'] = fig_sunburst
-    
-    # 2. 帕累托曲线图（增强版）
-    customer_sales = metrics['customer_sales']
-    
-    # 计算累计百分比
-    cum_sales = customer_sales.cumsum()
-    cum_sales_pct = (cum_sales / customer_sales.sum() * 100)
-    customer_pct = np.arange(1, len(customer_sales) + 1) / len(customer_sales) * 100
-    
-    fig_pareto = go.Figure()
-    
-    # 添加柱状图（销售额）
-    fig_pareto.add_trace(go.Bar(
-        x=list(range(len(customer_sales))),
-        y=customer_sales.values,
-        name='客户销售额',
-        marker_color='rgba(102, 126, 234, 0.6)',
-        yaxis='y',
-        hovertemplate='<b>%{text}</b><br>销售额: ¥%{y:,.0f}<br>排名: 第%{x}位<extra></extra>',
-        text=[f"{name[:10]}..." if len(name) > 10 else name for name in customer_sales.index]
-    ))
-    
-    # 添加累计曲线
-    fig_pareto.add_trace(go.Scatter(
-        x=list(range(len(customer_sales))),
-        y=cum_sales_pct.values,
-        name='累计贡献率',
-        mode='lines+markers',
-        line=dict(color='#e74c3c', width=3),
-        marker=dict(size=6),
-        yaxis='y2',
-        hovertemplate='累计贡献: %{y:.1f}%<extra></extra>'
-    ))
-    
-    # 添加80/20参考线
-    fig_pareto.add_hline(y=80, line_dash="dash", line_color="green", 
-                        yref='y2', annotation_text="80%线", 
-                        annotation_position="right")
-    
-    # 找到80%的位置
-    idx_80 = np.where(cum_sales_pct >= 80)[0][0]
-    fig_pareto.add_vline(x=idx_80, line_dash="dash", line_color="green",
-                        annotation_text=f"{idx_80+1}家客户贡献80%",
-                        annotation_position="top")
-    
-    fig_pareto.update_layout(
-        title={
-            'text': f'客户贡献度帕累托分析 (前{idx_80+1}家客户贡献80%销售额)',
-            'x': 0.5,
-            'xanchor': 'center',
-            'font': {'size': 20}
-        },
-        xaxis=dict(title='客户排名', showticklabels=False),
-        yaxis=dict(title='销售额', side='left'),
-        yaxis2=dict(
-            title='累计贡献率 (%)',
-            overlaying='y',
-            side='right',
-            range=[0, 100]
         ),
-        height=500,
-        hovermode='x unified',
         showlegend=True,
-        legend=dict(x=0.01, y=0.99)
+        title="客户健康状态综合评估",
+        height=450
     )
     
-    charts['pareto'] = fig_pareto
+    charts['health_radar'] = fig_radar
     
-    # 3. 客户活跃度矩阵
-    activity_df = metrics['activity_df']
-    
-    # 创建散点图矩阵
-    fig_matrix = go.Figure()
-    
-    # 为不同风险等级设置颜色和大小
-    risk_colors = {
-        '低风险': '#2ecc71',
-        '中风险': '#f39c12',
-        '高风险': '#e67e22',
-        '极高风险': '#e74c3c'
-    }
-    
-    for risk in ['低风险', '中风险', '高风险', '极高风险']:
-        risk_data = activity_df[activity_df['风险等级'] == risk]
-        if len(risk_data) > 0:
-            fig_matrix.add_trace(go.Scatter(
-                x=risk_data['活跃月份'],
-                y=risk_data['月均销售'],
-                mode='markers+text',
-                name=risk,
-                marker=dict(
-                    size=risk_data['活跃度评分'] / 2,
-                    color=risk_colors[risk],
-                    opacity=0.7,
-                    line=dict(width=2, color='white')
-                ),
-                text=[name[:8] + '...' if len(name) > 8 else name for name in risk_data['客户']],
-                textposition='top center',
-                textfont=dict(size=10),
-                hovertemplate='<b>%{text}</b><br>' +
-                            '活跃月份: %{x}<br>' +
-                            '月均销售: ¥%{y:,.0f}<br>' +
-                            '活跃度评分: %{marker.size:.1f}<br>' +
-                            '<extra></extra>'
-            ))
-    
-    # 添加象限分割线
-    avg_months = activity_df['活跃月份'].mean()
-    avg_sales = activity_df['月均销售'].mean()
-    
-    fig_matrix.add_hline(y=avg_sales, line_dash="dot", line_color="gray", opacity=0.5)
-    fig_matrix.add_vline(x=avg_months, line_dash="dot", line_color="gray", opacity=0.5)
-    
-    # 添加象限标注
-    fig_matrix.add_annotation(x=2, y=avg_sales*2, text="高价值<br>低频客户", showarrow=False,
-                             font=dict(size=12, color="gray"))
-    fig_matrix.add_annotation(x=avg_months*1.5, y=avg_sales*2, text="明星客户", showarrow=False,
-                             font=dict(size=12, color="gray"))
-    fig_matrix.add_annotation(x=2, y=avg_sales*0.3, text="问题客户", showarrow=False,
-                             font=dict(size=12, color="gray"))
-    fig_matrix.add_annotation(x=avg_months*1.5, y=avg_sales*0.3, text="潜力客户", showarrow=False,
-                             font=dict(size=12, color="gray"))
-    
-    fig_matrix.update_layout(
-        title='客户活跃度风险矩阵（气泡大小=活跃度评分）',
-        xaxis_title='活跃月份数',
-        yaxis_title='月均销售额',
-        height=600,
-        showlegend=True,
-        legend=dict(x=0.01, y=0.99)
-    )
-    
-    charts['matrix'] = fig_matrix
-    
-    # 4. 区域集中度雷达图
-    concentration_df = metrics['concentration_df']
-    
-    if not concentration_df.empty:
-        # 创建雷达图
-        fig_radar = go.Figure()
+    # 2. 3D区域风险热力图
+    if not metrics['region_stats'].empty:
+        regions = metrics['region_stats']['区域'].tolist()
+        dependencies = metrics['region_stats']['最大客户依赖度'].tolist()
+        sales = metrics['region_stats']['总销售额'].tolist()
+        customers = metrics['region_stats']['客户数'].tolist()
         
-        # 准备数据
-        categories = ['HHI指数', 'CR3', '客户数', '风险指数', '平均贡献']
+        # 创建3D散点图
+        fig_3d = go.Figure()
         
-        # 归一化处理
-        max_hhi = concentration_df['HHI指数'].max()
-        max_cr3 = 100
-        max_customers = concentration_df['客户数'].max()
-        
-        for _, region in concentration_df.iterrows():
-            # 计算风险指数（基于HHI）
-            risk_index = min(region['HHI指数'] / 50, 100)
-            
-            # 计算平均贡献
-            avg_contribution = region['总销售额'] / region['客户数'] / 10000  # 万元
-            max_avg_contribution = concentration_df['总销售额'].max() / concentration_df['客户数'].min() / 10000
-            
-            values = [
-                region['HHI指数'] / max_hhi * 100,
-                region['CR3'],
-                region['客户数'] / max_customers * 100,
-                risk_index,
-                avg_contribution / max_avg_contribution * 100
-            ]
-            
-            fig_radar.add_trace(go.Scatterpolar(
-                r=values,
-                theta=categories,
-                fill='toself',
-                name=region['区域'],
-                opacity=0.6,
-                hovertemplate='<b>%{fullData.name}</b><br>' +
-                            '%{theta}: %{r:.1f}<br>' +
-                            '<extra></extra>'
-            ))
-        
-        fig_radar.update_layout(
-            polar=dict(
-                radialaxis=dict(
-                    visible=True,
-                    range=[0, 100],
-                    tickfont=dict(size=10)
-                ),
-                angularaxis=dict(
-                    tickfont=dict(size=12)
-                )
+        fig_3d.add_trace(go.Scatter3d(
+            x=customers,
+            y=[s/10000 for s in sales],
+            z=dependencies,
+            mode='markers+text',
+            text=regions,
+            marker=dict(
+                size=[d/2 for d in dependencies],
+                color=dependencies,
+                colorscale='RdYlGn_r',
+                showscale=True,
+                colorbar=dict(title="依赖度%", x=1.02),
+                line=dict(width=2, color='white'),
+                opacity=0.8
             ),
-            title='区域客户集中度多维分析',
-            height=500,
-            showlegend=True
+            textposition='top center',
+            hovertemplate='<b>%{text}</b><br>' +
+                         '客户数: %{x}<br>' +
+                         '销售额: %{y:.1f}万<br>' +
+                         '依赖度: %{z:.1f}%<br>' +
+                         '<extra></extra>'
+        ))
+        
+        fig_3d.update_layout(
+            scene=dict(
+                xaxis_title="客户数量",
+                yaxis_title="销售额（万元）",
+                zaxis_title="客户依赖度（%）",
+                camera=dict(
+                    eye=dict(x=1.5, y=1.5, z=1.2)
+                ),
+                bgcolor='rgba(0,0,0,0)'
+            ),
+            title="区域风险三维分布图",
+            height=600
         )
         
-        charts['radar'] = fig_radar
+        charts['risk_3d'] = fig_3d
     
-    # 5. 销售趋势河流图
-    # 按月份和客户层级汇总数据
-    sales_data_copy = sales_data.copy()
-    sales_data_copy['年月'] = sales_data_copy['订单日期'].dt.to_period('M')
+    # 3. 客户价值流动桑基图
+    if not metrics['rfm_df'].empty:
+        # 准备桑基图数据
+        source = []
+        target = []
+        value = []
+        labels = ['所有客户', '钻石客户', '黄金客户', '白银客户', '潜力客户', '流失风险']
+        
+        # 客户类型分布
+        customer_types = ['钻石客户', '黄金客户', '白银客户', '潜力客户', '流失风险']
+        for i, ct in enumerate(customer_types):
+            count = len(metrics['rfm_df'][metrics['rfm_df']['类型'] == ct])
+            if count > 0:
+                source.append(0)
+                target.append(i + 1)
+                value.append(count)
+        
+        fig_sankey = go.Figure(data=[go.Sankey(
+            node=dict(
+                pad=15,
+                thickness=20,
+                line=dict(color="black", width=0.5),
+                label=labels,
+                color=["#667eea", "#e74c3c", "#f39c12", "#95a5a6", "#3498db", "#9b59b6"],
+                hovertemplate='%{label}<br>客户数: %{value}<extra></extra>'
+            ),
+            link=dict(
+                source=source,
+                target=target,
+                value=value,
+                color='rgba(102, 126, 234, 0.3)'
+            )
+        )])
+        
+        fig_sankey.update_layout(
+            title="客户价值流向分析",
+            height=400
+        )
+        
+        charts['sankey'] = fig_sankey
     
-    # 合并客户层级信息
-    tier_mapping = dict(zip(tiers_df['客户'], tiers_df['层级']))
-    sales_data_copy['层级'] = sales_data_copy['经销商名称'].map(tier_mapping).fillna('其他')
+    # 4. 动态月度趋势面积图
+    if not sales_data.empty:
+        # 按月汇总销售数据
+        sales_data['年月'] = sales_data['订单日期'].dt.to_period('M')
+        monthly_sales = sales_data.groupby('年月')['金额'].agg(['sum', 'count']).reset_index()
+        monthly_sales['年月'] = monthly_sales['年月'].astype(str)
+        
+        # 创建双轴图
+        fig_trend = make_subplots(
+            rows=1, cols=1,
+            specs=[[{"secondary_y": True}]]
+        )
+        
+        # 销售额面积图
+        fig_trend.add_trace(
+            go.Scatter(
+                x=monthly_sales['年月'],
+                y=monthly_sales['sum'],
+                mode='lines+markers',
+                name='销售额',
+                fill='tozeroy',
+                fillcolor='rgba(102, 126, 234, 0.2)',
+                line=dict(color='#667eea', width=3),
+                marker=dict(size=8, color='#667eea', line=dict(width=2, color='white')),
+                hovertemplate='%{x}<br>销售额: ¥%{y:,.0f}<extra></extra>'
+            ),
+            secondary_y=False
+        )
+        
+        # 订单数量线
+        fig_trend.add_trace(
+            go.Scatter(
+                x=monthly_sales['年月'],
+                y=monthly_sales['count'],
+                mode='lines+markers',
+                name='订单数',
+                line=dict(color='#ff6b6b', width=2, dash='dot'),
+                marker=dict(size=6, color='#ff6b6b'),
+                hovertemplate='%{x}<br>订单数: %{y}<extra></extra>'
+            ),
+            secondary_y=True
+        )
+        
+        fig_trend.update_xaxes(title_text="月份")
+        fig_trend.update_yaxes(title_text="销售额", secondary_y=False)
+        fig_trend.update_yaxes(title_text="订单数", secondary_y=True)
+        
+        fig_trend.update_layout(
+            title="销售趋势双轴分析",
+            height=400,
+            hovermode='x unified'
+        )
+        
+        charts['trend'] = fig_trend
     
-    # 按月份和层级汇总
-    monthly_tier_sales = sales_data_copy.groupby(['年月', '层级'])['金额'].sum().reset_index()
-    monthly_tier_sales['年月'] = monthly_tier_sales['年月'].astype(str)
-    
-    # 创建河流图
-    fig_stream = go.Figure()
-    
-    tier_order = ['S级战略客户', 'A级核心客户', 'B级重要客户', 'C级普通客户', 'D级长尾客户']
-    
-    for tier in tier_order:
-        tier_data = monthly_tier_sales[monthly_tier_sales['层级'] == tier]
-        if len(tier_data) > 0:
-            fig_stream.add_trace(go.Scatter(
-                x=tier_data['年月'],
-                y=tier_data['金额'],
-                name=tier,
-                mode='lines',
-                stackgroup='one',
-                fillcolor=tier_colors.get(tier, '#95a5a6'),
-                line=dict(width=0.5, color=tier_colors.get(tier, '#95a5a6')),
-                hovertemplate='<b>%{fullData.name}</b><br>' +
-                            '月份: %{x}<br>' +
-                            '销售额: ¥%{y:,.0f}<br>' +
-                            '<extra></extra>'
+    # 5. 客户贡献度旭日图
+    if not metrics['rfm_df'].empty:
+        # 准备旭日图数据
+        sunburst_data = []
+        
+        # 按客户类型分组
+        for customer_type in ['钻石客户', '黄金客户', '白银客户', '潜力客户', '流失风险']:
+            type_customers = metrics['rfm_df'][metrics['rfm_df']['类型'] == customer_type]
+            
+            if not type_customers.empty:
+                # 添加类型节点
+                sunburst_data.append({
+                    'labels': customer_type,
+                    'parents': '',
+                    'values': type_customers['M'].sum()
+                })
+                
+                # 添加前5个客户
+                top_customers = type_customers.nlargest(5, 'M')
+                for _, customer in top_customers.iterrows():
+                    sunburst_data.append({
+                        'labels': customer['客户'][:10],
+                        'parents': customer_type,
+                        'values': customer['M']
+                    })
+        
+        if sunburst_data:
+            df_sunburst = pd.DataFrame(sunburst_data)
+            
+            fig_sunburst = go.Figure(go.Sunburst(
+                labels=df_sunburst['labels'],
+                parents=df_sunburst['parents'],
+                values=df_sunburst['values'],
+                branchvalues="total",
+                marker=dict(
+                    colorscale='Viridis',
+                    line=dict(color='white', width=2)
+                ),
+                hovertemplate='<b>%{label}</b><br>销售额: ¥%{value:,.0f}<br>占比: %{percentRoot}<extra></extra>'
             ))
-    
-    fig_stream.update_layout(
-        title='客户分层销售趋势流图',
-        xaxis_title='月份',
-        yaxis_title='销售额',
-        height=500,
-        hovermode='x unified',
-        showlegend=True,
-        legend=dict(x=1.01, y=0.5)
-    )
-    
-    charts['stream'] = fig_stream
+            
+            fig_sunburst.update_layout(
+                title="客户贡献度层级分析",
+                height=500
+            )
+            
+            charts['sunburst'] = fig_sunburst
     
     return charts
 
 # 主应用逻辑
 def main():
-    # 侧边栏
+    # 侧边栏返回按钮
     with st.sidebar:
-        st.markdown("""
-        <div style='text-align: center; padding: 1rem;'>
-            <h3 style='color: white;'>🎯 快速导航</h3>
-        </div>
-        """, unsafe_allow_html=True)
-        
         if st.button("🏠 返回主页", use_container_width=True):
             st.switch_page("app.py")
         
         if st.button("🚪 退出登录", use_container_width=True):
             st.session_state.authenticated = False
             st.switch_page("app.py")
-        
-        # 添加一些统计信息
-        st.markdown("---")
-        st.markdown("""
-        <div style='color: white; padding: 1rem;'>
-            <h4>📊 数据概览</h4>
-            <p>• 数据更新: 实时</p>
-            <p>• 分析维度: 5个</p>
-            <p>• 可视化图表: 8种</p>
-        </div>
-        """, unsafe_allow_html=True)
     
-    # 主标题动画
+    # 标题
     st.markdown("""
     <div class="main-header">
         <h1>👥 客户依赖分析</h1>
-        <p style="font-size: 1.2rem; opacity: 0.8;">
-            智能识别客户价值 · 精准评估业务风险 · 优化客户组合策略
-        </p>
+        <p>深入洞察客户关系，识别业务风险，优化客户组合策略</p>
     </div>
     """, unsafe_allow_html=True)
     
     # 加载数据
-    with st.spinner('🔄 正在加载数据...'):
-        time.sleep(0.5)  # 添加轻微延迟以显示加载动画
-        metrics, customer_status, sales_data, monthly_data = load_and_process_data()
+    metrics, customer_status, sales_data, monthly_data = load_and_process_data()
     
     if metrics is None:
         st.error("❌ 数据加载失败，请检查数据文件是否存在。")
         return
     
-    # 创建可视化
-    charts = create_advanced_visualizations(metrics, sales_data, monthly_data)
+    # 创建高级图表
+    charts = create_advanced_charts(metrics, sales_data, monthly_data)
     
-    # 如果安装了extras，添加庆祝效果
-    if EXTRAS_AVAILABLE and random.random() < 0.1:  # 10%概率显示
-        rain(
-            emoji="💎",
-            font_size=30,
-            falling_speed=3,
-            animation_length=2
-        )
+    # 关键指标展示 - 使用metric cards
+    col1, col2, col3, col4 = st.columns(4)
     
-    # 关键指标卡片
-    st.markdown("<br>", unsafe_allow_html=True)
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value data-point">{metrics['normal_rate']:.1f}%</div>
+            <div class="metric-label">❤️ 客户健康度</div>
+            <small style="color: #888;">正常客户 {metrics['normal_customers']} 家</small>
+        </div>
+        """, unsafe_allow_html=True)
     
-    cols = st.columns(5)
-    
-    # 指标数据
-    metric_data = [
-        {
-            'label': '客户健康度',
-            'value': f"{metrics['normal_rate']:.1f}%",
-            'delta': f"{metrics['normal_rate']-85:.1f}%",
-            'delta_color': 'positive' if metrics['normal_rate'] > 85 else 'negative',
-            'help': f"正常客户{metrics['normal_customers']}家，闭户{metrics['closed_customers']}家",
-            'icon': '❤️'
-        },
-        {
-            'label': '帕累托系数',
-            'value': f"{metrics['pareto_ratio']:.1f}%",
-            'delta': f"前20%客户贡献",
-            'delta_color': 'positive' if metrics['pareto_ratio'] > 70 else 'negative',
-            'help': f"前{int(len(metrics['customer_sales'])*0.2)}家客户贡献{metrics['pareto_ratio']:.1f}%销售额",
-            'icon': '📊'
-        },
-        {
-            'label': '集中度指标',
-            'value': f"{metrics['concentration_ratio']:.1f}%",
-            'delta': f"{metrics['customers_for_80_percent']}家贡献80%",
-            'delta_color': 'negative' if metrics['concentration_ratio'] < 30 else 'positive',
-            'help': "客户集中度越低，风险越分散",
-            'icon': '🎯'
-        },
-        {
-            'label': '人均贡献',
-            'value': f"¥{metrics['avg_customer_contribution']/10000:.1f}万",
-            'delta': f"平均每家客户",
-            'delta_color': 'positive',
-            'help': f"总销售额{metrics['total_sales']/100000000:.2f}亿元",
-            'icon': '💰'
-        },
-        {
-            'label': '同比增长',
-            'value': f"{'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%",
-            'delta': f"较去年同期",
-            'delta_color': 'positive' if metrics['growth_rate'] > 0 else 'negative',
-            'help': f"增长额{(metrics['total_sales']-monthly_data['往年同期'].sum())/10000:.1f}万",
-            'icon': '📈'
-        }
-    ]
-    
-    # 显示指标卡片
-    for col, data in zip(cols, metric_data):
-        with col:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div style="font-size: 2rem; margin-bottom: 0.5rem;">{data['icon']}</div>
-                <div class="metric-value">{data['value']}</div>
-                <div class="metric-label">{data['label']}</div>
-                <div class="metric-delta {data['delta_color']}">{data['delta']}</div>
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value data-point" style="color: {'#ff6b6b' if metrics['max_dependency'] > 30 else '#667eea'};">
+                {metrics['max_dependency']:.1f}%
             </div>
-            """, unsafe_allow_html=True)
+            <div class="metric-label">⚠️ 最高依赖风险</div>
+            <small style="color: #888;">{metrics['max_dependency_region']} 区域</small>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value data-point">{metrics['target_achievement_rate']:.1f}%</div>
+            <div class="metric-label">🎯 目标达成率</div>
+            <small style="color: #888;">达成 {metrics['achieved_customers']} 家</small>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value data-point">{metrics['high_value_rate']:.1f}%</div>
+            <div class="metric-label">💎 高价值客户</div>
+            <small style="color: #888;">钻石+黄金 {metrics['diamond_customers']+metrics['gold_customers']} 家</small>
+        </div>
+        """, unsafe_allow_html=True)
     
     # 创建标签页
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "🎯 价值分层洞察", 
-        "📊 集中度分析", 
-        "⚡ 活跃度矩阵", 
-        "🗺️ 区域风险雷达", 
-        "📈 动态趋势"
+    tabs = st.tabs([
+        "📊 总览分析", 
+        "⚠️ 风险评估", 
+        "💎 价值分层", 
+        "🎯 目标跟踪",
+        "📈 趋势洞察"
     ])
     
-    with tab1:
-        # 价值分层分析
-        st.markdown("""
-        <div class='insight-card'>
-            <h3>💡 核心洞察</h3>
-            <p>基于客户贡献度的智能分层，识别不同价值客户群体的特征与机会</p>
-        </div>
-        """, unsafe_allow_html=True)
+    with tabs[0]:
+        # 总览分析
+        st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
         
-        # 显示太阳图
-        with st.container():
-            st.plotly_chart(charts['sunburst'], use_container_width=True, key="sunburst_chart")
+        # 雷达图
+        st.plotly_chart(charts['health_radar'], use_container_width=True, key="overview_radar")
         
-        # 客户层级统计
-        tiers_df = metrics['tiers_df']
-        tier_stats = tiers_df.groupby('层级').agg({
-            '销售额': ['sum', 'mean', 'count']
-        }).round(0)
-        
-        col1, col2 = st.columns([3, 2])
+        # 核心洞察
+        col1, col2 = st.columns([1, 1])
         
         with col1:
-            # 创建层级分布饼图
-            tier_summary = tiers_df.groupby('层级')['销售额'].sum()
-            
-            fig_pie = go.Figure(data=[go.Pie(
-                labels=tier_summary.index,
-                values=tier_summary.values,
-                hole=0.4,
-                marker_colors=['#e74c3c', '#f39c12', '#3498db', '#2ecc71', '#95a5a6'],
-                textfont=dict(size=14, color='white'),
-                textposition='inside',
-                textinfo='label+percent',
-                hovertemplate='<b>%{label}</b><br>销售额: ¥%{value:,.0f}<br>占比: %{percent}<extra></extra>'
-            )])
-            
-            fig_pie.update_layout(
-                title='客户价值分布',
-                height=400,
-                showlegend=False
-            )
-            
-            st.plotly_chart(fig_pie, use_container_width=True, key="tier_pie_chart")
-        
-        with col2:
-            # 显示关键客户信息
-            st.markdown("### 🏆 TOP 5 战略客户")
-            top_customers = tiers_df.head(5)
-            for idx, customer in top_customers.iterrows():
-                st.markdown(f"""
-                <div class='data-point' style='--i: {idx};'>
-                    #{customer['排名']} {customer['客户'][:12]}...
-                    <br>¥{customer['销售额']/10000:.1f}万 ({customer['贡献度']:.1f}%)
-                </div>
-                """, unsafe_allow_html=True)
-    
-    with tab2:
-        # 集中度分析
-        st.markdown("""
-        <div class='insight-card'>
-            <h3>📊 帕累托法则验证</h3>
-            <p>深度分析客户贡献集中度，评估业务风险分布</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 显示帕累托图
-        st.plotly_chart(charts['pareto'], use_container_width=True, key="pareto_chart")
-        
-        # 集中度指标展示
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            # 创建集中度仪表
-            fig_gauge = go.Figure(go.Indicator(
-                mode = "gauge+number",
-                value = metrics['concentration_ratio'],
-                domain = {'x': [0, 1], 'y': [0, 1]},
-                title = {'text': "客户集中度风险"},
-                gauge = {
-                    'axis': {'range': [None, 100]},
-                    'bar': {'color': "darkblue"},
-                    'steps': [
-                        {'range': [0, 30], 'color': "#2ecc71"},
-                        {'range': [30, 50], 'color': "#f39c12"},
-                        {'range': [50, 100], 'color': "#e74c3c"}
-                    ],
-                    'threshold': {
-                        'line': {'color': "red", 'width': 4},
-                        'thickness': 0.75,
-                        'value': 30
-                    }
-                }
-            ))
-            
-            fig_gauge.update_layout(height=300)
-            st.plotly_chart(fig_gauge, use_container_width=True, key="concentration_gauge")
-        
-        with col2:
-            st.markdown(f"""
-            <div class='special-container'>
-                <h4>📈 20/80法则</h4>
-                <p>前20%客户贡献<br><span style='font-size: 2rem; color: #667eea;'>{metrics['pareto_ratio']:.1f}%</span><br>的销售额</p>
+            st.markdown("""
+            <div class='insight-card'>
+                <h4>💡 健康诊断</h4>
+                <ul style='margin: 0; padding-left: 20px;'>
+                    <li>客户健康度{0}，{1}%的客户保持正常运营</li>
+                    <li>同比增长{2}%，业务发展{3}</li>
+                    <li>平均客户贡献¥{4:.0f}</li>
+                </ul>
             </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown(f"""
-            <div class='special-container'>
-                <h4>🎯 核心客户群</h4>
-                <p>仅需<br><span style='font-size: 2rem; color: #764ba2;'>{metrics['customers_for_80_percent']}</span>家<br>贡献80%销售</p>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    with tab3:
-        # 活跃度分析
-        st.markdown("""
-        <div class='insight-card'>
-            <h3>⚡ 客户活跃度健康诊断</h3>
-            <p>多维度评估客户活跃状态，提前预警流失风险</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 显示活跃度矩阵
-        st.plotly_chart(charts['matrix'], use_container_width=True, key="activity_matrix")
-        
-        # 风险分布统计
-        activity_df = metrics['activity_df']
-        risk_summary = activity_df['风险等级'].value_counts()
-        
-        # 创建风险分布条形图
-        fig_risk = go.Figure(data=[
-            go.Bar(
-                x=risk_summary.index,
-                y=risk_summary.values,
-                marker_color=['#2ecc71', '#f39c12', '#e67e22', '#e74c3c'],
-                text=risk_summary.values,
-                textposition='auto',
-                hovertemplate='<b>%{x}</b><br>客户数: %{y}<extra></extra>'
-            )
-        ])
-        
-        fig_risk.update_layout(
-            title='客户风险等级分布',
-            xaxis_title='风险等级',
-            yaxis_title='客户数量',
-            height=400,
-            showlegend=False
-        )
-        
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            st.plotly_chart(fig_risk, use_container_width=True, key="risk_distribution")
+            """.format(
+                '良好' if metrics['normal_rate'] > 85 else '一般',
+                metrics['normal_rate'],
+                f"{metrics['growth_rate']:+.1f}",
+                '稳健' if metrics['growth_rate'] > 0 else '需关注',
+                metrics['avg_customer_contribution']
+            ), unsafe_allow_html=True)
         
         with col2:
-            # 显示预警客户
-            high_risk = activity_df[activity_df['风险等级'].isin(['高风险', '极高风险'])]
-            st.markdown("### ⚠️ 重点关注客户")
-            
-            for idx, customer in high_risk.head(5).iterrows():
-                badge_color = "red" if customer['风险等级'] == '极高风险' else "orange"
-                st.markdown(f"""
-                <div style='margin: 0.5rem 0; padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 10px;'>
-                    <span style='color: {badge_color}; font-weight: bold;'>●</span> {customer['客户'][:15]}...
-                    <br><small>活跃度: {customer['活跃度评分']:.1f} | 趋势: {customer['趋势']:+.1f}%</small>
-                </div>
-                """, unsafe_allow_html=True)
-    
-    with tab4:
-        # 区域风险分析
-        st.markdown("""
-        <div class='insight-card'>
-            <h3>🗺️ 区域集中度风险评估</h3>
-            <p>多维度分析各区域客户结构，识别高风险区域</p>
-        </div>
-        """, unsafe_allow_html=True)
+            st.markdown("""
+            <div class='insight-card'>
+                <h4>🎯 行动建议</h4>
+                <ul style='margin: 0; padding-left: 20px;'>
+                    <li>重点关注{0}区域的客户集中度风险</li>
+                    <li>激活{1}家潜力客户，提升客户价值</li>
+                    <li>及时干预{2}家流失风险客户</li>
+                </ul>
+            </div>
+            """.format(
+                metrics['max_dependency_region'],
+                metrics['potential_customers'],
+                metrics['risk_customers']
+            ), unsafe_allow_html=True)
         
-        if 'radar' in charts:
-            st.plotly_chart(charts['radar'], use_container_width=True, key="region_radar")
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    with tabs[1]:
+        # 风险评估
+        st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
+        
+        if 'risk_3d' in charts:
+            st.plotly_chart(charts['risk_3d'], use_container_width=True, key="risk_3d_chart")
             
-            # 区域风险详情
-            concentration_df = metrics['concentration_df']
-            
-            # 创建HHI指数分布图
-            fig_hhi = go.Figure()
-            
-            # 按风险类型分组
-            for risk_type in ['低风险', '中风险', '高风险']:
-                risk_data = concentration_df[concentration_df['风险类型'] == risk_type]
-                if len(risk_data) > 0:
-                    color_map = {'低风险': '#2ecc71', '中风险': '#f39c12', '高风险': '#e74c3c'}
-                    fig_hhi.add_trace(go.Bar(
-                        x=risk_data['区域'],
-                        y=risk_data['HHI指数'],
-                        name=risk_type,
-                        marker_color=color_map[risk_type],
-                        hovertemplate='<b>%{x}</b><br>HHI指数: %{y:.0f}<br>%{fullData.name}<extra></extra>'
-                    ))
-            
-            fig_hhi.update_layout(
-                title='区域HHI指数分布（赫芬达尔-赫希曼指数）',
-                xaxis_title='区域',
-                yaxis_title='HHI指数',
-                height=400,
-                barmode='group'
-            )
-            
-            st.plotly_chart(fig_hhi, use_container_width=True, key="hhi_distribution")
-            
-            # 高风险区域预警
-            high_risk_regions = concentration_df[concentration_df['风险类型'] == '高风险']
-            if len(high_risk_regions) > 0:
-                st.warning(f"⚠️ 发现{len(high_risk_regions)}个高风险区域需要重点关注")
+            # 风险详情
+            if not metrics['region_stats'].empty:
+                risk_regions = metrics['region_stats'][
+                    metrics['region_stats']['最大客户依赖度'] > 30
+                ].sort_values('最大客户依赖度', ascending=False)
                 
-                for _, region in high_risk_regions.iterrows():
-                    with st.expander(f"{region['区域']} - HHI: {region['HHI指数']:.0f}"):
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("最大客户", region['最大客户'][:15] + "...")
-                        with col2:
-                            st.metric("依赖度", f"{region['最大客户占比']:.1f}%")
-                        with col3:
-                            st.metric("CR3指数", f"{region['CR3']:.1f}%")
-        else:
-            st.info("暂无区域数据")
-    
-    with tab5:
-        # 动态趋势分析
-        st.markdown("""
-        <div class='insight-card'>
-            <h3>📈 客户分层动态演进</h3>
-            <p>追踪不同价值层级客户的销售贡献变化趋势</p>
-        </div>
-        """, unsafe_allow_html=True)
+                if not risk_regions.empty:
+                    st.warning(f"⚠️ 发现 {len(risk_regions)} 个高风险区域")
+                    
+                    for _, region in risk_regions.iterrows():
+                        with st.expander(f"🔍 {region['区域']}区域 - 依赖度 {region['最大客户依赖度']:.1f}%"):
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                st.metric("最大客户", region['最大客户'])
+                            with col2:
+                                st.metric("客户贡献", f"¥{region['最大客户销售额']/10000:.1f}万")
+                            with col3:
+                                st.metric("区域客户数", f"{region['客户数']}家")
+                            
+                            # TOP3客户贡献图
+                            if 'TOP3客户' in region and region['TOP3客户']:
+                                top3_names = [c['name'] for c in region['TOP3客户']]
+                                top3_values = [c['percentage'] for c in region['TOP3客户']]
+                                
+                                fig_top3 = go.Figure(go.Bar(
+                                    x=top3_values,
+                                    y=top3_names,
+                                    orientation='h',
+                                    marker_color='#667eea',
+                                    text=[f"{v:.1f}%" for v in top3_values],
+                                    textposition='outside'
+                                ))
+                                
+                                fig_top3.update_layout(
+                                    title="TOP3客户贡献占比",
+                                    xaxis_title="占比(%)",
+                                    height=200,
+                                    margin=dict(l=0, r=0, t=30, b=0)
+                                )
+                                
+                                st.plotly_chart(fig_top3, use_container_width=True)
         
-        if 'stream' in charts:
-            st.plotly_chart(charts['stream'], use_container_width=True, key="stream_chart")
-            
-            # 趋势洞察
-            col1, col2 = st.columns(2)
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    with tabs[2]:
+        # 价值分层
+        st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
+        
+        # 客户价值分布
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        value_cards = [
+            (col1, "💎 钻石", metrics['diamond_customers'], "#e74c3c"),
+            (col2, "🥇 黄金", metrics['gold_customers'], "#f39c12"),
+            (col3, "🥈 白银", metrics['silver_customers'], "#95a5a6"),
+            (col4, "🌟 潜力", metrics['potential_customers'], "#3498db"),
+            (col5, "⚠️ 流失", metrics['risk_customers'], "#9b59b6")
+        ]
+        
+        for col, label, value, color in value_cards:
+            with col:
+                st.markdown(f"""
+                <div style='text-align: center; padding: 1rem; background: {color}; color: white; border-radius: 10px;'>
+                    <h2 style='margin: 0;'>{value}</h2>
+                    <p style='margin: 0;'>{label}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # 桑基图和旭日图
+        if 'sankey' in charts:
+            col1, col2 = st.columns([1, 1])
             
             with col1:
-                st.markdown("""
-                <div class='special-container'>
-                    <h4>📊 趋势洞察</h4>
-                    <ul style='margin: 0; padding-left: 20px;'>
-                        <li>S级客户贡献稳定，是业务基石</li>
-                        <li>A级客户增长明显，潜力巨大</li>
-                        <li>D级客户占比下降，客户质量提升</li>
-                    </ul>
-                </div>
-                """, unsafe_allow_html=True)
+                st.plotly_chart(charts['sankey'], use_container_width=True, key="value_sankey")
             
             with col2:
-                st.markdown("""
-                <div class='special-container'>
-                    <h4>🎯 行动建议</h4>
-                    <ul style='margin: 0; padding-left: 20px;'>
-                        <li>维护S级客户的战略伙伴关系</li>
-                        <li>加大A级客户的资源投入</li>
-                        <li>优化D级客户的服务模式</li>
-                    </ul>
+                if 'sunburst' in charts:
+                    st.plotly_chart(charts['sunburst'], use_container_width=True, key="value_sunburst")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    with tabs[3]:
+        # 目标跟踪
+        st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
+        
+        if not metrics['customer_achievement_details'].empty:
+            # 创建目标达成散点图
+            achievement_df = metrics['customer_achievement_details']
+            
+            fig_scatter = go.Figure()
+            
+            # 添加散点
+            fig_scatter.add_trace(go.Scatter(
+                x=achievement_df['目标'],
+                y=achievement_df['实际'],
+                mode='markers',
+                marker=dict(
+                    size=achievement_df['达成率'].apply(lambda x: min(max(x/5, 10), 50)),
+                    color=achievement_df['达成率'],
+                    colorscale='RdYlGn',
+                    showscale=True,
+                    colorbar=dict(title="达成率%"),
+                    line=dict(width=1, color='white')
+                ),
+                text=achievement_df['客户'],
+                hovertemplate='<b>%{text}</b><br>目标: ¥%{x:,.0f}<br>实际: ¥%{y:,.0f}<br><extra></extra>'
+            ))
+            
+            # 添加目标线
+            max_val = max(achievement_df['目标'].max(), achievement_df['实际'].max())
+            fig_scatter.add_trace(go.Scatter(
+                x=[0, max_val],
+                y=[0, max_val],
+                mode='lines',
+                name='目标线',
+                line=dict(color='red', dash='dash'),
+                showlegend=True
+            ))
+            
+            # 添加80%达成线
+            fig_scatter.add_trace(go.Scatter(
+                x=[0, max_val],
+                y=[0, max_val * 0.8],
+                mode='lines',
+                name='80%达成线',
+                line=dict(color='orange', dash='dot'),
+                showlegend=True
+            ))
+            
+            fig_scatter.update_layout(
+                title="客户目标达成分布",
+                xaxis_title="目标金额",
+                yaxis_title="实际金额",
+                height=500
+            )
+            
+            st.plotly_chart(fig_scatter, use_container_width=True, key="target_scatter")
+            
+            # 达成率分布
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                fig_hist = go.Figure()
+                fig_hist.add_trace(go.Histogram(
+                    x=achievement_df['达成率'],
+                    nbinsx=20,
+                    marker_color='#667eea',
+                    name='客户数'
+                ))
+                
+                fig_hist.add_vline(x=80, line_dash="dash", line_color="red", 
+                                  annotation_text="达成线")
+                fig_hist.add_vline(x=100, line_dash="dash", line_color="green", 
+                                  annotation_text="目标线")
+                
+                fig_hist.update_layout(
+                    title="达成率分布直方图",
+                    xaxis_title="达成率(%)",
+                    yaxis_title="客户数量",
+                    height=300
+                )
+                
+                st.plotly_chart(fig_hist, use_container_width=True, key="achievement_hist")
+            
+            with col2:
+                # 达成情况统计
+                achieved = len(achievement_df[achievement_df['达成率'] >= 80])
+                excellent = len(achievement_df[achievement_df['达成率'] >= 100])
+                poor = len(achievement_df[achievement_df['达成率'] < 50])
+                
+                st.markdown(f"""
+                <div style='background: #f8f9fa; padding: 1.5rem; border-radius: 10px;'>
+                    <h4>📊 达成统计</h4>
+                    <p>✅ 达成(≥80%): <b>{achieved}</b>家</p>
+                    <p>🌟 超额(≥100%): <b>{excellent}</b>家</p>
+                    <p>⚠️ 落后(<50%): <b>{poor}</b>家</p>
                 </div>
                 """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    with tabs[4]:
+        # 趋势洞察
+        st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
+        
+        if 'trend' in charts:
+            st.plotly_chart(charts['trend'], use_container_width=True, key="trend_analysis")
+        
+        # 趋势预测和洞察
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.markdown("""
+            <div class='insight-card'>
+                <h4>📊 趋势特征</h4>
+                <ul style='margin: 0; padding-left: 20px;'>
+                    <li>销售额月度波动呈现季节性特征</li>
+                    <li>Q2通常为销售高峰期</li>
+                    <li>年末存在冲刺效应</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("""
+            <div class='insight-card'>
+                <h4>🔮 预测建议</h4>
+                <ul style='margin: 0; padding-left: 20px;'>
+                    <li>提前为旺季储备库存</li>
+                    <li>淡季加强客户维护</li>
+                    <li>制定差异化季节策略</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # 页脚
     st.markdown("""
-    <div style='text-align: center; margin-top: 3rem; padding: 2rem; background: rgba(255,255,255,0.1); border-radius: 20px;'>
-        <p style='color: white; font-size: 1.1rem;'>
-            Trolli SAL | 客户依赖分析 | 数据更新时间: {}
-        </p>
-        <p style='color: rgba(255,255,255,0.8); font-size: 0.9rem;'>
-            Powered by Advanced Analytics · Making Data Beautiful
-        </p>
+    <div style='text-align: center; color: #666; margin-top: 3rem; padding: 2rem 0; border-top: 1px solid #e0e0e0;'>
+        <p>Trolli SAL | 客户依赖分析 | 数据更新时间: {}</p>
+        <p style='font-size: 0.9rem; opacity: 0.8;'>让数据洞察更有价值</p>
     </div>
     """.format(datetime.now().strftime('%Y-%m-%d %H:%M')), unsafe_allow_html=True)
 
