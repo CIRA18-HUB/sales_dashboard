@@ -15,7 +15,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 增强的CSS样式 - 参考产品组合分析的样式
+# 增强的CSS样式
 st.markdown("""
 <style>
     /* 主标题样式 */
@@ -138,113 +138,6 @@ st.markdown("""
     .metric-card:nth-child(4) { animation-delay: 0.4s; }
     .metric-card:nth-child(5) { animation-delay: 0.5s; }
     .metric-card:nth-child(6) { animation-delay: 0.6s; }
-    
-    /* 增强的动画效果 */
-    @keyframes pulse {
-        0% { transform: scale(1); opacity: 0.8; }
-        50% { transform: scale(1.05); opacity: 1; }
-        100% { transform: scale(1); opacity: 0.8; }
-    }
-    
-    @keyframes float {
-        0% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
-        100% { transform: translateY(0px); }
-    }
-    
-    @keyframes rotate {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    /* 区域卡片动画 */
-    .region-card {
-        animation: float 3s ease-in-out infinite;
-        animation-delay: calc(var(--i) * 0.2s);
-    }
-    
-    /* 成就卡片特效 */
-    .achievement-card {
-        background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1));
-        border-left: 4px solid #667eea;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-        animation: slideInRight 0.8s ease-out;
-    }
-    
-    @keyframes slideInRight {
-        from { opacity: 0; transform: translateX(50px); }
-        to { opacity: 1; transform: translateX(0); }
-    }
-    
-    /* 渠道分析卡片 */
-    .channel-card {
-        background: white;
-        padding: 2rem;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        margin-bottom: 1rem;
-        transition: all 0.3s ease;
-        border-top: 4px solid transparent;
-        border-image: linear-gradient(90deg, #667eea, #764ba2) 1;
-    }
-    
-    .channel-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    }
-    
-    /* 趋势图卡片 */
-    .trend-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        margin-bottom: 1rem;
-        animation: fadeInUp 1s ease-out;
-    }
-    
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(30px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* 目标线动画 */
-    .target-line {
-        animation: pulse 2s ease-in-out infinite;
-    }
-    
-    /* 数据点动画 */
-    .data-point {
-        animation: float 3s ease-in-out infinite;
-    }
-    
-    /* 强调文本 */
-    .highlight-text {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: bold;
-    }
-    
-    /* 成功指标 */
-    .success-metric {
-        color: #10b981;
-        font-weight: bold;
-    }
-    
-    /* 警告指标 */
-    .warning-metric {
-        color: #f59e0b;
-        font-weight: bold;
-    }
-    
-    /* 危险指标 */
-    .danger-metric {
-        color: #ef4444;
-        font-weight: bold;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -271,9 +164,18 @@ def load_data():
         sales_data['销售额'] = sales_data['单价（箱）'] * sales_data['求和项:数量（箱）']
         
         # 区分渠道类型
-        sales_data['渠道类型'] = sales_data['订单类型'].apply(
-            lambda x: 'TT' if 'TT' in str(x) else ('MT' if 'MT' in str(x) else 'Other')
-        )
+        def identify_channel(order_type):
+            if pd.isna(order_type):
+                return 'Other'
+            order_type_str = str(order_type)
+            if 'TT' in order_type_str or 'tt' in order_type_str:
+                return 'TT'
+            elif 'MT' in order_type_str or 'mt' in order_type_str or '正常' in order_type_str:
+                return 'MT'
+            else:
+                return 'Other'
+        
+        sales_data['渠道类型'] = sales_data['订单类型'].apply(identify_channel)
         
         # MT数据
         mt_data['月份'] = pd.to_datetime(mt_data['月份'])
@@ -345,7 +247,7 @@ def calculate_overview_metrics(data):
     city_achievement_rate = (achieved_cities / total_cities * 100) if total_cities > 0 else 0
     
     # 计算区域数据
-    regions = sales_data['所属区域'].unique()
+    regions = sales_data['所属区域'].nunique()
     
     return {
         'total_sales': total_sales,
@@ -357,90 +259,165 @@ def calculate_overview_metrics(data):
         'mt_sales': mt_sales,
         'mt_achievement': mt_achievement,
         'city_achievement_rate': city_achievement_rate,
-        'regions': len(regions)
+        'regions': regions
     }
 
-# 创建增强的区域分析图表
-def create_regional_analysis_chart(data, channel='ALL'):
-    """创建区域分析图表"""
+# 创建区域销售对比图
+def create_regional_comparison_chart(data):
+    """创建区域销售额对比图"""
     sales_data = data['sales_data']
     
-    # 根据渠道筛选数据
-    if channel == 'TT':
-        filtered_data = sales_data[sales_data['渠道类型'] == 'TT']
-    elif channel == 'MT':
-        filtered_data = sales_data[sales_data['渠道类型'] == 'MT']
-    else:
-        filtered_data = sales_data
+    # 按区域和渠道汇总
+    regional_sales = sales_data.groupby(['所属区域', '渠道类型'])['销售额'].sum().unstack(fill_value=0)
     
-    # 按区域汇总
-    regional_stats = filtered_data.groupby('所属区域').agg({
-        '销售额': 'sum'
-    }).reset_index()
+    # 计算总销售额并排序
+    regional_sales['总计'] = regional_sales.sum(axis=1)
+    regional_sales = regional_sales.sort_values('总计', ascending=True)
     
-    # 创建图表
     fig = go.Figure()
     
-    # 添加柱状图
-    fig.add_trace(go.Bar(
-        x=regional_stats['所属区域'],
-        y=regional_stats['销售额'],
-        marker=dict(
-            color=regional_stats['销售额'],
-            colorscale='Viridis',
-            showscale=True,
-            colorbar=dict(title="销售额")
-        ),
-        text=[f"¥{val:,.0f}" for val in regional_stats['销售额']],
-        textposition='outside',
-        hovertemplate='<b>%{x}</b><br>销售额: ¥%{y:,.0f}<extra></extra>'
-    ))
+    # 为每个渠道添加条形图
+    colors = {'TT': '#667eea', 'MT': '#764ba2', 'Other': '#999999'}
+    
+    for channel in ['MT', 'TT']:
+        if channel in regional_sales.columns:
+            fig.add_trace(go.Bar(
+                name=f"{channel}渠道",
+                y=regional_sales.index,
+                x=regional_sales[channel],
+                orientation='h',
+                marker_color=colors.get(channel, '#999999'),
+                text=[f"¥{val/10000:.0f}万" for val in regional_sales[channel]],
+                textposition='inside',
+                textfont=dict(color='white', size=12, weight='bold'),
+                hovertemplate=f'<b>{channel}渠道</b><br>' +
+                             '区域: %{y}<br>' +
+                             '销售额: ¥%{x:,.0f}<br>' +
+                             '<extra></extra>'
+            ))
+    
+    # 添加总销售额标注
+    for idx, (region, total) in enumerate(zip(regional_sales.index, regional_sales['总计'])):
+        fig.add_annotation(
+            x=total,
+            y=idx,
+            text=f"¥{total/10000:.0f}万",
+            xanchor='left',
+            xshift=10,
+            font=dict(size=14, weight='bold', color='#333'),
+            showarrow=False
+        )
     
     fig.update_layout(
-        title=f"{channel}渠道各区域销售额分析" if channel != 'ALL' else "全渠道各区域销售额分析",
-        xaxis_title="销售区域",
-        yaxis_title="销售额 (¥)",
+        title={
+            'text': "各区域渠道销售额构成分析",
+            'font': {'size': 20, 'weight': 'bold'}
+        },
+        xaxis_title="销售额",
+        yaxis_title="",
+        barmode='stack',
         height=500,
-        showlegend=False,
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        ),
+        xaxis=dict(
+            showgrid=True,
+            gridcolor='rgba(200,200,200,0.3)',
+            tickformat=',.0f'
+        ),
+        yaxis=dict(
+            showgrid=False
+        ),
         plot_bgcolor='white',
-        hovermode='closest'
+        hovermode='y unified'
     )
     
     return fig
 
 # 创建月度趋势分析图
-def create_monthly_trend_chart(data):
-    """创建月度趋势分析图"""
+def create_monthly_trend_analysis(data):
+    """创建月度销售趋势分析图"""
     sales_data = data['sales_data']
+    tt_city_data = data['tt_city_data']
+    mt_data = data['mt_data']
     
-    # 按月份和渠道汇总
-    monthly_stats = sales_data.groupby([
+    # 计算实际销售趋势
+    monthly_sales = sales_data.groupby([
         sales_data['发运月份'].dt.to_period('M'),
         '渠道类型'
     ])['销售额'].sum().reset_index()
     
-    monthly_stats['发运月份'] = monthly_stats['发运月份'].astype(str)
+    monthly_sales['发运月份'] = monthly_sales['发运月份'].astype(str)
+    
+    # 计算目标趋势
+    tt_monthly_target = tt_city_data.groupby(
+        tt_city_data['指标年月'].dt.to_period('M')
+    )['月度指标'].sum().reset_index()
+    tt_monthly_target['指标年月'] = tt_monthly_target['指标年月'].astype(str)
+    
+    mt_monthly_target = mt_data.groupby(
+        mt_data['月份'].dt.to_period('M')
+    )['月度指标'].sum().reset_index()
+    mt_monthly_target['月份'] = mt_monthly_target['月份'].astype(str)
     
     fig = go.Figure()
     
-    # 为每个渠道添加趋势线
-    for channel in ['TT', 'MT']:
-        channel_data = monthly_stats[monthly_stats['渠道类型'] == channel]
+    # 添加实际销售趋势线
+    for channel, color in [('TT', '#667eea'), ('MT', '#764ba2')]:
+        channel_data = monthly_sales[monthly_sales['渠道类型'] == channel]
         
         fig.add_trace(go.Scatter(
             x=channel_data['发运月份'],
             y=channel_data['销售额'],
-            name=f"{channel}渠道",
+            name=f"{channel}实际",
             mode='lines+markers',
-            line=dict(width=3, shape='spline'),
-            marker=dict(size=10),
-            hovertemplate='<b>%{x}</b><br>销售额: ¥%{y:,.0f}<extra></extra>'
+            line=dict(width=3, color=color),
+            marker=dict(size=8),
+            hovertemplate='<b>%{fullData.name}</b><br>' +
+                         '月份: %{x}<br>' +
+                         '销售额: ¥%{y:,.0f}<br>' +
+                         '<extra></extra>'
         ))
     
+    # 添加目标线
+    fig.add_trace(go.Scatter(
+        x=tt_monthly_target['指标年月'],
+        y=tt_monthly_target['月度指标'],
+        name='TT目标',
+        mode='lines',
+        line=dict(width=2, color='#667eea', dash='dash'),
+        opacity=0.6,
+        hovertemplate='<b>TT目标</b><br>' +
+                     '月份: %{x}<br>' +
+                     '目标额: ¥%{y:,.0f}<br>' +
+                     '<extra></extra>'
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=mt_monthly_target['月份'],
+        y=mt_monthly_target['月度指标'],
+        name='MT目标',
+        mode='lines',
+        line=dict(width=2, color='#764ba2', dash='dash'),
+        opacity=0.6,
+        hovertemplate='<b>MT目标</b><br>' +
+                     '月份: %{x}<br>' +
+                     '目标额: ¥%{y:,.0f}<br>' +
+                     '<extra></extra>'
+    ))
+    
     fig.update_layout(
-        title="销售额月度趋势分析",
+        title={
+            'text': "销售额月度趋势对比分析",
+            'font': {'size': 20, 'weight': 'bold'}
+        },
         xaxis_title="月份",
-        yaxis_title="销售额 (¥)",
+        yaxis_title="销售额",
         height=500,
         hovermode='x unified',
         legend=dict(
@@ -449,91 +426,263 @@ def create_monthly_trend_chart(data):
             y=1.02,
             xanchor="right",
             x=1
-        )
+        ),
+        xaxis=dict(
+            showgrid=False,
+            tickangle=-45
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor='rgba(200,200,200,0.3)',
+            tickformat=',.0f'
+        ),
+        plot_bgcolor='white'
     )
     
     return fig
 
-# 创建城市达成率热力图
-def create_city_achievement_heatmap(data):
-    """创建城市达成率热力图"""
-    tt_city_data = data['tt_city_data']
+# 创建客户贡献分析
+def create_customer_contribution_analysis(data):
+    """创建客户贡献分析图表"""
     sales_data = data['sales_data']
     
-    # 计算各城市达成率
-    city_achievement = []
+    # 计算客户销售额
+    customer_sales = sales_data.groupby('客户简称')['销售额'].sum().sort_values(ascending=False)
     
-    cities = tt_city_data['城市'].unique()
-    for city in cities[:20]:  # 限制显示前20个城市
-        city_target = tt_city_data[
-            (tt_city_data['城市'] == city) &
-            (tt_city_data['指标年月'].dt.year == 2025)
-        ]['月度指标'].sum()
-        
-        city_sales = sales_data[
-            (sales_data['城市'] == city) &
-            (sales_data['发运月份'].dt.year == 2025) &
-            (sales_data['渠道类型'] == 'TT')
-        ]['销售额'].sum()
-        
-        if city_target > 0:
-            achievement = (city_sales / city_target * 100)
-            city_achievement.append({
-                'city': city,
-                'achievement': achievement,
-                'sales': city_sales,
-                'target': city_target
-            })
+    # 计算累计贡献率
+    total_sales = customer_sales.sum()
+    customer_contribution = pd.DataFrame({
+        '客户': customer_sales.index,
+        '销售额': customer_sales.values,
+        '贡献率': (customer_sales.values / total_sales * 100)
+    })
+    customer_contribution['累计贡献率'] = customer_contribution['贡献率'].cumsum()
     
-    # 创建热力图数据
-    achievement_df = pd.DataFrame(city_achievement)
-    achievement_df = achievement_df.sort_values('achievement', ascending=False)
+    # 找出80%贡献的客户数
+    customers_80 = len(customer_contribution[customer_contribution['累计贡献率'] <= 80])
     
-    # 创建图表
+    # 只显示前20个客户
+    top_customers = customer_contribution.head(20)
+    
     fig = go.Figure()
     
+    # 添加柱状图
     fig.add_trace(go.Bar(
-        x=achievement_df['city'],
-        y=achievement_df['achievement'],
-        marker=dict(
-            color=achievement_df['achievement'],
-            colorscale=[
-                [0, '#ef4444'],      # 红色 - 低达成率
-                [0.5, '#f59e0b'],    # 橙色 - 中等达成率
-                [0.8, '#10b981'],    # 绿色 - 高达成率
-                [1, '#059669']       # 深绿色 - 超额达成
-            ],
-            cmin=0,
-            cmax=150,
-            showscale=True,
-            colorbar=dict(title="达成率(%)")
-        ),
-        text=[f"{val:.1f}%" for val in achievement_df['achievement']],
+        x=top_customers['客户'],
+        y=top_customers['销售额'],
+        name='销售额',
+        marker_color='#667eea',
+        yaxis='y',
+        text=[f"¥{val/10000:.0f}万" for val in top_customers['销售额']],
         textposition='outside',
-        hovertemplate="""<b>%{x}</b><br>
-达成率: %{y:.1f}%<br>
-销售额: ¥%{customdata[0]:,.0f}<br>
-目标额: ¥%{customdata[1]:,.0f}<extra></extra>""",
-        customdata=achievement_df[['sales', 'target']].values
+        hovertemplate='<b>%{x}</b><br>' +
+                     '销售额: ¥%{y:,.0f}<br>' +
+                     '贡献率: %{customdata:.1f}%<br>' +
+                     '<extra></extra>',
+        customdata=top_customers['贡献率']
     ))
     
-    # 添加目标线
-    fig.add_hline(y=100, line_dash="dash", line_color="red", 
-                  annotation_text="目标线 100%", annotation_position="right")
+    # 添加累计贡献率曲线
+    fig.add_trace(go.Scatter(
+        x=top_customers['客户'],
+        y=top_customers['累计贡献率'],
+        name='累计贡献率',
+        mode='lines+markers',
+        line=dict(color='#f59e0b', width=3),
+        marker=dict(size=8),
+        yaxis='y2',
+        hovertemplate='<b>累计贡献率</b><br>' +
+                     '客户: %{x}<br>' +
+                     '累计贡献: %{y:.1f}%<br>' +
+                     '<extra></extra>'
+    ))
+    
+    # 添加80%贡献线
+    fig.add_hline(
+        y=80,
+        line_dash="dash",
+        line_color="red",
+        yref='y2',
+        annotation_text=f"80%贡献线 (前{customers_80}个客户)",
+        annotation_position="left"
+    )
     
     fig.update_layout(
-        title="TT渠道城市达成率排名 (Top 20)",
-        xaxis_title="城市",
-        yaxis_title="达成率 (%)",
+        title={
+            'text': f"客户贡献度分析 (Top 20) - 前{customers_80}个客户贡献80%销售额",
+            'font': {'size': 20, 'weight': 'bold'}
+        },
+        xaxis_title="客户名称",
+        yaxis=dict(
+            title="销售额",
+            showgrid=True,
+            gridcolor='rgba(200,200,200,0.3)',
+            tickformat=',.0f'
+        ),
+        yaxis2=dict(
+            title="累计贡献率 (%)",
+            overlaying='y',
+            side='right',
+            range=[0, 100],
+            showgrid=False
+        ),
         height=600,
+        hovermode='x unified',
+        xaxis_tickangle=-45,
+        plot_bgcolor='white',
+        bargap=0.2
+    )
+    
+    return fig, customers_80, len(customer_sales)
+
+# 创建渠道达成分析仪表盘
+def create_channel_achievement_dashboard(data):
+    """创建渠道达成分析仪表盘"""
+    metrics = calculate_overview_metrics(data)
+    
+    # 创建仪表盘
+    fig = go.Figure()
+    
+    # TT渠道仪表盘
+    fig.add_trace(go.Indicator(
+        mode="gauge+number+delta",
+        value=metrics['tt_achievement'],
+        domain={'x': [0, 0.45], 'y': [0, 1]},
+        title={'text': "TT渠道达成率", 'font': {'size': 20}},
+        delta={'reference': 100, 'increasing': {'color': "green"}},
+        gauge={
+            'axis': {'range': [None, 150], 'tickwidth': 1, 'tickcolor': "darkblue"},
+            'bar': {'color': "#667eea"},
+            'bgcolor': "white",
+            'borderwidth': 2,
+            'bordercolor': "gray",
+            'steps': [
+                {'range': [0, 50], 'color': '#ffebee'},
+                {'range': [50, 80], 'color': '#fff3e0'},
+                {'range': [80, 100], 'color': '#e8f5e9'},
+                {'range': [100, 150], 'color': '#c8e6c9'}
+            ],
+            'threshold': {
+                'line': {'color': "red", 'width': 4},
+                'thickness': 0.75,
+                'value': 100
+            }
+        }
+    ))
+    
+    # MT渠道仪表盘
+    fig.add_trace(go.Indicator(
+        mode="gauge+number+delta",
+        value=metrics['mt_achievement'],
+        domain={'x': [0.55, 1], 'y': [0, 1]},
+        title={'text': "MT渠道达成率", 'font': {'size': 20}},
+        delta={'reference': 100, 'increasing': {'color': "green"}},
+        gauge={
+            'axis': {'range': [None, 150], 'tickwidth': 1, 'tickcolor': "darkblue"},
+            'bar': {'color': "#764ba2"},
+            'bgcolor': "white",
+            'borderwidth': 2,
+            'bordercolor': "gray",
+            'steps': [
+                {'range': [0, 50], 'color': '#ffebee'},
+                {'range': [50, 80], 'color': '#fff3e0'},
+                {'range': [80, 100], 'color': '#e8f5e9'},
+                {'range': [100, 150], 'color': '#c8e6c9'}
+            ],
+            'threshold': {
+                'line': {'color': "red", 'width': 4},
+                'thickness': 0.75,
+                'value': 100
+            }
+        }
+    ))
+    
+    fig.update_layout(
+        height=400,
         showlegend=False,
-        xaxis_tickangle=-45
+        plot_bgcolor='white',
+        paper_bgcolor='white'
     )
     
     return fig
 
 # 主页面
 def main():
+    # 检查认证状态
+    if 'authenticated' not in st.session_state or not st.session_state.authenticated:
+        st.error("🚫 请先登录系统")
+        st.stop()
+    
+    # 侧边栏
+    with st.sidebar:
+        st.markdown("""
+        <div style="text-align: center; padding: 1rem 0;">
+            <h2 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                       -webkit-background-clip: text; 
+                       -webkit-text-fill-color: transparent;
+                       font-weight: 800;">
+                📊 Trolli SAL
+            </h2>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # 主要功能
+        st.markdown("#### 🏠 主要功能")
+        
+        if st.button("🏠 欢迎页面", use_container_width=True):
+            st.switch_page("登陆界面haha.py")
+        
+        st.markdown("---")
+        
+        # 分析模块
+        st.markdown("#### 📈 分析模块")
+        
+        if st.button("📦 产品组合分析", use_container_width=True):
+            st.switch_page("pages/产品组合分析.py")
+        
+        if st.button("📊 预测库存分析", use_container_width=True):
+            st.switch_page("pages/预测库存分析.py")
+        
+        if st.button("👥 客户依赖分析", use_container_width=True):
+            st.switch_page("pages/客户依赖分析.py")
+        
+        if st.button("🎯 销售达成分析", use_container_width=True, type="primary"):
+            st.rerun()
+        
+        st.markdown("---")
+        
+        # 用户信息
+        st.markdown("#### 👤 用户信息")
+        
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); 
+                    border: 1px solid rgba(102,126,234,0.3); 
+                    border-radius: 10px; 
+                    padding: 1rem; 
+                    margin: 0.5rem 0;">
+            <div style="font-size: 0.9rem; color: #666; margin-bottom: 0.3rem;">当前用户</div>
+            <div style="font-size: 1.1rem; font-weight: bold; 
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;">
+                管理员 cira
+            </div>
+            <div style="font-size: 0.8rem; color: #999; margin-top: 0.5rem;">
+                ✅ 已认证
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # 退出登录按钮
+        if st.button("🚪 退出登录", use_container_width=True):
+            st.session_state.authenticated = False
+            st.switch_page("登陆界面haha.py")
+    
+    # 主页面内容
     st.markdown("""
     <div class="main-header">
         <h1>🎯 销售达成分析</h1>
@@ -554,9 +703,9 @@ def main():
         "📊 销售达成总览",
         "🏪 MT渠道分析",
         "🏢 TT渠道分析",
-        "🗺️ 区域表现分析",
+        "📊 全渠道分析",
         "📈 趋势洞察",
-        "🏆 城市达成排名"
+        "👥 客户贡献分析"
     ]
     
     tabs = st.tabs(tab_names)
@@ -569,7 +718,7 @@ def main():
         with col1:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">¥{metrics['total_sales']:,.0f}</div>
+                <div class="metric-value">¥{metrics['total_sales']/10000:.0f}万</div>
                 <div class="metric-label">💰 2025年总销售额</div>
                 <div class="metric-sublabel">MT+TT全渠道</div>
             </div>
@@ -581,7 +730,7 @@ def main():
             <div class="metric-card">
                 <div class="metric-value" style="color: {achievement_color}">{metrics['total_achievement']:.1f}%</div>
                 <div class="metric-label">🎯 总体达成率</div>
-                <div class="metric-sublabel">目标: ¥{metrics['total_target']:,.0f}</div>
+                <div class="metric-sublabel">目标: ¥{metrics['total_target']/10000:.0f}万</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -613,7 +762,7 @@ def main():
         with col5:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">¥{metrics['tt_sales']:,.0f}</div>
+                <div class="metric-value">¥{metrics['tt_sales']/10000:.0f}万</div>
                 <div class="metric-label">🏢 TT渠道销售额</div>
                 <div class="metric-sublabel">达成率: {metrics['tt_achievement']:.1f}%</div>
             </div>
@@ -622,7 +771,7 @@ def main():
         with col6:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">¥{metrics['mt_sales']:,.0f}</div>
+                <div class="metric-value">¥{metrics['mt_sales']/10000:.0f}万</div>
                 <div class="metric-label">🏪 MT渠道销售额</div>
                 <div class="metric-sublabel">达成率: {metrics['mt_achievement']:.1f}%</div>
             </div>
@@ -647,185 +796,232 @@ def main():
                 <div class="metric-sublabel">全国布局</div>
             </div>
             """, unsafe_allow_html=True)
-        
-        # 增加一些视觉效果
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 成就展示
-        achievements = []
-        if metrics['total_achievement'] >= 100:
-            achievements.append("🏆 销售目标达成")
-        if metrics['growth_rate'] > 20:
-            achievements.append("🚀 高速增长")
-        if metrics['city_achievement_rate'] > 80:
-            achievements.append("🌟 城市覆盖优秀")
-        
-        if achievements:
-            st.markdown("### 🎖️ 成就达成")
-            cols = st.columns(len(achievements))
-            for idx, achievement in enumerate(achievements):
-                with cols[idx]:
-                    st.markdown(f"""
-                    <div class="achievement-card">
-                        <h4>{achievement}</h4>
-                    </div>
-                    """, unsafe_allow_html=True)
     
     # Tab 2: MT渠道分析
     with tabs[1]:
         st.markdown("### 🏪 MT渠道深度分析")
         
-        col1, col2 = st.columns([2, 1])
+        # MT渠道达成率仪表盘
+        gauge_fig = create_channel_achievement_dashboard(data)
+        col1, col2 = st.columns([3, 2])
         
         with col1:
-            # MT渠道区域分析图
-            mt_regional_fig = create_regional_analysis_chart(data, 'MT')
-            st.plotly_chart(mt_regional_fig, use_container_width=True)
+            # 只显示MT部分的仪表盘
+            mt_gauge = go.Figure()
+            mt_gauge.add_trace(go.Indicator(
+                mode="gauge+number+delta",
+                value=metrics['mt_achievement'],
+                title={'text': "MT渠道达成率", 'font': {'size': 24}},
+                delta={'reference': 100, 'increasing': {'color': "green"}},
+                gauge={
+                    'axis': {'range': [None, 150], 'tickwidth': 1},
+                    'bar': {'color': "#764ba2"},
+                    'bgcolor': "white",
+                    'borderwidth': 2,
+                    'bordercolor': "gray",
+                    'steps': [
+                        {'range': [0, 50], 'color': '#ffebee'},
+                        {'range': [50, 80], 'color': '#fff3e0'},
+                        {'range': [80, 100], 'color': '#e8f5e9'},
+                        {'range': [100, 150], 'color': '#c8e6c9'}
+                    ],
+                    'threshold': {
+                        'line': {'color': "red", 'width': 4},
+                        'thickness': 0.75,
+                        'value': 100
+                    }
+                }
+            ))
+            mt_gauge.update_layout(height=300)
+            st.plotly_chart(mt_gauge, use_container_width=True)
         
         with col2:
             # MT渠道关键指标
-            mt_metrics = {
-                '总销售额': f"¥{metrics['mt_sales']:,.0f}",
-                '达成率': f"{metrics['mt_achievement']:.1f}%",
-                '占比': f"{(metrics['mt_sales'] / metrics['total_sales'] * 100):.1f}%"
-            }
+            st.info(f"""
+            **MT渠道关键指标**
+            - 销售额: ¥{metrics['mt_sales']/10000:.0f}万
+            - 目标额: ¥{metrics['mt_target']/10000:.0f}万  
+            - 达成率: {metrics['mt_achievement']:.1f}%
+            - 渠道占比: {(metrics['mt_sales'] / metrics['total_sales'] * 100):.1f}%
             
-            for label, value in mt_metrics.items():
-                st.markdown(f"""
-                <div class="channel-card">
-                    <h4>{label}</h4>
-                    <h2 class="highlight-text">{value}</h2>
-                </div>
-                """, unsafe_allow_html=True)
+            **分析洞察**
+            - {'✅ 超额完成目标' if metrics['mt_achievement'] >= 100 else '⚠️ 未达成目标'}
+            - {'📈 渠道表现优秀' if metrics['mt_achievement'] >= 120 else '📊 渠道表现正常' if metrics['mt_achievement'] >= 80 else '📉 需要改进'}
+            """)
     
     # Tab 3: TT渠道分析
     with tabs[2]:
         st.markdown("### 🏢 TT渠道深度分析")
         
-        col1, col2 = st.columns([2, 1])
+        col1, col2 = st.columns([3, 2])
         
         with col1:
-            # TT渠道区域分析图
-            tt_regional_fig = create_regional_analysis_chart(data, 'TT')
-            st.plotly_chart(tt_regional_fig, use_container_width=True)
+            # TT渠道达成率仪表盘
+            tt_gauge = go.Figure()
+            tt_gauge.add_trace(go.Indicator(
+                mode="gauge+number+delta",
+                value=metrics['tt_achievement'],
+                title={'text': "TT渠道达成率", 'font': {'size': 24}},
+                delta={'reference': 100, 'increasing': {'color': "green"}},
+                gauge={
+                    'axis': {'range': [None, 150], 'tickwidth': 1},
+                    'bar': {'color': "#667eea"},
+                    'bgcolor': "white",
+                    'borderwidth': 2,
+                    'bordercolor': "gray",
+                    'steps': [
+                        {'range': [0, 50], 'color': '#ffebee'},
+                        {'range': [50, 80], 'color': '#fff3e0'},
+                        {'range': [80, 100], 'color': '#e8f5e9'},
+                        {'range': [100, 150], 'color': '#c8e6c9'}
+                    ],
+                    'threshold': {
+                        'line': {'color': "red", 'width': 4},
+                        'thickness': 0.75,
+                        'value': 100
+                    }
+                }
+            ))
+            tt_gauge.update_layout(height=300)
+            st.plotly_chart(tt_gauge, use_container_width=True)
         
         with col2:
             # TT渠道关键指标
-            tt_metrics = {
-                '总销售额': f"¥{metrics['tt_sales']:,.0f}",
-                '达成率': f"{metrics['tt_achievement']:.1f}%",
-                '占比': f"{(metrics['tt_sales'] / metrics['total_sales'] * 100):.1f}%"
-            }
+            st.info(f"""
+            **TT渠道关键指标**
+            - 销售额: ¥{metrics['tt_sales']/10000:.0f}万
+            - 目标额: ¥{metrics['tt_target']/10000:.0f}万  
+            - 达成率: {metrics['tt_achievement']:.1f}%
+            - 渠道占比: {(metrics['tt_sales'] / metrics['total_sales'] * 100):.1f}%
             
-            for label, value in tt_metrics.items():
-                st.markdown(f"""
-                <div class="channel-card">
-                    <h4>{label}</h4>
-                    <h2 class="highlight-text">{value}</h2>
-                </div>
-                """, unsafe_allow_html=True)
+            **分析洞察**
+            - {'✅ 超额完成目标' if metrics['tt_achievement'] >= 100 else '⚠️ 未达成目标'}
+            - {'📈 渠道表现优秀' if metrics['tt_achievement'] >= 120 else '📊 渠道表现正常' if metrics['tt_achievement'] >= 80 else '📉 需要改进'}
+            """)
     
-    # Tab 4: 区域表现分析
+    # Tab 4: 全渠道分析
     with tabs[3]:
-        st.markdown("### 🗺️ 全渠道区域表现分析")
+        st.markdown("### 📊 全渠道综合分析")
         
-        # 全渠道区域分析
-        all_regional_fig = create_regional_analysis_chart(data, 'ALL')
-        st.plotly_chart(all_regional_fig, use_container_width=True)
+        # 区域销售对比图
+        regional_fig = create_regional_comparison_chart(data)
+        st.plotly_chart(regional_fig, use_container_width=True)
         
-        # 区域对比分析
-        sales_data = data['sales_data']
-        regional_comparison = sales_data.groupby(['所属区域', '渠道类型'])['销售额'].sum().unstack(fill_value=0)
+        # 渠道对比洞察
+        col1, col2, col3 = st.columns(3)
         
-        if not regional_comparison.empty:
-            fig = go.Figure()
-            
-            for channel in regional_comparison.columns:
-                fig.add_trace(go.Bar(
-                    name=f"{channel}渠道",
-                    x=regional_comparison.index,
-                    y=regional_comparison[channel],
-                    text=[f"¥{val:,.0f}" for val in regional_comparison[channel]],
-                    textposition='auto',
-                    hovertemplate='<b>%{x} - %{fullData.name}</b><br>销售额: ¥%{y:,.0f}<extra></extra>'
-                ))
-            
-            fig.update_layout(
-                title="各区域渠道销售额对比",
-                xaxis_title="销售区域",
-                yaxis_title="销售额 (¥)",
-                barmode='group',
-                height=500,
-                hovermode='closest'
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
+        with col1:
+            st.success("""
+            **🏆 表现最佳区域**
+            - 基于总销售额排名
+            - 识别重点市场
+            - 资源分配参考
+            """)
+        
+        with col2:
+            st.info("""
+            **📊 渠道结构分析**
+            - MT/TT渠道占比
+            - 区域渠道偏好
+            - 发展机会识别
+            """)
+        
+        with col3:
+            st.warning("""
+            **🎯 改进建议**
+            - 低销售区域关注
+            - 渠道平衡优化
+            - 资源调配建议
+            """)
     
     # Tab 5: 趋势洞察
     with tabs[4]:
         st.markdown("### 📈 销售趋势洞察分析")
         
         # 月度趋势图
-        monthly_trend_fig = create_monthly_trend_chart(data)
+        monthly_trend_fig = create_monthly_trend_analysis(data)
         st.plotly_chart(monthly_trend_fig, use_container_width=True)
         
-        # 季度分析
-        sales_data = data['sales_data']
-        sales_data['季度'] = sales_data['发运月份'].dt.quarter
-        sales_data['年份'] = sales_data['发运月份'].dt.year
+        # 趋势分析洞察
+        st.markdown("### 📊 趋势分析关键发现")
         
-        quarterly_stats = sales_data.groupby(['年份', '季度', '渠道类型'])['销售额'].sum().reset_index()
+        col1, col2 = st.columns(2)
         
-        fig = go.Figure()
+        with col1:
+            st.info("""
+            **📈 增长趋势**
+            - 实线：实际销售额
+            - 虚线：目标销售额
+            - 对比分析达成情况
+            """)
         
-        for channel in ['TT', 'MT']:
-            channel_data = quarterly_stats[quarterly_stats['渠道类型'] == channel]
-            channel_data['季度标签'] = channel_data['年份'].astype(str) + 'Q' + channel_data['季度'].astype(str)
-            
-            fig.add_trace(go.Bar(
-                name=f"{channel}渠道",
-                x=channel_data['季度标签'],
-                y=channel_data['销售额'],
-                text=[f"¥{val:,.0f}" for val in channel_data['销售额']],
-                textposition='outside',
-                hovertemplate='<b>%{x}</b><br>销售额: ¥%{y:,.0f}<extra></extra>'
-            ))
-        
-        fig.update_layout(
-            title="季度销售额对比",
-            xaxis_title="季度",
-            yaxis_title="销售额 (¥)",
-            barmode='group',
-            height=500,
-            hovermode='closest'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
+        with col2:
+            st.success("""
+            **🎯 目标达成**
+            - 月度达成率追踪
+            - 渠道表现对比
+            - 趋势预测参考
+            """)
     
-    # Tab 6: 城市达成排名
+    # Tab 6: 客户贡献分析
     with tabs[5]:
-        st.markdown("### 🏆 TT渠道城市达成率排名")
+        st.markdown("### 👥 客户贡献分析")
         
-        # 城市达成率热力图
-        city_heatmap_fig = create_city_achievement_heatmap(data)
-        st.plotly_chart(city_heatmap_fig, use_container_width=True)
+        # 客户贡献分析图
+        customer_fig, customers_80, total_customers = create_customer_contribution_analysis(data)
+        st.plotly_chart(customer_fig, use_container_width=True)
         
-        # 城市分类统计
-        tt_city_data = data['tt_city_data']
-        city_types = tt_city_data[tt_city_data['指标年月'].dt.year == 2025].groupby('城市类型')['城市'].nunique()
+        # 客户分析洞察
+        col1, col2, col3 = st.columns(3)
         
-        if not city_types.empty:
-            col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric(
+                "贡献80%销售的客户数",
+                f"{customers_80}个",
+                f"占比 {customers_80/total_customers*100:.1f}%"
+            )
+        
+        with col2:
+            st.metric(
+                "总客户数",
+                f"{total_customers}个",
+                "活跃客户"
+            )
+        
+        with col3:
+            concentration = customers_80/total_customers*100
+            risk_level = "高" if concentration < 20 else "中" if concentration < 40 else "低"
+            risk_color = "#ef4444" if risk_level == "高" else "#f59e0b" if risk_level == "中" else "#10b981"
             
-            with col1:
-                st.info(f"**C60城市数量**: {city_types.get('C60', 0)}个")
-            
-            with col2:
-                st.info(f"**非C60城市数量**: {city_types.get('非C60', 0)}个")
-            
-            with col3:
-                total_cities = city_types.sum()
-                st.info(f"**城市总数**: {total_cities}个")
+            st.markdown(f"""
+            <div style="text-align: center; padding: 1rem; background: rgba(255,255,255,0.8); border-radius: 10px;">
+                <h3 style="margin: 0; color: {risk_color};">客户集中度风险</h3>
+                <h1 style="margin: 0.5rem 0; color: {risk_color};">{risk_level}</h1>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 客户管理建议
+        st.markdown("### 🎯 客户管理策略建议")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.success("""
+            **核心客户维护**
+            - 定期拜访Top 20客户
+            - 制定专属服务方案
+            - 建立长期合作关系
+            - 优先保障供货
+            """)
+        
+        with col2:
+            st.info("""
+            **客户开发策略**
+            - 降低客户集中度风险
+            - 开发潜力客户
+            - 区域市场拓展
+            - 新渠道客户开发
+            """)
 
 if __name__ == "__main__":
     main()
