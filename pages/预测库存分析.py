@@ -22,7 +22,7 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
     st.switch_page("登陆界面haha.py")
     st.stop()
 
-# 统一的增强CSS样式 - 修复背景透明度问题
+# 优化的CSS样式 - 修复文字可见性问题
 st.markdown("""
 <style>
     /* 导入Google字体 */
@@ -35,32 +35,7 @@ st.markdown("""
         background-attachment: fixed;
     }
     
-    /* 添加浮动粒子背景动画 */
-    .stApp::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-image: 
-            radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 2px, transparent 2px),
-            radial-gradient(circle at 75% 75%, rgba(255,255,255,0.1) 2px, transparent 2px);
-        background-size: 100px 100px;
-        animation: float 20s linear infinite;
-        pointer-events: none;
-        z-index: -1;
-    }
-    
-    @keyframes float {
-        0% { transform: translateY(0px) translateX(0px); }
-        25% { transform: translateY(-20px) translateX(10px); }
-        50% { transform: translateY(0px) translateX(-10px); }
-        75% { transform: translateY(-10px) translateX(5px); }
-        100% { transform: translateY(0px) translateX(0px); }
-    }
-    
-    /* 主容器背景 - 增强不透明度 */
+    /* 主容器背景 - 高不透明度确保文字可读 */
     .main .block-container {
         background: rgba(255,255,255,0.98) !important;
         border-radius: 20px;
@@ -71,7 +46,7 @@ st.markdown("""
         border: 1px solid rgba(255,255,255,0.2);
     }
     
-    /* 页面标题样式 - 增强动画 */
+    /* 页面标题样式 */
     .page-header {
         text-align: center;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
@@ -80,73 +55,15 @@ st.markdown("""
         padding: 3rem 2rem;
         border-radius: 25px;
         margin-bottom: 2rem;
-        animation: gradientShift 4s ease infinite, fadeInScale 1.5s ease-out, glow 2s ease-in-out infinite alternate;
-        box-shadow: 
-            0 20px 40px rgba(102, 126, 234, 0.4),
-            0 5px 15px rgba(0,0,0,0.1),
-            inset 0 1px 0 rgba(255,255,255,0.1);
+        animation: gradientShift 4s ease infinite;
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
         position: relative;
         overflow: hidden;
-        transform: perspective(1000px) rotateX(0deg);
-        transition: transform 0.3s ease;
-    }
-    
-    .page-header:hover {
-        transform: perspective(1000px) rotateX(-2deg) scale(1.02);
-        box-shadow: 
-            0 25px 50px rgba(102, 126, 234, 0.5),
-            0 10px 30px rgba(0,0,0,0.15);
-    }
-    
-    .page-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.15), transparent);
-        animation: shimmer 3s linear infinite;
-    }
-    
-    .page-header::after {
-        content: '✨';
-        position: absolute;
-        top: 10%;
-        right: 10%;
-        font-size: 2rem;
-        animation: sparkle 1.5s ease-in-out infinite;
-    }
-    
-    @keyframes glow {
-        from { box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4), 0 5px 15px rgba(0,0,0,0.1); }
-        to { box-shadow: 0 25px 50px rgba(102, 126, 234, 0.6), 0 8px 20px rgba(0,0,0,0.15); }
-    }
-    
-    @keyframes sparkle {
-        0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
-        50% { transform: scale(1.3) rotate(180deg); opacity: 0.7; }
     }
     
     @keyframes gradientShift {
         0%, 100% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
-    }
-    
-    @keyframes shimmer {
-        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
-    }
-    
-    @keyframes fadeInScale {
-        from { 
-            opacity: 0; 
-            transform: translateY(-50px) scale(0.8) rotateX(-10deg); 
-        }
-        to { 
-            opacity: 1; 
-            transform: translateY(0) scale(1) rotateX(0deg); 
-        }
     }
     
     .page-title {
@@ -164,112 +81,37 @@ st.markdown("""
         margin-top: 0.5rem;
     }
     
-    /* 增强的指标卡片样式 - 确保背景不透明 */
+    /* 指标卡片样式 - 确保文字清晰 */
     .metric-card {
-        background: rgba(255,255,255,0.95) !important;
+        background: rgba(255,255,255,0.98) !important;
         padding: 2.5rem 2rem;
         border-radius: 25px;
-        box-shadow: 
-            0 15px 35px rgba(0,0,0,0.08),
-            0 5px 15px rgba(0,0,0,0.03),
-            inset 0 1px 0 rgba(255,255,255,0.9);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.08);
         text-align: center;
         height: 100%;
-        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        animation: slideUpStagger 1s ease-out;
-        position: relative;
-        overflow: hidden;
-        border: 1px solid rgba(255,255,255,0.3);
-        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
         border-left: 4px solid #667eea;
-    }
-    
-    .metric-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
-        transition: left 0.8s ease;
-    }
-    
-    .metric-card::after {
-        content: '';
-        position: absolute;
-        top: -2px;
-        left: -2px;
-        right: -2px;
-        bottom: -2px;
-        background: linear-gradient(45deg, #667eea, #764ba2, #667eea);
-        border-radius: 25px;
-        z-index: -1;
-        opacity: 0;
-        transition: opacity 0.3s ease;
+        position: relative;
     }
     
     .metric-card:hover {
-        transform: translateY(-15px) scale(1.05) rotateY(5deg);
-        box-shadow: 
-            0 30px 60px rgba(0,0,0,0.15),
-            0 15px 30px rgba(102, 126, 234, 0.2);
-        border-color: rgba(102, 126, 234, 0.3);
-        animation: pulse 1.5s infinite;
-    }
-    
-    .metric-card:hover::before {
-        left: 100%;
-    }
-    
-    .metric-card:hover::after {
-        opacity: 0.1;
-    }
-    
-    @keyframes slideUpStagger {
-        from { 
-            opacity: 0; 
-            transform: translateY(60px) scale(0.8) rotateX(-15deg); 
-        }
-        to { 
-            opacity: 1; 
-            transform: translateY(0) scale(1) rotateX(0deg); 
-        }
-    }
-    
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: 0 25px 50px rgba(102, 126, 234, 0.2);
     }
     
     .metric-value {
         font-size: 3.2rem;
         font-weight: 800;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
-        background-size: 200% 200%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
         margin-bottom: 1rem;
-        animation: textGradient 4s ease infinite, bounce 2s ease-in-out infinite;
         line-height: 1;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    @keyframes bounce {
-        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-        40% { transform: translateY(-3px); }
-        60% { transform: translateY(-2px); }
-    }
-    
-    @keyframes textGradient {
-        0%, 100% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
     }
     
     .metric-label {
-        color: #374151;
+        color: #333 !important;
         font-size: 1.1rem;
         font-weight: 700;
         margin-bottom: 0.5rem;
@@ -278,60 +120,27 @@ st.markdown("""
     }
     
     .metric-description {
-        color: #6b7280;
+        color: #666 !important;
         font-size: 0.9rem;
         margin-top: 0.8rem;
         font-weight: 500;
         font-style: italic;
     }
     
-    /* 图表容器样式 - 确保背景不透明 */
+    /* 图表容器样式 - 高不透明度背景 */
     .chart-container {
-        background: rgba(255,255,255,0.96) !important;
+        background: rgba(255,255,255,0.98) !important;
         border-radius: 25px;
         padding: 2rem;
         margin-bottom: 2rem;
-        box-shadow: 
-            0 15px 35px rgba(0,0,0,0.08),
-            inset 0 1px 0 rgba(255,255,255,0.9);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.08);
         border: 1px solid rgba(255,255,255,0.3);
-        animation: chartFadeIn 1.2s ease-out;
-        backdrop-filter: blur(10px);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .chart-container::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.02), transparent);
-        animation: chartShimmer 8s linear infinite;
-    }
-    
-    @keyframes chartShimmer {
-        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
-    }
-    
-    @keyframes chartFadeIn {
-        from { 
-            opacity: 0; 
-            transform: translateY(30px) scale(0.95); 
-        }
-        to { 
-            opacity: 1; 
-            transform: translateY(0) scale(1); 
-        }
     }
     
     .chart-title {
         font-size: 1.6rem;
         font-weight: 700;
-        color: #333;
+        color: #333 !important;
         margin-bottom: 1.5rem;
         text-align: center;
         background: linear-gradient(45deg, #667eea, #764ba2);
@@ -339,63 +148,36 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
     }
     
-    /* 洞察框样式 - 确保背景不透明 */
+    /* 洞察框样式 - 确保文字完全可读 */
     .insight-box {
-        background: rgba(102, 126, 234, 0.15) !important;
+        background: rgba(255,255,255,0.95) !important;
         border-left: 4px solid #667eea;
         border-radius: 15px;
         padding: 1.5rem;
         margin-top: 1rem;
-        animation: insightGlow 3s ease-in-out infinite alternate;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .insight-box::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
-        animation: insightSweep 4s ease-in-out infinite;
-    }
-    
-    @keyframes insightGlow {
-        from { border-color: #667eea; }
-        to { border-color: #764ba2; }
-    }
-    
-    @keyframes insightSweep {
-        0% { left: -100%; }
-        50% { left: 100%; }
-        100% { left: -100%; }
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
     }
     
     .insight-title {
         font-weight: 700;
-        color: #333;
+        color: #333 !important;
         margin-bottom: 0.8rem;
         font-size: 1.1rem;
     }
     
     .insight-content {
-        color: #666;
+        color: #555 !important;
         line-height: 1.6;
         font-size: 1rem;
     }
     
-    /* 标签页样式增强 */
+    /* 标签页样式 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 15px;
         background: rgba(248, 250, 252, 0.95) !important;
         padding: 1rem;
         border-radius: 20px;
-        box-shadow: 
-            inset 0 2px 4px rgba(0,0,0,0.06),
-            0 4px 8px rgba(0,0,0,0.04);
-        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.04);
     }
     
     .stTabs [data-baseweb="tab"] {
@@ -406,99 +188,20 @@ st.markdown("""
         border: 1px solid rgba(102, 126, 234, 0.15);
         font-weight: 700;
         font-size: 1rem;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-    }
-    
-    .stTabs [data-baseweb="tab"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.15), transparent);
-        transition: left 0.8s ease;
+        transition: all 0.3s ease;
+        color: #333 !important;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
-        transform: translateY(-5px) scale(1.05);
-        box-shadow: 0 15px 30px rgba(102, 126, 234, 0.2);
-        border-color: rgba(102, 126, 234, 0.4);
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover::before {
-        left: 100%;
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.15);
     }
     
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: white;
+        color: white !important;
         border: none;
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 
-            0 15px 40px rgba(102, 126, 234, 0.4),
-            0 5px 15px rgba(0,0,0,0.1);
-        animation: activeTab 0.5s ease;
-    }
-    
-    .stTabs [aria-selected="true"]::before {
-        display: none;
-    }
-    
-    @keyframes activeTab {
-        0% { transform: scale(0.95); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1.02); }
-    }
-    
-    /* 动画卡片延迟 */
-    .metric-card:nth-child(1) { animation-delay: 0.1s; }
-    .metric-card:nth-child(2) { animation-delay: 0.2s; }
-    .metric-card:nth-child(3) { animation-delay: 0.3s; }
-    .metric-card:nth-child(4) { animation-delay: 0.4s; }
-    .metric-card:nth-child(5) { animation-delay: 0.5s; }
-    .metric-card:nth-child(6) { animation-delay: 0.6s; }
-    .metric-card:nth-child(7) { animation-delay: 0.7s; }
-    .metric-card:nth-child(8) { animation-delay: 0.8s; }
-    
-    /* 响应式设计 */
-    @media (max-width: 768px) {
-        .metric-value {
-            font-size: 2.5rem;
-        }
-        .metric-card {
-            padding: 2rem 1.5rem;
-        }
-        .page-header {
-            padding: 2rem 1rem;
-        }
-        .page-title {
-            font-size: 2.5rem;
-        }
-    }
-    
-    /* 加载动画 */
-    @keyframes loading {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    .loading {
-        animation: loading 2s linear infinite;
-    }
-    
-    /* 成功动画 */
-    @keyframes success {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
-    }
-    
-    .success {
-        animation: success 0.6s ease-in-out;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
     }
     
     /* 特殊风险等级颜色 */
@@ -507,6 +210,14 @@ st.markdown("""
     .risk-medium { border-left-color: #ffa502 !important; }
     .risk-low { border-left-color: #2ed573 !important; }
     .risk-minimal { border-left-color: #5352ed !important; }
+    
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .metric-value { font-size: 2.5rem; }
+        .metric-card { padding: 2rem 1.5rem; }
+        .page-header { padding: 2rem 1rem; }
+        .page-title { font-size: 2.5rem; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -568,23 +279,18 @@ def load_and_process_data():
                 # 确定风险等级
                 if age_days >= 120:
                     risk_level = '极高风险'
-                    risk_color = COLOR_SCHEME['risk_extreme']
                     risk_advice = '🚨 立即7折清库'
                 elif age_days >= 90:
                     risk_level = '高风险'
-                    risk_color = COLOR_SCHEME['risk_high'] 
                     risk_advice = '⚠️ 建议8折促销'
                 elif age_days >= 60:
                     risk_level = '中风险'
-                    risk_color = COLOR_SCHEME['risk_medium']
                     risk_advice = '📢 适度9折促销'
                 elif age_days >= 30:
                     risk_level = '低风险'
-                    risk_color = COLOR_SCHEME['risk_low']
                     risk_advice = '✅ 正常销售'
                 else:
                     risk_level = '极低风险'
-                    risk_color = COLOR_SCHEME['risk_minimal']
                     risk_advice = '🌟 新鲜库存'
                 
                 # 计算预期损失
@@ -605,7 +311,6 @@ def load_and_process_data():
                     '数量': quantity,
                     '库龄': age_days,
                     '风险等级': risk_level,
-                    '风险颜色': risk_color,
                     '处理建议': risk_advice,
                     '单价': current_price,
                     '批次价值': quantity * current_price,
@@ -613,11 +318,7 @@ def load_and_process_data():
                 })
         
         processed_inventory = pd.DataFrame(batch_data)
-        
-        # 计算预测准确率
         forecast_accuracy = calculate_forecast_accuracy(shipment_df, forecast_df)
-        
-        # 计算关键指标
         metrics = calculate_key_metrics(processed_inventory, forecast_accuracy)
         
         return processed_inventory, forecast_accuracy, shipment_df, forecast_df, metrics, product_name_map
@@ -694,7 +395,6 @@ def calculate_key_metrics(processed_inventory, forecast_accuracy):
 
 def get_mock_data():
     """获取模拟数据"""
-    # 模拟库存数据
     mock_inventory = pd.DataFrame({
         '物料': [f'F{1000+i:04d}' for i in range(100)],
         '产品名称': [f'产品{chr(65+i%26)}{i//26+1}' for i in range(100)],
@@ -712,30 +412,19 @@ def get_mock_data():
     mock_inventory['预期损失'] = mock_inventory.apply(lambda row: 
         row['批次价值'] * (0.3 if row['库龄'] >= 120 else 0.2 if row['库龄'] >= 90 else 0.1 if row['库龄'] >= 60 else 0), axis=1)
     
-    # 模拟预测准确率数据
-    mock_forecast = pd.DataFrame({
-        '预测准确率': np.random.uniform(0.6, 0.95, 50)
-    })
-    
-    # 模拟出货数据
+    mock_forecast = pd.DataFrame({'预测准确率': np.random.uniform(0.6, 0.95, 50)})
     mock_shipment = pd.DataFrame({
         '订单日期': pd.date_range(start='2024-01-01', periods=200, freq='D'),
         '产品代码': np.random.choice([f'F{1000+i:04d}' for i in range(20)], 200),
         '求和项:数量（箱）': np.random.randint(10, 100, 200),
-        '申请人': np.random.choice(['张三', '李四', '王五', '赵六', '孙七'], 200),
-        '所属区域': np.random.choice(['华北', '华南', '华东', '华西'], 200)
     })
-    
-    # 模拟预测数据
     mock_forecast_df = pd.DataFrame({
         '所属年月': pd.date_range(start='2024-01-01', periods=12, freq='M'),
         '产品代码': np.random.choice([f'F{1000+i:04d}' for i in range(20)], 12),
         '预计销售量': np.random.randint(100, 1000, 12),
-        '销售员': np.random.choice(['张三', '李四', '王五', '赵六', '孙七'], 12)
     })
     
     metrics = calculate_key_metrics(mock_inventory, mock_forecast)
-    
     return mock_inventory, mock_forecast, mock_shipment, mock_forecast_df, metrics, {}
 
 def get_mock_metrics():
@@ -749,27 +438,15 @@ def get_mock_metrics():
         'avg_age': 67,
         'forecast_accuracy': 78.5,
         'high_risk_value': 2.7,
-        'risk_counts': {
-            'extreme': 85,
-            'high': 131,
-            'medium': 298,
-            'low': 445,
-            'minimal': 288
-        }
+        'risk_counts': {'extreme': 85, 'high': 131, 'medium': 298, 'low': 445, 'minimal': 288}
     }
 
-# 创建图表函数
+# 图表创建函数
 def create_risk_distribution_pie(processed_inventory):
     """创建风险等级分布饼图"""
     risk_counts = processed_inventory['风险等级'].value_counts()
-    
-    colors = [
-        COLOR_SCHEME['risk_extreme'],   # 极高风险
-        COLOR_SCHEME['risk_high'],      # 高风险  
-        COLOR_SCHEME['risk_medium'],    # 中风险
-        COLOR_SCHEME['risk_low'],       # 低风险
-        COLOR_SCHEME['risk_minimal']    # 极低风险
-    ]
+    colors = [COLOR_SCHEME['risk_extreme'], COLOR_SCHEME['risk_high'], COLOR_SCHEME['risk_medium'], 
+              COLOR_SCHEME['risk_low'], COLOR_SCHEME['risk_minimal']]
     
     fig = go.Figure(data=[go.Pie(
         labels=risk_counts.index,
@@ -778,42 +455,23 @@ def create_risk_distribution_pie(processed_inventory):
         marker_colors=colors,
         textinfo='label+percent+value',
         textfont_size=12,
-        hovertemplate="<b>%{label}</b><br>" +
-                      "批次数: %{value}<br>" +
-                      "占比: %{percent}<br>" +
-                      "<extra></extra>"
     )])
     
     fig.update_layout(
         title="库存风险等级分布",
         title_x=0.5,
         font=dict(size=14, family="Inter, sans-serif"),
-        showlegend=True,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=-0.1,
-            xanchor="center",
-            x=0.5
-        ),
         height=400,
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)'
     )
-    
     return fig
 
 def create_risk_value_analysis(processed_inventory):
     """创建风险价值分析图"""
     risk_value = processed_inventory.groupby('风险等级')['批次价值'].sum() / 1000000
-    
-    colors = [
-        COLOR_SCHEME['risk_extreme'],
-        COLOR_SCHEME['risk_high'],
-        COLOR_SCHEME['risk_medium'], 
-        COLOR_SCHEME['risk_low'],
-        COLOR_SCHEME['risk_minimal']
-    ]
+    colors = [COLOR_SCHEME['risk_extreme'], COLOR_SCHEME['risk_high'], COLOR_SCHEME['risk_medium'], 
+              COLOR_SCHEME['risk_low'], COLOR_SCHEME['risk_minimal']]
     
     fig = go.Figure(data=[go.Bar(
         x=risk_value.index,
@@ -821,10 +479,7 @@ def create_risk_value_analysis(processed_inventory):
         marker_color=colors,
         text=[f'¥{v:.1f}M' for v in risk_value.values],
         textposition='auto',
-        textfont=dict(color='white', size=12, family="Inter, sans-serif"),
-        hovertemplate="<b>%{x}</b><br>" +
-                      "价值: ¥%{y:.1f}M<br>" +
-                      "<extra></extra>"
+        textfont=dict(color='white', size=12)
     )])
     
     fig.update_layout(
@@ -835,11 +490,8 @@ def create_risk_value_analysis(processed_inventory):
         font=dict(size=14, family="Inter, sans-serif"),
         height=400,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(248, 250, 252, 0.8)',
-        xaxis=dict(gridcolor='rgba(200,200,200,0.3)'),
-        yaxis=dict(gridcolor='rgba(200,200,200,0.3)')
+        plot_bgcolor='rgba(248, 250, 252, 0.8)'
     )
-    
     return fig
 
 def create_age_distribution(processed_inventory):
@@ -848,21 +500,14 @@ def create_age_distribution(processed_inventory):
         x=processed_inventory['库龄'],
         nbinsx=20,
         marker_color=COLOR_SCHEME['primary'],
-        opacity=0.7,
-        hovertemplate="库龄范围: %{x}<br>" +
-                      "批次数: %{y}<br>" +
-                      "<extra></extra>"
+        opacity=0.7
     )])
     
     # 添加风险阈值线
-    fig.add_vline(x=30, line_dash="dash", line_color=COLOR_SCHEME['risk_low'], 
-                  annotation_text="低风险阈值(30天)")
-    fig.add_vline(x=60, line_dash="dash", line_color=COLOR_SCHEME['risk_medium'], 
-                  annotation_text="中风险阈值(60天)")
-    fig.add_vline(x=90, line_dash="dash", line_color=COLOR_SCHEME['risk_high'], 
-                  annotation_text="高风险阈值(90天)")
-    fig.add_vline(x=120, line_dash="dash", line_color=COLOR_SCHEME['risk_extreme'], 
-                  annotation_text="极高风险阈值(120天)")
+    fig.add_vline(x=30, line_dash="dash", line_color=COLOR_SCHEME['risk_low'], annotation_text="低风险阈值(30天)")
+    fig.add_vline(x=60, line_dash="dash", line_color=COLOR_SCHEME['risk_medium'], annotation_text="中风险阈值(60天)")
+    fig.add_vline(x=90, line_dash="dash", line_color=COLOR_SCHEME['risk_high'], annotation_text="高风险阈值(90天)")
+    fig.add_vline(x=120, line_dash="dash", line_color=COLOR_SCHEME['risk_extreme'], annotation_text="极高风险阈值(120天)")
     
     fig.update_layout(
         title="库存批次库龄分布",
@@ -872,21 +517,17 @@ def create_age_distribution(processed_inventory):
         font=dict(size=14, family="Inter, sans-serif"),
         height=400,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(248, 250, 252, 0.8)',
-        xaxis=dict(gridcolor='rgba(200,200,200,0.3)'),
-        yaxis=dict(gridcolor='rgba(200,200,200,0.3)')
+        plot_bgcolor='rgba(248, 250, 252, 0.8)'
     )
-    
     return fig
 
 def create_high_risk_bubble(processed_inventory):
-    """创建高风险批次气泡图 - 修复版本"""
+    """创建高风险批次气泡图"""
     high_risk_data = processed_inventory[
         processed_inventory['风险等级'].isin(['极高风险', '高风险'])
     ].head(20)
     
     if high_risk_data.empty:
-        # 返回空图表
         fig = go.Figure()
         fig.update_layout(
             title="高风险批次优先级分析 (无数据)",
@@ -899,50 +540,32 @@ def create_high_risk_bubble(processed_inventory):
     
     fig = go.Figure()
     
-    for risk_level, color in [('极高风险', COLOR_SCHEME['risk_extreme']), 
-                              ('高风险', COLOR_SCHEME['risk_high'])]:
+    for risk_level, color in [('极高风险', COLOR_SCHEME['risk_extreme']), ('高风险', COLOR_SCHEME['risk_high'])]:
         risk_subset = high_risk_data[high_risk_data['风险等级'] == risk_level]
         if not risk_subset.empty:
             try:
-                # 确保数据质量
-                quantities = risk_subset['数量'].fillna(100).astype(float)  # 填充默认值并转换类型
-                quantities = np.where(quantities <= 0, 100, quantities)  # 替换非正数
-                quantities = np.where(np.isfinite(quantities), quantities, 100)  # 替换无穷大和NaN
-                
-                # 计算marker size，确保在合理范围内
+                quantities = risk_subset['数量'].fillna(100).astype(float)
+                quantities = np.where(quantities <= 0, 100, quantities)
                 marker_sizes = np.clip(quantities / 10, 8, 50)
                 marker_sizes = np.where(np.isfinite(marker_sizes), marker_sizes, 15)
                 
-                # 确保所有必要字段存在且有效
-                x_values = risk_subset['库龄'].fillna(0).astype(float)
-                y_values = risk_subset['批次价值'].fillna(0).astype(float)
-                product_names = risk_subset['产品名称'].fillna('未知产品').astype(str)
-                
                 fig.add_trace(go.Scatter(
-                    x=x_values,
-                    y=y_values,
+                    x=risk_subset['库龄'],
+                    y=risk_subset['批次价值'],
                     mode='markers',
                     name=risk_level,
                     marker=dict(
-                        size=marker_sizes.tolist(),  # 转换为列表
+                        size=marker_sizes.tolist(),
                         sizemode='diameter',
                         sizemin=8,
                         sizemax=50,
                         color=color,
-                        opacity=0.8,
-                        line=dict(width=2, color='white')
+                        opacity=0.8
                     ),
-                    text=product_names,
-                    hovertemplate="<b>%{text}</b><br>" +
-                                  "库龄: %{x}天<br>" +
-                                  "价值: ¥%{y:,.0f}<br>" +
-                                  "数量: %{customdata}箱<br>" +
-                                  "<extra></extra>",
-                    customdata=quantities.tolist()  # 转换为列表
+                    text=risk_subset['产品名称'],
+                    customdata=quantities.tolist()
                 ))
-            except Exception as e:
-                # 如果有任何错误，跳过这个风险等级
-                print(f"处理{risk_level}数据时出错: {e}")
+            except Exception:
                 continue
     
     fig.update_layout(
@@ -953,17 +576,13 @@ def create_high_risk_bubble(processed_inventory):
         font=dict(size=14, family="Inter, sans-serif"),
         height=400,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(248, 250, 252, 0.8)',
-        xaxis=dict(gridcolor='rgba(200,200,200,0.3)'),
-        yaxis=dict(gridcolor='rgba(200,200,200,0.3)')
+        plot_bgcolor='rgba(248, 250, 252, 0.8)'
     )
-    
     return fig
 
 def create_forecast_accuracy_trend(forecast_accuracy):
     """创建预测准确率趋势图"""
     if forecast_accuracy.empty:
-        # 创建模拟数据
         dates = pd.date_range(start='2024-09-01', periods=6, freq='M')
         accuracy = [75.2, 78.1, 73.5, 78.5, 82.1, 79.3]
         
@@ -990,9 +609,7 @@ def create_forecast_accuracy_trend(forecast_accuracy):
             marker=dict(size=8, color=COLOR_SCHEME['primary'])
         )])
     
-    # 添加目标线
-    fig.add_hline(y=85, line_dash="dash", line_color="red", 
-                  annotation_text="目标线 85%")
+    fig.add_hline(y=85, line_dash="dash", line_color="red", annotation_text="目标线 85%")
     
     fig.update_layout(
         title="预测准确率月度趋势",
@@ -1002,11 +619,8 @@ def create_forecast_accuracy_trend(forecast_accuracy):
         font=dict(size=14, family="Inter, sans-serif"),
         height=400,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(248, 250, 252, 0.8)',
-        xaxis=dict(gridcolor='rgba(200,200,200,0.3)'),
-        yaxis=dict(gridcolor='rgba(200,200,200,0.3)')
+        plot_bgcolor='rgba(248, 250, 252, 0.8)'
     )
-    
     return fig
 
 # 加载数据
@@ -1021,13 +635,12 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 创建标签页
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+# 创建标签页 - 删除行动建议标签
+tab1, tab2, tab3, tab4 = st.tabs([
     "📊 核心指标总览",
     "🎯 风险分布分析", 
     "💡 预测准确性",
-    "📋 批次详情",
-    "🚀 行动建议"
+    "📋 批次详情"
 ])
 
 # 标签1：核心指标总览
@@ -1132,7 +745,6 @@ with tab2:
         risk_pie_fig = create_risk_distribution_pie(processed_inventory)
         st.plotly_chart(risk_pie_fig, use_container_width=True)
         
-        # 洞察分析
         st.markdown(f"""
         <div class="insight-box">
             <div class="insight-title">📊 风险分布洞察</div>
@@ -1152,7 +764,6 @@ with tab2:
         risk_value_fig = create_risk_value_analysis(processed_inventory)
         st.plotly_chart(risk_value_fig, use_container_width=True)
         
-        # 价值洞察
         total_high_risk = metrics['risk_counts']['extreme'] + metrics['risk_counts']['high']
         st.markdown(f"""
         <div class="insight-box">
@@ -1166,7 +777,7 @@ with tab2:
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # 库龄分布和高风险分析
+    # 库龄分布
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
     st.markdown('<h3 class="chart-title">库存批次库龄分布</h3>', unsafe_allow_html=True)
     
@@ -1183,31 +794,14 @@ with tab2:
         st.plotly_chart(bubble_fig, use_container_width=True)
     except Exception as e:
         st.error(f"气泡图生成失败，正在使用备用图表: {e}")
-        # 创建简化的散点图作为备用
-        high_risk_data = processed_inventory[
-            processed_inventory['风险等级'].isin(['极高风险', '高风险'])
-        ].head(20)
-        
+        high_risk_data = processed_inventory[processed_inventory['风险等级'].isin(['极高风险', '高风险'])].head(20)
         if not high_risk_data.empty:
             fig = go.Figure()
-            for risk_level, color in [('极高风险', COLOR_SCHEME['risk_extreme']), 
-                                      ('高风险', COLOR_SCHEME['risk_high'])]:
+            for risk_level, color in [('极高风险', COLOR_SCHEME['risk_extreme']), ('高风险', COLOR_SCHEME['risk_high'])]:
                 subset = high_risk_data[high_risk_data['风险等级'] == risk_level]
                 if not subset.empty:
-                    fig.add_trace(go.Scatter(
-                        x=subset['库龄'],
-                        y=subset['批次价值'],
-                        mode='markers',
-                        name=risk_level,
-                        marker=dict(color=color, size=10)
-                    ))
-            
-            fig.update_layout(
-                title="高风险批次分布 (简化版)",
-                xaxis_title="库龄 (天)",
-                yaxis_title="批次价值 (元)",
-                height=400
-            )
+                    fig.add_trace(go.Scatter(x=subset['库龄'], y=subset['批次价值'], mode='markers', name=risk_level, marker=dict(color=color, size=10)))
+            fig.update_layout(title="高风险批次分布 (简化版)", xaxis_title="库龄 (天)", yaxis_title="批次价值 (元)", height=400)
             st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("""
@@ -1240,7 +834,6 @@ with tab3:
         st.markdown('<div class="chart-container">', unsafe_allow_html=True)
         st.markdown('<h3 class="chart-title">预测改进建议</h3>', unsafe_allow_html=True)
         
-        # 预测改进建议
         current_acc = metrics['forecast_accuracy']
         improvement_potential = 85 - current_acc
         
@@ -1271,12 +864,11 @@ with tab3:
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # 预测vs实际对比（如果有数据）
+    # 预测准确性详细分析
     if not forecast_accuracy.empty:
         st.markdown('<div class="chart-container">', unsafe_allow_html=True)
         st.markdown('<h3 class="chart-title">预测准确性详细分析</h3>', unsafe_allow_html=True)
         
-        # 创建预测误差分布图
         fig = go.Figure(data=[go.Histogram(
             x=forecast_accuracy['预测准确率'] * 100,
             nbinsx=20,
@@ -1351,7 +943,6 @@ with tab4:
     
     # 显示数据表格
     if not filtered_data.empty:
-        # 重新排序列并格式化
         display_columns = ['物料', '产品名称', '生产日期', '生产批号', '数量', '库龄', '风险等级', '批次价值', '处理建议']
         display_data = filtered_data[display_columns].copy()
         
@@ -1359,17 +950,13 @@ with tab4:
         display_data['批次价值'] = display_data['批次价值'].apply(lambda x: f"¥{x:,.0f}")
         display_data['生产日期'] = display_data['生产日期'].dt.strftime('%Y-%m-%d')
         
-        # 按风险等级和价值排序
+        # 按风险等级排序
         risk_order = {'极高风险': 0, '高风险': 1, '中风险': 2, '低风险': 3, '极低风险': 4}
         display_data['风险排序'] = display_data['风险等级'].map(risk_order)
         display_data = display_data.sort_values(['风险排序', '库龄'], ascending=[True, False])
         display_data = display_data.drop('风险排序', axis=1)
         
-        st.dataframe(
-            display_data,
-            use_container_width=True,
-            height=400
-        )
+        st.dataframe(display_data, use_container_width=True, height=400)
         
         # 下载按钮
         csv = display_data.to_csv(index=False, encoding='utf-8-sig')
@@ -1381,146 +968,6 @@ with tab4:
         )
     else:
         st.warning("没有符合筛选条件的数据")
-
-# 标签5：行动建议
-with tab5:
-    st.markdown("### 🚀 智能决策建议")
-    
-    # 紧急行动建议
-    urgent_items = processed_inventory[processed_inventory['风险等级'] == '极高风险'].nlargest(5, '批次价值')
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown(f"""
-        <div class="chart-container">
-            <h3 class="chart-title">🚨 紧急清库行动</h3>
-            <div style="padding: 1rem;">
-        """, unsafe_allow_html=True)
-        
-        if not urgent_items.empty:
-            for _, item in urgent_items.iterrows():
-                st.markdown(f"""
-                <div style="background: rgba(255, 245, 245, 0.9); border-left: 4px solid #ff4757; padding: 1rem; margin-bottom: 1rem; border-radius: 5px;">
-                    <strong>{item['产品名称']}</strong><br>
-                    <small>批号: {item['生产批号']} | 库龄: {item['库龄']}天</small><br>
-                    价值: ¥{item['批次价值']:,.0f} | 建议: {item['处理建议']}
-                </div>
-                """, unsafe_allow_html=True)
-            
-            total_urgent_value = urgent_items['批次价值'].sum()
-            st.markdown(f"""
-            <div class="insight-box">
-                <div class="insight-title">💰 预期效果</div>
-                <div class="insight-content">
-                    • 涉及价值: ¥{total_urgent_value/1000000:.1f}M<br>
-                    • 7折清库预计回收: ¥{total_urgent_value*0.7/1000000:.1f}M<br>
-                    • 避免进一步损失: ¥{total_urgent_value*0.3/1000000:.1f}M
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.success("🎉 当前没有极高风险批次需要紧急处理")
-        
-        st.markdown("</div></div>", unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div class="chart-container">
-            <h3 class="chart-title">📊 优化策略建议</h3>
-            <div style="padding: 1rem;">
-        """, unsafe_allow_html=True)
-        
-        # 策略建议
-        strategies = [
-            {
-                'title': '📈 预测优化',
-                'content': f'当前预测准确率{metrics["forecast_accuracy"]:.1f}%，建议加强季节性分析和历史数据权重',
-                'priority': 'high' if metrics['forecast_accuracy'] < 80 else 'medium'
-            },
-            {
-                'title': '🔄 库存周转',
-                'content': f'平均库龄{metrics["avg_age"]:.0f}天，建议优化进货计划，提升周转效率',
-                'priority': 'high' if metrics['avg_age'] > 60 else 'medium'
-            },
-            {
-                'title': '💡 促销策略',
-                'content': f'{metrics["high_risk_ratio"]:.1f}%的库存处于高风险，建议制定差异化促销方案',
-                'priority': 'high' if metrics['high_risk_ratio'] > 15 else 'low'
-            }
-        ]
-        
-        for strategy in strategies:
-            color = '#ff4757' if strategy['priority'] == 'high' else '#ffa502' if strategy['priority'] == 'medium' else '#2ed573'
-            st.markdown(f"""
-            <div style="background: rgba(255,255,255,0.8); border-left: 4px solid {color}; padding: 1rem; margin-bottom: 1rem; border-radius: 5px;">
-                <strong style="color: {color};">{strategy['title']}</strong><br>
-                <small style="color: #666;">{strategy['content']}</small>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("</div></div>", unsafe_allow_html=True)
-    
-    # 综合评估和ROI分析
-    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown('<h3 class="chart-title">📊 投资回报率分析</h3>', unsafe_allow_html=True)
-    
-    # ROI计算
-    promotion_cost = metrics['high_risk_value'] * 0.15  # 假设促销成本为价值的15%
-    expected_recovery = metrics['high_risk_value'] * 0.8  # 预期回收80%
-    roi = (expected_recovery - promotion_cost) / promotion_cost * 100 if promotion_cost > 0 else 0
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric(
-            label="💰 高风险价值",
-            value=f"¥{metrics['high_risk_value']:.1f}M",
-            delta=None
-        )
-    
-    with col2:
-        st.metric(
-            label="💸 预估促销成本",
-            value=f"¥{promotion_cost:.1f}M",
-            delta=None
-        )
-    
-    with col3:
-        st.metric(
-            label="💎 预期回收金额",
-            value=f"¥{expected_recovery:.1f}M",
-            delta=f"+{(expected_recovery-metrics['high_risk_value'])/metrics['high_risk_value']*100:.1f}%" if metrics['high_risk_value'] > 0 else None
-        )
-    
-    with col4:
-        st.metric(
-            label="📈 投资回报率",
-            value=f"{roi:.1f}%",
-            delta="预期收益"
-        )
-    
-    # 最终建议
-    st.markdown(f"""
-    <div class="insight-box">
-        <div class="insight-title">🎯 综合行动计划</div>
-        <div class="insight-content">
-            <strong>短期行动 (1-2周):</strong><br>
-            • 立即启动{metrics['risk_counts']['extreme']}个极高风险批次的深度促销<br>
-            • 对{metrics['risk_counts']['high']}个高风险批次制定促销计划<br><br>
-            
-            <strong>中期优化 (1-3个月):</strong><br>
-            • 提升预测准确率至85%以上<br>
-            • 优化库存周转，目标平均库龄降至50天以下<br><br>
-            
-            <strong>长期战略 (3-12个月):</strong><br>
-            • 建立智能预警系统，实现风险早期识别<br>
-            • 完善供应链管理，减少库存积压风险
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # 页脚
 st.markdown("---")
