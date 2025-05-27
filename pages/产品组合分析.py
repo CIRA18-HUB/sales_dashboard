@@ -134,40 +134,21 @@ st.markdown("""
     .metric-card:nth-child(3) { animation-delay: 0.3s; }
     .metric-card:nth-child(4) { animation-delay: 0.4s; }
     
-    /* 修复数字重影 */
-    text {
-        text-rendering: optimizeLegibility;
+    /* 搜索框样式 */
+    .search-container {
+        background: white;
+        padding: 1rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 1rem;
     }
     
-    /* BCG矩阵特效 */
-    @keyframes pulse {
-        0% { transform: scale(1); opacity: 0.8; }
-        50% { transform: scale(1.05); opacity: 1; }
-        100% { transform: scale(1); opacity: 0.8; }
-    }
-    
-    @keyframes float {
-        0% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
-        100% { transform: translateY(0px); }
-    }
-    
-    @keyframes rotate {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    /* JBP分析卡片动画 */
-    @keyframes cardFlip {
-        0% { transform: rotateY(0deg); }
-        50% { transform: rotateY(10deg); }
-        100% { transform: rotateY(0deg); }
-    }
-    
-    .jbp-card {
-        animation: cardFlip 3s ease-in-out infinite;
-        transform-style: preserve-3d;
-        perspective: 1000px;
+    /* BCG矩阵控制面板 */
+    .bcg-controls {
+        background: rgba(248,249,250,0.8);
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -252,9 +233,6 @@ def calculate_comprehensive_metrics(data):
     new_ratio = (new_sales / total_sales * 100) if total_sales > 0 else 0
     total_ratio = star_ratio + new_ratio
     
-    # KPI达成率
-    kpi_rate = (total_ratio / 20 * 100) if total_ratio > 0 else 0
-    
     # 新品渗透率
     total_customers = sales_2025['客户名称'].nunique()
     new_customers = sales_2025[sales_2025['产品代码'].isin(new_products)]['客户名称'].nunique()
@@ -272,52 +250,32 @@ def calculate_comprehensive_metrics(data):
     
     jbp_status = 'YES' if (45 <= cow_ratio <= 50 and 40 <= star_question_ratio <= 45) else 'NO'
     
+    # 促销有效性
+    promo_results = analyze_promotion_effectiveness_enhanced(data)
+    promo_effectiveness = (promo_results['is_effective'].sum() / len(promo_results) * 100) if len(promo_results) > 0 else 0
+    
     return {
         'total_sales': total_sales,
         'star_ratio': star_ratio,
         'new_ratio': new_ratio,
         'total_ratio': total_ratio,
-        'kpi_rate': kpi_rate,
         'penetration_rate': penetration_rate,
-        'jbp_status': jbp_status
+        'jbp_status': jbp_status,
+        'promo_effectiveness': promo_effectiveness
     }
-
-# 增强的BCG矩阵分析 - 显示所有仪表盘产品
-def create_enhanced_bcg_matrix(data, dimension='national', selected_region=None):
-    """创建增强的BCG矩阵分析"""
-    sales_df = data['sales_df']
-    dashboard_products = data['dashboard_products']
-    
-    # 确保只分析仪表盘产品
-    sales_df_filtered = sales_df[sales_df['产品代码'].isin(dashboard_products)]
-    
-    if dimension == 'national':
-        product_analysis = analyze_product_bcg_comprehensive(sales_df_filtered, dashboard_products)
-        fig = plot_modern_bcg_matrix_enhanced(product_analysis)
-        return fig, product_analysis
-    else:
-        # 分区域维度BCG分析
-        if selected_region:
-            region_data = sales_df_filtered[sales_df_filtered['区域'] == selected_region]
-            region_analysis = analyze_product_bcg_comprehensive(region_data, dashboard_products)
-            fig = plot_modern_bcg_matrix_enhanced(region_analysis, title=f"{selected_region}区域")
-            return fig, region_analysis
-        return None, None
 
 def analyze_product_bcg_comprehensive(sales_df, dashboard_products):
     """分析产品BCG矩阵数据，包括所有仪表盘产品"""
-    # 获取当前年份数据
     if len(sales_df) == 0:
         return pd.DataFrame()
     
-    current_year = 2025  # 基于数据集，当前年是2025
+    current_year = 2025
     current_data = sales_df[sales_df['发运月份'].dt.year == current_year]
     prev_data = sales_df[sales_df['发运月份'].dt.year == current_year - 1]
     
     product_stats = []
     total_sales = current_data['销售额'].sum()
     
-    # 确保分析所有仪表盘产品
     for product in dashboard_products:
         current_product_data = current_data[current_data['产品代码'] == product]
         prev_product_data = prev_data[prev_data['产品代码'] == product]
@@ -331,27 +289,28 @@ def analyze_product_bcg_comprehensive(sales_df, dashboard_products):
         elif len(prev_product_data) > 0:
             product_name = prev_product_data['产品简称'].iloc[0]
         else:
-            # 从全部数据中查找产品名称
             all_product_data = sales_df[sales_df['产品代码'] == product]
             if len(all_product_data) > 0:
                 product_name = all_product_data['产品简称'].iloc[0]
             else:
-                product_name = product  # 如果没有名称，使用代码
+                product_name = product
         
         # 只处理有销售数据的产品
         if current_sales > 0 or prev_sales > 0:
             market_share = (current_sales / total_sales * 100) if total_sales > 0 else 0
             
-            # 计算增长率
+            # 计算增长率，限制在合理范围内
             if prev_sales > 0:
                 growth_rate = ((current_sales - prev_sales) / prev_sales * 100)
             elif current_sales > 0:
-                growth_rate = 100  # 新产品
+                growth_rate = 100
             else:
                 growth_rate = 0
             
-            # 限制增长率范围，避免极端值
-            growth_rate = max(-50, min(growth_rate, 100))
+            # 存储真实增长率用于显示
+            real_growth_rate = growth_rate
+            # 限制显示范围用于图表
+            display_growth_rate = max(-50, min(growth_rate, 100))
             
             # 分类逻辑
             if market_share >= 1.5 and growth_rate > 20:
@@ -371,29 +330,70 @@ def analyze_product_bcg_comprehensive(sales_df, dashboard_products):
                 'product': product,
                 'name': product_name,
                 'market_share': market_share,
-                'growth_rate': growth_rate,
+                'growth_rate': display_growth_rate,
+                'real_growth_rate': real_growth_rate,
                 'sales': current_sales,
                 'prev_sales': prev_sales,
                 'category': category,
                 'category_reason': reason,
-                'calculation_detail': f"当前销售额: ¥{current_sales:,.0f}\n去年销售额: ¥{prev_sales:,.0f}\n市场份额: {market_share:.2f}%\n增长率: {growth_rate:.1f}%"
+                'calculation_detail': f"当前销售额: ¥{current_sales:,.0f}\n去年销售额: ¥{prev_sales:,.0f}\n市场份额: {market_share:.2f}%\n真实增长率: {real_growth_rate:.1f}%"
             })
     
     return pd.DataFrame(product_stats)
 
-def plot_modern_bcg_matrix_enhanced(product_df, title="BCG产品矩阵"):
-    """绘制增强的BCG矩阵图，避免气泡遮挡"""
+def create_interactive_bcg_matrix(data, dimension='national', selected_region=None):
+    """创建交互式BCG矩阵分析"""
+    sales_df = data['sales_df']
+    dashboard_products = data['dashboard_products']
+    
+    # 确保只分析仪表盘产品
+    sales_df_filtered = sales_df[sales_df['产品代码'].isin(dashboard_products)]
+    
+    if dimension == 'national':
+        product_analysis = analyze_product_bcg_comprehensive(sales_df_filtered, dashboard_products)
+        return product_analysis
+    else:
+        if selected_region:
+            region_data = sales_df_filtered[sales_df_filtered['区域'] == selected_region]
+            region_analysis = analyze_product_bcg_comprehensive(region_data, dashboard_products)
+            return region_analysis
+        return pd.DataFrame()
+
+def plot_interactive_bcg_matrix(product_df, title="BCG产品矩阵", search_term="", selected_category="全部"):
+    """绘制交互式BCG矩阵图"""
+    if len(product_df) == 0:
+        return go.Figure()
+    
+    # 筛选数据
+    filtered_df = product_df.copy()
+    
+    # 搜索筛选
+    if search_term:
+        mask = filtered_df['name'].str.contains(search_term, case=False, na=False) | \
+               filtered_df['product'].str.contains(search_term, case=False, na=False)
+        filtered_df = filtered_df[mask]
+    
+    # 类别筛选
+    if selected_category != "全部":
+        category_map = {
+            "明星产品": "star",
+            "问号产品": "question", 
+            "现金牛产品": "cow",
+            "瘦狗产品": "dog"
+        }
+        if selected_category in category_map:
+            filtered_df = filtered_df[filtered_df['category'] == category_map[selected_category]]
+    
     fig = go.Figure()
     
-    # 定义象限颜色
+    # 定义象限颜色和产品颜色
     quadrant_colors = {
-        'star': 'rgba(255, 235, 153, 0.5)',
-        'question': 'rgba(255, 153, 153, 0.5)',
-        'cow': 'rgba(204, 235, 255, 0.5)',
-        'dog': 'rgba(230, 230, 230, 0.5)'
+        'star': 'rgba(255, 235, 153, 0.3)',
+        'question': 'rgba(255, 153, 153, 0.3)',
+        'cow': 'rgba(204, 235, 255, 0.3)',
+        'dog': 'rgba(230, 230, 230, 0.3)'
     }
     
-    # 圆点颜色
     bubble_colors = {
         'star': '#FFC107',
         'question': '#F44336',
@@ -401,24 +401,6 @@ def plot_modern_bcg_matrix_enhanced(product_df, title="BCG产品矩阵"):
         'dog': '#9E9E9E'
     }
     
-    # 添加象限背景
-    fig.add_shape(type="rect", x0=0, y0=20, x1=1.5, y1=100,
-                  fillcolor=quadrant_colors['question'], 
-                  line=dict(width=0), layer="below")
-    
-    fig.add_shape(type="rect", x0=1.5, y0=20, x1=10, y1=100,
-                  fillcolor=quadrant_colors['star'], 
-                  line=dict(width=0), layer="below")
-    
-    fig.add_shape(type="rect", x0=0, y0=-50, x1=1.5, y1=20,
-                  fillcolor=quadrant_colors['dog'], 
-                  line=dict(width=0), layer="below")
-    
-    fig.add_shape(type="rect", x0=1.5, y0=-50, x1=10, y1=20,
-                  fillcolor=quadrant_colors['cow'], 
-                  line=dict(width=0), layer="below")
-    
-    # 类别名称映射
     category_names = {
         'star': '⭐ 明星产品',
         'question': '❓ 问号产品',
@@ -426,15 +408,25 @@ def plot_modern_bcg_matrix_enhanced(product_df, title="BCG产品矩阵"):
         'dog': '🐕 瘦狗产品'
     }
     
-    # 绘制产品气泡，改进位置算法避免遮挡
+    # 添加象限背景
+    fig.add_shape(type="rect", x0=0, y0=20, x1=1.5, y1=100,
+                  fillcolor=quadrant_colors['question'], line=dict(width=0), layer="below")
+    fig.add_shape(type="rect", x0=1.5, y0=20, x1=10, y1=100,
+                  fillcolor=quadrant_colors['star'], line=dict(width=0), layer="below")
+    fig.add_shape(type="rect", x0=0, y0=-50, x1=1.5, y1=20,
+                  fillcolor=quadrant_colors['dog'], line=dict(width=0), layer="below")
+    fig.add_shape(type="rect", x0=1.5, y0=-50, x1=10, y1=20,
+                  fillcolor=quadrant_colors['cow'], line=dict(width=0), layer="below")
+    
+    # 绘制产品气泡
     for category in ['star', 'question', 'cow', 'dog']:
-        cat_data = product_df[product_df['category'] == category]
+        cat_data = filtered_df[filtered_df['category'] == category]
         if len(cat_data) > 0:
-            # 更智能的防重叠算法
-            positions = optimize_bubble_positions(cat_data)
+            # 优化位置分布
+            positions = optimize_smart_grid_positions(cat_data, category)
             
             # 设置气泡大小
-            sizes = cat_data['sales'].apply(lambda x: max(min(np.sqrt(x)/25, 80), 30))
+            sizes = cat_data['sales'].apply(lambda x: max(min(np.sqrt(x)/20, 60), 25))
             
             # 创建hover文本
             hover_texts = []
@@ -443,9 +435,17 @@ def plot_modern_bcg_matrix_enhanced(product_df, title="BCG产品矩阵"):
                 hover_text = f"""<b>{row['name']} ({row['product']})</b><br>
 <br><b>分类：{category_name}</b><br>
 <br><b>分类原因：</b><br>{row['category_reason']}<br>
-<br><b>详细计算：</b><br>{row['calculation_detail']}<br>
+<br><b>详细信息：</b><br>{row['calculation_detail']}<br>
 <br><b>策略建议：</b><br>{get_strategy_suggestion(category)}"""
                 hover_texts.append(hover_text)
+            
+            # 高亮搜索结果
+            opacity = 1.0 if not search_term else 0.3
+            if search_term:
+                search_mask = cat_data['name'].str.contains(search_term, case=False, na=False) | \
+                             cat_data['product'].str.contains(search_term, case=False, na=False)
+                if search_mask.any():
+                    opacity = 1.0
             
             fig.add_trace(go.Scatter(
                 x=positions['x'],
@@ -454,55 +454,47 @@ def plot_modern_bcg_matrix_enhanced(product_df, title="BCG产品矩阵"):
                 marker=dict(
                     size=sizes,
                     color=bubble_colors[category],
-                    opacity=0.8,
+                    opacity=opacity,
                     line=dict(width=2, color='white')
                 ),
                 text=cat_data['name'].apply(lambda x: x[:6] + '..' if len(x) > 6 else x),
                 textposition='middle center',
-                textfont=dict(size=9, color='white', weight='bold'),
+                textfont=dict(size=8, color='white', weight='bold'),
                 hovertemplate='%{customdata}<extra></extra>',
                 customdata=hover_texts,
-                showlegend=False
+                showlegend=False,
+                name=category_name
             ))
     
     # 添加分割线
-    fig.add_hline(y=20, line_dash="dash", line_color="gray", 
-                 opacity=0.5, line_width=2)
+    fig.add_hline(y=20, line_dash="dash", line_color="gray", opacity=0.5, line_width=2)
+    fig.add_vline(x=1.5, line_dash="dash", line_color="gray", opacity=0.5, line_width=2)
     
-    fig.add_vline(x=1.5, line_dash="dash", line_color="gray", 
-                 opacity=0.5, line_width=2)
-    
-    # 添加文字标注
+    # 添加象限标注
     annotations = [
         dict(x=0.75, y=60, text="<b>❓ 问号产品</b><br>低份额·高增长", 
-             showarrow=False, font=dict(size=13, color="#F44336"),
-             bgcolor="rgba(255,255,255,0.9)", bordercolor="#F44336", 
-             borderwidth=2, borderpad=4),
-        
+             showarrow=False, font=dict(size=12, color="#F44336"),
+             bgcolor="rgba(255,255,255,0.9)", bordercolor="#F44336", borderwidth=2),
         dict(x=5.5, y=60, text="<b>⭐ 明星产品</b><br>高份额·高增长", 
-             showarrow=False, font=dict(size=13, color="#FFC107"),
-             bgcolor="rgba(255,255,255,0.9)", bordercolor="#FFC107", 
-             borderwidth=2, borderpad=4),
-        
+             showarrow=False, font=dict(size=12, color="#FFC107"),
+             bgcolor="rgba(255,255,255,0.9)", bordercolor="#FFC107", borderwidth=2),
         dict(x=0.75, y=-15, text="<b>🐕 瘦狗产品</b><br>低份额·低增长", 
-             showarrow=False, font=dict(size=13, color="#9E9E9E"),
-             bgcolor="rgba(255,255,255,0.9)", bordercolor="#9E9E9E", 
-             borderwidth=2, borderpad=4),
-        
+             showarrow=False, font=dict(size=12, color="#9E9E9E"),
+             bgcolor="rgba(255,255,255,0.9)", bordercolor="#9E9E9E", borderwidth=2),
         dict(x=5.5, y=-15, text="<b>🐄 现金牛产品</b><br>高份额·低增长", 
-             showarrow=False, font=dict(size=13, color="#2196F3"),
-             bgcolor="rgba(255,255,255,0.9)", bordercolor="#2196F3", 
-             borderwidth=2, borderpad=4)
+             showarrow=False, font=dict(size=12, color="#2196F3"),
+             bgcolor="rgba(255,255,255,0.9)", bordercolor="#2196F3", borderwidth=2)
     ]
     
     for ann in annotations:
         fig.add_annotation(**ann)
     
-    # 添加产品总数统计
-    total_products = len(product_df)
+    # 添加产品统计
+    total_products = len(filtered_df)
+    all_products = len(product_df)
     fig.add_annotation(
         x=0.5, y=95,
-        text=f"<b>共分析 {total_products} 个仪表盘产品</b>",
+        text=f"<b>显示 {total_products}/{all_products} 个产品</b>",
         showarrow=False,
         font=dict(size=14, color='black'),
         bgcolor='rgba(255,255,255,0.9)',
@@ -512,55 +504,82 @@ def plot_modern_bcg_matrix_enhanced(product_df, title="BCG产品矩阵"):
     
     # 更新布局
     fig.update_layout(
-        title=dict(
-            text=f"<b>{title}</b>",
-            font=dict(size=24),
-            x=0.5,
-            xanchor='center'
-        ),
+        title=dict(text=f"<b>{title}</b>", font=dict(size=20), x=0.5),
         xaxis_title="市场份额 (%)",
         yaxis_title="市场增长率 (%)",
         height=700,
         showlegend=False,
         template="plotly_white",
-        xaxis=dict(
-            range=[-0.5, 10.5],
-            showgrid=False,
-            zeroline=False
-        ),
-        yaxis=dict(
-            range=[-50, 100],
-            showgrid=False,
-            zeroline=False
-        ),
+        xaxis=dict(range=[-0.5, 10.5], showgrid=True, gridcolor='rgba(200,200,200,0.3)'),
+        yaxis=dict(range=[-50, 100], showgrid=True, gridcolor='rgba(200,200,200,0.3)'),
         hovermode='closest',
-        plot_bgcolor='white',
-        paper_bgcolor='white'
+        plot_bgcolor='white'
     )
     
     return fig
 
-def optimize_bubble_positions(data):
-    """优化气泡位置，避免重叠"""
+def optimize_smart_grid_positions(data, category):
+    """智能网格布局优化"""
+    # 定义每个象限的范围
+    ranges = {
+        'star': {'x': (1.5, 10), 'y': (20, 100)},
+        'question': {'x': (0, 1.5), 'y': (20, 100)},
+        'cow': {'x': (1.5, 10), 'y': (-50, 20)},
+        'dog': {'x': (0, 1.5), 'y': (-50, 20)}
+    }
+    
+    x_range = ranges[category]['x']
+    y_range = ranges[category]['y']
+    
+    # 基于真实市场份额和增长率的位置
     x_positions = data['market_share'].values.copy()
     y_positions = data['growth_rate'].values.copy()
     
-    # 使用力导向算法避免重叠
-    for _ in range(50):  # 迭代优化
-        for i in range(len(x_positions)):
-            for j in range(i+1, len(x_positions)):
-                dx = x_positions[i] - x_positions[j]
-                dy = y_positions[i] - y_positions[j]
-                dist = np.sqrt(dx**2 + dy**2)
-                
-                if dist < 0.5:  # 如果太近
-                    # 斥力
-                    force = (0.5 - dist) / 2
-                    angle = np.arctan2(dy, dx)
-                    x_positions[i] += force * np.cos(angle)
-                    y_positions[i] += force * np.sin(angle)
-                    x_positions[j] -= force * np.cos(angle)
-                    y_positions[j] -= force * np.sin(angle)
+    # 如果产品太多且位置相近，使用网格分布
+    n = len(data)
+    if n > 10:  # 当产品多于10个时使用网格
+        cols = int(np.ceil(np.sqrt(n)))
+        rows = int(np.ceil(n / cols))
+        
+        x_step = (x_range[1] - x_range[0]) / (cols + 1)
+        y_step = (y_range[1] - y_range[0]) / (rows + 1)
+        
+        for i, (idx, row) in enumerate(data.iterrows()):
+            grid_row = i // cols
+            grid_col = i % cols
+            
+            # 网格位置加上轻微随机偏移
+            x_grid = x_range[0] + (grid_col + 1) * x_step
+            y_grid = y_range[0] + (grid_row + 1) * y_step
+            
+            # 添加随机偏移但保持在合理范围内
+            x_offset = np.random.uniform(-x_step*0.3, x_step*0.3)
+            y_offset = np.random.uniform(-y_step*0.3, y_step*0.3)
+            
+            x_positions[i] = max(x_range[0], min(x_range[1], x_grid + x_offset))
+            y_positions[i] = max(y_range[0], min(y_range[1], y_grid + y_offset))
+    else:
+        # 产品较少时，使用力导向算法优化位置
+        for _ in range(30):
+            for i in range(len(x_positions)):
+                for j in range(i+1, len(x_positions)):
+                    dx = x_positions[i] - x_positions[j]
+                    dy = y_positions[i] - y_positions[j]
+                    dist = np.sqrt(dx**2 + dy**2)
+                    
+                    if dist < 0.8:  # 最小距离
+                        force = (0.8 - dist) / 3
+                        angle = np.arctan2(dy, dx)
+                        x_positions[i] += force * np.cos(angle)
+                        y_positions[i] += force * np.sin(angle)
+                        x_positions[j] -= force * np.cos(angle)
+                        y_positions[j] -= force * np.sin(angle)
+                        
+                        # 确保不超出象限边界
+                        x_positions[i] = max(x_range[0], min(x_range[1], x_positions[i]))
+                        y_positions[i] = max(y_range[0], min(y_range[1], y_positions[i]))
+                        x_positions[j] = max(x_range[0], min(x_range[1], x_positions[j]))
+                        y_positions[j] = max(y_range[0], min(y_range[1], y_positions[j]))
     
     return {'x': x_positions, 'y': y_positions}
 
@@ -574,7 +593,7 @@ def get_strategy_suggestion(category):
     }
     return strategies.get(category, '')
 
-# 增强的促销活动有效性分析（去除重复）
+# 促销活动有效性分析
 def analyze_promotion_effectiveness_enhanced(data):
     """增强的促销活动有效性分析"""
     promotion_df = data['promotion_df']
@@ -614,23 +633,6 @@ def analyze_promotion_effectiveness_enhanced(data):
         positive_count = sum([mom_growth > 0, yoy_growth > 0, avg_growth > 0])
         is_effective = positive_count >= 2
         
-        # 详细的有效性原因
-        reasons = []
-        if mom_growth > 0:
-            reasons.append(f"环比增长{mom_growth:.1f}%")
-        else:
-            reasons.append(f"环比下降{abs(mom_growth):.1f}%")
-            
-        if yoy_growth > 0:
-            reasons.append(f"同比增长{yoy_growth:.1f}%")
-        else:
-            reasons.append(f"同比下降{abs(yoy_growth):.1f}%")
-            
-        if avg_growth > 0:
-            reasons.append(f"比去年均值增长{avg_growth:.1f}%")
-        else:
-            reasons.append(f"比去年均值下降{abs(avg_growth):.1f}%")
-        
         effectiveness_results.append({
             'product': promo['促销产品名称'],
             'product_code': product_code,
@@ -640,9 +642,7 @@ def analyze_promotion_effectiveness_enhanced(data):
             'yoy_growth': yoy_growth,
             'avg_growth': avg_growth,
             'positive_count': positive_count,
-            'reasons': reasons,
             'effectiveness_reason': f"{'✅ 有效' if is_effective else '❌ 无效'}（{positive_count}/3项正增长）",
-            'detail_reason': '；'.join(reasons),
             'march_sales': march_2025,
             'april_2024_sales': april_2024,
             'avg_2024_sales': avg_2024
@@ -650,25 +650,21 @@ def analyze_promotion_effectiveness_enhanced(data):
     
     return pd.DataFrame(effectiveness_results)
 
-# 创建更易读的区域覆盖率分析图
+# 区域覆盖率分析
 def create_regional_coverage_analysis(data):
     """创建更易读的区域产品覆盖率分析"""
     sales_df = data['sales_df']
     dashboard_products = data['dashboard_products']
     
-    # 计算每个区域的产品覆盖情况
     regional_stats = []
     regions = sales_df['区域'].unique()
     
     for region in regions:
         region_data = sales_df[sales_df['区域'] == region]
-        
-        # 该区域销售的仪表盘产品数
         products_sold = region_data[region_data['产品代码'].isin(dashboard_products)]['产品代码'].nunique()
         total_products = len(dashboard_products)
         coverage_rate = (products_sold / total_products * 100) if total_products > 0 else 0
         
-        # 该区域总销售额
         total_sales = region_data['销售额'].sum()
         dashboard_sales = region_data[region_data['产品代码'].isin(dashboard_products)]['销售额'].sum()
         
@@ -679,15 +675,13 @@ def create_regional_coverage_analysis(data):
             'total_products': total_products,
             'total_sales': total_sales,
             'dashboard_sales': dashboard_sales,
-            'gap': max(0, 80 - coverage_rate)  # 与80%目标的差距
+            'gap': max(0, 80 - coverage_rate)
         })
     
     df = pd.DataFrame(regional_stats).sort_values('coverage_rate', ascending=True)
     
-    # 创建水平条形图
     fig = go.Figure()
     
-    # 添加实际覆盖率条形
     fig.add_trace(go.Bar(
         y=df['region'],
         x=df['coverage_rate'],
@@ -711,21 +705,12 @@ def create_regional_coverage_analysis(data):
         customdata=df[['products_sold', 'total_products', 'total_sales', 'dashboard_sales']].values
     ))
     
-    # 添加目标线
     fig.add_vline(x=80, line_dash="dash", line_color="red", 
                  annotation_text="目标: 80%", annotation_position="top")
     
-    # 更新布局
     fig.update_layout(
-        title=dict(
-            text="<b>区域产品覆盖率分析</b><br><sub>各区域仪表盘产品覆盖情况</sub>",
-            font=dict(size=20)
-        ),
-        xaxis=dict(
-            title="覆盖率 (%)",
-            range=[0, 105],
-            tickformat='.0f'
-        ),
+        title=dict(text="<b>区域产品覆盖率分析</b>", font=dict(size=20)),
+        xaxis=dict(title="覆盖率 (%)", range=[0, 105]),
         yaxis=dict(title=""),
         height=500,
         showlegend=False,
@@ -735,20 +720,16 @@ def create_regional_coverage_analysis(data):
     
     return fig, df
 
-# 创建真实的产品关联网络图（2D版本）
+# 产品关联网络图
 def create_real_product_network(data):
     """基于真实销售数据创建产品关联网络图"""
     sales_df = data['sales_df']
     dashboard_products = data['dashboard_products']
     
-    # 只分析仪表盘产品
     sales_df_filtered = sales_df[sales_df['产品代码'].isin(dashboard_products)]
-    
-    # 计算产品关联度（基于共同客户购买）
     product_pairs = []
     
-    for prod1, prod2 in combinations(dashboard_products[:20], 2):  # 限制显示前20个产品
-        # 找出同时购买这两个产品的客户
+    for prod1, prod2 in combinations(dashboard_products[:20], 2):
         customers_prod1 = set(sales_df_filtered[sales_df_filtered['产品代码'] == prod1]['客户名称'].unique())
         customers_prod2 = set(sales_df_filtered[sales_df_filtered['产品代码'] == prod2]['客户名称'].unique())
         
@@ -758,14 +739,12 @@ def create_real_product_network(data):
         if len(total_customers) > 0:
             correlation = len(common_customers) / len(total_customers)
             
-            if correlation > 0.3:  # 只显示关联度大于30%的
-                # 获取产品名称
+            if correlation > 0.3:
                 name1 = sales_df_filtered[sales_df_filtered['产品代码'] == prod1]['产品简称'].iloc[0] if len(sales_df_filtered[sales_df_filtered['产品代码'] == prod1]) > 0 else prod1
                 name2 = sales_df_filtered[sales_df_filtered['产品代码'] == prod2]['产品简称'].iloc[0] if len(sales_df_filtered[sales_df_filtered['产品代码'] == prod2]) > 0 else prod2
                 
                 product_pairs.append((name1, name2, correlation, len(common_customers)))
     
-    # 构建节点列表
     nodes = set()
     for pair in product_pairs:
         nodes.add(pair[0])
@@ -773,7 +752,6 @@ def create_real_product_network(data):
     
     nodes = list(nodes)
     
-    # 创建节点位置
     pos = {}
     angle_step = 2 * np.pi / len(nodes)
     for i, node in enumerate(nodes):
@@ -787,7 +765,6 @@ def create_real_product_network(data):
         x0, y0 = pos[pair[0]]
         x1, y1 = pos[pair[1]]
         
-        # 边的颜色和宽度根据关联度
         color_intensity = int(255 * pair[2])
         color = f'rgba({color_intensity}, {100}, {255-color_intensity}, {pair[2]})'
         
@@ -814,7 +791,6 @@ def create_real_product_network(data):
     node_x = [pos[node][0] for node in nodes]
     node_y = [pos[node][1] for node in nodes]
     
-    # 计算节点重要性（基于连接数）
     node_sizes = []
     node_details = []
     for node in nodes:
@@ -822,7 +798,6 @@ def create_real_product_network(data):
         total_correlation = sum(pair[2] for pair in product_pairs if node in pair[:2])
         node_sizes.append(20 + connections * 10)
         
-        # 获取产品销售数据
         product_data = sales_df_filtered[sales_df_filtered['产品简称'] == node]
         if len(product_data) > 0:
             total_sales = product_data['销售额'].sum()
@@ -866,10 +841,7 @@ def create_real_product_network(data):
     ))
     
     fig.update_layout(
-        title=dict(
-            text="<b>产品关联网络分析</b><br><sub>基于客户购买行为的产品关联度</sub>",
-            font=dict(size=20)
-        ),
+        title=dict(text="<b>产品关联网络分析</b>", font=dict(size=20)),
         xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
         yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
         height=700,
@@ -879,7 +851,7 @@ def create_real_product_network(data):
     
     return fig
 
-# 创建优化的促销活动柱状图
+# 促销活动柱状图
 def create_optimized_promotion_chart(promo_results):
     """创建优化的促销活动有效性柱状图"""
     if len(promo_results) == 0:
@@ -887,12 +859,8 @@ def create_optimized_promotion_chart(promo_results):
         
     fig = go.Figure()
     
-    # 根据有效性设置颜色
-    colors = []
-    for is_eff in promo_results['is_effective']:
-        colors.append('#10b981' if is_eff else '#ef4444')
+    colors = ['#10b981' if is_eff else '#ef4444' for is_eff in promo_results['is_effective']]
     
-    # 创建详细的hover文本
     hover_texts = []
     for _, row in promo_results.iterrows():
         arrow_up = '↑'
@@ -911,18 +879,13 @@ def create_optimized_promotion_chart(promo_results):
 {'继续加大促销力度，扩大市场份额' if row['is_effective'] else '调整促销策略，优化投入产出比'}"""
         hover_texts.append(hover_text)
     
-    # 为避免文字重叠，调整数据显示
     y_values = promo_results['sales'].values
     x_labels = promo_results['product'].values
     
-    # 创建柱状图
     fig.add_trace(go.Bar(
         x=x_labels,
         y=y_values,
-        marker=dict(
-            color=colors,
-            line=dict(width=0)
-        ),
+        marker=dict(color=colors, line=dict(width=0)),
         text=[f"¥{val:,.0f}" for val in y_values],
         textposition='outside',
         textfont=dict(size=11, weight='bold'),
@@ -932,10 +895,7 @@ def create_optimized_promotion_chart(promo_results):
     ))
     
     effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
-    
-    # 计算合适的Y轴范围
     max_sales = y_values.max() if len(y_values) > 0 else 1000
-    y_range_max = max_sales * 1.3
     
     fig.update_layout(
         title=dict(
@@ -944,26 +904,15 @@ def create_optimized_promotion_chart(promo_results):
             x=0.5,
             xanchor='center'
         ),
-        xaxis=dict(
-            title="促销产品",
-            tickangle=-30 if len(x_labels) > 6 else 0,
-            tickfont=dict(size=11)
-        ),
-        yaxis=dict(
-            title="销售额 (¥)",
-            range=[0, y_range_max],
-            gridcolor='rgba(200,200,200,0.3)',
-            zerolinecolor='rgba(200,200,200,0.5)'
-        ),
+        xaxis=dict(title="促销产品", tickangle=-30 if len(x_labels) > 6 else 0),
+        yaxis=dict(title="销售额 (¥)", range=[0, max_sales * 1.3]),
         height=550,
         showlegend=False,
         hovermode='closest',
         plot_bgcolor='white',
-        bargap=0.3,
-        margin=dict(t=100, b=100)
+        bargap=0.3
     )
     
-    # 添加平均线
     avg_sales = y_values.mean()
     fig.add_hline(
         y=avg_sales, 
@@ -1000,12 +949,12 @@ def main():
     
     tabs = st.tabs(tab_names)
     
-    # Tab 1: 产品情况总览
+    # Tab 1: 产品情况总览 - 4个卡片/行布局
     with tabs[0]:
         metrics = calculate_comprehensive_metrics(data)
         
-        # 第一行：3个卡片
-        col1, col2, col3 = st.columns(3)
+        # 第一行：4个卡片
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             st.markdown(f"""
@@ -1033,12 +982,20 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
+        with col4:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{metrics['promo_effectiveness']:.1f}%</div>
+                <div class="metric-label">🚀 全国促销有效性</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # 第二行：3个卡片
-        col4, col5, col6 = st.columns(3)
+        # 第二行：4个卡片
+        col5, col6, col7, col8 = st.columns(4)
         
-        with col4:
+        with col5:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-value">{metrics['new_ratio']:.1f}%</div>
@@ -1046,7 +1003,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        with col5:
+        with col6:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-value">{metrics['star_ratio']:.1f}%</div>
@@ -1054,7 +1011,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        with col6:
+        with col7:
             status_color = '#10b981' if metrics['total_ratio'] >= 20 else '#ef4444'
             status_text = "✅ 达标" if metrics['total_ratio'] >= 20 else "❌ 未达标"
             st.markdown(f"""
@@ -1065,27 +1022,60 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 第三行：1个卡片
-        col7, col8, col9 = st.columns([1, 1, 1])
-        
         with col8:
-            promo_results = analyze_promotion_effectiveness_enhanced(data)
-            effectiveness = (promo_results['is_effective'].sum() / len(promo_results) * 100) if len(promo_results) > 0 else 0
+            # 第8个卡片可以放其他重要指标，比如产品数量
+            total_products = len(data['dashboard_products'])
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">{effectiveness:.1f}%</div>
-                <div class="metric-label">🚀 全国促销有效性</div>
+                <div class="metric-value">{total_products}</div>
+                <div class="metric-label">📦 仪表盘产品数</div>
             </div>
             """, unsafe_allow_html=True)
     
-    # Tab 2: BCG产品矩阵
+    # Tab 2: 交互式BCG产品矩阵
     with tabs[1]:
         bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
         
+        # 交互控制面板
+        st.markdown('<div class="bcg-controls">', unsafe_allow_html=True)
+        
+        control_col1, control_col2, control_col3 = st.columns([1, 1, 1])
+        
+        with control_col1:
+            search_term = st.text_input("🔍 搜索产品", placeholder="输入产品名称或代码...")
+        
+        with control_col2:
+            category_filter = st.selectbox(
+                "📂 筛选类别", 
+                ["全部", "明星产品", "问号产品", "现金牛产品", "瘦狗产品"]
+            )
+        
+        with control_col3:
+            if bcg_dimension == "🗺️ 分区域维度":
+                regions = data['sales_df']['区域'].unique()
+                selected_region = st.selectbox("🗺️ 选择区域", regions)
+            else:
+                selected_region = None
+                st.write("")  # 占位
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 获取分析数据
         if bcg_dimension == "🌏 全国维度":
-            fig, product_analysis = create_enhanced_bcg_matrix(data, 'national')
+            product_analysis = create_interactive_bcg_matrix(data, 'national')
+            title = "BCG产品矩阵"
+        else:
+            product_analysis = create_interactive_bcg_matrix(data, 'regional', selected_region)
+            title = f"{selected_region}区域 BCG产品矩阵"
+        
+        # 显示交互式图表
+        if len(product_analysis) > 0:
+            fig = plot_interactive_bcg_matrix(
+                product_analysis, 
+                title=title, 
+                search_term=search_term, 
+                selected_category=category_filter
+            )
             st.plotly_chart(fig, use_container_width=True)
             
             # JBP符合度分析
@@ -1098,7 +1088,9 @@ def main():
             star_question_ratio = star_question_sales / total_sales * 100 if total_sales > 0 else 0
             dog_ratio = dog_sales / total_sales * 100 if total_sales > 0 else 0
             
-            with st.expander("📊 JBP符合度分析", expanded=True):
+            region_prefix = f"{selected_region}区域 " if bcg_dimension == "🗺️ 分区域维度" else ""
+            
+            with st.expander(f"📊 {region_prefix}JBP符合度分析", expanded=True):
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
@@ -1118,46 +1110,51 @@ def main():
                              "✅ 符合" if dog_ratio <= 10 else "❌ 不符合",
                              delta_color="normal" if dog_ratio <= 10 else "inverse")
                     st.caption("目标: ≤10%")
-        
-        else:  # 分区域维度
-            regions = data['sales_df']['区域'].unique()
-            selected_region = st.selectbox("选择区域", regions)
             
-            if selected_region:
-                fig, product_analysis = create_enhanced_bcg_matrix(data, 'regional', selected_region)
-                if fig:
-                    st.plotly_chart(fig, use_container_width=True)
+            # 产品详情表格
+            if search_term or category_filter != "全部":
+                st.subheader("🔍 筛选结果详情")
+                
+                # 筛选逻辑
+                filtered_df = product_analysis.copy()
+                if search_term:
+                    mask = filtered_df['name'].str.contains(search_term, case=False, na=False) | \
+                           filtered_df['product'].str.contains(search_term, case=False, na=False)
+                    filtered_df = filtered_df[mask]
+                
+                if category_filter != "全部":
+                    category_map = {
+                        "明星产品": "star",
+                        "问号产品": "question", 
+                        "现金牛产品": "cow",
+                        "瘦狗产品": "dog"
+                    }
+                    if category_filter in category_map:
+                        filtered_df = filtered_df[filtered_df['category'] == category_map[category_filter]]
+                
+                if len(filtered_df) > 0:
+                    display_df = filtered_df[['name', 'product', 'market_share', 'real_growth_rate', 'sales', 'category']].copy()
+                    display_df.columns = ['产品名称', '产品代码', '市场份额(%)', '增长率(%)', '销售额(¥)', '分类']
                     
-                    # 该区域的JBP符合度分析
-                    total_sales = product_analysis['sales'].sum()
-                    cow_sales = product_analysis[product_analysis['category'] == 'cow']['sales'].sum()
-                    star_question_sales = product_analysis[product_analysis['category'].isin(['star', 'question'])]['sales'].sum()
-                    dog_sales = product_analysis[product_analysis['category'] == 'dog']['sales'].sum()
+                    # 格式化数值
+                    display_df['市场份额(%)'] = display_df['市场份额(%)'].apply(lambda x: f"{x:.2f}%")
+                    display_df['增长率(%)'] = display_df['增长率(%)'].apply(lambda x: f"{x:.1f}%")
+                    display_df['销售额(¥)'] = display_df['销售额(¥)'].apply(lambda x: f"¥{x:,.0f}")
                     
-                    cow_ratio = cow_sales / total_sales * 100 if total_sales > 0 else 0
-                    star_question_ratio = star_question_sales / total_sales * 100 if total_sales > 0 else 0
-                    dog_ratio = dog_sales / total_sales * 100 if total_sales > 0 else 0
+                    # 分类中文映射
+                    category_chinese = {
+                        'star': '⭐ 明星产品',
+                        'question': '❓ 问号产品',
+                        'cow': '🐄 现金牛产品',
+                        'dog': '🐕 瘦狗产品'
+                    }
+                    display_df['分类'] = display_df['分类'].map(category_chinese)
                     
-                    with st.expander(f"📊 {selected_region}区域 JBP符合度分析", expanded=True):
-                        col1, col2, col3 = st.columns(3)
-                        
-                        with col1:
-                            st.metric("现金牛产品占比", f"{cow_ratio:.1f}%", 
-                                     "✅ 符合" if 45 <= cow_ratio <= 50 else "❌ 不符合",
-                                     delta_color="normal" if 45 <= cow_ratio <= 50 else "inverse")
-                            st.caption("目标: 45%-50%")
-                        
-                        with col2:
-                            st.metric("明星&问号产品占比", f"{star_question_ratio:.1f}%",
-                                     "✅ 符合" if 40 <= star_question_ratio <= 45 else "❌ 不符合",
-                                     delta_color="normal" if 40 <= star_question_ratio <= 45 else "inverse")
-                            st.caption("目标: 40%-45%")
-                        
-                        with col3:
-                            st.metric("瘦狗产品占比", f"{dog_ratio:.1f}%",
-                                     "✅ 符合" if dog_ratio <= 10 else "❌ 不符合",
-                                     delta_color="normal" if dog_ratio <= 10 else "inverse")
-                            st.caption("目标: ≤10%")
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("没有符合筛选条件的产品")
+        else:
+            st.warning("该区域暂无产品数据")
     
     # Tab 3: 全国促销活动有效性
     with tabs[2]:
