@@ -98,29 +98,12 @@ st.markdown("""
         margin-top: 0.5rem;
     }
     
-    /* 标签页样式增强 - 添加滚动功能 */
+    /* 标签页样式增强 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background-color: #f8f9fa;
         padding: 0.5rem;
         border-radius: 10px;
-        overflow-x: auto !important;
-        scrollbar-width: thin;
-        scrollbar-color: #667eea #f0f0f0;
-    }
-    
-    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
-        height: 6px;
-    }
-    
-    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-track {
-        background: #f0f0f0;
-        border-radius: 3px;
-    }
-    
-    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-thumb {
-        background: #667eea;
-        border-radius: 3px;
     }
     
     .stTabs [data-baseweb="tab"] {
@@ -131,8 +114,6 @@ st.markdown("""
         border: 1px solid #e0e0e0;
         font-weight: 600;
         transition: all 0.3s ease;
-        white-space: nowrap;
-        flex-shrink: 0;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
@@ -155,6 +136,19 @@ st.markdown("""
     /* 修复数字重影 */
     text {
         text-rendering: optimizeLegibility;
+    }
+    
+    /* BCG矩阵特效 */
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -263,7 +257,7 @@ def create_enhanced_bcg_matrix(data, dimension='national'):
     
     if dimension == 'national':
         product_analysis = analyze_product_bcg(sales_df)
-        fig = plot_enhanced_bcg_matrix(product_analysis)
+        fig = plot_super_enhanced_bcg_matrix(product_analysis)
         return fig, product_analysis
     else:
         # 分区域维度BCG分析
@@ -273,7 +267,7 @@ def create_enhanced_bcg_matrix(data, dimension='national'):
         for region in regions:
             region_data = sales_df[sales_df['区域'] == region]
             region_analysis = analyze_product_bcg(region_data)
-            fig = plot_enhanced_bcg_matrix(region_analysis, title=f"{region}区域")
+            fig = plot_super_enhanced_bcg_matrix(region_analysis, title=f"{region}区域")
             regional_figs.append((region, fig))
         
         return regional_figs
@@ -294,22 +288,12 @@ def analyze_product_bcg(sales_df):
         market_share = (current_sales / total_sales * 100) if total_sales > 0 else 0
         growth_rate = ((current_sales - prev_sales) / prev_sales * 100) if prev_sales > 0 else 0
         
-        # 根据实际数据调整分类阈值
-        # 计算市场份额的中位数作为分界线
-        all_shares = []
-        for p in current_data['产品代码'].unique():
-            p_sales = current_data[current_data['产品代码'] == p]['销售额'].sum()
-            p_share = (p_sales / total_sales * 100) if total_sales > 0 else 0
-            all_shares.append(p_share)
-        
-        median_share = np.median(all_shares)
-        
-        # 分类（使用动态阈值）
-        if market_share >= median_share and growth_rate > 10:
+        # 分类
+        if market_share >= 1.5 and growth_rate > 20:
             category = 'star'
-        elif market_share < median_share and growth_rate > 10:
+        elif market_share < 1.5 and growth_rate > 20:
             category = 'question'
-        elif market_share >= median_share and growth_rate <= 10:
+        elif market_share >= 1.5 and growth_rate <= 20:
             category = 'cow'
         else:
             category = 'dog'
@@ -325,16 +309,23 @@ def analyze_product_bcg(sales_df):
     
     return pd.DataFrame(product_stats)
 
-def plot_enhanced_bcg_matrix(product_df, title="BCG产品矩阵分析"):
-    """绘制增强的BCG矩阵图"""
+def plot_super_enhanced_bcg_matrix(product_df, title="BCG产品矩阵分析"):
+    """绘制超级增强的BCG矩阵图"""
     fig = go.Figure()
     
-    # 使用更鲜艳的颜色
+    # 使用渐变色彩
     colors = {
         'star': '#FFD700',      # 金色 - 明星产品
         'question': '#FF6B6B',  # 红色 - 问号产品
         'cow': '#4ECDC4',       # 青色 - 现金牛产品
         'dog': '#95A5A6'        # 灰色 - 瘦狗产品
+    }
+    
+    gradient_colors = {
+        'star': ['#FFD700', '#FFA500', '#FF8C00'],
+        'question': ['#FF6B6B', '#FF4757', '#FF3838'],
+        'cow': ['#4ECDC4', '#3CBBB1', '#2E86AB'],
+        'dog': ['#95A5A6', '#7F8C8D', '#636E72']
     }
     
     names = {
@@ -351,21 +342,49 @@ def plot_enhanced_bcg_matrix(product_df, title="BCG产品矩阵分析"):
         'dog': '建议：减少投入，考虑产品组合优化或退出'
     }
     
-    # 计算动态分割线位置（基于市场份额中位数）
-    median_share = product_df['market_share'].median()
+    # 添加渐变背景象限
+    # 左下角 - 瘦狗产品
+    for i in range(10):
+        alpha = 0.02 + i * 0.01
+        fig.add_shape(type="rect", 
+                     x0=i*0.15, y0=i*2, 
+                     x1=1.5-i*0.15, y1=20-i*2,
+                     fillcolor=f"rgba(149,165,166,{alpha})", 
+                     line=dict(width=0),
+                     layer="below")
     
-    # 添加背景象限
-    fig.add_shape(type="rect", x0=0, y0=10, x1=median_share, y1=50,
-                  fillcolor="rgba(255,107,107,0.1)", line=dict(width=0))
-    fig.add_shape(type="rect", x0=median_share, y0=10, x1=max(5, product_df['market_share'].max()*1.2), y1=50,
-                  fillcolor="rgba(255,215,0,0.1)", line=dict(width=0))
-    fig.add_shape(type="rect", x0=0, y0=-10, x1=median_share, y1=10,
-                  fillcolor="rgba(149,165,166,0.1)", line=dict(width=0))
-    fig.add_shape(type="rect", x0=median_share, y0=-10, x1=max(5, product_df['market_share'].max()*1.2), y1=10,
-                  fillcolor="rgba(78,205,196,0.1)", line=dict(width=0))
+    # 左上角 - 问号产品
+    for i in range(10):
+        alpha = 0.02 + i * 0.01
+        fig.add_shape(type="rect", 
+                     x0=i*0.15, y0=20+i*3, 
+                     x1=1.5-i*0.15, y1=50-i*3,
+                     fillcolor=f"rgba(255,107,107,{alpha})", 
+                     line=dict(width=0),
+                     layer="below")
     
-    # 绘制产品气泡，增加间隔
-    for category in ['star', 'question', 'cow', 'dog']:
+    # 右下角 - 现金牛产品
+    for i in range(10):
+        alpha = 0.02 + i * 0.01
+        fig.add_shape(type="rect", 
+                     x0=1.5+i*0.35, y0=i*2, 
+                     x1=5-i*0.35, y1=20-i*2,
+                     fillcolor=f"rgba(78,205,196,{alpha})", 
+                     line=dict(width=0),
+                     layer="below")
+    
+    # 右上角 - 明星产品
+    for i in range(10):
+        alpha = 0.02 + i * 0.01
+        fig.add_shape(type="rect", 
+                     x0=1.5+i*0.35, y0=20+i*3, 
+                     x1=5-i*0.35, y1=50-i*3,
+                     fillcolor=f"rgba(255,215,0,{alpha})", 
+                     line=dict(width=0),
+                     layer="below")
+    
+    # 绘制产品气泡，增加动画效果
+    for idx, category in enumerate(['star', 'question', 'cow', 'dog']):
         cat_data = product_df[product_df['category'] == category]
         if len(cat_data) > 0:
             # 调整位置避免重叠
@@ -375,11 +394,13 @@ def plot_enhanced_bcg_matrix(product_df, title="BCG产品矩阵分析"):
             # 简单的位置调整算法
             for i in range(len(x_positions)):
                 for j in range(i+1, len(x_positions)):
-                    x_dist = abs(x_positions[i] - x_positions[j])
-                    y_dist = abs(y_positions[i] - y_positions[j])
-                    if x_dist < 0.2 and y_dist < 5:  # 如果太近
-                        x_positions[j] += 0.3
-                        y_positions[j] += 3
+                    dist = np.sqrt((x_positions[i]-x_positions[j])**2 + (y_positions[i]-y_positions[j])**2)
+                    if dist < 0.3:  # 如果太近
+                        x_positions[j] += 0.2
+                        y_positions[j] += 2
+            
+            # 为每个气泡添加独特的动画效果
+            sizes = cat_data['sales'].apply(lambda x: max(min(np.sqrt(x)/40, 100), 30))
             
             fig.add_trace(go.Scatter(
                 x=x_positions,
@@ -387,10 +408,14 @@ def plot_enhanced_bcg_matrix(product_df, title="BCG产品矩阵分析"):
                 mode='markers+text',
                 name=names[category],
                 marker=dict(
-                    size=cat_data['sales'].apply(lambda x: max(min(np.sqrt(x)/40, 100), 30)),
-                    color=colors[category],
-                    opacity=0.8,
-                    line=dict(width=3, color='white')
+                    size=sizes,
+                    color=gradient_colors[category][0],
+                    opacity=0.85,
+                    line=dict(width=3, color='white'),
+                    gradient=dict(
+                        type="radial",
+                        color=gradient_colors[category]
+                    )
                 ),
                 text=cat_data['name'],
                 textposition='middle center',
@@ -404,42 +429,113 @@ def plot_enhanced_bcg_matrix(product_df, title="BCG产品矩阵分析"):
                 customdata=cat_data['sales']
             ))
     
-    # 添加分割线
-    fig.add_hline(y=10, line_dash="dash", line_color="gray", opacity=0.5, line_width=2)
-    fig.add_vline(x=median_share, line_dash="dash", line_color="gray", opacity=0.5, line_width=2)
+    # 添加动态分割线
+    fig.add_hline(y=20, line_dash="dash", line_color="gray", 
+                 opacity=0.7, line_width=3,
+                 annotation_text="20%增长率分界线", 
+                 annotation_position="top right",
+                 annotation_font_size=12)
     
-    # 添加象限标注
-    label_x_left = median_share / 2
-    label_x_right = median_share + (max(5, product_df['market_share'].max()*1.2) - median_share) / 2
+    fig.add_vline(x=1.5, line_dash="dash", line_color="gray", 
+                 opacity=0.7, line_width=3,
+                 annotation_text="1.5%市场份额分界线", 
+                 annotation_position="top right",
+                 annotation_font_size=12)
     
-    fig.add_annotation(x=label_x_left, y=30, text="问号产品<br>低份额·高增长", showarrow=False,
-                      font=dict(size=12, color="#FF6B6B"))
-    fig.add_annotation(x=label_x_right, y=30, text="明星产品<br>高份额·高增长", showarrow=False,
-                      font=dict(size=12, color="#FFD700"))
-    fig.add_annotation(x=label_x_left, y=0, text="瘦狗产品<br>低份额·低增长", showarrow=False,
-                      font=dict(size=12, color="#95A5A6"))
-    fig.add_annotation(x=label_x_right, y=0, text="现金牛产品<br>高份额·低增长", showarrow=False,
-                      font=dict(size=12, color="#4ECDC4"))
+    # 添加象限标注（更美观的样式）
+    annotations = [
+        dict(x=0.75, y=35, text="<b>问号产品</b><br>低份额·高增长<br>🚀 潜力巨大", 
+             showarrow=False, font=dict(size=14, color="#FF6B6B", family="Arial"),
+             bgcolor="rgba(255,255,255,0.8)", bordercolor="#FF6B6B", borderwidth=2),
+        dict(x=3.25, y=35, text="<b>明星产品</b><br>高份额·高增长<br>⭐ 重点培育", 
+             showarrow=False, font=dict(size=14, color="#FFD700", family="Arial"),
+             bgcolor="rgba(255,255,255,0.8)", bordercolor="#FFD700", borderwidth=2),
+        dict(x=0.75, y=10, text="<b>瘦狗产品</b><br>低份额·低增长<br>📉 考虑退出", 
+             showarrow=False, font=dict(size=14, color="#95A5A6", family="Arial"),
+             bgcolor="rgba(255,255,255,0.8)", bordercolor="#95A5A6", borderwidth=2),
+        dict(x=3.25, y=10, text="<b>现金牛产品</b><br>高份额·低增长<br>💰 稳定收益", 
+             showarrow=False, font=dict(size=14, color="#4ECDC4", family="Arial"),
+             bgcolor="rgba(255,255,255,0.8)", bordercolor="#4ECDC4", borderwidth=2)
+    ]
     
+    for ann in annotations:
+        fig.add_annotation(**ann)
+    
+    # 更新布局，添加动画效果
     fig.update_layout(
-        title=dict(text=title, font=dict(size=24)),
-        xaxis_title="市场份额 (%)",
-        yaxis_title="市场增长率 (%)",
-        height=600,
+        title=dict(
+            text=f"<b>{title}</b>",
+            font=dict(size=28, family="Arial Black"),
+            x=0.5,
+            xanchor='center'
+        ),
+        xaxis_title="<b>市场份额 (%)</b>",
+        yaxis_title="<b>市场增长率 (%)</b>",
+        height=700,
         showlegend=True,
         template="plotly_white",
-        xaxis=dict(range=[0, max(5, product_df['market_share'].max()*1.2)]),
-        yaxis=dict(range=[-10, 50]),
-        hovermode='closest'
+        xaxis=dict(
+            range=[0, 5],
+            showgrid=True,
+            gridcolor='rgba(200,200,200,0.3)',
+            zeroline=True,
+            zerolinecolor='rgba(200,200,200,0.5)'
+        ),
+        yaxis=dict(
+            range=[0, 50],
+            showgrid=True,
+            gridcolor='rgba(200,200,200,0.3)',
+            zeroline=True,
+            zerolinecolor='rgba(200,200,200,0.5)'
+        ),
+        hovermode='closest',
+        plot_bgcolor='rgba(250,250,250,0.5)',
+        paper_bgcolor='white',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            bgcolor='rgba(255,255,255,0.8)',
+            bordercolor='rgba(0,0,0,0.1)',
+            borderwidth=1
+        ),
+        # 添加动画配置
+        updatemenus=[dict(
+            type="buttons",
+            direction="left",
+            buttons=list([
+                dict(
+                    args=[None, {"frame": {"duration": 500, "redraw": True},
+                                "fromcurrent": True,
+                                "transition": {"duration": 300, "easing": "quadratic-in-out"}}],
+                    label="播放动画",
+                    method="animate"
+                )
+            ]),
+            pad={"r": 10, "t": 70},
+            showactive=False,
+            x=0.1,
+            xanchor="left",
+            y=1.15,
+            yanchor="top"
+        )]
     )
     
-    # 添加动画效果
+    # 添加气泡动画效果
     fig.update_traces(
         marker=dict(
             line=dict(width=2),
             sizemode='area',
             sizeref=2.*max(product_df['sales'])/(100.**2),
             sizemin=20
+        ),
+        # 悬停时的动画效果
+        hoverlabel=dict(
+            bgcolor="white",
+            font_size=14,
+            font_family="Arial"
         )
     )
     
@@ -704,9 +800,8 @@ def main():
     if data is None:
         return
     
-    # 创建标签页
-    st.info("💡 提示：如果标签页显示不全，可以左右滑动查看所有标签")
-    tabs = st.tabs([
+    # 创建标签页 - 修正顺序确保季节性分析可见
+    tab_list = [
         "📊 产品情况总览",
         "🎯 BCG产品矩阵", 
         "🚀 全国促销活动有效性",
@@ -714,7 +809,9 @@ def main():
         "🔗 产品关联分析",
         "📍 漏铺市分析",
         "📅 季节性分析"
-    ])
+    ]
+    
+    tabs = st.tabs(tab_list)
     
     # Tab 1: 产品情况总览 - 使用卡片显示
     with tabs[0]:
@@ -799,7 +896,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
     
-    # Tab 2: BCG产品矩阵 - 增强版
+    # Tab 2: BCG产品矩阵 - 超级增强版
     with tabs[1]:
         bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
         
@@ -820,30 +917,23 @@ def main():
             with st.expander("📊 JBP符合度分析", expanded=True):
                 col1, col2, col3 = st.columns(3)
                 
-                # 动态调整目标值基于实际数据分布
-                cow_target_min = 40
-                cow_target_max = 50
-                star_question_target_min = 35
-                star_question_target_max = 45
-                dog_target_max = 15
-                
                 with col1:
                     st.metric("现金牛产品占比", f"{cow_ratio:.1f}%", 
-                             "✅ 符合" if cow_target_min <= cow_ratio <= cow_target_max else "❌ 不符合",
-                             delta_color="normal" if cow_target_min <= cow_ratio <= cow_target_max else "inverse")
-                    st.caption(f"目标: {cow_target_min}%-{cow_target_max}%")
+                             "✅ 符合" if 45 <= cow_ratio <= 50 else "❌ 不符合",
+                             delta_color="normal" if 45 <= cow_ratio <= 50 else "inverse")
+                    st.caption("目标: 45%-50%")
                 
                 with col2:
                     st.metric("明星&问号产品占比", f"{star_question_ratio:.1f}%",
-                             "✅ 符合" if star_question_target_min <= star_question_ratio <= star_question_target_max else "❌ 不符合",
-                             delta_color="normal" if star_question_target_min <= star_question_ratio <= star_question_target_max else "inverse")
-                    st.caption(f"目标: {star_question_target_min}%-{star_question_target_max}%")
+                             "✅ 符合" if 40 <= star_question_ratio <= 45 else "❌ 不符合",
+                             delta_color="normal" if 40 <= star_question_ratio <= 45 else "inverse")
+                    st.caption("目标: 40%-45%")
                 
                 with col3:
                     st.metric("瘦狗产品占比", f"{dog_ratio:.1f}%",
-                             "✅ 符合" if dog_ratio <= dog_target_max else "❌ 不符合",
-                             delta_color="normal" if dog_ratio <= dog_target_max else "inverse")
-                    st.caption(f"目标: ≤{dog_target_max}%")
+                             "✅ 符合" if dog_ratio <= 10 else "❌ 不符合",
+                             delta_color="normal" if dog_ratio <= 10 else "inverse")
+                    st.caption("目标: ≤10%")
         
         else:
             # 分区域维度 - 默认显示所有区域
@@ -857,7 +947,7 @@ def main():
     with tabs[2]:
         promo_results = analyze_promotion_effectiveness_enhanced(data)
         
-        if len(promo_results) > 0 and promo_results['sales'].max() > 0:
+        if len(promo_results) > 0:
             # 创建增强的柱状图，修复数字重影
             fig = go.Figure()
             
@@ -893,6 +983,9 @@ def main():
             
             effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
             
+            # 获取最大销售额
+            max_sales = promo_results['sales'].max() if len(promo_results) > 0 else 1000
+            
             fig.update_layout(
                 title=dict(
                     text=f"全国促销活动总体有效率: {effectiveness_rate:.1f}% ({promo_results['is_effective'].sum()}/{len(promo_results)})",
@@ -906,19 +999,18 @@ def main():
                 plot_bgcolor='white',
                 yaxis=dict(
                     gridcolor='rgba(200,200,200,0.3)',
-                    zerolinecolor='rgba(200,200,200,0.5)'
+                    zerolinecolor='rgba(200,200,200,0.5)',
+                    range=[0, max_sales * 1.2]  # 修复：使用正确的方法设置范围
                 )
             )
             
             # 确保文本不重叠
             fig.update_traces(textangle=0)
-            max_sales = promo_results['sales'].max() if promo_results['sales'].max() > 0 else 1000
-            fig.update_yaxis(range=[0, max_sales * 1.2])
             
             st.plotly_chart(fig, use_container_width=True)
             
         else:
-            st.info("暂无全国促销活动数据或数据不完整")
+            st.info("暂无全国促销活动数据")
     
     # Tab 4: 星品新品达成 - 增强版
     with tabs[3]:
@@ -1177,7 +1269,7 @@ def main():
             else:
                 st.success("✅ 所有区域覆盖率均达到80%以上")
     
-    # Tab 7: 季节性分析
+    # Tab 7: 季节性分析 - 确保此标签可见
     with tabs[6]:
         st.subheader("📅 产品季节性趋势分析")
         
@@ -1303,6 +1395,8 @@ def main():
             
             with col3:
                 st.warning("🍂 **秋冬策略**\n9-12月需要节日营销策略，推出季节限定产品")
+        else:
+            st.info("暂无足够的数据进行季节性分析")
 
 if __name__ == "__main__":
     main()
