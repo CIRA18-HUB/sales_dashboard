@@ -1,4 +1,4 @@
-# pages/预测库存分析.py - 高级优化版
+# pages/预测库存分析.py - 优化版（白色主题+增强动画）
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -31,219 +31,321 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
     st.switch_page("登陆界面haha.py")
     st.stop()
 
-# 高级自定义CSS - 现代化深色主题
+# 白色主题CSS样式（参考附件二的风格）
 st.markdown("""
 <style>
-    /* 现代深色渐变背景 */
-    .stApp {
-        background: linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%);
-        min-height: 100vh;
+    /* 主标题动画样式 */
+    .main-header {
+        text-align: center;
+        padding: 2rem 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        animation: fadeInDown 1s ease-in;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
     
-    /* 动态粒子背景效果 */
-    .stApp::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-image: 
-            radial-gradient(circle at 20% 50%, rgba(120, 231, 255, 0.2) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, rgba(255, 119, 48, 0.2) 0%, transparent 50%),
-            radial-gradient(circle at 40% 20%, rgba(200, 122, 255, 0.2) 0%, transparent 50%);
-        animation: particleFloat 20s ease-in-out infinite;
-        pointer-events: none;
-        z-index: 1;
+    @keyframes fadeInDown {
+        from { 
+            opacity: 0; 
+            transform: translateY(-30px);
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0);
+        }
     }
     
-    @keyframes particleFloat {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        33% { transform: translateY(-20px) rotate(120deg); }
-        66% { transform: translateY(20px) rotate(240deg); }
-    }
-    
-    /* 毛玻璃效果容器 */
-    .glass-container {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 
-            0 8px 32px 0 rgba(31, 38, 135, 0.37),
-            inset 0 0 20px rgba(255, 255, 255, 0.05);
-    }
-    
-    /* 高级指标卡片 */
-    div[data-testid="metric-container"] {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+    /* 增强的指标卡片样式 */
+    .metric-card {
+        background: white;
         padding: 1.5rem;
         border-radius: 15px;
-        box-shadow: 
-            0 8px 32px rgba(31, 38, 135, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(20px);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        text-align: center;
+        height: 100%;
+        transition: all 0.3s ease;
+        animation: slideUp 0.6s ease-out;
         position: relative;
         overflow: hidden;
+        border: 1px solid #f0f0f0;
     }
     
-    div[data-testid="metric-container"]::before {
+    .metric-card:hover {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        border-color: #667eea;
+    }
+    
+    .metric-card::before {
         content: '';
         position: absolute;
         top: -50%;
         left: -50%;
         width: 200%;
         height: 200%;
-        background: linear-gradient(
-            45deg,
-            transparent,
-            rgba(255, 255, 255, 0.1),
-            transparent
-        );
+        background: linear-gradient(45deg, transparent, rgba(102,126,234,0.1), transparent);
         transform: rotate(45deg);
-        transition: all 0.5s;
+        transition: all 0.6s;
         opacity: 0;
     }
     
-    div[data-testid="metric-container"]:hover::before {
-        animation: shimmer 0.5s;
-        opacity: 1;
+    .metric-card:hover::before {
+        animation: shimmer 0.6s ease-in-out;
     }
     
     @keyframes shimmer {
-        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        0% { 
+            transform: translateX(-100%) translateY(-100%) rotate(45deg); 
+            opacity: 0; 
+        }
+        50% { 
+            opacity: 1; 
+        }
+        100% { 
+            transform: translateX(100%) translateY(100%) rotate(45deg); 
+            opacity: 0; 
+        }
+    }
+    
+    @keyframes slideUp {
+        from { 
+            opacity: 0; 
+            transform: translateY(30px);
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0);
+        }
+    }
+    
+    /* 动画延迟效果 */
+    .metric-card:nth-child(1) { animation-delay: 0.1s; }
+    .metric-card:nth-child(2) { animation-delay: 0.2s; }
+    .metric-card:nth-child(3) { animation-delay: 0.3s; }
+    .metric-card:nth-child(4) { animation-delay: 0.4s; }
+    .metric-card:nth-child(5) { animation-delay: 0.5s; }
+    .metric-card:nth-child(6) { animation-delay: 0.6s; }
+    .metric-card:nth-child(7) { animation-delay: 0.7s; }
+    .metric-card:nth-child(8) { animation-delay: 0.8s; }
+    
+    .metric-value {
+        font-size: 2.2rem;
+        font-weight: bold;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    
+    .metric-label {
+        color: #666;
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+    }
+    
+    /* 指标容器样式 */
+    div[data-testid="metric-container"] {
+        background: white;
+        border: 1px solid #e0e0e0;
+        padding: 1.5rem;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        animation: fadeIn 0.8s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
     }
     
     div[data-testid="metric-container"]:hover {
-        transform: translateY(-5px) scale(1.02);
-        box-shadow: 
-            0 12px 40px rgba(31, 38, 135, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.3);
-        border-color: rgba(255, 255, 255, 0.3);
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        border-color: #667eea;
     }
     
-    /* 高级标签样式 */
+    /* 标签页样式增强 */
     .stTabs [data-baseweb="tab-list"] {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border-radius: 15px;
+        gap: 8px;
+        background-color: #f8f9fa;
         padding: 0.5rem;
-        gap: 0.5rem;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
     }
     
     .stTabs [data-baseweb="tab"] {
-        background: transparent;
-        border-radius: 10px;
-        color: rgba(255, 255, 255, 0.8);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        font-weight: 500;
-        position: relative;
-        overflow: hidden;
+        height: 50px;
+        padding: 0 24px;
+        background-color: white;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        animation: tabFadeIn 0.5s ease-out;
     }
     
-    .stTabs [data-baseweb="tab"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        opacity: 0;
-        transition: opacity 0.3s;
-        border-radius: 10px;
+    @keyframes tabFadeIn {
+        from { 
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to { 
+            opacity: 1;
+            transform: translateX(0);
+        }
     }
     
-    .stTabs [data-baseweb="tab"]:hover::before {
-        opacity: 0.2;
+    .stTabs [data-baseweb="tab"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        background: linear-gradient(135deg, #f0f0f0 0%, #ffffff 100%);
     }
     
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        font-weight: 600;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        border: none;
+        animation: tabActive 0.3s ease-out;
     }
     
-    /* 文本样式优化 */
-    h1, h2, h3, h4, h5, h6 {
-        color: #FFFFFF !important;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    @keyframes tabActive {
+        from { transform: scale(0.95); }
+        to { transform: scale(1); }
     }
     
-    p, label, .stMarkdown {
-        color: rgba(255, 255, 255, 0.9) !important;
-    }
-    
-    /* 高级图表容器 */
+    /* 图表容器动画 */
     .js-plotly-plot {
         border-radius: 15px;
         overflow: hidden;
-        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.2);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        animation: chartFadeIn 1s ease-out;
     }
     
-    /* 提示框样式 */
-    .stAlert {
-        background: rgba(255, 255, 255, 0.1) !important;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 10px;
+    @keyframes chartFadeIn {
+        from { 
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to { 
+            opacity: 1;
+            transform: scale(1);
+        }
     }
     
-    /* 展开器高级样式 */
+    /* 文本样式 */
+    h1, h2, h3, h4, h5, h6 {
+        color: #333 !important;
+        animation: textFadeIn 0.8s ease-out;
+    }
+    
+    @keyframes textFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    /* 展开器动画样式 */
     .streamlit-expanderHeader {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
         border-radius: 10px;
-        color: white !important;
+        color: #333 !important;
         font-weight: 500;
         transition: all 0.3s;
+        animation: expanderFadeIn 0.6s ease-out;
+    }
+    
+    @keyframes expanderFadeIn {
+        from { 
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to { 
+            opacity: 1;
+            transform: translateX(0);
+        }
     }
     
     .streamlit-expanderHeader:hover {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
+        background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%);
         transform: translateX(5px);
     }
     
-    /* 动画按钮效果 */
-    .glow-button {
-        animation: glow 2s ease-in-out infinite alternate;
+    /* 悬浮球动画 */
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-20px); }
     }
     
-    @keyframes glow {
-        from { box-shadow: 0 0 10px -10px #667eea; }
-        to { box-shadow: 0 0 20px 10px #667eea; }
+    /* 旋转动画 */
+    @keyframes rotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
     
-    /* 信息密度优化 */
-    .high-density-chart {
-        margin: -10px -20px;
+    /* 闪烁动画 */
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
     }
     
-    /* 渐变文字效果 */
-    .gradient-text {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-weight: bold;
+    /* 波纹效果 */
+    @keyframes ripple {
+        0% {
+            transform: scale(0);
+            opacity: 1;
+        }
+        100% {
+            transform: scale(4);
+            opacity: 0;
+        }
+    }
+    
+    /* 渐变动画 */
+    @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    /* 应用渐变动画的元素 */
+    .gradient-animated {
+        background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c);
+        background-size: 400% 400%;
+        animation: gradientShift 15s ease infinite;
+    }
+    
+    /* 弹跳动画 */
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+        40% { transform: translateY(-30px); }
+        60% { transform: translateY(-15px); }
+    }
+    
+    /* 修复数字重影 */
+    text {
+        text-rendering: optimizeLegibility;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 现代化专业配色方案
+# 专业配色方案
 COLOR_SCHEME = {
-    # 主色调 - 科技蓝紫渐变
+    # 主色调 - 紫色渐变
     'primary_gradient': ['#667eea', '#764ba2'],
     'secondary_gradient': ['#78E1FF', '#4A90E2'],
     
-    # 数据可视化专业色板
+    # 数据可视化色板
     'chart_colors': [
-        '#78E1FF',  # 亮蓝
+        '#667eea',  # 主紫色
         '#FF6B9D',  # 玫瑰红
         '#C44569',  # 深红
         '#FFC75F',  # 金黄
@@ -253,47 +355,47 @@ COLOR_SCHEME = {
         '#00C9A7'   # 青绿
     ],
     
-    # 风险等级色彩 - 更鲜明的对比
+    # 风险等级色彩
     'risk_extreme': '#FF4757',     # 鲜红
     'risk_high': '#FF6348',        # 橙红
     'risk_medium': '#FFA502',      # 明黄
     'risk_low': '#2ED573',         # 翠绿
     'risk_minimal': '#5352ED',     # 宝蓝
     
-    # 背景和高亮色
-    'bg_primary': 'rgba(15, 32, 39, 0.95)',
-    'bg_secondary': 'rgba(32, 58, 67, 0.9)',
-    'highlight': '#78E1FF',
-    'accent': '#FF6B9D'
+    # 背景色
+    'bg_primary': '#FFFFFF',
+    'bg_secondary': '#F8F9FA',
+    'text_primary': '#333333',
+    'text_secondary': '#666666'
 }
 
-# 高级Plotly主题模板
+# Plotly主题模板 - 白色背景
 plotly_layout_template = dict(
-    plot_bgcolor='rgba(255, 255, 255, 0.02)',
-    paper_bgcolor='rgba(255, 255, 255, 0.05)',
-    font=dict(color='white', family='Inter, sans-serif'),
-    title_font=dict(size=20, color='white', family='Inter, sans-serif'),
+    plot_bgcolor='white',
+    paper_bgcolor='white',
+    font=dict(color='#333', family='Inter, sans-serif'),
+    title_font=dict(size=20, color='#333', family='Inter, sans-serif'),
     xaxis=dict(
-        gridcolor='rgba(255, 255, 255, 0.1)',
-        zerolinecolor='rgba(255, 255, 255, 0.2)',
+        gridcolor='rgba(200,200,200,0.3)',
+        zerolinecolor='rgba(200,200,200,0.5)',
         tickfont=dict(size=12),
         titlefont=dict(size=14)
     ),
     yaxis=dict(
-        gridcolor='rgba(255, 255, 255, 0.1)',
-        zerolinecolor='rgba(255, 255, 255, 0.2)',
+        gridcolor='rgba(200,200,200,0.3)',
+        zerolinecolor='rgba(200,200,200,0.5)',
         tickfont=dict(size=12),
         titlefont=dict(size=14)
     ),
     colorway=COLOR_SCHEME['chart_colors'],
     hoverlabel=dict(
-        bgcolor='rgba(15, 32, 39, 0.95)',
-        bordercolor='#78E1FF',
-        font=dict(size=14, color='white', family='Inter, sans-serif')
+        bgcolor='white',
+        bordercolor='#667eea',
+        font=dict(size=14, color='#333', family='Inter, sans-serif')
     ),
     legend=dict(
-        bgcolor='rgba(255, 255, 255, 0.05)',
-        bordercolor='rgba(255, 255, 255, 0.1)',
+        bgcolor='rgba(255, 255, 255, 0.9)',
+        bordercolor='#e0e0e0',
         borderwidth=1
     )
 )
@@ -301,17 +403,20 @@ plotly_layout_template = dict(
 # 加载Lottie动画
 @st.cache_data
 def load_lottie_url(url: str):
-    r = requests.get(url)
-    if r.status_code != 200:
+    try:
+        r = requests.get(url)
+        if r.status_code != 200:
+            return None
+        return r.json()
+    except:
         return None
-    return r.json()
 
-# 数据加载和处理函数
+# 数据加载和处理函数 - 适配GitHub根目录
 @st.cache_data
 def load_and_process_data():
     """加载和处理所有数据"""
     try:
-        # 读取数据文件
+        # 直接从根目录读取文件
         shipment_df = pd.read_excel('2409~250224出货数据.xlsx')
         forecast_df = pd.read_excel('2409~2502人工预测.xlsx')
         inventory_df = pd.read_excel('含批次库存0221(2).xlsx')
@@ -504,8 +609,8 @@ def create_animation_effect():
     for i in range(3):
         placeholder.markdown(
             f"""
-            <div style='text-align: center; color: white;'>
-                <h2>{'.' * (i + 1)}</h2>
+            <div style='text-align: center; color: #667eea;'>
+                <h2 style='animation: bounce 0.5s ease-in-out infinite;'>{'.' * (i + 1)}</h2>
             </div>
             """,
             unsafe_allow_html=True
@@ -515,6 +620,7 @@ def create_animation_effect():
 
 # 加载数据
 with st.spinner('🔄 正在加载智能分析系统...'):
+    create_animation_effect()
     processed_inventory, forecast_accuracy, shipment_df, forecast_df, metrics, product_name_map = load_and_process_data()
 
 if metrics is None:
@@ -522,31 +628,33 @@ if metrics is None:
 
 # 页面标题 - 使用渐变效果
 st.markdown("""
-<div style='text-align: center; margin-bottom: 2rem;'>
+<div class="main-header gradient-animated">
     <h1 style='font-size: 3rem; margin-bottom: 0.5rem;'>
-        <span class='gradient-text'>🚀 智能库存预警系统</span>
+        🚀 智能库存预警系统
     </h1>
-    <p style='font-size: 1.2rem; color: rgba(255, 255, 255, 0.8);'>
+    <p style='font-size: 1.2rem;'>
         AI驱动的库存风险监控与决策支持平台
     </p>
 </div>
 """, unsafe_allow_html=True)
 
 # 实时指标刷新
-if st.button("🔄 刷新数据", key="refresh_btn"):
-    st.cache_data.clear()
-    st.rerun()
+col_refresh = st.columns([10, 1])
+with col_refresh[1]:
+    if st.button("🔄", key="refresh_btn", help="刷新数据"):
+        st.cache_data.clear()
+        st.rerun()
 
 # 创建标签页
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🎯 智能监控中心",
+    "📊 智能监控中心",
     "💎 风险热力图",
     "🧠 AI预测分析",
     "🏆 绩效看板",
-    "📊 深度分析"
+    "📈 深度分析"
 ])
 
-# 标签1：智能监控中心
+# 标签1：智能监控中心 - 只显示指标卡片
 with tab1:
     # 动画效果
     lottie_urls = {
@@ -554,78 +662,60 @@ with tab1:
         'analytics': "https://assets9.lottiefiles.com/packages/lf20_jcikwtux.json"
     }
     
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        lottie_json = load_lottie_url(lottie_urls['analytics'])
-        if lottie_json:
-            st_lottie(lottie_json, height=150, key="main_animation")
-    
-    # 核心KPI展示 - 使用更丰富的指标
+    # 核心KPI展示
     st.markdown("### 🎯 实时核心指标")
     
     # 第一行指标
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        delta_value = metrics['high_risk_batches']
-        delta_text = f"⚠️ 高危: {delta_value}"
-        st.metric(
-            label="📦 库存批次总数",
-            value=f"{metrics['total_batches']:,}",
-            delta=delta_text,
-            delta_color="inverse",
-            help=f"""
-            总批次: {metrics['total_batches']}个
-            极高风险: {metrics['risk_counts']['extreme']}个
-            高风险: {metrics['risk_counts']['high']}个
-            中等风险: {metrics['risk_counts']['medium']}个
-            低风险: {metrics['risk_counts']['low']}个
-            极低风险: {metrics['risk_counts']['minimal']}个
-            """
-        )
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{metrics['total_batches']:,}</div>
+            <div class="metric-label">📦 库存批次总数</div>
+            <div style="color: #ff6348; font-size: 0.9rem; margin-top: 0.5rem;">
+                ⚠️ 高危: {metrics['high_risk_batches']}个
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col2:
         health_score = 100 - metrics['high_risk_ratio']
         health_emoji = "🟢" if health_score > 85 else "🟡" if health_score > 70 else "🔴"
-        st.metric(
-            label="💯 库存健康度",
-            value=f"{health_score:.1f}%",
-            delta=f"{health_emoji} {'健康' if health_score > 85 else '注意' if health_score > 70 else '警告'}",
-            delta_color="normal" if health_score > 70 else "inverse",
-            help=f"""
-            健康度计算: 100% - 高风险占比
-            当前高风险占比: {metrics['high_risk_ratio']}%
-            建议: {'继续保持' if health_score > 85 else '加强管理' if health_score > 70 else '立即处理高风险批次'}
-            """
-        )
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{health_score:.1f}%</div>
+            <div class="metric-label">💯 库存健康度</div>
+            <div style="color: {'#2ed573' if health_score > 85 else '#ffa502' if health_score > 70 else '#ff4757'}; font-size: 0.9rem; margin-top: 0.5rem;">
+                {health_emoji} {'健康' if health_score > 85 else '注意' if health_score > 70 else '警告'}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col3:
-        st.metric(
-            label="💰 库存总价值",
-            value=f"¥{metrics['total_inventory_value']:.1f}M",
-            delta=f"📈 成本: ¥{metrics['total_cost']:.1f}M",
-            help=f"""
-            库存价值: ¥{metrics['total_inventory_value']}百万
-            预期损失: ¥{metrics['total_cost']}百万
-            月存储成本: ¥{metrics['storage_cost_monthly']}千
-            高风险价值: ¥{metrics['high_risk_value']}百万
-            """
-        )
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">¥{metrics['total_inventory_value']:.1f}M</div>
+            <div class="metric-label">💰 库存总价值</div>
+            <div style="color: #ff6348; font-size: 0.9rem; margin-top: 0.5rem;">
+                📈 成本: ¥{metrics['total_cost']:.1f}M
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col4:
         turnover_rate = 365 / metrics['avg_age'] if metrics['avg_age'] > 0 else 0
-        st.metric(
-            label="🔄 库存周转率",
-            value=f"{turnover_rate:.1f}次/年",
-            delta=f"库龄: {metrics['avg_age']:.0f}天",
-            delta_color="inverse" if metrics['avg_age'] > 60 else "normal",
-            help=f"""
-            年周转率: {turnover_rate:.1f}次
-            平均库龄: {metrics['avg_age']:.0f}天
-            理想库龄: <30天
-            行业平均: 45-60天
-            """
-        )
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{turnover_rate:.1f}次/年</div>
+            <div class="metric-label">🔄 库存周转率</div>
+            <div style="color: {'#ff6348' if metrics['avg_age'] > 60 else '#2ed573'}; font-size: 0.9rem; margin-top: 0.5rem;">
+                库龄: {metrics['avg_age']:.0f}天
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
     
     # 第二行高级指标
     col5, col6, col7, col8 = st.columns(4)
@@ -633,168 +723,85 @@ with tab1:
     with col5:
         risk_coverage = metrics['high_risk_value_ratio']
         risk_level = "🔴 严重" if risk_coverage > 30 else "🟡 中等" if risk_coverage > 15 else "🟢 良好"
-        st.metric(
-            label="🎯 风险资金占比",
-            value=f"{risk_coverage}%",
-            delta=risk_level,
-            delta_color="inverse" if risk_coverage > 30 else "normal",
-            help=f"""
-            高风险库存价值占比: {risk_coverage}%
-            影响现金流: ¥{metrics['high_risk_value']}百万
-            建议阈值: <15%
-            行业标准: 10-20%
-            """
-        )
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{risk_coverage}%</div>
+            <div class="metric-label">🎯 风险资金占比</div>
+            <div style="color: {'#ff4757' if risk_coverage > 30 else '#ffa502' if risk_coverage > 15 else '#2ed573'}; font-size: 0.9rem; margin-top: 0.5rem;">
+                {risk_level}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col6:
         forecast_score = metrics['forecast_accuracy']
         forecast_grade = "A" if forecast_score > 90 else "B" if forecast_score > 80 else "C" if forecast_score > 70 else "D"
-        st.metric(
-            label="🧠 AI预测准确率",
-            value=f"{forecast_score}%",
-            delta=f"等级: {forecast_grade}",
-            delta_color="normal" if forecast_score > 80 else "inverse",
-            help=f"""
-            整体预测准确率: {forecast_score}%
-            等级评定: {forecast_grade}
-            A级: >90% (优秀)
-            B级: 80-90% (良好)
-            C级: 70-80% (合格)
-            D级: <70% (需改进)
-            """
-        )
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{forecast_score}%</div>
+            <div class="metric-label">🧠 AI预测准确率</div>
+            <div style="color: {'#2ed573' if forecast_score > 80 else '#ff4757'}; font-size: 0.9rem; margin-top: 0.5rem;">
+                等级: {forecast_grade}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col7:
         monthly_loss = metrics['total_cost'] / 12
         daily_loss = monthly_loss / 30
-        st.metric(
-            label="⏱️ 时间价值损失",
-            value=f"¥{daily_loss:.3f}M/天",
-            delta=f"月损: ¥{monthly_loss:.2f}M",
-            delta_color="inverse",
-            help=f"""
-            日均损失: ¥{daily_loss*1000:.0f}千
-            月度损失: ¥{monthly_loss:.2f}百万
-            年化损失: ¥{metrics['total_cost']:.1f}百万
-            包含: 仓储成本+机会成本+预期跌价
-            """
-        )
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">¥{daily_loss:.3f}M/天</div>
+            <div class="metric-label">⏱️ 时间价值损失</div>
+            <div style="color: #ff6348; font-size: 0.9rem; margin-top: 0.5rem;">
+                月损: ¥{monthly_loss:.2f}M
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col8:
         efficiency_score = (1 - metrics['high_risk_ratio']/100) * metrics['forecast_accuracy']
-        st.metric(
-            label="⚡ 综合效率指数",
-            value=f"{efficiency_score:.1f}",
-            delta="AI优化中" if efficiency_score < 70 else "表现优秀",
-            delta_color="normal" if efficiency_score > 70 else "inverse",
-            help=f"""
-            综合效率 = 健康度 × 预测准确率
-            当前得分: {efficiency_score:.1f}/100
-            优秀: >85分
-            良好: 70-85分
-            待改进: <70分
-            """
-        )
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{efficiency_score:.1f}</div>
+            <div class="metric-label">⚡ 综合效率指数</div>
+            <div style="color: {'#2ed573' if efficiency_score > 70 else '#ff4757'}; font-size: 0.9rem; margin-top: 0.5rem;">
+                {"表现优秀" if efficiency_score > 70 else "AI优化中"}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
-    # 应用样式
-    style_metric_cards(
-        background_color="linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)",
-        border_left_color="#78E1FF",
-        border_color="rgba(120, 225, 255, 0.3)",
-        box_shadow=True
-    )
+    # 第三行 - 风险分布概览
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 📊 风险等级分布")
     
-    # 风险分布3D柱状图
-    st.markdown("### 📊 风险分布全景图")
+    col9, col10, col11, col12, col13 = st.columns(5)
     
-    risk_data = pd.DataFrame({
-        '风险等级': ['极高风险', '高风险', '中风险', '低风险', '极低风险'],
-        '批次数量': [
-            metrics['risk_counts']['extreme'],
-            metrics['risk_counts']['high'],
-            metrics['risk_counts']['medium'],
-            metrics['risk_counts']['low'],
-            metrics['risk_counts']['minimal']
-        ],
-        '颜色': [
-            COLOR_SCHEME['risk_extreme'],
-            COLOR_SCHEME['risk_high'],
-            COLOR_SCHEME['risk_medium'],
-            COLOR_SCHEME['risk_low'],
-            COLOR_SCHEME['risk_minimal']
-        ]
-    })
+    risk_items = [
+        (col9, "极高风险", metrics['risk_counts']['extreme'], COLOR_SCHEME['risk_extreme']),
+        (col10, "高风险", metrics['risk_counts']['high'], COLOR_SCHEME['risk_high']),
+        (col11, "中风险", metrics['risk_counts']['medium'], COLOR_SCHEME['risk_medium']),
+        (col12, "低风险", metrics['risk_counts']['low'], COLOR_SCHEME['risk_low']),
+        (col13, "极低风险", metrics['risk_counts']['minimal'], COLOR_SCHEME['risk_minimal'])
+    ]
     
-    # 计算风险价值
-    risk_values = []
-    for risk in risk_data['风险等级']:
-        value = processed_inventory[processed_inventory['风险等级'] == risk]['批次价值'].sum() / 1000000
-        risk_values.append(value)
-    risk_data['价值(M)'] = risk_values
+    for col, risk_name, count, color in risk_items:
+        with col:
+            st.markdown(f"""
+            <div class="metric-card" style="border-left: 4px solid {color};">
+                <div style="font-size: 2rem; font-weight: bold; color: {color};">{count}</div>
+                <div class="metric-label">{risk_name}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
-    # 创建3D效果的柱状图
-    fig_3d = go.Figure()
-    
-    # 添加主柱
-    fig_3d.add_trace(go.Bar(
-        x=risk_data['风险等级'],
-        y=risk_data['批次数量'],
-        name='批次数量',
-        marker=dict(
-            color=risk_data['颜色'],
-            line=dict(color='white', width=2),
-            opacity=0.9
-        ),
-        text=[f"<b>{v}</b>个<br>¥{risk_data.loc[i, '价值(M)']:.1f}M" 
-              for i, v in enumerate(risk_data['批次数量'])],
-        textposition='outside',
-        hovertemplate="""
-        <b>%{x}</b><br>
-        批次数量: <b>%{y}个</b><br>
-        库存价值: <b>¥%{customdata:.1f}M</b><br>
-        <extra></extra>
-        """,
-        customdata=risk_data['价值(M)']
-    ))
-    
-    # 添加阴影效果
-    fig_3d.add_trace(go.Bar(
-        x=risk_data['风险等级'],
-        y=[v*0.05 for v in risk_data['批次数量']],
-        name='shadow',
-        marker=dict(
-            color='rgba(0,0,0,0.2)',
-            line=dict(width=0)
-        ),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-    
-    fig_3d.update_layout(
-        **plotly_layout_template,
-        title=dict(
-            text="<b>库存风险等级分布</b><br><sup>批次数量与价值双维度展示</sup>",
-            font=dict(size=24)
-        ),
-        showlegend=False,
-        height=500,
-        xaxis=dict(tickangle=-15),
-        yaxis=dict(title="批次数量", showgrid=True),
-        bargap=0.15,
-        plot_bgcolor='rgba(255, 255, 255, 0.02)'
-    )
-    
-    st.plotly_chart(fig_3d, use_container_width=True)
-    
-    # 添加实时预警
+    # 添加实时预警动画
     if metrics['high_risk_ratio'] > 20:
-        rain(
-            emoji="⚠️",
-            font_size=20,
-            falling_speed=5,
-            animation_length=1
-        )
-        st.warning(f"⚠️ **风险预警**: 当前有{metrics['high_risk_batches']}个高风险批次需要紧急处理!")
+        st.markdown("""
+        <div style="background: #fff5f5; border: 1px solid #ff4757; border-radius: 10px; padding: 1rem; margin-top: 2rem; animation: pulse 2s ease-in-out infinite;">
+            <h4 style="color: #ff4757; margin: 0;">⚠️ 风险预警</h4>
+            <p style="color: #666; margin: 0.5rem 0 0 0;">当前有{batches}个高风险批次需要紧急处理，建议立即采取清库行动！</p>
+        </div>
+        """.format(batches=metrics['high_risk_batches']), unsafe_allow_html=True)
 
 # 标签2：风险热力图
 with tab2:
@@ -880,25 +887,25 @@ with tab2:
         fig_matrix.add_shape(
             type="line",
             x0=90, y0=0, x1=90, y1=max_value,
-            line=dict(color="rgba(255,255,255,0.3)", width=2, dash="dash"),
+            line=dict(color="rgba(150,150,150,0.3)", width=2, dash="dash"),
         )
         
         fig_matrix.add_shape(
             type="line",
             x0=0, y0=max_value*0.5, x1=max_age, y1=max_value*0.5,
-            line=dict(color="rgba(255,255,255,0.3)", width=2, dash="dash"),
+            line=dict(color="rgba(150,150,150,0.3)", width=2, dash="dash"),
         )
         
         # 添加象限标签
         annotations = [
             dict(x=45, y=max_value*0.9, text="<b>低龄高值</b><br>密切监控",
-                 showarrow=False, font=dict(size=14, color="white")),
+                 showarrow=False, font=dict(size=14, color="#333")),
             dict(x=max_age*0.75, y=max_value*0.9, text="<b>高龄高值</b><br>紧急清理",
-                 showarrow=False, font=dict(size=14, color="white")),
+                 showarrow=False, font=dict(size=14, color="#333")),
             dict(x=45, y=max_value*0.1, text="<b>低龄低值</b><br>正常管理",
-                 showarrow=False, font=dict(size=14, color="white")),
+                 showarrow=False, font=dict(size=14, color="#333")),
             dict(x=max_age*0.75, y=max_value*0.1, text="<b>高龄低值</b><br>批量处理",
-                 showarrow=False, font=dict(size=14, color="white"))
+                 showarrow=False, font=dict(size=14, color="#333"))
         ]
         
         fig_matrix.update_layout(
@@ -964,7 +971,7 @@ with tab2:
         textposition="outside",
         text=[f"¥{abs(d['value']):.1f}M" for d in waterfall_data],
         y=[d['value'] for d in waterfall_data],
-        connector={"line": {"color": "rgba(255, 255, 255, 0.3)"}},
+        connector={"line": {"color": "rgba(150, 150, 150, 0.3)"}},
         increasing={"marker": {"color": COLOR_SCHEME['risk_minimal']}},
         decreasing={"marker": {"color": COLOR_SCHEME['risk_extreme']}},
         totals={"marker": {"color": COLOR_SCHEME['secondary_gradient'][0]}}
@@ -1018,7 +1025,7 @@ with tab3:
                 y=monthly_acc['置信下限'] * 100,
                 mode='lines',
                 fill='tonexty',
-                fillcolor='rgba(120, 225, 255, 0.2)',
+                fillcolor='rgba(102, 126, 234, 0.2)',
                 line=dict(width=0),
                 showlegend=False,
                 name='95%置信区间'
@@ -1030,7 +1037,7 @@ with tab3:
                 y=monthly_acc['准确率均值'] * 100,
                 mode='lines+markers',
                 name='预测准确率',
-                line=dict(color=COLOR_SCHEME['highlight'], width=3),
+                line=dict(color=COLOR_SCHEME['primary_gradient'][0], width=3),
                 marker=dict(size=10, symbol='circle'),
                 hovertemplate="""
                 月份: %{x|%Y-%m}<br>
@@ -1156,7 +1163,7 @@ with tab3:
             text=[name[:10] + '...' if len(name) > 10 else name 
                   for name in product_analysis['产品名称']],
             textposition="top center",
-            textfont=dict(size=10, color='white'),
+            textfont=dict(size=10, color='#333'),
             customdata=np.column_stack((
                 product_analysis['产品名称'],
                 product_analysis['预测次数'],
@@ -1183,9 +1190,9 @@ with tab3:
         avg_volatility = product_analysis['准确率波动'].mean() * 100
         
         fig_3d_scatter.add_hline(y=avg_volatility, line_dash="dot", 
-                                 line_color="rgba(255,255,255,0.3)")
+                                 line_color="rgba(150,150,150,0.3)")
         fig_3d_scatter.add_vline(x=avg_accuracy, line_dash="dot", 
-                                 line_color="rgba(255,255,255,0.3)")
+                                 line_color="rgba(150,150,150,0.3)")
         
         fig_3d_scatter.update_layout(
             **plotly_layout_template,
@@ -1282,13 +1289,13 @@ with tab4:
                     visible=True,
                     range=[0, 100],
                     tickfont=dict(size=10),
-                    gridcolor='rgba(255,255,255,0.1)'
+                    gridcolor='rgba(200,200,200,0.3)'
                 ),
                 angularaxis=dict(
                     tickfont=dict(size=12),
-                    gridcolor='rgba(255,255,255,0.1)'
+                    gridcolor='rgba(200,200,200,0.3)'
                 ),
-                bgcolor='rgba(255, 255, 255, 0.02)'
+                bgcolor='white'
             ),
             title=dict(
                 text="<b>区域综合竞争力雷达图</b><br><sup>8维度综合评估</sup>",
@@ -1364,9 +1371,9 @@ with tab4:
             avg_breadth = sales_performance['市场广度'].mean()
             
             fig_quadrant.add_hline(y=avg_breadth, line_dash="dash", 
-                                  line_color="rgba(255,255,255,0.3)")
+                                  line_color="rgba(150,150,150,0.3)")
             fig_quadrant.add_vline(x=avg_efficiency, line_dash="dash", 
-                                  line_color="rgba(255,255,255,0.3)")
+                                  line_color="rgba(150,150,150,0.3)")
             
             # 添加象限标签
             fig_quadrant.add_annotation(
@@ -1510,14 +1517,14 @@ with tab5:
             mode="gauge+number+delta",
             value=health_score,
             domain={'x': [0, 1], 'y': [0, 1]},
-            title={'text': "库存健康度", 'font': {'size': 20, 'color': 'white'}},
+            title={'text': "库存健康度", 'font': {'size': 20, color: '#333'}},
             delta={'reference': 85, 'increasing': {'color': COLOR_SCHEME['risk_low']}},
             gauge={
-                'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "white"},
-                'bar': {'color': COLOR_SCHEME['highlight']},
-                'bgcolor': "rgba(255,255,255,0.1)",
+                'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "#333"},
+                'bar': {'color': COLOR_SCHEME['primary_gradient'][0]},
+                'bgcolor': "rgba(240,240,240,0.5)",
                 'borderwidth': 2,
-                'bordercolor': "white",
+                'bordercolor': "#e0e0e0",
                 'steps': [
                     {'range': [0, 50], 'color': COLOR_SCHEME['risk_extreme']},
                     {'range': [50, 70], 'color': COLOR_SCHEME['risk_high']},
@@ -1525,7 +1532,7 @@ with tab5:
                     {'range': [85, 100], 'color': COLOR_SCHEME['risk_low']}
                 ],
                 'threshold': {
-                    'line': {'color': "white", 'width': 4},
+                    'line': {'color': "#333", 'width': 4},
                     'thickness': 0.75,
                     'value': 85
                 }
@@ -1540,13 +1547,18 @@ with tab5:
         
         st.plotly_chart(fig_gauge, use_container_width=True)
         
-        # 添加说明
-        st.info(f"""
-        **健康度解读**
-        - 当前: {health_score:.1f}%
-        - 目标: 85%
-        - 状态: {'😊 优秀' if health_score > 85 else '😐 良好' if health_score > 70 else '😟 需改善'}
-        """)
+        # 添加说明卡片
+        health_status = '😊 优秀' if health_score > 85 else '😐 良好' if health_score > 70 else '😟 需改善'
+        st.markdown(f"""
+        <div style="background: #f8f9fa; border-radius: 10px; padding: 1rem; border: 1px solid #e0e0e0;">
+            <h5 style="margin: 0; color: #333;">健康度解读</h5>
+            <p style="margin: 0.5rem 0;">当前: {health_score:.1f}%</p>
+            <p style="margin: 0.5rem 0;">目标: 85%</p>
+            <p style="margin: 0; color: {'#2ed573' if health_score > 85 else '#ffa502' if health_score > 70 else '#ff4757'};">
+                状态: {health_status}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
     
     # ABC-XYZ矩阵分析
     st.markdown("### 🎲 ABC-XYZ智能分类矩阵")
@@ -1651,50 +1663,57 @@ with tab5:
             processed_inventory['风险等级'] == '极高风险'
         ].nlargest(5, '批次价值')
         
-        st.error(f"""
-        **🚨 紧急清库行动**
-        
-        **立即处理TOP5高风险批次：**
-        
-        {chr(10).join([f"• {row['产品名称'][:20]}... - ¥{row['批次价值']/1000:.0f}K" 
-                       for _, row in critical_items.iterrows()])}
-        
-        **预计回收资金**: ¥{critical_items['批次价值'].sum()/1000000*0.7:.1f}M
-        **建议折扣**: 7折速清
-        """)
+        st.markdown(f"""
+        <div style="background: #fff5f5; border: 2px solid #ff4757; border-radius: 10px; padding: 1.5rem; height: 100%; animation: pulse 2s ease-in-out infinite;">
+            <h4 style="color: #ff4757; margin: 0;">🚨 紧急清库行动</h4>
+            <p style="margin: 1rem 0;"><strong>立即处理TOP5高风险批次：</strong></p>
+            <ul style="margin: 0; padding-left: 1.5rem;">
+                {chr(10).join([f"<li>{row['产品名称'][:20]}... - ¥{row['批次价值']/1000:.0f}K</li>" for _, row in critical_items.iterrows()])}
+            </ul>
+            <p style="margin: 1rem 0 0 0;">
+                <strong>预计回收资金</strong>: ¥{critical_items['批次价值'].sum()/1000000*0.7:.1f}M<br>
+                <strong>建议折扣</strong>: 7折速清
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col2:
         poor_forecast = forecast_accuracy.groupby('产品名称')['预测准确率'].mean().nsmallest(5)
         
-        st.warning(f"""
-        **📊 预测优化重点**
-        
-        **需改进预测的产品：**
-        
-        {chr(10).join([f"• {prod[:20]}... - {acc*100:.1f}%" 
-                       for prod, acc in poor_forecast.items()])}
-        
-        **建议措施**: 
-        - 增加历史数据权重
-        - 引入季节性因子
-        - 加强市场调研
-        """)
+        st.markdown(f"""
+        <div style="background: #fff8e1; border: 2px solid #ffa502; border-radius: 10px; padding: 1.5rem; height: 100%; animation: float 3s ease-in-out infinite;">
+            <h4 style="color: #f57c00; margin: 0;">📊 预测优化重点</h4>
+            <p style="margin: 1rem 0;"><strong>需改进预测的产品：</strong></p>
+            <ul style="margin: 0; padding-left: 1.5rem;">
+                {chr(10).join([f"<li>{prod[:20]}... - {acc*100:.1f}%</li>" for prod, acc in poor_forecast.items()])}
+            </ul>
+            <p style="margin: 1rem 0 0 0;"><strong>建议措施</strong>:</p>
+            <ul style="margin: 0; padding-left: 1.5rem;">
+                <li>增加历史数据权重</li>
+                <li>引入季节性因子</li>
+                <li>加强市场调研</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col3:
-        st.success(f"""
-        **🎯 补货策略优化**
-        
-        **基于ABC-XYZ分析：**
-        
-        • A类产品: 实施VMI管理
-        • B类产品: 采用EOQ模型
-        • C类产品: JIT采购策略
-        
-        **预期效果**: 
-        - 库存降低15-20%
-        - 周转率提升2-3次/年
-        - 资金占用减少¥{metrics['total_inventory_value']*0.15:.1f}M
-        """)
+        st.markdown(f"""
+        <div style="background: #e8f5e9; border: 2px solid #2ed573; border-radius: 10px; padding: 1.5rem; height: 100%; animation: bounce 2s ease-in-out infinite;">
+            <h4 style="color: #2e7d32; margin: 0;">🎯 补货策略优化</h4>
+            <p style="margin: 1rem 0;"><strong>基于ABC-XYZ分析：</strong></p>
+            <ul style="margin: 0; padding-left: 1.5rem;">
+                <li>A类产品: 实施VMI管理</li>
+                <li>B类产品: 采用EOQ模型</li>
+                <li>C类产品: JIT采购策略</li>
+            </ul>
+            <p style="margin: 1rem 0 0 0;"><strong>预期效果</strong>:</p>
+            <ul style="margin: 0; padding-left: 1.5rem;">
+                <li>库存降低15-20%</li>
+                <li>周转率提升2-3次/年</li>
+                <li>资金占用减少¥{metrics['total_inventory_value']*0.15:.1f}M</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
     
     # 添加动态效果
     if st.button("🎊 查看优化成果", key="celebrate"):
@@ -1711,12 +1730,9 @@ with tab5:
 st.markdown("---")
 st.markdown(
     """
-    <div style='text-align: center; color: rgba(255,255,255,0.6);'>
+    <div style='text-align: center; color: #666;'>
         <p>🚀 Powered by Advanced Analytics & AI | 实时数据驱动决策</p>
     </div>
     """,
     unsafe_allow_html=True
 )
-
-# 添加性能优化
-st.cache_data.clear()
