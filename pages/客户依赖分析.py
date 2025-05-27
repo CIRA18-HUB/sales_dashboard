@@ -821,7 +821,7 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
         metrics['normal_rate'],
         metrics['target_achievement_rate'],
         metrics['high_value_rate'],
-        (metrics['normal_customers'] - metrics['risk_customers']) / metrics['normal_customers'] * 100,
+        (metrics['normal_customers'] - metrics['risk_customers']) / metrics['normal_customers'] * 100 if metrics['normal_customers'] > 0 else 0,
         (100 - metrics['max_dependency'])
     ]
     
@@ -830,7 +830,7 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
         '健康度': f"正常运营客户占比 {metrics['normal_rate']:.1f}%\n越高说明客户群体越稳定",
         '目标达成': f"销售目标达成率 {metrics['target_achievement_rate']:.1f}%\n反映整体销售执行力",
         '价值贡献': f"高价值客户占比 {metrics['high_value_rate']:.1f}%\n钻石+黄金客户比例",
-        '活跃度': f"活跃客户占比 {((metrics['normal_customers'] - metrics['risk_customers']) / metrics['normal_customers'] * 100):.1f}%\n近期有交易的客户比例",
+        '活跃度': f"活跃客户占比 {((metrics['normal_customers'] - metrics['risk_customers']) / metrics['normal_customers'] * 100 if metrics['normal_customers'] > 0 else 0):.1f}%\n近期有交易的客户比例",
         '稳定性': f"风险分散度 {(100 - metrics['max_dependency']):.1f}%\n100-最大客户依赖度"
     }
     
@@ -1296,21 +1296,22 @@ def main():
         st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
         
         # 增强版雷达图
-        create_chart_with_tooltip(
-            charts['health_radar'],
-            "客户健康状态综合评估",
-            "多维度评估客户群体的整体健康状况（悬停查看详情）",
-            "• <b>使用说明</b>：将鼠标悬停在雷达图的各个维度上查看详细信息<br>" +
-            "• <b>维度说明</b>：<br>" +
-            "  - 健康度：正常运营客户占比<br>" +
-            "  - 目标达成：完成销售目标的客户比例<br>" +
-            "  - 价值贡献：高价值客户占比<br>" +
-            "  - 活跃度：近期有交易的客户比例<br>" +
-            "  - 稳定性：区域依赖度的反向指标<br>" +
-            "• <b>解读方法</b>：蓝色区域越大越好，红色虚线为目标基准<br>" +
-            "• <b>管理建议</b>：重点关注低于基准线的维度，制定改善计划",
-            "health_radar_chart"
-        )
+        if 'health_radar' in charts:
+            create_chart_with_tooltip(
+                charts['health_radar'],
+                "客户健康状态综合评估",
+                "多维度评估客户群体的整体健康状况（悬停查看详情）",
+                "• <b>使用说明</b>：将鼠标悬停在雷达图的各个维度上查看详细信息<br>" +
+                "• <b>维度说明</b>：<br>" +
+                "  - 健康度：正常运营客户占比<br>" +
+                "  - 目标达成：完成销售目标的客户比例<br>" +
+                "  - 价值贡献：高价值客户占比<br>" +
+                "  - 活跃度：近期有交易的客户比例<br>" +
+                "  - 稳定性：区域依赖度的反向指标<br>" +
+                "• <b>解读方法</b>：蓝色区域越大越好，红色虚线为目标基准<br>" +
+                "• <b>管理建议</b>：重点关注低于基准线的维度，制定改善计划",
+                "health_radar_chart"
+            )
         
         # 客户状态分布（优化展示）
         if not customer_status.empty:
@@ -1373,7 +1374,119 @@ def main():
     with tabs[2]:
         st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
         
+        # 添加客户贡献度分析 (Top 20)
+        st.markdown("### 客户贡献度分析 (Top 20)")
+        
+        # 计算Top 20客户贡献度
+        if not metrics['rfm_df'].empty:
+            # 获取销售额排名前20的客户
+            top20_customers = metrics['rfm_df'].nlargest(20, 'M')
+            total_sales = metrics['rfm_df']['M'].sum()
+            
+            # 计算累计百分比
+            top20_customers['销售额占比'] = (top20_customers['M'] / total_sales * 100).round(2)
+            top20_customers['累计占比'] = top20_customers['销售额占比'].cumsum()
+            
+            # 创建双轴图
+            fig_top20 = make_subplots(specs=[[{"secondary_y": True}]])
+            
+            # 添加柱状图 - 销售额
+            fig_top20.add_trace(
+                go.Bar(
+                    x=top20_customers['客户'],
+                    y=top20_customers['M'],
+                    name='销售额',
+                    marker_color='#667eea',
+                    text=[f"¥{val/10000:.0f}万" for val in top20_customers['M']],
+                    textposition='outside',
+                    hovertemplate='<b>%{x}</b><br>销售额: ¥%{y:,.0f}<br>占比: %{customdata:.1f}%<extra></extra>',
+                    customdata=top20_customers['销售额占比']
+                ),
+                secondary_y=False,
+            )
+            
+            # 添加折线图 - 累计占比
+            fig_top20.add_trace(
+                go.Scatter(
+                    x=top20_customers['客户'],
+                    y=top20_customers['累计占比'],
+                    name='累计占比',
+                    mode='lines+markers',
+                    line=dict(color='#ff8800', width=3),
+                    marker=dict(size=8),
+                    hovertemplate='<b>%{x}</b><br>累计占比: %{y:.1f}%<extra></extra>'
+                ),
+                secondary_y=True,
+            )
+            
+            # 添加80%参考线
+            fig_top20.add_hline(
+                y=80, 
+                line_dash="dash", 
+                line_color="red", 
+                annotation_text="贡献80%销售额", 
+                annotation_position="right",
+                secondary_y=True
+            )
+            
+            # 更新布局
+            fig_top20.update_xaxes(title_text="客户名称", tickangle=-45)
+            fig_top20.update_yaxes(title_text="销售额", secondary_y=False)
+            fig_top20.update_yaxes(title_text="累计占比 (%)", range=[0, 100], secondary_y=True)
+            
+            fig_top20.update_layout(
+                height=500,
+                hovermode='x unified',
+                margin=dict(t=40, b=100, l=40, r=40),
+                showlegend=True,
+                legend=dict(x=0.7, y=1)
+            )
+            
+            # 显示图表
+            st.plotly_chart(fig_top20, use_container_width=True)
+            
+            # 显示关键指标
+            col1, col2, col3 = st.columns(3)
+            
+            # 计算贡献80%销售额的客户数
+            customers_for_80 = len(top20_customers[top20_customers['累计占比'] <= 80]) + 1
+            
+            with col1:
+                st.markdown(f"""
+                <div style='text-align: center; padding: 1rem; background: #f8f9fa; border-radius: 10px;'>
+                    <h2 style='color: #667eea; margin: 0;'>{customers_for_80}个</h2>
+                    <p style='margin: 0.5rem 0 0 0; color: #718096;'>贡献80%销售的客户数</p>
+                    <p style='margin: 0.2rem 0 0 0; color: #a0aec0; font-size: 0.9rem;'>↑ 占比 {customers_for_80/len(metrics['rfm_df'])*100:.1f}%</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div style='text-align: center; padding: 1rem; background: #f8f9fa; border-radius: 10px;'>
+                    <h2 style='color: #667eea; margin: 0;'>{len(metrics['rfm_df'])}个</h2>
+                    <p style='margin: 0.5rem 0 0 0; color: #718096;'>总客户数</p>
+                    <p style='margin: 0.2rem 0 0 0; color: #a0aec0; font-size: 0.9rem;'>↑ 活跃客户</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                # 客户集中度风险评估
+                risk_level = "高" if customers_for_80 <= 5 else "中" if customers_for_80 <= 10 else "低"
+                risk_color = "#f56565" if risk_level == "高" else "#ff8800" if risk_level == "中" else "#48bb78"
+                
+                st.markdown(f"""
+                <div style='text-align: center; padding: 1rem; background: #f8f9fa; border-radius: 10px;'>
+                    <h2 style='color: {risk_color}; margin: 0;'>{risk_level}</h2>
+                    <p style='margin: 0.5rem 0 0 0; color: #718096;'>客户集中度风险</p>
+                    <p style='margin: 0.2rem 0 0 0; color: #a0aec0; font-size: 0.9rem;'>前20客户占比 {top20_customers['销售额占比'].sum():.1f}%</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        st.markdown("<br><hr><br>", unsafe_allow_html=True)
+        
         # 区域风险分析
+        st.markdown("### 区域客户依赖风险评估")
+        
         if not metrics['region_stats'].empty:
             # 创建风险评估矩阵
             fig_risk_matrix = go.Figure()
@@ -1431,16 +1544,10 @@ def main():
             
             create_chart_with_tooltip(
                 fig_risk_matrix,
-                "区域客户依赖风险评估",
+                "区域风险分布图",
                 "识别高风险区域，制定风险分散策略",
                 """
                 • <b>用途</b>：评估各区域的大客户依赖风险<br>
                 • <b>风险等级</b>：<br>
                   - 红色区域(>30%)：高风险，需立即采取行动<br>
-                  - 橙色区域(15-30%)：中风险，需要关注<br>
-                  - 绿色区域(<15%)：低风险，保持监控<br>
-                • <b>气泡大小</b>：代表区域总销售额<br>
-                • <b>管理策略</b>：<br>
-                  - 高风险区域：开发新客户，分散风险<br>
-                  - 中风险区域：培育潜力客户，平衡结构<br>
-                  - 低风险区域：维持现状，持续优化
+                  - 橙色区域(15-30%)
