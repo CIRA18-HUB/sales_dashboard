@@ -25,71 +25,21 @@ st.markdown("""
     /* 全局字体 */
     .stApp {
         font-family: 'Inter', sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        background-attachment: fixed;
-    }
-    
-    /* 添加浮动粒子背景动画 */
-    .stApp::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-image: 
-            radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 2px, transparent 2px),
-            radial-gradient(circle at 75% 75%, rgba(255,255,255,0.1) 2px, transparent 2px);
-        background-size: 100px 100px;
-        animation: float 20s linear infinite;
-        pointer-events: none;
-        z-index: -1;
-    }
-    
-    @keyframes float {
-        0% { transform: translateY(0px) translateX(0px); }
-        25% { transform: translateY(-20px) translateX(10px); }
-        50% { transform: translateY(0px) translateX(-10px); }
-        75% { transform: translateY(-10px) translateX(5px); }
-        100% { transform: translateY(0px) translateX(0px); }
-    }
-    
-    /* 主容器背景 */
-    .main .block-container {
-        background: rgba(255,255,255,0.95);
-        border-radius: 20px;
-        padding: 2rem;
-        margin-top: 2rem;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.1);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2);
     }
     
     /* 主标题样式 - 增强动画 */
     .main-header {
         text-align: center;
-        padding: 3rem 0;
+        padding: 2.5rem 0;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
         background-size: 200% 200%;
         color: white;
-        border-radius: 25px;
+        border-radius: 20px;
         margin-bottom: 2rem;
-        animation: gradientShift 4s ease infinite, fadeInScale 1.5s ease-out, glow 2s ease-in-out infinite alternate;
-        box-shadow: 
-            0 15px 35px rgba(102, 126, 234, 0.4),
-            0 5px 15px rgba(0,0,0,0.1),
-            inset 0 1px 0 rgba(255,255,255,0.1);
+        animation: gradientShift 3s ease infinite, fadeInScale 1.2s ease-out;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
         position: relative;
         overflow: hidden;
-        transform: perspective(1000px) rotateX(0deg);
-        transition: transform 0.3s ease;
-    }
-    
-    .main-header:hover {
-        transform: perspective(1000px) rotateX(-2deg) scale(1.02);
-        box-shadow: 
-            0 25px 50px rgba(102, 126, 234, 0.5),
-            0 10px 30px rgba(0,0,0,0.15);
     }
     
     .main-header::before {
@@ -99,27 +49,8 @@ st.markdown("""
         left: -50%;
         width: 200%;
         height: 200%;
-        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.15), transparent);
-        animation: shimmer 3s linear infinite;
-    }
-    
-    .main-header::after {
-        content: '✨';
-        position: absolute;
-        top: 10%;
-        right: 10%;
-        font-size: 2rem;
-        animation: sparkle 1.5s ease-in-out infinite;
-    }
-    
-    @keyframes glow {
-        from { box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4), 0 5px 15px rgba(0,0,0,0.1); }
-        to { box-shadow: 0 20px 40px rgba(102, 126, 234, 0.6), 0 8px 20px rgba(0,0,0,0.15); }
-    }
-    
-    @keyframes sparkle {
-        0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
-        50% { transform: scale(1.3) rotate(180deg); opacity: 0.7; }
+        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+        animation: shimmer 2s linear infinite;
     }
     
     @keyframes gradientShift {
@@ -135,31 +66,30 @@ st.markdown("""
     @keyframes fadeInScale {
         from { 
             opacity: 0; 
-            transform: translateY(-50px) scale(0.8) rotateX(-10deg); 
+            transform: translateY(-30px) scale(0.95); 
         }
         to { 
             opacity: 1; 
-            transform: translateY(0) scale(1) rotateX(0deg); 
+            transform: translateY(0) scale(1); 
         }
     }
     
     /* 增强的指标卡片样式 */
     .metric-card {
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        padding: 2.5rem 2rem;
-        border-radius: 25px;
+        padding: 2rem 1.5rem;
+        border-radius: 20px;
         box-shadow: 
-            0 15px 35px rgba(0,0,0,0.08),
-            0 5px 15px rgba(0,0,0,0.03),
+            0 10px 25px rgba(0,0,0,0.08),
+            0 4px 10px rgba(0,0,0,0.03),
             inset 0 1px 0 rgba(255,255,255,0.9);
         text-align: center;
         height: 100%;
-        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        animation: slideUpStagger 1s ease-out;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        animation: slideUpStagger 0.8s ease-out;
         position: relative;
         overflow: hidden;
-        border: 1px solid rgba(255,255,255,0.3);
-        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
     }
     
     .metric-card::before {
@@ -169,69 +99,44 @@ st.markdown("""
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
-        transition: left 0.8s ease;
-    }
-    
-    .metric-card::after {
-        content: '';
-        position: absolute;
-        top: -2px;
-        left: -2px;
-        right: -2px;
-        bottom: -2px;
-        background: linear-gradient(45deg, #667eea, #764ba2, #667eea);
-        border-radius: 25px;
-        z-index: -1;
-        opacity: 0;
-        transition: opacity 0.3s ease;
+        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.05), transparent);
+        transition: left 0.6s ease;
     }
     
     .metric-card:hover {
-        transform: translateY(-15px) scale(1.05) rotateY(5deg);
+        transform: translateY(-8px) scale(1.03);
         box-shadow: 
-            0 30px 60px rgba(0,0,0,0.15),
-            0 15px 30px rgba(102, 126, 234, 0.2);
-        border-color: rgba(102, 126, 234, 0.3);
+            0 20px 40px rgba(0,0,0,0.12),
+            0 8px 20px rgba(102, 126, 234, 0.1);
+        border-color: rgba(102, 126, 234, 0.2);
     }
     
     .metric-card:hover::before {
         left: 100%;
     }
     
-    .metric-card:hover::after {
-        opacity: 0.1;
-    }
-    
     @keyframes slideUpStagger {
         from { 
             opacity: 0; 
-            transform: translateY(60px) scale(0.8) rotateX(-15deg); 
+            transform: translateY(40px) scale(0.9); 
         }
         to { 
             opacity: 1; 
-            transform: translateY(0) scale(1) rotateX(0deg); 
+            transform: translateY(0) scale(1); 
         }
     }
     
     .metric-value {
-        font-size: 3.2rem;
-        font-weight: 800;
+        font-size: 2.8rem;
+        font-weight: 700;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
         background-size: 200% 200%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        margin-bottom: 1rem;
-        animation: textGradient 4s ease infinite, bounce 2s ease-in-out infinite;
-        line-height: 1;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    @keyframes bounce {
-        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-        40% { transform: translateY(-3px); }
-        60% { transform: translateY(-2px); }
+        margin-bottom: 0.8rem;
+        animation: textGradient 3s ease infinite;
+        line-height: 1.1;
     }
     
     @keyframes textGradient {
@@ -241,45 +146,39 @@ st.markdown("""
     
     .metric-label {
         color: #374151;
-        font-size: 1.1rem;
-        font-weight: 700;
-        margin-top: 0.8rem;
+        font-size: 1rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
         letter-spacing: 0.5px;
-        text-transform: uppercase;
     }
     
     .metric-sublabel {
         color: #6b7280;
-        font-size: 0.9rem;
-        margin-top: 0.8rem;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
         font-weight: 500;
-        font-style: italic;
     }
     
     /* 标签页样式增强 */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 15px;
+        gap: 12px;
         background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
-        padding: 1rem;
-        border-radius: 20px;
-        box-shadow: 
-            inset 0 2px 4px rgba(0,0,0,0.06),
-            0 4px 8px rgba(0,0,0,0.04);
-        backdrop-filter: blur(10px);
+        padding: 0.8rem;
+        border-radius: 15px;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
     }
     
     .stTabs [data-baseweb="tab"] {
-        height: 65px;
-        padding: 0 35px;
+        height: 60px;
+        padding: 0 28px;
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        border-radius: 15px;
-        border: 1px solid rgba(102, 126, 234, 0.15);
-        font-weight: 700;
-        font-size: 1rem;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border-radius: 12px;
+        border: 1px solid rgba(102, 126, 234, 0.1);
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         position: relative;
         overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
     }
     
     .stTabs [data-baseweb="tab"]::before {
@@ -289,14 +188,14 @@ st.markdown("""
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.15), transparent);
-        transition: left 0.8s ease;
+        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+        transition: left 0.6s ease;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
-        transform: translateY(-5px) scale(1.05);
-        box-shadow: 0 15px 30px rgba(102, 126, 234, 0.2);
-        border-color: rgba(102, 126, 234, 0.4);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
+        border-color: rgba(102, 126, 234, 0.3);
     }
     
     .stTabs [data-baseweb="tab"]:hover::before {
@@ -307,21 +206,12 @@ st.markdown("""
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 
-            0 15px 40px rgba(102, 126, 234, 0.4),
-            0 5px 15px rgba(0,0,0,0.1);
-        animation: activeTab 0.5s ease;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
     }
     
     .stTabs [aria-selected="true"]::before {
         display: none;
-    }
-    
-    @keyframes activeTab {
-        0% { transform: scale(0.95); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1.02); }
     }
     
     /* 动画卡片延迟 */
@@ -335,88 +225,32 @@ st.markdown("""
     /* 图表容器样式 */
     .chart-container {
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        border-radius: 25px;
-        padding: 1.5rem;
-        box-shadow: 
-            0 15px 35px rgba(0,0,0,0.08),
-            inset 0 1px 0 rgba(255,255,255,0.9);
-        border: 1px solid rgba(255,255,255,0.3);
-        animation: chartFadeIn 1.2s ease-out;
-        backdrop-filter: blur(10px);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .chart-container::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.02), transparent);
-        animation: chartShimmer 8s linear infinite;
-    }
-    
-    @keyframes chartShimmer {
-        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        border-radius: 20px;
+        padding: 1rem;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        border: 1px solid rgba(255,255,255,0.2);
+        animation: chartFadeIn 1s ease-out;
     }
     
     @keyframes chartFadeIn {
         from { 
             opacity: 0; 
-            transform: translateY(30px) scale(0.95); 
+            transform: translateY(20px); 
         }
         to { 
             opacity: 1; 
-            transform: translateY(0) scale(1); 
+            transform: translateY(0); 
         }
-    }
-    
-    /* 添加脉动效果 */
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
-    }
-    
-    .metric-card:hover {
-        animation: pulse 1.5s infinite;
     }
     
     /* 响应式设计 */
     @media (max-width: 768px) {
         .metric-value {
-            font-size: 2.5rem;
+            font-size: 2.2rem;
         }
         .metric-card {
-            padding: 2rem 1.5rem;
+            padding: 1.5rem 1rem;
         }
-        .main-header {
-            padding: 2rem 0;
-        }
-    }
-    
-    /* 添加加载动画 */
-    @keyframes loading {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    .loading {
-        animation: loading 2s linear infinite;
-    }
-    
-    /* 成功动画 */
-    @keyframes success {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
-    }
-    
-    .success {
-        animation: success 0.6s ease-in-out;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1592,82 +1426,23 @@ def main():
         st.error("🚫 请先登录系统")
         st.stop()
     
-    # 添加页面加载动画
-    if 'page_loaded' not in st.session_state:
-        with st.empty():
-            st.markdown("""
-            <div style="display: flex; justify-content: center; align-items: center; height: 200px;">
-                <div style="text-align: center;">
-                    <div class="loading" style="width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #667eea; border-radius: 50%; margin: 0 auto 20px;"></div>
-                    <p style="color: #667eea; font-weight: 600;">正在加载销售分析系统...</p>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            import time
-            time.sleep(1.5)
-        st.session_state.page_loaded = True
-    
     # 主页面内容
     st.markdown("""
     <div class="main-header">
         <h1>🎯 销售达成分析</h1>
-        <p style="font-size: 1.2rem; margin-top: 0.5rem; opacity: 0.9;">全渠道销售业绩综合分析系统</p>
-        <div style="margin-top: 1rem;">
-            <span style="background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem;">
-                📊 实时数据 | 🔄 自动更新 | 📈 智能分析
-            </span>
-        </div>
+        <p>全渠道销售业绩综合分析系统</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # 添加实时时间显示
-    time_container = st.container()
-    with time_container:
-        current_time = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
-        st.markdown(f"""
-        <div style="text-align: center; margin-bottom: 2rem;">
-            <p style="color: #6b7280; font-size: 0.9rem;">
-                📅 最后更新时间: <span style="color: #667eea; font-weight: 600;">{current_time}</span>
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
     # 加载数据
-    with st.spinner('🔄 正在加载数据...'):
+    with st.spinner('正在加载数据...'):
         data = load_data()
     
     if data is None:
-        st.error("❌ 数据加载失败，请检查数据文件")
         return
-    
-    # 数据加载成功提示
-    st.success("✅ 数据加载成功！", icon="🎉")
     
     # 计算总体指标
     metrics = calculate_overview_metrics(data)
-    
-    # 添加快捷操作按钮
-    st.markdown("### 🚀 快捷操作")
-    col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
-    
-    with col_btn1:
-        if st.button("📊 刷新数据", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
-    
-    with col_btn2:
-        if st.button("📈 导出报告", use_container_width=True):
-            st.info("📋 报告导出功能开发中...")
-    
-    with col_btn3:
-        if st.button("🔔 设置提醒", use_container_width=True):
-            st.info("⏰ 提醒设置功能开发中...")
-    
-    with col_btn4:
-        if st.button("📧 分享报告", use_container_width=True):
-            st.info("✉️ 分享功能开发中...")
-    
-    st.markdown("---")
     
     # 创建标签页
     tab_names = [
@@ -1681,19 +1456,6 @@ def main():
     
     # Tab 1: 销售达成总览
     with tabs[0]:
-        # 添加进度条动画
-        st.markdown("### 📈 2025年销售业绩概览")
-        
-        progress_col1, progress_col2 = st.columns([3, 1])
-        with progress_col1:
-            progress_value = min(metrics['total_achievement'] / 100, 1.0)
-            st.progress(progress_value)
-        with progress_col2:
-            st.metric("", f"{metrics['total_achievement']:.1f}%", 
-                     f"{metrics['total_achievement'] - 100:.1f}%" if metrics['total_achievement'] >= 100 else f"{100 - metrics['total_achievement']:.1f}%")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
         # 增强的指标卡片布局 - 2行3列
         col1, col2, col3 = st.columns(3)
         
@@ -1804,61 +1566,18 @@ def main():
     
     # Tab 2: MT渠道分析
     with tabs[1]:
-        st.markdown("### 🏪 MT渠道深度分析")
-        
-        # 添加MT渠道概要
-        mt_col1, mt_col2, mt_col3 = st.columns(3)
-        with mt_col1:
-            st.metric("MT总销售额", f"¥{metrics['mt_sales']/10000:.0f}万", f"{metrics['mt_achievement']-100:.1f}%")
-        with mt_col2:
-            st.metric("MT达成率", f"{metrics['mt_achievement']:.1f}%", "vs 目标100%")
-        with mt_col3:
-            st.metric("渠道占比", f"{metrics['mt_ratio']:.1f}%", "vs TT渠道")
-        
         fig = create_mt_comprehensive_analysis(data)
         st.plotly_chart(fig, use_container_width=True)
     
     # Tab 3: TT渠道分析
     with tabs[2]:
-        st.markdown("### 🏢 TT渠道深度分析")
-        
-        # 添加TT渠道概要
-        tt_col1, tt_col2, tt_col3 = st.columns(3)
-        with tt_col1:
-            st.metric("TT总销售额", f"¥{metrics['tt_sales']/10000:.0f}万", f"{metrics['tt_achievement']-100:.1f}%")
-        with tt_col2:
-            st.metric("TT达成率", f"{metrics['tt_achievement']:.1f}%", "vs 目标100%")
-        with tt_col3:
-            st.metric("渠道占比", f"{metrics['tt_ratio']:.1f}%", "vs MT渠道")
-        
         fig = create_tt_comprehensive_analysis(data)
         st.plotly_chart(fig, use_container_width=True)
     
     # Tab 4: 全渠道对比
     with tabs[3]:
-        st.markdown("### 📊 全渠道对比分析")
-        
-        # 添加全渠道概要
-        all_col1, all_col2, all_col3 = st.columns(3)
-        with all_col1:
-            st.metric("总销售额", f"¥{metrics['total_sales']/10000:.0f}万", f"{metrics['total_achievement']-100:.1f}%")
-        with all_col2:
-            st.metric("整体达成率", f"{metrics['total_achievement']:.1f}%", "vs 目标100%")
-        with all_col3:
-            target_gap = metrics['total_target'] - metrics['total_sales']
-            st.metric("目标缺口", f"¥{abs(target_gap)/10000:.0f}万", "需要补足" if target_gap > 0 else "已超额")
-        
         fig = create_all_channel_comprehensive_analysis(data)
         st.plotly_chart(fig, use_container_width=True)
-    
-    # 页面底部信息
-    st.markdown("---")
-    st.markdown("""
-    <div style="text-align: center; color: #6b7280; font-size: 0.8rem; margin-top: 2rem;">
-        <p>🔒 Trolli SAL 销售分析系统 | 📊 实时数据分析 | 🚀 智能洞察</p>
-        <p>⚡ 数据每15分钟自动更新 | 📧 如有问题请联系技术支持</p>
-    </div>
-    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
