@@ -370,22 +370,32 @@ st.markdown("""
     .metric-card:nth-child(5) { animation-delay: 0.5s; }
     .metric-card:nth-child(6) { animation-delay: 0.6s; }
     
-    /* 图表容器样式 */
-    .chart-container {
+    /* 统一容器样式 - 适用于所有内容区域 */
+    .content-container, .chart-container, .insight-container, .analysis-container {
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
         border-radius: 25px;
-        padding: 1.5rem;
+        padding: 2rem;
+        margin: 1.5rem 0;
         box-shadow: 
-            0 15px 35px rgba(0,0,0,0.08),
+            0 15px 35px rgba(0,0,0,0.1),
+            0 5px 15px rgba(0,0,0,0.03),
             inset 0 1px 0 rgba(255,255,255,0.9);
         border: 1px solid rgba(255,255,255,0.3);
-        animation: chartFadeIn 1.2s ease-out;
+        animation: containerFadeIn 1.2s ease-out;
         backdrop-filter: blur(10px);
         position: relative;
         overflow: hidden;
+        transition: all 0.3s ease;
     }
     
-    .chart-container::before {
+    .content-container:hover, .chart-container:hover, .insight-container:hover, .analysis-container:hover {
+        transform: translateY(-5px);
+        box-shadow: 
+            0 25px 50px rgba(0,0,0,0.15),
+            0 10px 25px rgba(102, 126, 234, 0.1);
+    }
+    
+    .content-container::before, .chart-container::before, .insight-container::before, .analysis-container::before {
         content: '';
         position: absolute;
         top: -50%;
@@ -393,15 +403,16 @@ st.markdown("""
         width: 200%;
         height: 200%;
         background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.02), transparent);
-        animation: chartShimmer 8s linear infinite;
+        animation: containerShimmer 8s linear infinite;
+        pointer-events: none;
     }
     
-    @keyframes chartShimmer {
+    @keyframes containerShimmer {
         0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
         100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
     }
     
-    @keyframes chartFadeIn {
+    @keyframes containerFadeIn {
         from { 
             opacity: 0; 
             transform: translateY(30px) scale(0.95); 
@@ -410,6 +421,12 @@ st.markdown("""
             opacity: 1; 
             transform: translateY(0) scale(1); 
         }
+    }
+    
+    /* 专门的图表容器 */
+    .chart-container {
+        padding: 1.5rem;
+        margin: 1rem 0;
     }
     
     /* 添加脉动效果 */
@@ -423,20 +440,63 @@ st.markdown("""
         animation: pulse 1.5s infinite;
     }
     
-    /* 洞察卡片 - 动画增强 */
+    /* 洞察卡片 - 统一样式 */
     .insight-card {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid rgba(102, 126, 234, 0.2);
         border-left: 4px solid #667eea;
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin: 1rem 0;
+        border-radius: 20px;
+        padding: 2rem;
+        margin: 1.5rem 0;
         animation: insightSlide 0.8s ease-out;
-        transition: all 0.3s ease;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 
+            0 8px 25px rgba(0,0,0,0.08),
+            0 3px 10px rgba(0,0,0,0.03),
+            inset 0 1px 0 rgba(255,255,255,0.9);
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .insight-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+        transition: left 0.8s ease;
     }
     
     .insight-card:hover {
-        transform: translateX(10px);
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        transform: translateX(10px) translateY(-5px) scale(1.02);
+        box-shadow: 
+            0 15px 40px rgba(102, 126, 234, 0.15),
+            0 8px 20px rgba(0,0,0,0.08);
+        border-left-color: #5a67d8;
+    }
+    
+    .insight-card:hover::before {
+        left: 100%;
+    }
+    
+    .insight-card h4 {
+        color: #1f2937;
+        margin-bottom: 1rem;
+        font-weight: 700;
+        font-size: 1.2rem;
+    }
+    
+    .insight-card ul {
+        color: #374151;
+        line-height: 1.6;
+    }
+    
+    .insight-card li {
+        margin-bottom: 0.5rem;
+        color: #4a5568;
     }
     
     @keyframes insightSlide {
@@ -1206,9 +1266,9 @@ def create_chart_with_tooltip(chart, title, subtitle, tooltip_text, key):
                 <strong>图表说明</strong><br>
                 {tooltip_text}
             </div>
-            <div style="margin-bottom: 1rem;">
-                <h3 style="margin: 0; color: #1f2937; font-size: 1.2rem; font-weight: 700;">{title}</h3>
-                <p style="margin: 0.5rem 0 0 0; color: #6b7280; font-size: 0.9rem;">{subtitle}</p>
+            <div style="margin-bottom: 1.5rem;">
+                <h3 style="margin: 0; color: #1f2937; font-size: 1.3rem; font-weight: 700;">{title}</h3>
+                <p style="margin: 0.8rem 0 0 0; color: #6b7280; font-size: 1rem; line-height: 1.5;">{subtitle}</p>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1381,6 +1441,8 @@ def main():
         
         # 核心洞察总结
         st.markdown("<br>", unsafe_allow_html=True)
+        
+        st.markdown('<div class="insight-container">', unsafe_allow_html=True)
         col1, col2 = st.columns([1, 1])
         
         with col1:
@@ -1420,9 +1482,13 @@ def main():
                 metrics['max_dependency_region'],
                 metrics['potential_customers']
             ), unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 2: 客户健康诊断
     with tabs[1]:
+        st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        
         # 增强版雷达图
         if 'health_radar' in charts:
             create_chart_with_tooltip(
@@ -1446,7 +1512,7 @@ def main():
                       metrics['target_achievement_rate'] * 0.3 + 
                       metrics['high_value_rate'] * 0.3)
         
-        st.markdown("### 综合健康度评分")
+        st.markdown('<div style="margin-top: 2rem;"><h3 style="color: #1f2937; margin-bottom: 1.5rem; font-weight: 700;">💯 综合健康度评分</h3></div>', unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 2, 1])
         
         with col2:
@@ -1473,11 +1539,17 @@ def main():
                 </div>
             </div>
             """, unsafe_allow_html=True)
+        
+        # 结束客户健康诊断容器
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Tab 3: 大客户依赖风险评估
     with tabs[2]:
         # 添加客户贡献度分析 (Top 20)
-        st.markdown("### 📊 客户贡献度分析 (Top 20)")
+        st.markdown("""
+        <div class="content-container">
+            <h3 style="color: #1f2937; margin-bottom: 1.5rem; font-weight: 700;">📊 客户贡献度分析 (Top 20)</h3>
+        """, unsafe_allow_html=True)
         
         # 计算Top 20客户贡献度
         if not metrics['rfm_df'].empty:
@@ -1548,20 +1620,20 @@ def main():
                 title_text="客户名称", 
                 tickangle=-45,
                 tickfont=dict(size=12),
-                titlefont=dict(size=16)
+                title_font=dict(size=16)
             )
             fig_top20.update_yaxes(
                 title_text="销售额", 
                 secondary_y=False,
                 tickfont=dict(size=12),
-                titlefont=dict(size=16)
+                title_font=dict(size=16)
             )
             fig_top20.update_yaxes(
                 title_text="累计占比 (%)", 
                 range=[0, 105], 
                 secondary_y=True,
                 tickfont=dict(size=12),
-                titlefont=dict(size=16)
+                title_font=dict(size=16)
             )
             
             fig_top20.update_layout(
@@ -1596,7 +1668,11 @@ def main():
             )
             
             # 显示关键指标
-            st.markdown("#### 🎯 关键风险指标")
+            st.markdown("""
+            <div style="margin-top: 2rem;">
+                <h4 style="color: #1f2937; margin-bottom: 1.5rem; font-weight: 700;">🎯 关键风险指标</h4>
+            </div>
+            """, unsafe_allow_html=True)
             col1, col2, col3 = st.columns(3)
             
             # 计算贡献80%销售额的客户数
@@ -1633,10 +1709,16 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
         
+        # 结束第一个容器
+        st.markdown("</div>", unsafe_allow_html=True)
+        
         st.markdown("<br><hr style='border: 1px solid #e0e0e0; margin: 2rem 0;'><br>", unsafe_allow_html=True)
         
         # 区域风险分析
-        st.markdown("### 🗺️ 区域客户依赖风险评估")
+        st.markdown("""
+        <div class="content-container">
+            <h3 style="color: #1f2937; margin-bottom: 1.5rem; font-weight: 700;">🗺️ 区域客户依赖风险评估</h3>
+        """, unsafe_allow_html=True)
         
         if not metrics['region_stats'].empty:
             # 创建两列布局
@@ -1774,9 +1856,14 @@ def main():
                             客户数: {region['客户数']}家</div>
                         </div>
                         """, unsafe_allow_html=True)
+        
+        # 结束区域风险分析容器
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Tab 4: 价值分层管理
     with tabs[3]:
+        st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        
         # 客户价值分层
         if 'sankey' in charts:
             create_chart_with_tooltip(
@@ -1810,9 +1897,14 @@ def main():
                 • <b>数据解读</b>：扇形大小代表销售额贡献""",
                 "sunburst_chart"
             )
+        
+        # 结束价值分层管理容器
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Tab 5: 目标达成追踪
     with tabs[4]:
+        st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        
         if 'target_scatter' in charts:
             create_chart_with_tooltip(
                 charts['target_scatter'],
@@ -1830,9 +1922,14 @@ def main():
                 • <b>管理建议</b>：重点关注红色气泡客户""",
                 "target_scatter_chart"
             )
+        
+        # 结束目标达成追踪容器
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Tab 6: 趋势洞察分析
     with tabs[5]:
+        st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        
         if 'trend' in charts:
             create_chart_with_tooltip(
                 charts['trend'],
@@ -1861,6 +1958,9 @@ def main():
             </ul>
         </div>
         """, unsafe_allow_html=True)
+        
+        # 结束趋势洞察分析容器
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # 运行主应用
 if __name__ == "__main__":
