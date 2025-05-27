@@ -276,8 +276,8 @@ def calculate_overview_metrics(data):
         'regions': regions
     }
 
-# 创建综合销售指标分析图
-def create_comprehensive_sales_analysis(data):
+# 创建综合销售指标分析图（添加渠道参数）
+def create_comprehensive_sales_analysis(data, focus_channel=None):
     """创建综合销售指标分析图（季度和月度）"""
     sales_data = data['sales_data']
     tt_city_data = data['tt_city_data']
@@ -337,6 +337,14 @@ def create_comprehensive_sales_analysis(data):
     # 创建子图
     from plotly.subplots import make_subplots
     
+    # 根据聚焦渠道调整标题
+    if focus_channel == 'MT':
+        main_title = "MT渠道销售指标综合分析仪表板"
+    elif focus_channel == 'TT':
+        main_title = "TT渠道销售指标综合分析仪表板"
+    else:
+        main_title = "销售指标综合分析仪表板"
+    
     fig = make_subplots(
         rows=2, cols=2,
         subplot_titles=('销售额月度趋势', '达成率月度趋势', 
@@ -348,90 +356,96 @@ def create_comprehensive_sales_analysis(data):
     )
     
     # 1. 销售额月度趋势（左上）
-    fig.add_trace(
-        go.Scatter(
-            x=df_monthly['时间'],
-            y=df_monthly['TT销售额'],
-            name='TT销售额',
-            mode='lines+markers',
-            line=dict(color='#667eea', width=3),
-            marker=dict(size=8),
-            hovertemplate='%{y:,.0f}万<extra></extra>'
-        ),
-        row=1, col=1, secondary_y=False
-    )
+    if focus_channel != 'TT':
+        fig.add_trace(
+            go.Scatter(
+                x=df_monthly['时间'],
+                y=df_monthly['MT销售额'],
+                name='MT销售额',
+                mode='lines+markers',
+                line=dict(color='#764ba2', width=3),
+                marker=dict(size=8),
+                hovertemplate='%{y:,.0f}万<extra></extra>'
+            ),
+            row=1, col=1, secondary_y=False
+        )
     
-    fig.add_trace(
-        go.Scatter(
-            x=df_monthly['时间'],
-            y=df_monthly['MT销售额'],
-            name='MT销售额',
-            mode='lines+markers',
-            line=dict(color='#764ba2', width=3),
-            marker=dict(size=8),
-            hovertemplate='%{y:,.0f}万<extra></extra>'
-        ),
-        row=1, col=1, secondary_y=False
-    )
+    if focus_channel != 'MT':
+        fig.add_trace(
+            go.Scatter(
+                x=df_monthly['时间'],
+                y=df_monthly['TT销售额'],
+                name='TT销售额',
+                mode='lines+markers',
+                line=dict(color='#667eea', width=3),
+                marker=dict(size=8),
+                hovertemplate='%{y:,.0f}万<extra></extra>'
+            ),
+            row=1, col=1, secondary_y=False
+        )
     
-    fig.add_trace(
-        go.Scatter(
-            x=df_monthly['时间'],
-            y=df_monthly['总销售额'],
-            name='总销售额',
-            mode='lines+markers',
-            line=dict(color='#f59e0b', width=4, dash='dash'),
-            marker=dict(size=10),
-            hovertemplate='%{y:,.0f}万<extra></extra>'
-        ),
-        row=1, col=1, secondary_y=True
-    )
+    if not focus_channel:
+        fig.add_trace(
+            go.Scatter(
+                x=df_monthly['时间'],
+                y=df_monthly['总销售额'],
+                name='总销售额',
+                mode='lines+markers',
+                line=dict(color='#f59e0b', width=4, dash='dash'),
+                marker=dict(size=10),
+                hovertemplate='%{y:,.0f}万<extra></extra>'
+            ),
+            row=1, col=1, secondary_y=True
+        )
     
     # 2. 达成率月度趋势（右上）
-    fig.add_trace(
-        go.Scatter(
-            x=df_monthly['时间'],
-            y=df_monthly['TT达成率'],
-            name='TT达成率',
-            mode='lines+markers+text',
-            line=dict(color='#667eea', width=3),
-            marker=dict(size=10),
-            text=[f'{v:.0f}%' for v in df_monthly['TT达成率']],
-            textposition='top center',
-            textfont=dict(size=10),
-            hovertemplate='%{y:.1f}%<extra></extra>'
-        ),
-        row=1, col=2
-    )
+    if focus_channel != 'TT':
+        fig.add_trace(
+            go.Scatter(
+                x=df_monthly['时间'],
+                y=df_monthly['MT达成率'],
+                name='MT达成率',
+                mode='lines+markers+text',
+                line=dict(color='#764ba2', width=3),
+                marker=dict(size=10),
+                text=[f'{v:.0f}%' for v in df_monthly['MT达成率']],
+                textposition='bottom center',
+                textfont=dict(size=10),
+                hovertemplate='%{y:.1f}%<extra></extra>'
+            ),
+            row=1, col=2
+        )
     
-    fig.add_trace(
-        go.Scatter(
-            x=df_monthly['时间'],
-            y=df_monthly['MT达成率'],
-            name='MT达成率',
-            mode='lines+markers+text',
-            line=dict(color='#764ba2', width=3),
-            marker=dict(size=10),
-            text=[f'{v:.0f}%' for v in df_monthly['MT达成率']],
-            textposition='bottom center',
-            textfont=dict(size=10),
-            hovertemplate='%{y:.1f}%<extra></extra>'
-        ),
-        row=1, col=2
-    )
+    if focus_channel != 'MT':
+        fig.add_trace(
+            go.Scatter(
+                x=df_monthly['时间'],
+                y=df_monthly['TT达成率'],
+                name='TT达成率',
+                mode='lines+markers+text',
+                line=dict(color='#667eea', width=3),
+                marker=dict(size=10),
+                text=[f'{v:.0f}%' for v in df_monthly['TT达成率']],
+                textposition='top center',
+                textfont=dict(size=10),
+                hovertemplate='%{y:.1f}%<extra></extra>'
+            ),
+            row=1, col=2
+        )
     
-    fig.add_trace(
-        go.Scatter(
-            x=df_monthly['时间'],
-            y=df_monthly['总达成率'],
-            name='总达成率',
-            mode='lines+markers',
-            line=dict(color='#10b981', width=4),
-            marker=dict(size=12, symbol='diamond'),
-            hovertemplate='%{y:.1f}%<extra></extra>'
-        ),
-        row=1, col=2
-    )
+    if not focus_channel:
+        fig.add_trace(
+            go.Scatter(
+                x=df_monthly['时间'],
+                y=df_monthly['总达成率'],
+                name='总达成率',
+                mode='lines+markers',
+                line=dict(color='#10b981', width=4),
+                marker=dict(size=12, symbol='diamond'),
+                hovertemplate='%{y:.1f}%<extra></extra>'
+            ),
+            row=1, col=2
+        )
     
     # 添加100%参考线
     fig.add_hline(y=100, line_dash="dash", line_color="red", 
@@ -444,31 +458,33 @@ def create_comprehensive_sales_analysis(data):
         '总销售额': 'sum'
     }).reset_index()
     
-    fig.add_trace(
-        go.Bar(
-            x=quarterly_data['季度'],
-            y=quarterly_data['TT销售额'],
-            name='TT销售额',
-            marker_color='#667eea',
-            text=[f'{v/10000:.0f}万' for v in quarterly_data['TT销售额']],
-            textposition='inside',
-            hovertemplate='%{y:,.0f}<extra></extra>'
-        ),
-        row=2, col=1
-    )
+    if focus_channel != 'TT':
+        fig.add_trace(
+            go.Bar(
+                x=quarterly_data['季度'],
+                y=quarterly_data['MT销售额'],
+                name='MT销售额',
+                marker_color='#764ba2',
+                text=[f'{v/10000:.0f}万' for v in quarterly_data['MT销售额']],
+                textposition='inside',
+                hovertemplate='%{y:,.0f}<extra></extra>'
+            ),
+            row=2, col=1
+        )
     
-    fig.add_trace(
-        go.Bar(
-            x=quarterly_data['季度'],
-            y=quarterly_data['MT销售额'],
-            name='MT销售额',
-            marker_color='#764ba2',
-            text=[f'{v/10000:.0f}万' for v in quarterly_data['MT销售额']],
-            textposition='inside',
-            hovertemplate='%{y:,.0f}<extra></extra>'
-        ),
-        row=2, col=1
-    )
+    if focus_channel != 'MT':
+        fig.add_trace(
+            go.Bar(
+                x=quarterly_data['季度'],
+                y=quarterly_data['TT销售额'],
+                name='TT销售额',
+                marker_color='#667eea',
+                text=[f'{v/10000:.0f}万' for v in quarterly_data['TT销售额']],
+                textposition='inside',
+                hovertemplate='%{y:,.0f}<extra></extra>'
+            ),
+            row=2, col=1
+        )
     
     # 4. 季度达成率分析（右下）
     quarterly_achievement = df_monthly.groupby('季度').agg({
@@ -487,50 +503,53 @@ def create_comprehensive_sales_analysis(data):
     quarterly_achievement['总达成率'] = (quarterly_achievement['总销售额'] / 
                                       quarterly_achievement['总目标额'] * 100)
     
-    fig.add_trace(
-        go.Scatter(
-            x=quarterly_achievement.index,
-            y=quarterly_achievement['TT达成率'],
-            name='TT达成率',
-            mode='lines+markers+text',
-            line=dict(color='#667eea', width=4),
-            marker=dict(size=15),
-            text=[f'{v:.0f}%' for v in quarterly_achievement['TT达成率']],
-            textposition='top center',
-            hovertemplate='%{y:.1f}%<extra></extra>'
-        ),
-        row=2, col=2
-    )
+    if focus_channel != 'TT':
+        fig.add_trace(
+            go.Scatter(
+                x=quarterly_achievement.index,
+                y=quarterly_achievement['MT达成率'],
+                name='MT达成率',
+                mode='lines+markers+text',
+                line=dict(color='#764ba2', width=4),
+                marker=dict(size=15),
+                text=[f'{v:.0f}%' for v in quarterly_achievement['MT达成率']],
+                textposition='bottom center',
+                hovertemplate='%{y:.1f}%<extra></extra>'
+            ),
+            row=2, col=2
+        )
     
-    fig.add_trace(
-        go.Scatter(
-            x=quarterly_achievement.index,
-            y=quarterly_achievement['MT达成率'],
-            name='MT达成率',
-            mode='lines+markers+text',
-            line=dict(color='#764ba2', width=4),
-            marker=dict(size=15),
-            text=[f'{v:.0f}%' for v in quarterly_achievement['MT达成率']],
-            textposition='bottom center',
-            hovertemplate='%{y:.1f}%<extra></extra>'
-        ),
-        row=2, col=2
-    )
+    if focus_channel != 'MT':
+        fig.add_trace(
+            go.Scatter(
+                x=quarterly_achievement.index,
+                y=quarterly_achievement['TT达成率'],
+                name='TT达成率',
+                mode='lines+markers+text',
+                line=dict(color='#667eea', width=4),
+                marker=dict(size=15),
+                text=[f'{v:.0f}%' for v in quarterly_achievement['TT达成率']],
+                textposition='top center',
+                hovertemplate='%{y:.1f}%<extra></extra>'
+            ),
+            row=2, col=2
+        )
     
-    fig.add_trace(
-        go.Scatter(
-            x=quarterly_achievement.index,
-            y=quarterly_achievement['总达成率'],
-            name='总达成率',
-            mode='lines+markers+text',
-            line=dict(color='#10b981', width=5),
-            marker=dict(size=20, symbol='star'),
-            text=[f'{v:.0f}%' for v in quarterly_achievement['总达成率']],
-            textposition='middle right',
-            hovertemplate='%{y:.1f}%<extra></extra>'
-        ),
-        row=2, col=2
-    )
+    if not focus_channel:
+        fig.add_trace(
+            go.Scatter(
+                x=quarterly_achievement.index,
+                y=quarterly_achievement['总达成率'],
+                name='总达成率',
+                mode='lines+markers+text',
+                line=dict(color='#10b981', width=5),
+                marker=dict(size=20, symbol='star'),
+                text=[f'{v:.0f}%' for v in quarterly_achievement['总达成率']],
+                textposition='middle right',
+                hovertemplate='%{y:.1f}%<extra></extra>'
+            ),
+            row=2, col=2
+        )
     
     # 添加100%参考线
     fig.add_hline(y=100, line_dash="dash", line_color="red", row=2, col=2)
@@ -542,7 +561,8 @@ def create_comprehensive_sales_analysis(data):
     fig.update_xaxes(title_text="季度", row=2, col=2)
     
     fig.update_yaxes(title_text="销售额", row=1, col=1, secondary_y=False)
-    fig.update_yaxes(title_text="总销售额", row=1, col=1, secondary_y=True)
+    if not focus_channel:
+        fig.update_yaxes(title_text="总销售额", row=1, col=1, secondary_y=True)
     fig.update_yaxes(title_text="达成率 (%)", row=1, col=2)
     fig.update_yaxes(title_text="销售额", row=2, col=1)
     fig.update_yaxes(title_text="达成率 (%)", row=2, col=2)
@@ -551,7 +571,7 @@ def create_comprehensive_sales_analysis(data):
         height=800,
         showlegend=True,
         title={
-            'text': "销售指标综合分析仪表板",
+            'text': main_title,
             'font': {'size': 24, 'weight': 'bold'},
             'x': 0.5,
             'xanchor': 'center'
@@ -654,100 +674,6 @@ def create_regional_comparison_chart(data):
     
     return fig
 
-# 创建客户贡献分析
-def create_customer_contribution_analysis(data):
-    """创建客户贡献分析图表"""
-    sales_data = data['sales_data']
-    
-    # 计算客户销售额
-    customer_sales = sales_data.groupby('客户简称')['销售额'].sum().sort_values(ascending=False)
-    
-    # 计算累计贡献率
-    total_sales = customer_sales.sum()
-    customer_contribution = pd.DataFrame({
-        '客户': customer_sales.index,
-        '销售额': customer_sales.values,
-        '贡献率': (customer_sales.values / total_sales * 100)
-    })
-    customer_contribution['累计贡献率'] = customer_contribution['贡献率'].cumsum()
-    
-    # 找出80%贡献的客户数
-    customers_80 = len(customer_contribution[customer_contribution['累计贡献率'] <= 80])
-    
-    # 只显示前20个客户
-    top_customers = customer_contribution.head(20)
-    
-    fig = go.Figure()
-    
-    # 添加柱状图
-    fig.add_trace(go.Bar(
-        x=top_customers['客户'],
-        y=top_customers['销售额'],
-        name='销售额',
-        marker_color='#667eea',
-        yaxis='y',
-        text=[f"¥{val/10000:.0f}万" for val in top_customers['销售额']],
-        textposition='outside',
-        hovertemplate='<b>%{x}</b><br>' +
-                     '销售额: ¥%{y:,.0f}<br>' +
-                     '贡献率: %{customdata:.1f}%<br>' +
-                     '<extra></extra>',
-        customdata=top_customers['贡献率']
-    ))
-    
-    # 添加累计贡献率曲线
-    fig.add_trace(go.Scatter(
-        x=top_customers['客户'],
-        y=top_customers['累计贡献率'],
-        name='累计贡献率',
-        mode='lines+markers',
-        line=dict(color='#f59e0b', width=3),
-        marker=dict(size=8),
-        yaxis='y2',
-        hovertemplate='<b>累计贡献率</b><br>' +
-                     '客户: %{x}<br>' +
-                     '累计贡献: %{y:.1f}%<br>' +
-                     '<extra></extra>'
-    ))
-    
-    # 添加80%贡献线
-    fig.add_hline(
-        y=80,
-        line_dash="dash",
-        line_color="red",
-        yref='y2',
-        annotation_text=f"80%贡献线 (前{customers_80}个客户)",
-        annotation_position="left"
-    )
-    
-    fig.update_layout(
-        title={
-            'text': f"客户贡献度分析 (Top 20) - 前{customers_80}个客户贡献80%销售额",
-            'font': {'size': 20, 'weight': 'bold'}
-        },
-        xaxis_title="客户名称",
-        yaxis=dict(
-            title="销售额",
-            showgrid=True,
-            gridcolor='rgba(200,200,200,0.3)',
-            tickformat=',.0f'
-        ),
-        yaxis2=dict(
-            title="累计贡献率 (%)",
-            overlaying='y',
-            side='right',
-            range=[0, 100],
-            showgrid=False
-        ),
-        height=600,
-        hovermode='x unified',
-        xaxis_tickangle=-45,
-        plot_bgcolor='white',
-        bargap=0.2
-    )
-    
-    return fig, customers_80, len(customer_sales)
-
 # 主页面
 def main():
     # 检查认证状态
@@ -776,8 +702,7 @@ def main():
         "📊 销售达成总览",
         "🏪 MT渠道分析",
         "🏢 TT渠道分析",
-        "📊 全渠道分析",
-        "👥 客户贡献分析"
+        "📊 全渠道分析"
     ]
     
     tabs = st.tabs(tab_names)
@@ -828,17 +753,17 @@ def main():
     with tabs[1]:
         st.markdown("### 🏪 MT渠道深度分析")
         
-        # 创建综合销售指标分析图
-        comprehensive_fig = create_comprehensive_sales_analysis(data)
-        st.plotly_chart(comprehensive_fig, use_container_width=True)
+        # 创建MT渠道专属的综合销售指标分析图
+        mt_comprehensive_fig = create_comprehensive_sales_analysis(data, focus_channel='MT')
+        st.plotly_chart(mt_comprehensive_fig, use_container_width=True)
     
     # Tab 3: TT渠道分析
     with tabs[2]:
         st.markdown("### 🏢 TT渠道深度分析")
         
-        # 复用综合销售指标分析图
-        comprehensive_fig_tt = create_comprehensive_sales_analysis(data)
-        st.plotly_chart(comprehensive_fig_tt, use_container_width=True)
+        # 创建TT渠道专属的综合销售指标分析图
+        tt_comprehensive_fig = create_comprehensive_sales_analysis(data, focus_channel='TT')
+        st.plotly_chart(tt_comprehensive_fig, use_container_width=True)
     
     # Tab 4: 全渠道分析
     with tabs[3]:
@@ -888,66 +813,6 @@ def main():
                 </ul>
             </div>
             """, unsafe_allow_html=True)
-    
-    # Tab 5: 客户贡献分析
-    with tabs[4]:
-        st.markdown("### 👥 客户贡献分析")
-        
-        # 客户贡献分析图
-        customer_fig, customers_80, total_customers = create_customer_contribution_analysis(data)
-        st.plotly_chart(customer_fig, use_container_width=True)
-        
-        # 客户分析洞察
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric(
-                "贡献80%销售的客户数",
-                f"{customers_80}个",
-                f"占比 {customers_80/total_customers*100:.1f}%"
-            )
-        
-        with col2:
-            st.metric(
-                "总客户数",
-                f"{total_customers}个",
-                "活跃客户"
-            )
-        
-        with col3:
-            concentration = customers_80/total_customers*100
-            risk_level = "高" if concentration < 20 else "中" if concentration < 40 else "低"
-            risk_color = "#ef4444" if risk_level == "高" else "#f59e0b" if risk_level == "中" else "#10b981"
-            
-            st.markdown(f"""
-            <div style="text-align: center; padding: 1rem; background: rgba(255,255,255,0.8); border-radius: 10px;">
-                <h3 style="margin: 0; color: {risk_color};">客户集中度风险</h3>
-                <h1 style="margin: 0.5rem 0; color: {risk_color};">{risk_level}</h1>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # 客户管理建议
-        st.markdown("### 🎯 客户管理策略建议")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.success("""
-            **核心客户维护**
-            - 定期拜访Top 20客户
-            - 制定专属服务方案
-            - 建立长期合作关系
-            - 优先保障供货
-            """)
-        
-        with col2:
-            st.info("""
-            **客户开发策略**
-            - 降低客户集中度风险
-            - 开发潜力客户
-            - 区域市场拓展
-            - 新渠道客户开发
-            """)
 
 if __name__ == "__main__":
     main()
