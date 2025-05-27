@@ -464,6 +464,24 @@ st.markdown("""
     .stMarkdown, .stText, .stCaption {
         color: #1f2937 !important;
     }
+    
+    /* 为 Streamlit 的 container 添加样式标记 */
+    div[data-testid="stVerticalBlock"] > div:has(> div[data-testid="stVerticalBlock"]):has(.chart-container-marker) {
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 25px;
+        padding: 2rem;
+        margin: 1.5rem 0;
+        box-shadow: 
+            0 15px 35px rgba(0,0,0,0.08),
+            0 5px 15px rgba(0,0,0,0.03),
+            inset 0 1px 0 rgba(255,255,255,0.9);
+        border: 1px solid rgba(255,255,255,0.3);
+        backdrop-filter: blur(10px);
+        animation: containerFadeIn 1.2s ease-out;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1238,91 +1256,96 @@ def main():
     with tabs[0]:
         metrics = calculate_comprehensive_metrics(data)
         
-        # 第一行：4个卡片
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">¥{metrics['total_sales']:,.0f}</div>
-                <div class="metric-label">💰 2025年总销售额</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: {'#10b981' if metrics['jbp_status'] == 'YES' else '#ef4444'}">
-                    {metrics['jbp_status']}
+        # 使用容器包装整个内容
+        with st.container():
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            
+            # 第一行：4个卡片
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">¥{metrics['total_sales']:,.0f}</div>
+                    <div class="metric-label">💰 2025年总销售额</div>
                 </div>
-                <div class="metric-label">✅ JBP符合度</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{metrics['penetration_rate']:.1f}%</div>
-                <div class="metric-label">📊 新品渗透率</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{metrics['promo_effectiveness']:.1f}%</div>
-                <div class="metric-label">🚀 全国促销有效性</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 第二行：4个卡片
-        col5, col6, col7, col8 = st.columns(4)
-        
-        with col5:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{metrics['new_ratio']:.1f}%</div>
-                <div class="metric-label">🌟 新品占比</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col6:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{metrics['star_ratio']:.1f}%</div>
-                <div class="metric-label">⭐ 星品占比</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col7:
-            status_color = '#10b981' if metrics['total_ratio'] >= 20 else '#ef4444'
-            status_text = "✅ 达标" if metrics['total_ratio'] >= 20 else "❌ 未达标"
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{metrics['total_ratio']:.1f}%</div>
-                <div class="metric-label">🎯 星品&新品总占比</div>
-                <div style="color: {status_color}; font-size: 0.9rem; margin-top: 0.5rem;">{status_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col8:
-            # 第8个卡片可以放其他重要指标，比如产品数量
-            total_products = len(data['dashboard_products'])
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{total_products}</div>
-                <div class="metric-label">📦 仪表盘产品数</div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value" style="color: {'#10b981' if metrics['jbp_status'] == 'YES' else '#ef4444'}">
+                        {metrics['jbp_status']}
+                    </div>
+                    <div class="metric-label">✅ JBP符合度</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{metrics['penetration_rate']:.1f}%</div>
+                    <div class="metric-label">📊 新品渗透率</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col4:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{metrics['promo_effectiveness']:.1f}%</div>
+                    <div class="metric-label">🚀 全国促销有效性</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # 第二行：4个卡片
+            col5, col6, col7, col8 = st.columns(4)
+            
+            with col5:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{metrics['new_ratio']:.1f}%</div>
+                    <div class="metric-label">🌟 新品占比</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col6:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{metrics['star_ratio']:.1f}%</div>
+                    <div class="metric-label">⭐ 星品占比</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col7:
+                status_color = '#10b981' if metrics['total_ratio'] >= 20 else '#ef4444'
+                status_text = "✅ 达标" if metrics['total_ratio'] >= 20 else "❌ 未达标"
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{metrics['total_ratio']:.1f}%</div>
+                    <div class="metric-label">🎯 星品&新品总占比</div>
+                    <div style="color: {status_color}; font-size: 0.9rem; margin-top: 0.5rem;">{status_text}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col8:
+                # 第8个卡片可以放其他重要指标，比如产品数量
+                total_products = len(data['dashboard_products'])
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{total_products}</div>
+                    <div class="metric-label">📦 仪表盘产品数</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 2: BCG产品矩阵
     with tabs[1]:
-        # 选择维度控件 - 使用占位符方式包装在容器中
-        container1 = st.container()
-        with container1:
-            _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        # 选择维度控件 - 使用容器包装
+        with st.container():
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
             bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
             
             # 获取分析数据
@@ -1335,30 +1358,30 @@ def main():
                 selected_region = st.selectbox("🗺️ 选择区域", regions)
                 product_analysis = create_bcg_matrix(data, 'regional', selected_region)
                 title = f"{selected_region}区域 BCG产品矩阵"
-            _end = st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         
-        # 显示BCG矩阵图表 - 使用占位符方式包装在容器中
+        # 显示BCG矩阵图表 - 使用容器包装
         if len(product_analysis) > 0:
-            container2 = st.container()
-            with container2:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            with st.container():
+                st.markdown('<div class="chart-container-marker"></div>', unsafe_allow_html=True)
                 fig = plot_bcg_matrix(product_analysis, title=title)
                 st.plotly_chart(fig, use_container_width=True)
-                _end = st.markdown('</div>', unsafe_allow_html=True)
             
-            # JBP符合度分析
-            total_sales = product_analysis['sales'].sum()
-            cow_sales = product_analysis[product_analysis['category'] == 'cow']['sales'].sum()
-            star_question_sales = product_analysis[product_analysis['category'].isin(['star', 'question'])]['sales'].sum()
-            dog_sales = product_analysis[product_analysis['category'] == 'dog']['sales'].sum()
-            
-            cow_ratio = cow_sales / total_sales * 100 if total_sales > 0 else 0
-            star_question_ratio = star_question_sales / total_sales * 100 if total_sales > 0 else 0
-            dog_ratio = dog_sales / total_sales * 100 if total_sales > 0 else 0
-            
-            region_prefix = f"{selected_region}区域 " if bcg_dimension == "🗺️ 分区域维度" else ""
-            
-            with st.expander(f"📊 {region_prefix}JBP符合度分析", expanded=True):
+            # JBP符合度分析 - 使用容器包装
+            with st.container():
+                st.markdown('<div class="content-container">', unsafe_allow_html=True)
+                total_sales = product_analysis['sales'].sum()
+                cow_sales = product_analysis[product_analysis['category'] == 'cow']['sales'].sum()
+                star_question_sales = product_analysis[product_analysis['category'].isin(['star', 'question'])]['sales'].sum()
+                dog_sales = product_analysis[product_analysis['category'] == 'dog']['sales'].sum()
+                
+                cow_ratio = cow_sales / total_sales * 100 if total_sales > 0 else 0
+                star_question_ratio = star_question_sales / total_sales * 100 if total_sales > 0 else 0
+                dog_ratio = dog_sales / total_sales * 100 if total_sales > 0 else 0
+                
+                region_prefix = f"{selected_region}区域 " if bcg_dimension == "🗺️ 分区域维度" else ""
+                
+                st.markdown(f"### 📊 {region_prefix}JBP符合度分析")
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
@@ -1378,6 +1401,7 @@ def main():
                              "✅ 符合" if dog_ratio <= 10 else "❌ 不符合",
                              delta_color="normal" if dog_ratio <= 10 else "inverse")
                     st.caption("目标: ≤10%")
+                st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("该区域暂无产品数据")
     
@@ -1389,10 +1413,9 @@ def main():
             # 计算有效率并显示在标题中
             effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
             
-            # 促销活动效果图表 - 使用占位符方式包装在容器中
-            container3 = st.container()
-            with container3:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 促销活动效果图表 - 使用容器包装
+            with st.container():
+                st.markdown('<div class="chart-container-marker"></div>', unsafe_allow_html=True)
                 st.markdown(f"""
                 <div class="promo-header">
                     <h2>🚀 全国促销活动有效性分析</h2>
@@ -1403,10 +1426,12 @@ def main():
                 fig = create_optimized_promotion_chart(promo_results)
                 if fig:
                     st.plotly_chart(fig, use_container_width=True)
-                _end = st.markdown('</div>', unsafe_allow_html=True)
             
-            # 促销洞察分析
-            with st.expander("💡 促销活动深度洞察", expanded=True):
+            # 促销洞察分析 - 使用容器包装
+            with st.container():
+                st.markdown('<div class="content-container">', unsafe_allow_html=True)
+                st.markdown("### 💡 促销活动深度洞察")
+                
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -1429,17 +1454,17 @@ def main():
                     - 环比增长率: {ineffective_products['mom_growth'].mean():.1f}%
                     - 同比增长率: {ineffective_products['yoy_growth'].mean():.1f}%
                     """)
+                st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("暂无全国促销活动数据")
     
     # Tab 4: 星品新品达成
-    with tabs[3]:
-        # 选择控件 - 使用占位符方式包装在容器中
-        container4 = st.container()
-        with container4:
-            _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+    with tabs[4]:
+        # 选择控件 - 使用容器包装
+        with st.container():
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
             view_type = st.radio("选择分析视角", ["按区域", "按销售员", "趋势分析"], horizontal=True)
-            _end = st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         
         sales_df = data['sales_df']
         star_products = data['star_products']
@@ -1447,10 +1472,9 @@ def main():
         star_new_products = list(set(star_products + new_products))
         
         if view_type == "按区域":
-            # 区域分析 - 使用占位符方式包装在容器中
-            container5 = st.container()
-            with container5:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 区域分析 - 使用容器包装
+            with st.container():
+                st.markdown('<div class="chart-container-marker"></div>', unsafe_allow_html=True)
                 
                 # 区域分析
                 region_stats = []
@@ -1516,13 +1540,11 @@ def main():
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
-                _end = st.markdown('</div>', unsafe_allow_html=True)
         
         elif view_type == "按销售员":
-            # 销售员分析 - 使用占位符方式包装在容器中
-            container6 = st.container()
-            with container6:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 销售员分析 - 使用容器包装
+            with st.container():
+                st.markdown('<div class="chart-container-marker"></div>', unsafe_allow_html=True)
                 
                 # 销售员分析
                 salesperson_stats = []
@@ -1592,13 +1614,11 @@ def main():
                 
                 achieved_count = person_df['achieved'].sum()
                 st.info(f"📊 达成率统计：{achieved_count}/{len(person_df)}人达标（{achieved_count/len(person_df)*100:.1f}%）")
-                _end = st.markdown('</div>', unsafe_allow_html=True)
         
         else:  # 趋势分析
-            # 趋势分析 - 使用占位符方式包装在容器中
-            container7 = st.container()
-            with container7:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 趋势分析 - 使用容器包装
+            with st.container():
+                st.markdown('<div class="chart-container-marker"></div>', unsafe_allow_html=True)
                 
                 # 趋势分析
                 monthly_stats = []
@@ -1658,31 +1678,30 @@ def main():
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
-                _end = st.markdown('</div>', unsafe_allow_html=True)
     
     # Tab 5: 市场网络与覆盖分析
     with tabs[4]:
-        # 选择控件 - 使用占位符方式包装在容器中
-        container8 = st.container()
-        with container8:
-            _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        # 选择控件 - 使用容器包装
+        with st.container():
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
             analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析"], horizontal=True)
-            _end = st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         
         if analysis_type == "🔗 产品关联网络":
-            # 产品关联网络 - 使用占位符方式包装在容器中
-            container9 = st.container()
-            with container9:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 产品关联网络 - 使用容器包装
+            with st.container():
+                st.markdown('<div class="chart-container-marker"></div>', unsafe_allow_html=True)
                 st.subheader("产品关联网络分析")
                 
                 # 创建基于真实数据的2D网络图
                 network_fig = create_real_product_network(data)
                 st.plotly_chart(network_fig, use_container_width=True)
-                _end = st.markdown('</div>', unsafe_allow_html=True)
             
-            # 关联分析洞察
-            with st.expander("💡 产品关联营销策略", expanded=True):
+            # 关联分析洞察 - 使用容器包装
+            with st.container():
+                st.markdown('<div class="content-container">', unsafe_allow_html=True)
+                st.markdown("### 💡 产品关联营销策略")
+                
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -1702,43 +1721,45 @@ def main():
                     - 基于关联度设计货架陈列
                     - 开发新的组合套装产品
                     """)
+                st.markdown('</div>', unsafe_allow_html=True)
         
         else:  # 区域覆盖分析
-            # 区域覆盖分析 - 使用占位符方式包装在容器中
-            container10 = st.container()
-            with container10:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 区域覆盖分析 - 使用容器包装
+            with st.container():
+                st.markdown('<div class="chart-container-marker"></div>', unsafe_allow_html=True)
                 
                 # 创建更易读的区域覆盖率分析
                 fig, coverage_df = create_regional_coverage_analysis(data)
                 st.plotly_chart(fig, use_container_width=True)
-                _end = st.markdown('</div>', unsafe_allow_html=True)
             
-            # 覆盖率分析洞察
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                avg_coverage = coverage_df['coverage_rate'].mean()
-                st.metric("平均覆盖率", f"{avg_coverage:.1f}%", 
-                         "整体表现良好" if avg_coverage >= 70 else "需要提升")
+            # 覆盖率分析洞察 - 使用容器包装
+            with st.container():
+                st.markdown('<div class="content-container">', unsafe_allow_html=True)
+                col1, col2 = st.columns(2)
                 
-                low_coverage_regions = coverage_df[coverage_df['coverage_rate'] < 80]
-                if len(low_coverage_regions) > 0:
-                    st.warning(f"⚠️ 有{len(low_coverage_regions)}个区域低于80%目标线")
-            
-            with col2:
-                # 漏铺市机会分析
-                total_gap = coverage_df['gap'].sum()
-                if total_gap > 0:
-                    potential_products = int(total_gap * len(data['dashboard_products']) / 100)
-                    st.info(f"""
-                    **📈 漏铺市机会**
-                    - 总体覆盖缺口: {total_gap:.0f}%
-                    - 潜在可增产品: 约{potential_products}个
-                    - 建议优先开发覆盖率最低的区域
-                    """)
-                else:
-                    st.success("✅ 所有区域覆盖率均达到80%以上")
+                with col1:
+                    avg_coverage = coverage_df['coverage_rate'].mean()
+                    st.metric("平均覆盖率", f"{avg_coverage:.1f}%", 
+                             "整体表现良好" if avg_coverage >= 70 else "需要提升")
+                    
+                    low_coverage_regions = coverage_df[coverage_df['coverage_rate'] < 80]
+                    if len(low_coverage_regions) > 0:
+                        st.warning(f"⚠️ 有{len(low_coverage_regions)}个区域低于80%目标线")
+                
+                with col2:
+                    # 漏铺市机会分析
+                    total_gap = coverage_df['gap'].sum()
+                    if total_gap > 0:
+                        potential_products = int(total_gap * len(data['dashboard_products']) / 100)
+                        st.info(f"""
+                        **📈 漏铺市机会**
+                        - 总体覆盖缺口: {total_gap:.0f}%
+                        - 潜在可增产品: 约{potential_products}个
+                        - 建议优先开发覆盖率最低的区域
+                        """)
+                    else:
+                        st.success("✅ 所有区域覆盖率均达到80%以上")
+                st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
