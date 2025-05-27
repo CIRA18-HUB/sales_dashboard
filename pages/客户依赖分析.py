@@ -98,6 +98,22 @@ st.markdown("""
         50% { transform: scale(1.02); }
     }
     
+    /* 总销售额卡片动画 */
+    @keyframes totalSalesGlow {
+        0%, 100% {
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+            transform: scale(1);
+        }
+        50% {
+            box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5);
+            transform: scale(1.02);
+        }
+    }
+    
+    .total-sales-card {
+        animation: totalSalesGlow 3s ease-in-out infinite;
+    }
+    
     /* 增强的指标卡片样式 */
     .metric-card {
         background: white;
@@ -1073,7 +1089,7 @@ def main():
     with tabs[0]:
         # 重要指标 - 当年总销售额
         st.markdown(f"""
-        <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+        <div class='total-sales-card' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                   color: white; padding: 2rem; border-radius: 15px; 
                   text-align: center; margin-bottom: 2rem;
                   box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);'>
