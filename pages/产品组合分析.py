@@ -395,6 +395,14 @@ def plot_modern_bcg_matrix_enhanced(product_df, title="BCG产品矩阵"):
                   fillcolor=quadrant_colors['cow'], 
                   line=dict(width=0), layer="below")
     
+    # 类别名称映射
+    category_names = {
+        'star': '⭐ 明星产品',
+        'question': '❓ 问号产品',
+        'cow': '🐄 现金牛产品',
+        'dog': '🐕 瘦狗产品'
+    }
+    
     # 绘制产品气泡，改进位置算法避免遮挡
     for category in ['star', 'question', 'cow', 'dog']:
         cat_data = product_df[product_df['category'] == category]
@@ -408,9 +416,9 @@ def plot_modern_bcg_matrix_enhanced(product_df, title="BCG产品矩阵"):
             # 创建hover文本
             hover_texts = []
             for _, row in cat_data.iterrows():
+                category_name = category_names.get(category, category)
                 hover_text = f"""<b>{row['name']} ({row['product']})</b><br>
-<br><b>分类：{{'star': '⭐ 明星产品', 'question': '❓ 问号产品', 
-'cow': '🐄 现金牛产品', 'dog': '🐕 瘦狗产品'}[category]}</b><br>
+<br><b>分类：{category_name}</b><br>
 <br><b>分类原因：</b><br>{row['category_reason']}<br>
 <br><b>详细计算：</b><br>{row['calculation_detail']}<br>
 <br><b>策略建议：</b><br>{get_strategy_suggestion(category)}"""
@@ -873,16 +881,18 @@ def create_optimized_promotion_chart(promo_results):
     # 创建详细的hover文本
     hover_texts = []
     for _, row in promo_results.iterrows():
+        arrow_up = '↑'
+        arrow_down = '↓'
         hover_text = f"""<b>{row['product']}</b><br>
 <b>4月销售额:</b> ¥{row['sales']:,.0f}<br>
 <b>有效性判断:</b> {row['effectiveness_reason']}<br>
 <br><b>详细分析:</b><br>
 • 3月销售额: ¥{row['march_sales']:,.0f}<br>
-• 环比: {'↑' if row['mom_growth'] > 0 else '↓'}{abs(row['mom_growth']):.1f}%<br>
+• 环比: {arrow_up if row['mom_growth'] > 0 else arrow_down}{abs(row['mom_growth']):.1f}%<br>
 • 去年4月: ¥{row['april_2024_sales']:,.0f}<br>
-• 同比: {'↑' if row['yoy_growth'] > 0 else '↓'}{abs(row['yoy_growth']):.1f}%<br>
+• 同比: {arrow_up if row['yoy_growth'] > 0 else arrow_down}{abs(row['yoy_growth']):.1f}%<br>
 • 去年月均: ¥{row['avg_2024_sales']:,.0f}<br>
-• 较月均: {'↑' if row['avg_growth'] > 0 else '↓'}{abs(row['avg_growth']):.1f}%<br>
+• 较月均: {arrow_up if row['avg_growth'] > 0 else arrow_down}{abs(row['avg_growth']):.1f}%<br>
 <br><b>营销建议:</b><br>
 {'继续加大促销力度，扩大市场份额' if row['is_effective'] else '调整促销策略，优化投入产出比'}"""
         hover_texts.append(hover_text)
@@ -947,6 +957,166 @@ def create_optimized_promotion_chart(promo_results):
         line_color="orange",
         annotation_text=f"平均: ¥{avg_sales:,.0f}",
         annotation_position="right"
+    )
+    
+    return fig
+
+# 创建3D BCG矩阵
+def create_3d_bcg_matrix(product_df, title="3D BCG产品矩阵"):
+    """创建3D BCG矩阵，更加立体和动态"""
+    fig = go.Figure()
+    
+    # 定义象限颜色和高度
+    quadrant_data = {
+        'star': {'color': '#FFC107', 'z_base': 40, 'name': '⭐ 明星产品'},
+        'question': {'color': '#F44336', 'z_base': 30, 'name': '❓ 问号产品'},
+        'cow': {'color': '#2196F3', 'z_base': 20, 'name': '🐄 现金牛产品'},
+        'dog': {'color': '#9E9E9E', 'z_base': 10, 'name': '🐕 瘦狗产品'}
+    }
+    
+    # 创建象限平面
+    x_grid = np.linspace(0, 10, 20)
+    y_grid = np.linspace(-50, 100, 30)
+    X, Y = np.meshgrid(x_grid, y_grid)
+    
+    # 星星象限
+    Z_star = np.ones_like(X) * 5
+    Z_star[(X < 1.5) | (Y < 20)] = np.nan
+    fig.add_trace(go.Surface(
+        x=X, y=Y, z=Z_star,
+        colorscale=[[0, 'rgba(255, 235, 153, 0.3)'], [1, 'rgba(255, 235, 153, 0.3)']],
+        showscale=False,
+        name='明星产品区域'
+    ))
+    
+    # 问号象限
+    Z_question = np.ones_like(X) * 4
+    Z_question[(X >= 1.5) | (Y < 20)] = np.nan
+    fig.add_trace(go.Surface(
+        x=X, y=Y, z=Z_question,
+        colorscale=[[0, 'rgba(255, 153, 153, 0.3)'], [1, 'rgba(255, 153, 153, 0.3)']],
+        showscale=False,
+        name='问号产品区域'
+    ))
+    
+    # 现金牛象限
+    Z_cow = np.ones_like(X) * 3
+    Z_cow[(X < 1.5) | (Y >= 20)] = np.nan
+    fig.add_trace(go.Surface(
+        x=X, y=Y, z=Z_cow,
+        colorscale=[[0, 'rgba(204, 235, 255, 0.3)'], [1, 'rgba(204, 235, 255, 0.3)']],
+        showscale=False,
+        name='现金牛产品区域'
+    ))
+    
+    # 瘦狗象限
+    Z_dog = np.ones_like(X) * 2
+    Z_dog[(X >= 1.5) | (Y >= 20)] = np.nan
+    fig.add_trace(go.Surface(
+        x=X, y=Y, z=Z_dog,
+        colorscale=[[0, 'rgba(230, 230, 230, 0.3)'], [1, 'rgba(230, 230, 230, 0.3)']],
+        showscale=False,
+        name='瘦狗产品区域'
+    ))
+    
+    # 绘制产品球体
+    for category, data in quadrant_data.items():
+        cat_products = product_df[product_df['category'] == category]
+        if len(cat_products) > 0:
+            # 计算球体大小（基于销售额）
+            sizes = cat_products['sales'].apply(lambda x: max(min(np.sqrt(x)/100, 20), 5))
+            
+            # 创建3D散点
+            z_values = [data['z_base'] + np.random.uniform(-5, 5) for _ in range(len(cat_products))]
+            
+            hover_texts = []
+            for _, row in cat_products.iterrows():
+                hover_text = f"""<b>{row['name']} ({row['product']})</b><br>
+<br><b>分类：{data['name']}</b><br>
+<br><b>市场份额：</b>{row['market_share']:.2f}%<br>
+<b>增长率：</b>{row['growth_rate']:.1f}%<br>
+<b>销售额：</b>¥{row['sales']:,.0f}<br>
+<br><b>策略建议：</b><br>{get_strategy_suggestion(category)}"""
+                hover_texts.append(hover_text)
+            
+            fig.add_trace(go.Scatter3d(
+                x=cat_products['market_share'],
+                y=cat_products['growth_rate'],
+                z=z_values,
+                mode='markers+text',
+                marker=dict(
+                    size=sizes,
+                    color=data['color'],
+                    opacity=0.8,
+                    line=dict(width=1, color='white')
+                ),
+                text=cat_products['name'].apply(lambda x: x[:8] + '..' if len(x) > 8 else x),
+                textposition='top center',
+                textfont=dict(size=8, color='black', weight='bold'),
+                hovertemplate='%{customdata}<extra></extra>',
+                customdata=hover_texts,
+                name=data['name']
+            ))
+    
+    # 添加分割线
+    # 垂直分割线
+    fig.add_trace(go.Scatter3d(
+        x=[1.5, 1.5], y=[-50, 100], z=[0, 0],
+        mode='lines',
+        line=dict(color='gray', width=5, dash='dash'),
+        showlegend=False
+    ))
+    
+    # 水平分割线
+    fig.add_trace(go.Scatter3d(
+        x=[0, 10], y=[20, 20], z=[0, 0],
+        mode='lines',
+        line=dict(color='gray', width=5, dash='dash'),
+        showlegend=False
+    ))
+    
+    # 更新布局
+    fig.update_layout(
+        title=dict(
+            text=f"<b>{title}</b>",
+            font=dict(size=24),
+            x=0.5,
+            xanchor='center'
+        ),
+        scene=dict(
+            xaxis=dict(
+                title="市场份额 (%)",
+                range=[0, 10],
+                showgrid=True,
+                gridcolor='rgba(200,200,200,0.3)'
+            ),
+            yaxis=dict(
+                title="市场增长率 (%)",
+                range=[-50, 100],
+                showgrid=True,
+                gridcolor='rgba(200,200,200,0.3)'
+            ),
+            zaxis=dict(
+                title="产品层级",
+                range=[0, 60],
+                showgrid=False
+            ),
+            camera=dict(
+                eye=dict(x=1.5, y=-1.5, z=1.2),
+                center=dict(x=0, y=0, z=0)
+            ),
+            aspectmode='manual',
+            aspectratio=dict(x=1, y=1.5, z=0.8)
+        ),
+        height=800,
+        showlegend=True,
+        legend=dict(
+            x=0.02,
+            y=0.98,
+            bgcolor='rgba(255,255,255,0.8)',
+            bordercolor='black',
+            borderwidth=1
+        )
     )
     
     return fig
@@ -1062,7 +1232,7 @@ def main():
     
     # Tab 2: BCG产品矩阵 - 增强版
     with tabs[1]:
-        bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
+        bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度", "🎯 3D立体视图"], horizontal=True)
         
         if bcg_dimension == "🌏 全国维度":
             fig, product_analysis = create_enhanced_bcg_matrix(data, 'national')
@@ -1105,12 +1275,19 @@ def main():
                     st.caption("目标: ≤10%")
                     st.markdown('</div>', unsafe_allow_html=True)
         
-        else:
+        elif bcg_dimension == "🗺️ 分区域维度":
             # 分区域维度
             regional_figs = create_enhanced_bcg_matrix(data, 'regional')
             
             for region, fig in regional_figs:
                 st.plotly_chart(fig, use_container_width=True)
+        
+        else:  # 3D立体视图
+            fig, product_analysis = create_enhanced_bcg_matrix(data, 'national')
+            fig_3d = create_3d_bcg_matrix(product_analysis)
+            st.plotly_chart(fig_3d, use_container_width=True)
+            
+            st.info("💡 **3D视图优势**：通过高度维度展示产品层级，更直观地看出各象限产品的分布和重要性。可以通过鼠标拖动旋转视角，获得更好的观察角度。")
     
     # Tab 3: 全国促销活动有效性
     with tabs[2]:
