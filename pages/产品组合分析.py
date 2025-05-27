@@ -660,7 +660,7 @@ def create_3d_radar_chart(categories, values, title="区域产品覆盖率分析
         z_line = list(range(0, 50, 10))
         
         fig.add_trace(go.Scatter3d(
-            x=x_line, y=y_line, z=line,
+            x=x_line, y=y_line, z=z_line,
             mode='lines',
             line=dict(color='gray', width=1),
             showlegend=False
