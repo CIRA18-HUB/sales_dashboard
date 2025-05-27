@@ -769,50 +769,118 @@ def main():
     with tabs[3]:
         st.markdown("### 📊 全渠道综合分析")
         
-        # 区域销售对比图
-        regional_fig = create_regional_comparison_chart(data)
-        st.plotly_chart(regional_fig, use_container_width=True)
+        # 创建两个子标签页：全国视角和区域视角
+        subtab1, subtab2 = st.tabs(["🌍 全国维度分析", "🗺️ 区域维度分析"])
         
-        # 分析洞察卡片（整合原来图5的内容）
-        st.markdown("### 📈 关键业务洞察")
+        with subtab1:
+            # 全国维度的综合销售指标分析图
+            national_comprehensive_fig = create_comprehensive_sales_analysis(data, focus_channel=None)
+            st.plotly_chart(national_comprehensive_fig, use_container_width=True)
+            
+            # 全国整体分析洞察
+            st.markdown("### 📊 全国销售整体分析")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                # 计算渠道占比
+                tt_ratio = (metrics['tt_sales'] / metrics['total_sales'] * 100) if metrics['total_sales'] > 0 else 0
+                mt_ratio = 100 - tt_ratio
+                
+                st.info(f"""
+                **渠道销售占比**
+                - TT渠道: {tt_ratio:.1f}%
+                - MT渠道: {mt_ratio:.1f}%
+                """)
+            
+            with col2:
+                # 达成率对比
+                achievement_diff = metrics['tt_achievement'] - metrics['mt_achievement']
+                better_channel = "TT" if achievement_diff > 0 else "MT"
+                
+                st.success(f"""
+                **渠道达成率对比**
+                - TT达成率: {metrics['tt_achievement']:.1f}%
+                - MT达成率: {metrics['mt_achievement']:.1f}%
+                - {better_channel}渠道表现更优
+                """)
+            
+            with col3:
+                # 销售额增长分析
+                growth_color = "🟢" if metrics['growth_rate'] > 0 else "🔴"
+                
+                st.warning(f"""
+                **同比增长分析**
+                - 增长率: {growth_color} {metrics['growth_rate']:.1f}%
+                - 销售额: ¥{metrics['total_sales']/10000:.0f}万
+                - 目标额: ¥{metrics['total_target']/10000:.0f}万
+                """)
+            
+            with col4:
+                # 目标缺口分析
+                gap = metrics['total_target'] - metrics['total_sales']
+                gap_percentage = (gap / metrics['total_target'] * 100) if metrics['total_target'] > 0 else 0
+                
+                if gap > 0:
+                    st.error(f"""
+                    **目标缺口分析**
+                    - 缺口金额: ¥{gap/10000:.0f}万
+                    - 缺口占比: {gap_percentage:.1f}%
+                    - 需加强销售力度
+                    """)
+                else:
+                    st.success(f"""
+                    **目标达成分析**
+                    - 超额完成: ¥{abs(gap)/10000:.0f}万
+                    - 超额占比: {abs(gap_percentage):.1f}%
+                    - 销售表现优异
+                    """)
         
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("""
-            <div class="analysis-card">
-                <h4>🏆 表现最佳区域</h4>
-                <ul>
-                    <li>基于总销售额排名</li>
-                    <li>识别重点市场</li>
-                    <li>资源分配参考</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("""
-            <div class="analysis-card">
-                <h4>📊 渠道结构分析</h4>
-                <ul>
-                    <li>MT/TT渠道占比</li>
-                    <li>区域渠道偏好</li>
-                    <li>发展机会识别</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown("""
-            <div class="analysis-card">
-                <h4>🎯 改进建议</h4>
-                <ul>
-                    <li>低销售区域关注</li>
-                    <li>渠道平衡优化</li>
-                    <li>资源调配建议</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+        with subtab2:
+            # 区域销售对比图
+            regional_fig = create_regional_comparison_chart(data)
+            st.plotly_chart(regional_fig, use_container_width=True)
+            
+            # 区域分析洞察卡片
+            st.markdown("### 📈 区域业务洞察")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown("""
+                <div class="analysis-card">
+                    <h4>🏆 表现最佳区域</h4>
+                    <ul>
+                        <li>基于总销售额排名</li>
+                        <li>识别重点市场</li>
+                        <li>资源分配参考</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown("""
+                <div class="analysis-card">
+                    <h4>📊 渠道结构分析</h4>
+                    <ul>
+                        <li>MT/TT渠道占比</li>
+                        <li>区域渠道偏好</li>
+                        <li>发展机会识别</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown("""
+                <div class="analysis-card">
+                    <h4>🎯 改进建议</h4>
+                    <ul>
+                        <li>低销售区域关注</li>
+                        <li>渠道平衡优化</li>
+                        <li>资源调配建议</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
