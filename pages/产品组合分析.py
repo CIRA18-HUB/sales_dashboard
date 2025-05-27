@@ -917,9 +917,9 @@ def get_strategy_suggestion(category):
     }
     return strategies.get(category, '')
 
-# 促销活动有效性分析
+# 修改促销活动有效性分析函数
 def analyze_promotion_effectiveness_enhanced(data):
-    """增强的促销活动有效性分析"""
+    """增强的促销活动有效性分析（新品只需环比增长）"""
     promotion_df = data['promotion_df']
     sales_df = data['sales_df']
     
@@ -953,9 +953,19 @@ def analyze_promotion_effectiveness_enhanced(data):
         yoy_growth = ((april_2025 - april_2024) / april_2024 * 100) if april_2024 > 0 else 0
         avg_growth = ((april_2025 - avg_2024) / avg_2024 * 100) if avg_2024 > 0 else 0
         
-        # 判断有效性
-        positive_count = sum([mom_growth > 0, yoy_growth > 0, avg_growth > 0])
-        is_effective = positive_count >= 2
+        # 判断是否为新品（去年没有销售额）
+        is_new_product = april_2024 == 0 and avg_2024 == 0
+        
+        # 判断有效性（新品特殊处理）
+        if is_new_product:
+            # 新品只要环比增长即算有效
+            is_effective = mom_growth > 0
+            effectiveness_reason = f"{'✅ 有效' if is_effective else '❌ 无效'}（新品，环比{'增长' if mom_growth > 0 else '下降'}{abs(mom_growth):.1f}%）"
+        else:
+            # 非新品：三个指标中至少两个为正增长
+            positive_count = sum([mom_growth > 0, yoy_growth > 0, avg_growth > 0])
+            is_effective = positive_count >= 2
+            effectiveness_reason = f"{'✅ 有效' if is_effective else '❌ 无效'}（{positive_count}/3项正增长）"
         
         effectiveness_results.append({
             'product': promo['促销产品名称'],
@@ -965,11 +975,12 @@ def analyze_promotion_effectiveness_enhanced(data):
             'mom_growth': mom_growth,
             'yoy_growth': yoy_growth,
             'avg_growth': avg_growth,
-            'positive_count': positive_count,
-            'effectiveness_reason': f"{'✅ 有效' if is_effective else '❌ 无效'}（{positive_count}/3项正增长）",
+            'positive_count': positive_count if not is_new_product else None,
+            'effectiveness_reason': effectiveness_reason,
             'march_sales': march_2025,
             'april_2024_sales': april_2024,
-            'avg_2024_sales': avg_2024
+            'avg_2024_sales': avg_2024,
+            'is_new_product': is_new_product
         })
     
     return pd.DataFrame(effectiveness_results)
@@ -1044,9 +1055,9 @@ def create_regional_coverage_analysis(data):
     
     return fig, df
 
-# 产品关联网络图
+# 修改产品关联网络图函数
 def create_real_product_network(data, product_filter='all'):
-    """基于真实销售数据创建产品关联网络图"""
+    """基于真实销售数据创建产品关联网络图（显示全部仪表盘产品）"""
     sales_df = data['sales_df']
     dashboard_products = data['dashboard_products']
     star_products = data['star_products']
@@ -1056,23 +1067,24 @@ def create_real_product_network(data, product_filter='all'):
     # 获取促销产品列表
     promo_products = promotion_df[promotion_df['所属区域'] == '全国']['产品代码'].unique().tolist()
     
-    # 根据筛选条件过滤产品
+    # 根据筛选条件过滤产品（移除数量限制，显示全部产品）
     if product_filter == 'star':
-        filtered_products = [p for p in dashboard_products if p in star_products][:15]  # 限制15个避免过于拥挤
+        filtered_products = [p for p in dashboard_products if p in star_products]
         filter_title = "星品"
     elif product_filter == 'new':
-        filtered_products = [p for p in dashboard_products if p in new_products][:15]
+        filtered_products = [p for p in dashboard_products if p in new_products]
         filter_title = "新品"
     elif product_filter == 'promo':
-        filtered_products = [p for p in dashboard_products if p in promo_products][:15]
+        filtered_products = [p for p in dashboard_products if p in promo_products]
         filter_title = "促销品"
     else:
-        filtered_products = dashboard_products[:20]  # 全部产品限制前20个
+        filtered_products = dashboard_products  # 显示全部仪表盘产品
         filter_title = "全部产品"
     
     sales_df_filtered = sales_df[sales_df['产品代码'].isin(filtered_products)]
     product_pairs = []
     
+    # 降低关联度门槛以显示更多连接
     for prod1, prod2 in combinations(filtered_products, 2):
         customers_prod1 = set(sales_df_filtered[sales_df_filtered['产品代码'] == prod1]['客户名称'].unique())
         customers_prod2 = set(sales_df_filtered[sales_df_filtered['产品代码'] == prod2]['客户名称'].unique())
@@ -1083,16 +1095,22 @@ def create_real_product_network(data, product_filter='all'):
         if len(total_customers) > 0:
             correlation = len(common_customers) / len(total_customers)
             
-            if correlation > 0.3:
+            # 降低门槛到0.2以显示更多关联
+            if correlation > 0.2:
                 name1 = sales_df_filtered[sales_df_filtered['产品代码'] == prod1]['产品简称'].iloc[0] if len(sales_df_filtered[sales_df_filtered['产品代码'] == prod1]) > 0 else prod1
                 name2 = sales_df_filtered[sales_df_filtered['产品代码'] == prod2]['产品简称'].iloc[0] if len(sales_df_filtered[sales_df_filtered['产品代码'] == prod2]) > 0 else prod2
                 
                 product_pairs.append((name1, name2, correlation, len(common_customers)))
     
+    # 获取所有产品节点（包括没有关联的产品）
     nodes = set()
-    for pair in product_pairs:
-        nodes.add(pair[0])
-        nodes.add(pair[1])
+    for product in filtered_products:
+        product_data = sales_df_filtered[sales_df_filtered['产品代码'] == product]
+        if len(product_data) > 0:
+            product_name = product_data['产品简称'].iloc[0]
+        else:
+            product_name = product
+        nodes.add(product_name)
     
     nodes = list(nodes)
     
@@ -1100,7 +1118,7 @@ def create_real_product_network(data, product_filter='all'):
     if len(nodes) == 0:
         fig = go.Figure()
         fig.update_layout(
-            title=dict(text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>暂无满足条件的产品关联</i>", font=dict(size=20)),
+            title=dict(text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>暂无满足条件的产品</i>", font=dict(size=20)),
             xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
             yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
             height=700,
@@ -1108,27 +1126,30 @@ def create_real_product_network(data, product_filter='all'):
         )
         return fig
     
+    # 使用圆形布局，适应更多节点
     pos = {}
     angle_step = 2 * np.pi / len(nodes)
     for i, node in enumerate(nodes):
         angle = i * angle_step
-        pos[node] = (np.cos(angle), np.sin(angle))
+        # 增大圆的半径以容纳更多节点
+        radius = min(1.5, 0.8 + len(nodes) * 0.02)
+        pos[node] = (radius * np.cos(angle), radius * np.sin(angle))
     
     fig = go.Figure()
     
-    # 添加边
+    # 添加边（降低线条粗细）
     for pair in product_pairs:
         x0, y0 = pos[pair[0]]
         x1, y1 = pos[pair[1]]
         
         color_intensity = int(255 * pair[2])
-        color = f'rgba({color_intensity}, {100}, {255-color_intensity}, {pair[2]})'
+        color = f'rgba({color_intensity}, {100}, {255-color_intensity}, {pair[2]*0.7})'
         
         fig.add_trace(go.Scatter(
             x=[x0, x1],
             y=[y0, y1],
             mode='lines',
-            line=dict(width=pair[2]*15, color=color),
+            line=dict(width=pair[2]*10, color=color),  # 降低线条粗细
             hoverinfo='text',
             text=f"""<b>产品关联分析</b><br>
 产品1: {pair[0]}<br>
@@ -1154,7 +1175,8 @@ def create_real_product_network(data, product_filter='all'):
     for node in nodes:
         connections = sum(1 for pair in product_pairs if node in pair[:2])
         total_correlation = sum(pair[2] for pair in product_pairs if node in pair[:2])
-        node_sizes.append(20 + connections * 10)
+        # 调整节点大小
+        node_sizes.append(15 + min(connections * 5, 30))  # 限制最大节点尺寸
         
         product_data = sales_df_filtered[sales_df_filtered['产品简称'] == node]
         if len(product_data) > 0:
@@ -1225,7 +1247,7 @@ def create_real_product_network(data, product_filter='all'):
         ),
         text=nodes,
         textposition='top center',
-        textfont=dict(size=10, weight='bold'),
+        textfont=dict(size=8, weight='bold'),
         hoverinfo='text',
         hovertext=node_details,
         showlegend=False
@@ -1249,11 +1271,12 @@ def create_real_product_network(data, product_filter='all'):
                 showlegend=True
             ))
     
+    # 调整布局以适应更多节点
     fig.update_layout(
-        title=dict(text=f"<b>{filter_title}产品关联网络分析</b>", font=dict(size=20)),
-        xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
-        yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
-        height=700,
+        title=dict(text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>共{len(nodes)}个产品</i>", font=dict(size=20)),
+        xaxis=dict(showgrid=False, showticklabels=False, zeroline=False, range=[-2, 2]),
+        yaxis=dict(showgrid=False, showticklabels=False, zeroline=False, range=[-2, 2]),
+        height=800,  # 增加高度
         plot_bgcolor='rgba(248,249,250,0.5)',
         hovermode='closest',
         showlegend=product_filter == 'all',
@@ -1282,7 +1305,21 @@ def create_optimized_promotion_chart(promo_results):
     for _, row in promo_results.iterrows():
         arrow_up = '↑'
         arrow_down = '↓'
-        hover_text = f"""<b>{row['product']}</b><br>
+        
+        # 根据是否为新品调整hover文本
+        if row['is_new_product']:
+            hover_text = f"""<b>{row['product']}</b><br>
+<b>产品类型:</b> 🌟 新品<br>
+<b>4月销售额:</b> ¥{row['sales']:,.0f}<br>
+<b>有效性判断:</b> {row['effectiveness_reason']}<br>
+<br><b>详细分析:</b><br>
+- 3月销售额: ¥{row['march_sales']:,.0f}<br>
+- 环比: {arrow_up if row['mom_growth'] > 0 else arrow_down}{abs(row['mom_growth']):.1f}%<br>
+- 去年无销售数据（新品）<br>
+<br><b>营销建议:</b><br>
+{'继续加大推广力度，建立市场认知' if row['is_effective'] else '调整新品推广策略，加强市场教育'}"""
+        else:
+            hover_text = f"""<b>{row['product']}</b><br>
 <b>4月销售额:</b> ¥{row['sales']:,.0f}<br>
 <b>有效性判断:</b> {row['effectiveness_reason']}<br>
 <br><b>详细分析:</b><br>
@@ -1477,6 +1514,272 @@ def create_effective_products_chart(product_df, title="有效产品分析"):
     )
     
     return fig, effectiveness_rate
+
+# 新增：产品环比同比分析函数
+def analyze_product_growth_rates(data):
+    """分析所有仪表盘产品的环比同比增长率"""
+    sales_df = data['sales_df']
+    dashboard_products = data['dashboard_products']
+    
+    # 获取最新月份（2025年4月）
+    latest_month = pd.Timestamp('2025-04')
+    previous_month = pd.Timestamp('2025-03')
+    same_month_last_year = pd.Timestamp('2024-04')
+    
+    product_growth_stats = []
+    
+    for product in dashboard_products:
+        # 当期数据
+        current_sales = sales_df[(sales_df['发运月份'] == latest_month) & 
+                                (sales_df['产品代码'] == product)]['销售额'].sum()
+        
+        current_boxes = sales_df[(sales_df['发运月份'] == latest_month) & 
+                                (sales_df['产品代码'] == product)]['箱数'].sum()
+        
+        # 上期数据
+        previous_sales = sales_df[(sales_df['发运月份'] == previous_month) & 
+                                 (sales_df['产品代码'] == product)]['销售额'].sum()
+        
+        previous_boxes = sales_df[(sales_df['发运月份'] == previous_month) & 
+                                 (sales_df['产品代码'] == product)]['箱数'].sum()
+        
+        # 去年同期数据
+        last_year_sales = sales_df[(sales_df['发运月份'] == same_month_last_year) & 
+                                  (sales_df['产品代码'] == product)]['销售额'].sum()
+        
+        last_year_boxes = sales_df[(sales_df['发运月份'] == same_month_last_year) & 
+                                  (sales_df['产品代码'] == product)]['箱数'].sum()
+        
+        # 获取产品名称
+        product_data = sales_df[sales_df['产品代码'] == product]
+        if len(product_data) > 0:
+            product_name = product_data['产品简称'].iloc[0]
+        else:
+            product_name = product
+        
+        # 计算环比增长率
+        if previous_sales > 0:
+            mom_sales_growth = ((current_sales - previous_sales) / previous_sales * 100)
+        elif current_sales > 0:
+            mom_sales_growth = 100
+        else:
+            mom_sales_growth = 0
+            
+        if previous_boxes > 0:
+            mom_boxes_growth = ((current_boxes - previous_boxes) / previous_boxes * 100)
+        elif current_boxes > 0:
+            mom_boxes_growth = 100
+        else:
+            mom_boxes_growth = 0
+        
+        # 计算同比增长率
+        if last_year_sales > 0:
+            yoy_sales_growth = ((current_sales - last_year_sales) / last_year_sales * 100)
+        elif current_sales > 0:
+            yoy_sales_growth = 100
+        else:
+            yoy_sales_growth = 0
+            
+        if last_year_boxes > 0:
+            yoy_boxes_growth = ((current_boxes - last_year_boxes) / last_year_boxes * 100)
+        elif current_boxes > 0:
+            yoy_boxes_growth = 100
+        else:
+            yoy_boxes_growth = 0
+        
+        # 判断是否为新品
+        is_new_product = last_year_sales == 0 and last_year_boxes == 0
+        
+        product_growth_stats.append({
+            'product_code': product,
+            'product_name': product_name,
+            'current_sales': current_sales,
+            'current_boxes': current_boxes,
+            'previous_sales': previous_sales,
+            'previous_boxes': previous_boxes,
+            'last_year_sales': last_year_sales,
+            'last_year_boxes': last_year_boxes,
+            'mom_sales_growth': mom_sales_growth,
+            'mom_boxes_growth': mom_boxes_growth,
+            'yoy_sales_growth': yoy_sales_growth,
+            'yoy_boxes_growth': yoy_boxes_growth,
+            'is_new_product': is_new_product,
+            'has_current_sales': current_sales > 0 or current_boxes > 0
+        })
+    
+    return pd.DataFrame(product_growth_stats)
+
+# 新增：创建环比同比分析图表
+def create_growth_rate_charts(growth_df):
+    """创建环比同比分析图表"""
+    # 只显示有当前销售数据的产品
+    active_products = growth_df[growth_df['has_current_sales'] == True].copy()
+    
+    if len(active_products) == 0:
+        return None, None
+    
+    # 按销售额排序
+    active_products = active_products.sort_values('current_sales', ascending=False)
+    
+    # 环比分析图
+    fig_mom = go.Figure()
+    
+    # 颜色根据环比增长率
+    mom_colors = ['#10b981' if growth > 0 else '#ef4444' for growth in active_products['mom_sales_growth']]
+    
+    hover_texts_mom = []
+    for _, row in active_products.iterrows():
+        arrow_up = '↑'
+        arrow_down = '↓'
+        
+        hover_text = f"""<b>{row['product_name']} ({row['product_code']})</b><br>
+<br><b>环比分析（2025年4月 vs 3月）:</b><br>
+- 当月销售额: ¥{row['current_sales']:,.0f}<br>
+- 上月销售额: ¥{row['previous_sales']:,.0f}<br>
+- 销售额环比: {arrow_up if row['mom_sales_growth'] > 0 else arrow_down}{abs(row['mom_sales_growth']):.1f}%<br>
+- 当月箱数: {row['current_boxes']:,.0f}箱<br>
+- 上月箱数: {row['previous_boxes']:,.0f}箱<br>
+- 箱数环比: {arrow_up if row['mom_boxes_growth'] > 0 else arrow_down}{abs(row['mom_boxes_growth']):.1f}%<br>
+<br><b>分析结论:</b><br>
+{'销售表现良好，继续保持' if row['mom_sales_growth'] > 0 else '销售下滑，需要关注'}"""
+        hover_texts_mom.append(hover_text)
+    
+    fig_mom.add_trace(go.Bar(
+        x=active_products['product_name'],
+        y=active_products['mom_sales_growth'],
+        marker=dict(color=mom_colors, line=dict(width=0)),
+        text=[f"{val:.1f}%" for val in active_products['mom_sales_growth']],
+        textposition='outside',
+        textfont=dict(size=10),
+        hovertemplate='%{customdata}<extra></extra>',
+        customdata=hover_texts_mom,
+        name='环比增长率'
+    ))
+    
+    fig_mom.add_hline(y=0, line_dash="solid", line_color="gray", line_width=2)
+    
+    positive_count_mom = (active_products['mom_sales_growth'] > 0).sum()
+    total_count = len(active_products)
+    
+    fig_mom.update_layout(
+        title=dict(
+            text=f"<b>产品环比增长率分析</b><br>正增长产品: {positive_count_mom}/{total_count} ({positive_count_mom/total_count*100:.1f}%)",
+            font=dict(size=20),
+            x=0.5
+        ),
+        xaxis=dict(title="产品名称", tickangle=-45),
+        yaxis=dict(title="环比增长率 (%)", range=[active_products['mom_sales_growth'].min()*1.2, active_products['mom_sales_growth'].max()*1.2]),
+        height=600,
+        showlegend=False,
+        hovermode='closest',
+        plot_bgcolor='white'
+    )
+    
+    # 同比分析图
+    fig_yoy = go.Figure()
+    
+    # 颜色根据同比增长率（新品用特殊颜色）
+    yoy_colors = []
+    for _, row in active_products.iterrows():
+        if row['is_new_product']:
+            yoy_colors.append('#FFC107')  # 新品用金色
+        elif row['yoy_sales_growth'] > 0:
+            yoy_colors.append('#10b981')  # 正增长用绿色
+        else:
+            yoy_colors.append('#ef4444')  # 负增长用红色
+    
+    hover_texts_yoy = []
+    for _, row in active_products.iterrows():
+        arrow_up = '↑'
+        arrow_down = '↓'
+        
+        if row['is_new_product']:
+            hover_text = f"""<b>{row['product_name']} ({row['product_code']})</b><br>
+<b>产品类型:</b> 🌟 新品<br>
+<br><b>同比分析（2025年4月 vs 2024年4月）:</b><br>
+- 当期销售额: ¥{row['current_sales']:,.0f}<br>
+- 去年同期: 无数据（新品）<br>
+- 当期箱数: {row['current_boxes']:,.0f}箱<br>
+<br><b>分析结论:</b><br>
+新品上市，需要重点关注市场反馈"""
+        else:
+            hover_text = f"""<b>{row['product_name']} ({row['product_code']})</b><br>
+<br><b>同比分析（2025年4月 vs 2024年4月）:</b><br>
+- 当期销售额: ¥{row['current_sales']:,.0f}<br>
+- 去年同期: ¥{row['last_year_sales']:,.0f}<br>
+- 销售额同比: {arrow_up if row['yoy_sales_growth'] > 0 else arrow_down}{abs(row['yoy_sales_growth']):.1f}%<br>
+- 当期箱数: {row['current_boxes']:,.0f}箱<br>
+- 去年箱数: {row['last_year_boxes']:,.0f}箱<br>
+- 箱数同比: {arrow_up if row['yoy_boxes_growth'] > 0 else arrow_down}{abs(row['yoy_boxes_growth']):.1f}%<br>
+<br><b>分析结论:</b><br>
+{'同比增长良好，产品生命力强' if row['yoy_sales_growth'] > 0 else '同比下滑，需要产品升级或调整'}"""
+        hover_texts_yoy.append(hover_text)
+    
+    fig_yoy.add_trace(go.Bar(
+        x=active_products['product_name'],
+        y=active_products['yoy_sales_growth'],
+        marker=dict(color=yoy_colors, line=dict(width=0)),
+        text=[f"{val:.1f}%" if not row['is_new_product'] else "新品" 
+              for _, row in active_products.iterrows()],
+        textposition='outside',
+        textfont=dict(size=10),
+        hovertemplate='%{customdata}<extra></extra>',
+        customdata=hover_texts_yoy,
+        name='同比增长率'
+    ))
+    
+    fig_yoy.add_hline(y=0, line_dash="solid", line_color="gray", line_width=2)
+    
+    # 添加图例
+    fig_yoy.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode='markers',
+        marker=dict(size=12, color='#10b981'),
+        name='正增长',
+        showlegend=True
+    ))
+    
+    fig_yoy.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode='markers',
+        marker=dict(size=12, color='#ef4444'),
+        name='负增长',
+        showlegend=True
+    ))
+    
+    fig_yoy.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode='markers',
+        marker=dict(size=12, color='#FFC107'),
+        name='新品',
+        showlegend=True
+    ))
+    
+    positive_count_yoy = ((active_products['yoy_sales_growth'] > 0) & (~active_products['is_new_product'])).sum()
+    new_count = active_products['is_new_product'].sum()
+    non_new_count = total_count - new_count
+    
+    fig_yoy.update_layout(
+        title=dict(
+            text=f"<b>产品同比增长率分析</b><br>正增长: {positive_count_yoy}/{non_new_count}个老品 | 新品: {new_count}个",
+            font=dict(size=20),
+            x=0.5
+        ),
+        xaxis=dict(title="产品名称", tickangle=-45),
+        yaxis=dict(title="同比增长率 (%)", range=[active_products['yoy_sales_growth'].min()*1.2, active_products['yoy_sales_growth'].max()*1.2]),
+        height=600,
+        hovermode='closest',
+        plot_bgcolor='white',
+        legend=dict(
+            x=1.02,
+            y=1,
+            bgcolor='rgba(255,255,255,0.9)',
+            bordercolor='rgba(0,0,0,0.2)',
+            borderwidth=1
+        )
+    )
+    
+    return fig_mom, fig_yoy
 
 # 主页面
 def main():
@@ -1704,7 +2007,7 @@ def main():
                     - 有效产品数: {len(effective_products)}个
                     - 平均销售额: ¥{effective_products['sales'].mean():,.0f}
                     - 环比增长率: {effective_products['mom_growth'].mean():.1f}%
-                    - 同比增长率: {effective_products['yoy_growth'].mean():.1f}%
+                    - 同比增长率: {effective_products[~effective_products['is_new_product']]['yoy_growth'].mean():.1f}%
                     """)
                 
                 with col2:
@@ -1713,7 +2016,18 @@ def main():
                     - 无效产品数: {len(ineffective_products)}个
                     - 平均销售额: ¥{ineffective_products['sales'].mean():,.0f}
                     - 环比增长率: {ineffective_products['mom_growth'].mean():.1f}%
-                    - 同比增长率: {ineffective_products['yoy_growth'].mean():.1f}%
+                    - 同比增长率: {ineffective_products[~ineffective_products['is_new_product']]['yoy_growth'].mean():.1f}%
+                    """)
+                
+                # 新品促销分析
+                new_products_promo = promo_results[promo_results['is_new_product'] == True]
+                if len(new_products_promo) > 0:
+                    st.success(f"""
+                    **🌟 新品促销分析**
+                    - 新品促销数: {len(new_products_promo)}个
+                    - 有效新品数: {new_products_promo['is_effective'].sum()}个
+                    - 新品有效率: {new_products_promo['is_effective'].sum()/len(new_products_promo)*100:.1f}%
+                    - 平均环比增长: {new_products_promo['mom_growth'].mean():.1f}%
                     """)
         else:
             st.info("暂无全国促销活动数据")
@@ -1927,7 +2241,7 @@ def main():
     # Tab 5: 市场网络与覆盖分析
     with tabs[4]:
         # 选择控件
-        analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析", "✅ 有效产品分析"], horizontal=True, key="market_analysis_type")
+        analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析", "✅ 有效产品分析", "📊 环比同比分析"], horizontal=True, key="market_analysis_type")
         
         if analysis_type == "🔗 产品关联网络":
             # 产品关联网络
@@ -1984,39 +2298,7 @@ def main():
                     - 开发新的组合套装产品
                     """)
         
-        elif analysis_type == "📍 区域覆盖分析":
-            # 区域覆盖分析
-            # 创建更易读的区域覆盖率分析
-            fig, coverage_df = create_regional_coverage_analysis(data)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # 覆盖率分析洞察
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                avg_coverage = coverage_df['coverage_rate'].mean()
-                st.metric("平均覆盖率", f"{avg_coverage:.1f}%", 
-                         "整体表现良好" if avg_coverage >= 70 else "需要提升")
-                
-                low_coverage_regions = coverage_df[coverage_df['coverage_rate'] < 80]
-                if len(low_coverage_regions) > 0:
-                    st.warning(f"⚠️ 有{len(low_coverage_regions)}个区域低于80%目标线")
-            
-            with col2:
-                # 漏铺市机会分析
-                total_gap = coverage_df['gap'].sum()
-                if total_gap > 0:
-                    potential_products = int(total_gap * len(data['dashboard_products']) / 100)
-                    st.info(f"""
-                    **📈 漏铺市机会**
-                    - 总体覆盖缺口: {total_gap:.0f}%
-                    - 潜在可增产品: 约{potential_products}个
-                    - 建议优先开发覆盖率最低的区域
-                    """)
-                else:
-                    st.success("✅ 所有区域覆盖率均达到80%以上")
-        
-        else:  # 有效产品分析
+        elif analysis_type == "✅ 有效产品分析":
             st.subheader("有效产品分析（月均销售≥15箱）")
             
             # 选择维度
@@ -2049,6 +2331,132 @@ def main():
                     """)
             else:
                 st.warning("暂无产品数据")
+        
+        else:  # 环比同比分析
+            st.subheader("📊 仪表盘产品环比同比分析")
+            
+            # 分析产品增长率
+            growth_df = analyze_product_growth_rates(data)
+            
+            if len(growth_df) > 0:
+                # 创建环比同比图表
+                fig_mom, fig_yoy = create_growth_rate_charts(growth_df)
+                
+                if fig_mom and fig_yoy:
+                    # 显示环比分析
+                    st.plotly_chart(fig_mom, use_container_width=True)
+                    
+                    # 显示同比分析
+                    st.plotly_chart(fig_yoy, use_container_width=True)
+                    
+                    # 增长率分析洞察
+                    with st.expander("💡 增长率分析洞察", expanded=True):
+                        active_products = growth_df[growth_df['has_current_sales'] == True]
+                        
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            mom_positive = (active_products['mom_sales_growth'] > 0).sum()
+                            mom_negative = (active_products['mom_sales_growth'] <= 0).sum()
+                            avg_mom = active_products['mom_sales_growth'].mean()
+                            
+                            st.info(f"""
+                            **📈 环比分析（4月 vs 3月）**
+                            - 正增长产品: {mom_positive}个
+                            - 负增长产品: {mom_negative}个
+                            - 平均增长率: {avg_mom:.1f}%
+                            - 最高增长: {active_products['mom_sales_growth'].max():.1f}%
+                            - 最大下滑: {active_products['mom_sales_growth'].min():.1f}%
+                            """)
+                        
+                        with col2:
+                            non_new_products = active_products[active_products['is_new_product'] == False]
+                            yoy_positive = (non_new_products['yoy_sales_growth'] > 0).sum()
+                            yoy_negative = (non_new_products['yoy_sales_growth'] <= 0).sum()
+                            avg_yoy = non_new_products['yoy_sales_growth'].mean()
+                            
+                            st.success(f"""
+                            **📊 同比分析（2025 vs 2024）**
+                            - 正增长产品: {yoy_positive}个
+                            - 负增长产品: {yoy_negative}个
+                            - 平均增长率: {avg_yoy:.1f}%
+                            - 新品数量: {active_products['is_new_product'].sum()}个
+                            - 最高增长: {non_new_products['yoy_sales_growth'].max():.1f}%
+                            """)
+                        
+                        with col3:
+                            # 双增长产品（环比同比都增长）
+                            double_growth = active_products[
+                                (active_products['mom_sales_growth'] > 0) & 
+                                (active_products['yoy_sales_growth'] > 0) & 
+                                (~active_products['is_new_product'])
+                            ]
+                            
+                            st.warning(f"""
+                            **⭐ 明星增长产品**
+                            - 双增长产品: {len(double_growth)}个
+                            - 占老品比例: {len(double_growth)/(len(active_products)-active_products['is_new_product'].sum())*100:.1f}%
+                            - 建议: 重点关注和推广
+                            - 策略: 可作为主打产品
+                            """)
+                    
+                    # 产品增长明细表
+                    with st.expander("📋 产品增长率明细表", expanded=False):
+                        # 准备显示数据
+                        display_df = growth_df[growth_df['has_current_sales'] == True].copy()
+                        display_df = display_df.sort_values('current_sales', ascending=False)
+                        
+                        # 格式化显示
+                        display_df['环比增长'] = display_df['mom_sales_growth'].apply(lambda x: f"{x:+.1f}%")
+                        display_df['同比增长'] = display_df.apply(
+                            lambda row: "新品" if row['is_new_product'] else f"{row['yoy_sales_growth']:+.1f}%", 
+                            axis=1
+                        )
+                        display_df['当期销售额'] = display_df['current_sales'].apply(lambda x: f"¥{x:,.0f}")
+                        display_df['产品类型'] = display_df['is_new_product'].apply(lambda x: "🌟新品" if x else "老品")
+                        
+                        # 选择显示列
+                        st.dataframe(
+                            display_df[['product_name', '产品类型', '当期销售额', '环比增长', '同比增长']],
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                else:
+                    st.warning("暂无足够的数据进行环比同比分析")
+            else:
+                st.warning("暂无产品数据")
 
 if __name__ == "__main__":
-    main()
+    main() "📍 区域覆盖分析":
+            # 区域覆盖分析
+            # 创建更易读的区域覆盖率分析
+            fig, coverage_df = create_regional_coverage_analysis(data)
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # 覆盖率分析洞察
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                avg_coverage = coverage_df['coverage_rate'].mean()
+                st.metric("平均覆盖率", f"{avg_coverage:.1f}%", 
+                         "整体表现良好" if avg_coverage >= 70 else "需要提升")
+                
+                low_coverage_regions = coverage_df[coverage_df['coverage_rate'] < 80]
+                if len(low_coverage_regions) > 0:
+                    st.warning(f"⚠️ 有{len(low_coverage_regions)}个区域低于80%目标线")
+            
+            with col2:
+                # 漏铺市机会分析
+                total_gap = coverage_df['gap'].sum()
+                if total_gap > 0:
+                    potential_products = int(total_gap * len(data['dashboard_products']) / 100)
+                    st.info(f"""
+                    **📈 漏铺市机会**
+                    - 总体覆盖缺口: {total_gap:.0f}%
+                    - 潜在可增产品: 约{potential_products}个
+                    - 建议优先开发覆盖率最低的区域
+                    """)
+                else:
+                    st.success("✅ 所有区域覆盖率均达到80%以上")
+        
+        elif analysis_type ==
