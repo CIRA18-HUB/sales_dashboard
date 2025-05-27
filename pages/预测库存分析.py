@@ -7,6 +7,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import warnings
+import time
 
 warnings.filterwarnings('ignore')
 
@@ -23,7 +24,7 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
     st.switch_page("登陆界面haha.py")
     st.stop()
 
-# 统一的增强CSS样式 - 添加对 Streamlit 容器的样式支持
+# 统一的增强CSS样式 - 添加高级动画和修复文字截断
 st.markdown("""
 <style>
     /* 导入Google字体 */
@@ -189,10 +190,69 @@ st.markdown("""
         border-left: 4px solid #667eea;
     }
     
+    /* 指标卡片增强样式 - 修复文字截断 */
     .metric-card {
         text-align: center;
         height: 100%;
         padding: 2.5rem 2rem;
+        position: relative;
+        overflow: visible !important; /* 修复文字截断 */
+        perspective: 1000px;
+        animation: cardEntrance 1s ease-out;
+        transform-style: preserve-3d;
+    }
+    
+    /* 3D翻转效果 */
+    .metric-card-inner {
+        width: 100%;
+        height: 100%;
+        transition: transform 0.6s;
+        transform-style: preserve-3d;
+    }
+    
+    .metric-card:hover .metric-card-inner {
+        transform: rotateY(5deg) rotateX(-5deg);
+    }
+    
+    /* 波纹效果 */
+    .metric-card::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(102, 126, 234, 0.2) 0%, transparent 70%);
+        transform: translate(-50%, -50%) scale(0);
+        animation: ripple 3s infinite;
+        opacity: 0;
+        pointer-events: none;
+    }
+    
+    @keyframes ripple {
+        0% {
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 1;
+        }
+        100% {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 0;
+        }
+    }
+    
+    @keyframes cardEntrance {
+        0% {
+            opacity: 0;
+            transform: translateY(50px) rotateX(-30deg);
+        }
+        50% {
+            opacity: 0.5;
+            transform: translateY(25px) rotateX(-15deg);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) rotateX(0);
+        }
     }
     
     .metric-card:hover, .content-container:hover, .chart-container:hover {
@@ -211,15 +271,39 @@ st.markdown("""
         }
     }
     
+    /* 数值样式 - 修复截断并添加滚动动画 */
     .metric-value {
-        font-size: 3.2rem;
+        font-size: 2.8rem !important; /* 略微减小以防止截断 */
         font-weight: 800;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
         margin-bottom: 1rem;
-        line-height: 1;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: visible !important;
+        display: inline-block;
+        min-width: 100%;
+        animation: numberCount 2s ease-out;
+    }
+    
+    /* 数字滚动动画 */
+    @keyframes numberCount {
+        0% {
+            opacity: 0;
+            transform: translateY(50px) scale(0.5);
+            filter: blur(10px);
+        }
+        50% {
+            opacity: 0.5;
+            filter: blur(5px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+        }
     }
     
     .metric-label {
@@ -229,6 +313,18 @@ st.markdown("""
         margin-bottom: 0.5rem;
         letter-spacing: 0.5px;
         text-transform: uppercase;
+        animation: labelFade 1.5s ease-out 0.5s both;
+    }
+    
+    @keyframes labelFade {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     
     .metric-description {
@@ -237,6 +333,7 @@ st.markdown("""
         margin-top: 0.8rem;
         font-weight: 500;
         font-style: italic;
+        animation: labelFade 1.5s ease-out 0.7s both;
     }
     
     /* 图表标题样式 */
@@ -315,7 +412,7 @@ st.markdown("""
     
     /* 响应式设计 */
     @media (max-width: 768px) {
-        .metric-value { font-size: 2.5rem; }
+        .metric-value { font-size: 2.2rem !important; }
         .metric-card { padding: 2rem 1.5rem; }
         .page-header { padding: 2rem 1rem; }
         .page-title { font-size: 2.5rem; }
@@ -751,6 +848,29 @@ st.markdown("""
             opacity: 0;
         }
     }
+    
+    /* 添加渐进式加载动画 */
+    .metric-card:nth-child(1) { animation-delay: 0.1s; }
+    .metric-card:nth-child(2) { animation-delay: 0.2s; }
+    .metric-card:nth-child(3) { animation-delay: 0.3s; }
+    .metric-card:nth-child(4) { animation-delay: 0.4s; }
+    
+    /* 加载动画初始状态 */
+    .metric-card {
+        opacity: 0;
+        animation: cardLoadIn 0.8s ease-out forwards;
+    }
+    
+    @keyframes cardLoadIn {
+        0% {
+            opacity: 0;
+            transform: translateY(50px) scale(0.8);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1013,7 +1133,7 @@ def process_forecast_analysis(shipment_df, forecast_df, product_name_map):
         return None, {}
 
 def create_integrated_risk_analysis(processed_inventory):
-    """创建整合的风险分析图表"""
+    """创建整合的风险分析图表 - 增强版本带高级悬停"""
     try:
         if processed_inventory.empty:
             fig = go.Figure()
@@ -1051,41 +1171,59 @@ def create_integrated_risk_analysis(processed_inventory):
                    [{"type": "histogram"}, {"type": "scatter"}]]
         )
         
-        # 1. 风险等级分布饼图
+        # 1. 风险等级分布饼图 - 增强悬停
         fig.add_trace(go.Pie(
             labels=risk_counts.index,
             values=risk_counts.values,
             hole=.4,
             marker_colors=colors[:len(risk_counts)],
             textinfo='label+percent',
-            name="风险分布"
+            name="风险分布",
+            hovertemplate="<b>%{label}</b><br>" +
+                         "批次数量: %{value}个<br>" +
+                         "占比: %{percent}<br>" +
+                         "<extra></extra>"
         ), row=1, col=1)
         
-        # 2. 风险等级价值分布
+        # 2. 风险等级价值分布 - 增强悬停
         fig.add_trace(go.Bar(
             x=risk_value.index,
             y=risk_value.values,
             marker_color=colors[:len(risk_value)],
             name="价值分布",
             text=[f'¥{v:.1f}M' for v in risk_value.values],
-            textposition='auto'
+            textposition='auto',
+            hovertemplate="<b>%{x}</b><br>" +
+                         "总价值: ¥%{y:.1f}M<br>" +
+                         "批次数: " + risk_value.index.map(lambda x: str(risk_counts.get(x, 0))) + "个<br>" +
+                         "平均批次价值: ¥%{y:.1f}K<br>" +
+                         "<extra></extra>"
         ), row=1, col=2)
         
-        # 3. 库龄分布直方图
+        # 3. 库龄分布直方图 - 增强悬停
         fig.add_trace(go.Histogram(
             x=processed_inventory['库龄'],
             nbinsx=20,
             marker_color=COLOR_SCHEME['primary'],
             opacity=0.7,
-            name="库龄分布"
+            name="库龄分布",
+            hovertemplate="库龄范围: %{x}天<br>" +
+                         "批次数量: %{y}个<br>" +
+                         "<extra></extra>"
         ), row=2, col=1)
         
-        # 4. 高风险批次分析
+        # 4. 高风险批次分析 - 增强悬停
         high_risk_data = processed_inventory[
             processed_inventory['风险等级'].isin(['极高风险', '高风险'])
         ].head(15)
         
         if not high_risk_data.empty:
+            # 计算建议处理优先级
+            high_risk_data['优先级分数'] = (
+                high_risk_data['库龄'] * 0.4 + 
+                high_risk_data['批次价值'] / high_risk_data['批次价值'].max() * 100 * 0.6
+            )
+            
             fig.add_trace(go.Scatter(
                 x=high_risk_data['库龄'],
                 y=high_risk_data['批次价值'],
@@ -1096,9 +1234,34 @@ def create_integrated_risk_analysis(processed_inventory):
                         '极高风险': COLOR_SCHEME['risk_extreme'],
                         '高风险': COLOR_SCHEME['risk_high']
                     }),
-                    opacity=0.8
+                    opacity=0.8,
+                    line=dict(width=2, color='white')
                 ),
                 text=high_risk_data['产品名称'],
+                customdata=np.column_stack((
+                    high_risk_data['产品名称'],
+                    high_risk_data['生产批号'],
+                    high_risk_data['数量'],
+                    high_risk_data['库龄'],
+                    high_risk_data['风险等级'],
+                    high_risk_data['批次价值'],
+                    high_risk_data['预期损失'],
+                    high_risk_data['处理建议'],
+                    high_risk_data['优先级分数']
+                )),
+                hovertemplate="""
+                <b>🚨 高风险批次详情</b><br><br>
+                <b>产品:</b> %{customdata[0]}<br>
+                <b>批号:</b> %{customdata[1]}<br>
+                <b>数量:</b> %{customdata[2]:,.0f} 箱<br>
+                <b>库龄:</b> %{customdata[3]} 天<br>
+                <b>风险等级:</b> <span style="color: red;">%{customdata[4]}</span><br>
+                <b>批次价值:</b> ¥%{customdata[5]:,.0f}<br>
+                <b>预期损失:</b> ¥%{customdata[6]:,.0f}<br>
+                <b>处理建议:</b> %{customdata[7]}<br>
+                <b>处理优先级:</b> %{customdata[8]:.1f}分<br>
+                <extra></extra>
+                """,
                 name="高风险批次"
             ), row=2, col=2)
         
@@ -1107,8 +1270,17 @@ def create_integrated_risk_analysis(processed_inventory):
             height=800,
             showlegend=False,
             title_text="库存风险综合分析",
-            title_x=0.5
+            title_x=0.5,
+            hoverlabel=dict(
+                bgcolor="white",
+                font_size=14,
+                font_family="Inter"
+            )
         )
+        
+        # 更新子图标题样式
+        for i in fig['layout']['annotations']:
+            i['font'] = dict(size=16, family='Inter', weight=700)
         
         return fig
     
@@ -1117,7 +1289,7 @@ def create_integrated_risk_analysis(processed_inventory):
         return go.Figure()
 
 def create_ultra_integrated_forecast_chart(merged_data):
-    """创建超级整合的预测分析图表 - 用一个图显示所有信息"""
+    """创建超级整合的预测分析图表 - 增强版本带高级悬停和交互"""
     try:
         if merged_data is None or merged_data.empty:
             fig = go.Figure()
@@ -1156,6 +1328,15 @@ def create_ultra_integrated_forecast_chart(merged_data):
         product_analysis['销售占比'] = product_analysis['实际销量'] / product_analysis['实际销量'].sum() * 100
         product_analysis['是否重点SKU'] = product_analysis['产品代码'].isin(key_products)
         
+        # 计算预测改进建议
+        product_analysis['改进建议'] = product_analysis.apply(
+            lambda row: "🟢 预测优秀，保持现状" if row['准确率'] > 0.9 else
+                       "🟡 预测良好，微调即可" if row['准确率'] > 0.8 else
+                       "🟠 需改进预测模型" if row['准确率'] > 0.7 else
+                       "🔴 紧急优化预测方法",
+            axis=1
+        )
+        
         # 3. 区域分析
         region_analysis = merged_data.groupby('所属区域').agg({
             '实际销量': 'sum',
@@ -1165,9 +1346,6 @@ def create_ultra_integrated_forecast_chart(merged_data):
         
         # 创建超级整合图表 - 使用1个大图显示所有信息
         fig = go.Figure()
-        
-        # 主图：产品预测vs实际销量的气泡图
-        # 气泡大小代表销量规模，颜色代表准确率，x轴是实际销量，y轴是预测销量
         
         # 重点SKU
         key_products_data = product_analysis[product_analysis['是否重点SKU']]
@@ -1202,24 +1380,27 @@ def create_ultra_integrated_forecast_chart(merged_data):
                     key_products_data['差异量'],
                     key_products_data['差异率'],
                     key_products_data['销售占比'],
-                    key_products_data['准确率'] * 100
+                    key_products_data['准确率'] * 100,
+                    key_products_data['改进建议'],
+                    key_products_data['产品代码']
                 )),
                 hovertemplate="""
                 <b>🎯 重点SKU: %{customdata[0]}</b><br>
+                <b>产品代码: %{customdata[8]}</b><br>
                 <br>
                 <b>📊 销量对比</b><br>
-                实际销量: %{customdata[1]:,.0f}箱<br>
-                预测销量: %{customdata[2]:,.0f}箱<br>
-                差异量: %{customdata[3]:+,.0f}箱<br>
+                实际销量: <b>%{customdata[1]:,.0f}</b>箱<br>
+                预测销量: <b>%{customdata[2]:,.0f}</b>箱<br>
+                差异量: <span style="color: %{customdata[3]:+.0f < 0 ? 'red' : 'green'};">%{customdata[3]:+,.0f}箱</span><br>
                 <br>
                 <b>📈 准确性分析</b><br>
-                预测准确率: <b>%{customdata[6]:.1f}%</b><br>
+                预测准确率: <b style="color: %{customdata[6]:.1f > 85 ? 'green' : customdata[6]:.1f > 75 ? 'orange' : 'red'};">%{customdata[6]:.1f}%</b><br>
                 预测差异率: %{customdata[4]:+.1f}%<br>
-                销售占比: %{customdata[5]:.1f}%<br>
+                销售占比: <b>%{customdata[5]:.1f}%</b><br>
                 <br>
-                <b>💡 评价</b><br>
-                %{customdata[6]:.1f}%准确率 - """ + """
-                """ + """<extra></extra>
+                <b>💡 改进建议</b><br>
+                %{customdata[7]}<br>
+                <extra></extra>
                 """,
                 name="重点SKU (占销售额80%)",
                 legendgroup="key"
@@ -1251,7 +1432,8 @@ def create_ultra_integrated_forecast_chart(merged_data):
                     other_products_data['差异量'],
                     other_products_data['差异率'],
                     other_products_data['销售占比'],
-                    other_products_data['准确率'] * 100
+                    other_products_data['准确率'] * 100,
+                    other_products_data['改进建议']
                 )),
                 hovertemplate="""
                 <b>📦 产品: %{customdata[0]}</b><br>
@@ -1265,6 +1447,9 @@ def create_ultra_integrated_forecast_chart(merged_data):
                 预测准确率: <b>%{customdata[6]:.1f}%</b><br>
                 预测差异率: %{customdata[4]:+.1f}%<br>
                 销售占比: %{customdata[5]:.1f}%<br>
+                <br>
+                <b>💡 建议</b><br>
+                %{customdata[7]}<br>
                 <extra></extra>
                 """,
                 name="其他产品",
@@ -1284,7 +1469,7 @@ def create_ultra_integrated_forecast_chart(merged_data):
         ))
         
         # 在图表右侧添加区域准确率排名的注释
-        region_text = "🌍 区域准确率排行:<br>"
+        region_text = "🌍 <b>区域准确率排行</b><br>"
         for i, row in region_analysis.iterrows():
             color = "🟢" if row['准确率'] > 0.85 else "🟡" if row['准确率'] > 0.75 else "🔴"
             region_text += f"{color} {row['所属区域']}: {row['准确率']:.1%}<br>"
@@ -1297,14 +1482,14 @@ def create_ultra_integrated_forecast_chart(merged_data):
             text=region_text,
             showarrow=False,
             align='left',
-            bgcolor='rgba(255,255,255,0.9)',
+            bgcolor='rgba(255,255,255,0.95)',
             bordercolor='gray',
             borderwidth=1,
-            font=dict(size=10)
+            font=dict(size=11)
         )
         
         # 在左上角添加重点SKU统计
-        key_sku_text = f"🎯 重点SKU统计:<br>数量: {len(key_products_data)}个<br>占销售额: 80%<br>平均准确率: {key_products_data['准确率'].mean():.1%}"
+        key_sku_text = f"🎯 <b>重点SKU统计</b><br>数量: {len(key_products_data)}个<br>占销售额: 80%<br>平均准确率: {key_products_data['准确率'].mean():.1%}"
         fig.add_annotation(
             x=0.02,
             y=0.98,
@@ -1316,12 +1501,16 @@ def create_ultra_integrated_forecast_chart(merged_data):
             bgcolor='rgba(102, 126, 234, 0.1)',
             bordercolor=COLOR_SCHEME['primary'],
             borderwidth=2,
-            font=dict(size=10, color=COLOR_SCHEME['primary'])
+            font=dict(size=11, color=COLOR_SCHEME['primary'])
         )
         
         # 更新布局
         fig.update_layout(
-            title=f"销售预测准确性全景分析 - {datetime.now().year}年数据<br><sub>气泡大小=销售占比 | 颜色=准确率 | 重点SKU(占销售额80%)突出显示</sub>",
+            title=dict(
+                text=f"销售预测准确性全景分析 - {datetime.now().year}年数据<br><sub>气泡大小=销售占比 | 颜色=准确率 | 重点SKU(占销售额80%)突出显示</sub>",
+                x=0.5,
+                xanchor='center'
+            ),
             xaxis_title="实际销量 (箱)",
             yaxis_title="预测销量 (箱)",
             height=700,
@@ -1333,6 +1522,11 @@ def create_ultra_integrated_forecast_chart(merged_data):
                 bgcolor='rgba(255,255,255,0.8)',
                 bordercolor='gray',
                 borderwidth=1
+            ),
+            hoverlabel=dict(
+                bgcolor="white",
+                font_size=14,
+                font_family="Inter"
             )
         )
         
@@ -1341,6 +1535,36 @@ def create_ultra_integrated_forecast_chart(merged_data):
     except Exception as e:
         st.error(f"预测分析图表创建失败: {str(e)}")
         return go.Figure()
+
+# 动画数值显示函数
+def animate_metric_value(value, prefix="", suffix="", duration=2000):
+    """创建动画数值显示"""
+    metric_id = f"metric_{np.random.randint(10000, 99999)}"
+    return f"""
+    <div class="metric-value" id="{metric_id}">0</div>
+    <script>
+        (function() {{
+            let start = 0;
+            let end = {value};
+            let duration = {duration};
+            let startTime = null;
+            let element = document.getElementById('{metric_id}');
+            
+            function animateValue(timestamp) {{
+                if (!startTime) startTime = timestamp;
+                const progress = Math.min((timestamp - startTime) / duration, 1);
+                const currentValue = Math.floor(progress * (end - start) + start);
+                element.textContent = '{prefix}' + currentValue.toLocaleString() + '{suffix}';
+                
+                if (progress < 1) {{
+                    requestAnimationFrame(animateValue);
+                }}
+            }}
+            
+            requestAnimationFrame(animateValue);
+        }})();
+    </script>
+    """
 
 # 加载数据
 with st.spinner('🔄 正在加载数据...'):
@@ -1365,7 +1589,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "📋 库存积压预警详情"
 ])
 
-# 标签1：核心指标总览 - 包含预测准确性指标
+# 标签1：核心指标总览 - 增强动画效果
 with tab1:
     st.markdown("### 🎯 库存管理关键指标")
     
@@ -1375,9 +1599,11 @@ with tab1:
     with col1:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">{metrics['total_batches']:,}</div>
-            <div class="metric-label">📦 总批次数</div>
-            <div class="metric-description">当前库存批次总数</div>
+            <div class="metric-card-inner">
+                <div class="metric-value">{metrics['total_batches']:,}</div>
+                <div class="metric-label">📦 总批次数</div>
+                <div class="metric-description">当前库存批次总数</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1386,18 +1612,22 @@ with tab1:
         health_class = "risk-low" if health_score > 80 else "risk-medium" if health_score > 60 else "risk-high"
         st.markdown(f"""
         <div class="metric-card {health_class}">
-            <div class="metric-value">{health_score:.1f}%</div>
-            <div class="metric-label">💚 库存健康度</div>
-            <div class="metric-description">{'健康' if health_score > 80 else '需关注' if health_score > 60 else '风险'}</div>
+            <div class="metric-card-inner">
+                <div class="metric-value">{health_score:.1f}%</div>
+                <div class="metric-label">💚 库存健康度</div>
+                <div class="metric-description">{'健康' if health_score > 80 else '需关注' if health_score > 60 else '风险'}</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">¥{metrics['total_inventory_value']:.1f}M</div>
-            <div class="metric-label">💰 库存总价值</div>
-            <div class="metric-description">全部库存价值统计</div>
+            <div class="metric-card-inner">
+                <div class="metric-value">¥{metrics['total_inventory_value']:.1f}M</div>
+                <div class="metric-label">💰 库存总价值</div>
+                <div class="metric-description">全部库存价值统计</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1405,9 +1635,11 @@ with tab1:
         risk_class = "risk-extreme" if metrics['high_risk_ratio'] > 25 else "risk-high" if metrics['high_risk_ratio'] > 15 else "risk-medium"
         st.markdown(f"""
         <div class="metric-card {risk_class}">
-            <div class="metric-value">{metrics['high_risk_ratio']:.1f}%</div>
-            <div class="metric-label">⚠️ 高风险占比</div>
-            <div class="metric-description">需要紧急处理的批次</div>
+            <div class="metric-card-inner">
+                <div class="metric-value">{metrics['high_risk_ratio']:.1f}%</div>
+                <div class="metric-label">⚠️ 高风险占比</div>
+                <div class="metric-description">需要紧急处理的批次</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1418,18 +1650,22 @@ with tab1:
     with col5:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">{forecast_key_metrics.get('total_actual_sales', 0):,}</div>
-            <div class="metric-label">📊 实际销量</div>
-            <div class="metric-description">{datetime.now().year}年总销量(箱)</div>
+            <div class="metric-card-inner">
+                <div class="metric-value">{forecast_key_metrics.get('total_actual_sales', 0):,}</div>
+                <div class="metric-label">📊 实际销量</div>
+                <div class="metric-description">{datetime.now().year}年总销量(箱)</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
     with col6:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">{forecast_key_metrics.get('total_forecast_sales', 0):,}</div>
-            <div class="metric-label">🎯 预测销量</div>
-            <div class="metric-description">{datetime.now().year}年总预测(箱)</div>
+            <div class="metric-card-inner">
+                <div class="metric-value">{forecast_key_metrics.get('total_forecast_sales', 0):,}</div>
+                <div class="metric-label">🎯 预测销量</div>
+                <div class="metric-description">{datetime.now().year}年总预测(箱)</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1438,9 +1674,11 @@ with tab1:
         accuracy_class = "risk-low" if overall_acc > 85 else "risk-medium" if overall_acc > 75 else "risk-high"
         st.markdown(f"""
         <div class="metric-card {accuracy_class}">
-            <div class="metric-value">{overall_acc:.1f}%</div>
-            <div class="metric-label">🎯 整体准确率</div>
-            <div class="metric-description">全国预测精度</div>
+            <div class="metric-card-inner">
+                <div class="metric-value">{overall_acc:.1f}%</div>
+                <div class="metric-label">🎯 整体准确率</div>
+                <div class="metric-description">全国预测精度</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1449,9 +1687,11 @@ with tab1:
         diff_class = "risk-low" if abs(diff_rate) < 5 else "risk-medium" if abs(diff_rate) < 15 else "risk-high"
         st.markdown(f"""
         <div class="metric-card {diff_class}">
-            <div class="metric-value">{diff_rate:+.1f}%</div>
-            <div class="metric-label">📊 整体差异率</div>
-            <div class="metric-description">{'预测偏高' if diff_rate < 0 else '预测偏低' if diff_rate > 0 else '预测准确'}</div>
+            <div class="metric-card-inner">
+                <div class="metric-value">{diff_rate:+.1f}%</div>
+                <div class="metric-label">📊 整体差异率</div>
+                <div class="metric-description">{'预测偏高' if diff_rate < 0 else '预测偏低' if diff_rate > 0 else '预测准确'}</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
