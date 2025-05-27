@@ -165,6 +165,17 @@ st.markdown("""
         color: #1f2937 !important;
     }
     
+    /* 给所有图表添加圆角 */
+    .js-plotly-plot .plotly, .js-plotly-plot .plot-container {
+        border-radius: 20px !important;
+        overflow: hidden !important;
+    }
+    
+    /* Plotly图表容器圆角 */
+    .user-select-none {
+        border-radius: 20px !important;
+    }
+    
     @keyframes containerFadeIn {
         from { 
             opacity: 0; 
@@ -1319,10 +1330,9 @@ def main():
     
     # Tab 2: BCG产品矩阵
     with tabs[1]:
-        # 选择维度控件 - 使用占位符方式包装在容器中
-        container1 = st.container()
-        with container1:
-            _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        # 选择维度控件 - 包装在容器中
+        with st.container():
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
             bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True)
             
             # 获取分析数据
@@ -1335,16 +1345,12 @@ def main():
                 selected_region = st.selectbox("🗺️ 选择区域", regions)
                 product_analysis = create_bcg_matrix(data, 'regional', selected_region)
                 title = f"{selected_region}区域 BCG产品矩阵"
-            _end = st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         
-        # 显示BCG矩阵图表 - 使用占位符方式包装在容器中
+        # 显示BCG矩阵图表 - 不使用容器包装
         if len(product_analysis) > 0:
-            container2 = st.container()
-            with container2:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
-                fig = plot_bcg_matrix(product_analysis, title=title)
-                st.plotly_chart(fig, use_container_width=True)
-                _end = st.markdown('</div>', unsafe_allow_html=True)
+            fig = plot_bcg_matrix(product_analysis, title=title)
+            st.plotly_chart(fig, use_container_width=True)
             
             # JBP符合度分析
             total_sales = product_analysis['sales'].sum()
@@ -1389,21 +1395,17 @@ def main():
             # 计算有效率并显示在标题中
             effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
             
-            # 促销活动效果图表 - 使用占位符方式包装在容器中
-            container3 = st.container()
-            with container3:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
-                st.markdown(f"""
-                <div class="promo-header">
-                    <h2>🚀 全国促销活动有效性分析</h2>
-                    <h3>总体有效率: {effectiveness_rate:.1f}% ({promo_results['is_effective'].sum()}/{len(promo_results)})</h3>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                fig = create_optimized_promotion_chart(promo_results)
-                if fig:
-                    st.plotly_chart(fig, use_container_width=True)
-                _end = st.markdown('</div>', unsafe_allow_html=True)
+            # 促销活动效果图表 - 不使用容器包装
+            st.markdown(f"""
+            <div class="promo-header">
+                <h2>🚀 全国促销活动有效性分析</h2>
+                <h3>总体有效率: {effectiveness_rate:.1f}% ({promo_results['is_effective'].sum()}/{len(promo_results)})</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            fig = create_optimized_promotion_chart(promo_results)
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
             
             # 促销洞察分析
             with st.expander("💡 促销活动深度洞察", expanded=True):
@@ -1433,13 +1435,12 @@ def main():
             st.info("暂无全国促销活动数据")
     
     # Tab 4: 星品新品达成
-    with tabs[3]:
-        # 选择控件 - 使用占位符方式包装在容器中
-        container4 = st.container()
-        with container4:
-            _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+    with tabs[4]:
+        # 选择控件 - 包装在容器中
+        with st.container():
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
             view_type = st.radio("选择分析视角", ["按区域", "按销售员", "趋势分析"], horizontal=True)
-            _end = st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         
         sales_df = data['sales_df']
         star_products = data['star_products']
@@ -1447,41 +1448,37 @@ def main():
         star_new_products = list(set(star_products + new_products))
         
         if view_type == "按区域":
-            # 区域分析 - 使用占位符方式包装在容器中
-            container5 = st.container()
-            with container5:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 区域分析 - 不使用容器包装
+            # 区域分析
+            region_stats = []
+            for region in sales_df['区域'].unique():
+                region_data = sales_df[sales_df['区域'] == region]
+                total_sales = region_data['销售额'].sum()
+                star_new_sales = region_data[region_data['产品代码'].isin(star_new_products)]['销售额'].sum()
+                ratio = (star_new_sales / total_sales * 100) if total_sales > 0 else 0
                 
-                # 区域分析
-                region_stats = []
-                for region in sales_df['区域'].unique():
-                    region_data = sales_df[sales_df['区域'] == region]
-                    total_sales = region_data['销售额'].sum()
-                    star_new_sales = region_data[region_data['产品代码'].isin(star_new_products)]['销售额'].sum()
-                    ratio = (star_new_sales / total_sales * 100) if total_sales > 0 else 0
-                    
-                    total_customers = region_data['客户名称'].nunique()
-                    star_new_customers = region_data[region_data['产品代码'].isin(star_new_products)]['客户名称'].nunique()
-                    
-                    region_stats.append({
-                        'region': region,
-                        'ratio': ratio,
-                        'achieved': ratio >= 20,
-                        'total_sales': total_sales,
-                        'star_new_sales': star_new_sales,
-                        'customers': f"{star_new_customers}/{total_customers}",
-                        'penetration': star_new_customers / total_customers * 100 if total_customers > 0 else 0
-                    })
+                total_customers = region_data['客户名称'].nunique()
+                star_new_customers = region_data[region_data['产品代码'].isin(star_new_products)]['客户名称'].nunique()
                 
-                region_df = pd.DataFrame(region_stats)
-                
-                fig = go.Figure()
-                
-                colors = ['#10b981' if ach else '#f59e0b' for ach in region_df['achieved']]
-                
-                hover_texts = []
-                for _, row in region_df.iterrows():
-                    hover_text = f"""<b>{row['region']}</b><br>
+                region_stats.append({
+                    'region': region,
+                    'ratio': ratio,
+                    'achieved': ratio >= 20,
+                    'total_sales': total_sales,
+                    'star_new_sales': star_new_sales,
+                    'customers': f"{star_new_customers}/{total_customers}",
+                    'penetration': star_new_customers / total_customers * 100 if total_customers > 0 else 0
+                })
+            
+            region_df = pd.DataFrame(region_stats)
+            
+            fig = go.Figure()
+            
+            colors = ['#10b981' if ach else '#f59e0b' for ach in region_df['achieved']]
+            
+            hover_texts = []
+            for _, row in region_df.iterrows():
+                hover_text = f"""<b>{row['region']}</b><br>
 <b>占比:</b> {row['ratio']:.1f}%<br>
 <b>达成情况:</b> {'✅ 已达标' if row['achieved'] else '❌ 未达标'}<br>
 <br><b>销售分析:</b><br>
@@ -1491,69 +1488,64 @@ def main():
 - 客户渗透率: {row['penetration']:.1f}%<br>
 <br><b>行动建议:</b><br>
 {'继续保持，可作为其他区域标杆' if row['achieved'] else f"距离目标还差{20-row['ratio']:.1f}%，需重点提升"}"""
-                    hover_texts.append(hover_text)
-                
-                fig.add_trace(go.Bar(
-                    x=region_df['region'],
-                    y=region_df['ratio'],
-                    marker_color=colors,
-                    text=[f"{r:.1f}%" for r in region_df['ratio']],
-                    textposition='outside',
-                    hovertemplate='%{customdata}<extra></extra>',
-                    customdata=hover_texts
-                ))
-                
-                fig.add_hline(y=20, line_dash="dash", line_color="red", 
-                             annotation_text="目标线 20%", annotation_position="right")
-                
-                fig.update_layout(
-                    title="各区域星品&新品占比达成情况",
-                    xaxis_title="销售区域",
-                    yaxis_title="占比 (%)",
-                    height=500,
-                    showlegend=False,
-                    hovermode='closest'
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-                _end = st.markdown('</div>', unsafe_allow_html=True)
+                hover_texts.append(hover_text)
+            
+            fig.add_trace(go.Bar(
+                x=region_df['region'],
+                y=region_df['ratio'],
+                marker_color=colors,
+                text=[f"{r:.1f}%" for r in region_df['ratio']],
+                textposition='outside',
+                hovertemplate='%{customdata}<extra></extra>',
+                customdata=hover_texts
+            ))
+            
+            fig.add_hline(y=20, line_dash="dash", line_color="red", 
+                         annotation_text="目标线 20%", annotation_position="right")
+            
+            fig.update_layout(
+                title="各区域星品&新品占比达成情况",
+                xaxis_title="销售区域",
+                yaxis_title="占比 (%)",
+                height=500,
+                showlegend=False,
+                hovermode='closest'
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
         
         elif view_type == "按销售员":
-            # 销售员分析 - 使用占位符方式包装在容器中
-            container6 = st.container()
-            with container6:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 销售员分析 - 不使用容器包装
+            # 销售员分析
+            salesperson_stats = []
+            for person in sales_df['销售员'].unique():
+                person_data = sales_df[sales_df['销售员'] == person]
+                total_sales = person_data['销售额'].sum()
+                star_new_sales = person_data[person_data['产品代码'].isin(star_new_products)]['销售额'].sum()
+                ratio = (star_new_sales / total_sales * 100) if total_sales > 0 else 0
                 
-                # 销售员分析
-                salesperson_stats = []
-                for person in sales_df['销售员'].unique():
-                    person_data = sales_df[sales_df['销售员'] == person]
-                    total_sales = person_data['销售额'].sum()
-                    star_new_sales = person_data[person_data['产品代码'].isin(star_new_products)]['销售额'].sum()
-                    ratio = (star_new_sales / total_sales * 100) if total_sales > 0 else 0
-                    
-                    total_customers = person_data['客户名称'].nunique()
-                    star_new_customers = person_data[person_data['产品代码'].isin(star_new_products)]['客户名称'].nunique()
-                    
-                    salesperson_stats.append({
-                        'salesperson': person,
-                        'ratio': ratio,
-                        'achieved': ratio >= 20,
-                        'total_sales': total_sales,
-                        'star_new_sales': star_new_sales,
-                        'customers': f"{star_new_customers}/{total_customers}",
-                        'region': person_data['区域'].mode().iloc[0] if len(person_data) > 0 else ''
-                    })
+                total_customers = person_data['客户名称'].nunique()
+                star_new_customers = person_data[person_data['产品代码'].isin(star_new_products)]['客户名称'].nunique()
                 
-                person_df = pd.DataFrame(salesperson_stats).sort_values('ratio', ascending=False)
-                
-                fig = go.Figure()
-                
-                colors = ['#10b981' if ach else '#f59e0b' for ach in person_df['achieved']]
-                
-                hover_texts = []
-                for _, row in person_df.iterrows():
-                    hover_text = f"""<b>{row['salesperson']}</b><br>
+                salesperson_stats.append({
+                    'salesperson': person,
+                    'ratio': ratio,
+                    'achieved': ratio >= 20,
+                    'total_sales': total_sales,
+                    'star_new_sales': star_new_sales,
+                    'customers': f"{star_new_customers}/{total_customers}",
+                    'region': person_data['区域'].mode().iloc[0] if len(person_data) > 0 else ''
+                })
+            
+            person_df = pd.DataFrame(salesperson_stats).sort_values('ratio', ascending=False)
+            
+            fig = go.Figure()
+            
+            colors = ['#10b981' if ach else '#f59e0b' for ach in person_df['achieved']]
+            
+            hover_texts = []
+            for _, row in person_df.iterrows():
+                hover_text = f"""<b>{row['salesperson']}</b><br>
 <b>所属区域:</b> {row['region']}<br>
 <b>占比:</b> {row['ratio']:.1f}%<br>
 <b>达成情况:</b> {'✅ 已达标' if row['achieved'] else '❌ 未达标'}<br>
@@ -1563,123 +1555,112 @@ def main():
 - 覆盖客户: {row['customers']}<br>
 <br><b>绩效建议:</b><br>
 {'优秀销售员，可分享经验' if row['achieved'] else '需要培训和支持，提升产品知识'}"""
-                    hover_texts.append(hover_text)
-                
-                fig.add_trace(go.Bar(
-                    x=person_df['salesperson'],
-                    y=person_df['ratio'],
-                    marker_color=colors,
-                    text=[f"{r:.1f}%" for r in person_df['ratio']],
-                    textposition='outside',
-                    hovertemplate='%{customdata}<extra></extra>',
-                    customdata=hover_texts
-                ))
-                
-                fig.add_hline(y=20, line_dash="dash", line_color="red", 
-                             annotation_text="目标线 20%", annotation_position="right")
-                
-                fig.update_layout(
-                    title=f"全部销售员星品&新品占比达成情况（共{len(person_df)}人）",
-                    xaxis_title="销售员",
-                    yaxis_title="占比 (%)",
-                    height=600,
-                    showlegend=False,
-                    hovermode='closest',
-                    xaxis={'tickangle': -45}
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-                
-                achieved_count = person_df['achieved'].sum()
-                st.info(f"📊 达成率统计：{achieved_count}/{len(person_df)}人达标（{achieved_count/len(person_df)*100:.1f}%）")
-                _end = st.markdown('</div>', unsafe_allow_html=True)
+                hover_texts.append(hover_text)
+            
+            fig.add_trace(go.Bar(
+                x=person_df['salesperson'],
+                y=person_df['ratio'],
+                marker_color=colors,
+                text=[f"{r:.1f}%" for r in person_df['ratio']],
+                textposition='outside',
+                hovertemplate='%{customdata}<extra></extra>',
+                customdata=hover_texts
+            ))
+            
+            fig.add_hline(y=20, line_dash="dash", line_color="red", 
+                         annotation_text="目标线 20%", annotation_position="right")
+            
+            fig.update_layout(
+                title=f"全部销售员星品&新品占比达成情况（共{len(person_df)}人）",
+                xaxis_title="销售员",
+                yaxis_title="占比 (%)",
+                height=600,
+                showlegend=False,
+                hovermode='closest',
+                xaxis={'tickangle': -45}
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            achieved_count = person_df['achieved'].sum()
+            st.info(f"📊 达成率统计：{achieved_count}/{len(person_df)}人达标（{achieved_count/len(person_df)*100:.1f}%）")
         
         else:  # 趋势分析
-            # 趋势分析 - 使用占位符方式包装在容器中
-            container7 = st.container()
-            with container7:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+            # 趋势分析 - 不使用容器包装
+            # 趋势分析
+            monthly_stats = []
+            
+            for month in pd.date_range(start='2024-01', end='2025-04', freq='M'):
+                month_data = sales_df[
+                    (sales_df['发运月份'].dt.year == month.year) & 
+                    (sales_df['发运月份'].dt.month == month.month)
+                ]
                 
-                # 趋势分析
-                monthly_stats = []
-                
-                for month in pd.date_range(start='2024-01', end='2025-04', freq='M'):
-                    month_data = sales_df[
-                        (sales_df['发运月份'].dt.year == month.year) & 
-                        (sales_df['发运月份'].dt.month == month.month)
-                    ]
+                if len(month_data) > 0:
+                    total_sales = month_data['销售额'].sum()
+                    star_new_sales = month_data[month_data['产品代码'].isin(star_new_products)]['销售额'].sum()
+                    ratio = (star_new_sales / total_sales * 100) if total_sales > 0 else 0
                     
-                    if len(month_data) > 0:
-                        total_sales = month_data['销售额'].sum()
-                        star_new_sales = month_data[month_data['产品代码'].isin(star_new_products)]['销售额'].sum()
-                        ratio = (star_new_sales / total_sales * 100) if total_sales > 0 else 0
-                        
-                        monthly_stats.append({
-                            'month': month.strftime('%Y-%m'),
-                            'ratio': ratio,
-                            'total_sales': total_sales,
-                            'star_new_sales': star_new_sales
-                        })
-                
-                trend_df = pd.DataFrame(monthly_stats)
-                
-                fig = go.Figure()
-                
-                hover_texts = []
-                for _, row in trend_df.iterrows():
-                    hover_text = f"""<b>{row['month']}</b><br>
+                    monthly_stats.append({
+                        'month': month.strftime('%Y-%m'),
+                        'ratio': ratio,
+                        'total_sales': total_sales,
+                        'star_new_sales': star_new_sales
+                    })
+            
+            trend_df = pd.DataFrame(monthly_stats)
+            
+            fig = go.Figure()
+            
+            hover_texts = []
+            for _, row in trend_df.iterrows():
+                hover_text = f"""<b>{row['month']}</b><br>
 <b>占比:</b> {row['ratio']:.1f}%<br>
 <b>总销售额:</b> ¥{row['total_sales']:,.0f}<br>
 <b>星品新品销售额:</b> ¥{row['star_new_sales']:,.0f}<br>
 <br><b>趋势分析:</b><br>
 {'保持良好势头' if row['ratio'] >= 20 else '需要加强推广'}"""
-                    hover_texts.append(hover_text)
-                
-                fig.add_trace(go.Scatter(
-                    x=trend_df['month'],
-                    y=trend_df['ratio'],
-                    mode='lines+markers',
-                    name='星品&新品占比',
-                    line=dict(color='#667eea', width=3),
-                    marker=dict(size=10),
-                    hovertemplate='%{customdata}<extra></extra>',
-                    customdata=hover_texts
-                ))
-                
-                fig.add_hline(y=20, line_dash="dash", line_color="red", 
-                             annotation_text="目标线 20%", annotation_position="right")
-                
-                fig.update_layout(
-                    title="星品&新品占比月度趋势",
-                    xaxis_title="月份",
-                    yaxis_title="占比 (%)",
-                    height=500,
-                    hovermode='x unified'
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-                _end = st.markdown('</div>', unsafe_allow_html=True)
+                hover_texts.append(hover_text)
+            
+            fig.add_trace(go.Scatter(
+                x=trend_df['month'],
+                y=trend_df['ratio'],
+                mode='lines+markers',
+                name='星品&新品占比',
+                line=dict(color='#667eea', width=3),
+                marker=dict(size=10),
+                hovertemplate='%{customdata}<extra></extra>',
+                customdata=hover_texts
+            ))
+            
+            fig.add_hline(y=20, line_dash="dash", line_color="red", 
+                         annotation_text="目标线 20%", annotation_position="right")
+            
+            fig.update_layout(
+                title="星品&新品占比月度趋势",
+                xaxis_title="月份",
+                yaxis_title="占比 (%)",
+                height=500,
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
     
     # Tab 5: 市场网络与覆盖分析
     with tabs[4]:
-        # 选择控件 - 使用占位符方式包装在容器中
-        container8 = st.container()
-        with container8:
-            _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
+        # 选择控件 - 包装在容器中
+        with st.container():
+            st.markdown('<div class="content-container">', unsafe_allow_html=True)
             analysis_type = st.radio("选择分析类型", ["🔗 产品关联网络", "📍 区域覆盖分析"], horizontal=True)
-            _end = st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         
         if analysis_type == "🔗 产品关联网络":
-            # 产品关联网络 - 使用占位符方式包装在容器中
-            container9 = st.container()
-            with container9:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
-                st.subheader("产品关联网络分析")
-                
-                # 创建基于真实数据的2D网络图
-                network_fig = create_real_product_network(data)
-                st.plotly_chart(network_fig, use_container_width=True)
-                _end = st.markdown('</div>', unsafe_allow_html=True)
+            # 产品关联网络 - 不使用容器包装
+            st.subheader("产品关联网络分析")
+            
+            # 创建基于真实数据的2D网络图
+            network_fig = create_real_product_network(data)
+            st.plotly_chart(network_fig, use_container_width=True)
             
             # 关联分析洞察
             with st.expander("💡 产品关联营销策略", expanded=True):
@@ -1704,15 +1685,10 @@ def main():
                     """)
         
         else:  # 区域覆盖分析
-            # 区域覆盖分析 - 使用占位符方式包装在容器中
-            container10 = st.container()
-            with container10:
-                _start = st.markdown('<div class="content-container">', unsafe_allow_html=True)
-                
-                # 创建更易读的区域覆盖率分析
-                fig, coverage_df = create_regional_coverage_analysis(data)
-                st.plotly_chart(fig, use_container_width=True)
-                _end = st.markdown('</div>', unsafe_allow_html=True)
+            # 区域覆盖分析 - 不使用容器包装
+            # 创建更易读的区域覆盖率分析
+            fig, coverage_df = create_regional_coverage_analysis(data)
+            st.plotly_chart(fig, use_container_width=True)
             
             # 覆盖率分析洞察
             col1, col2 = st.columns(2)
