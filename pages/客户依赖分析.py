@@ -1303,8 +1303,9 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
         )
         
         fig_scatter.update_layout(
+            xaxis_title="目标金额",
+            yaxis_title="实际金额",
             xaxis=dict(
-                title="目标金额",
                 titlefont=dict(size=16),
                 tickfont=dict(size=14),
                 gridcolor='rgba(200, 200, 200, 0.3)',
@@ -1313,7 +1314,6 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
                 zerolinecolor='rgba(200, 200, 200, 0.5)'
             ),
             yaxis=dict(
-                title="实际金额",
                 titlefont=dict(size=16),
                 tickfont=dict(size=14),
                 gridcolor='rgba(200, 200, 200, 0.3)',
