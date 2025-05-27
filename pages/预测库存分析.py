@@ -284,38 +284,59 @@ st.markdown("""
         .page-title { font-size: 2.5rem; }
     }
     
-    /* 高级表格样式 */
+    /* 高级表格样式 - 增强版 */
     .advanced-table {
-        background: rgba(255,255,255,0.98) !important;
-        border-radius: 20px !important;
-        overflow: hidden !important;
+        background: linear-gradient(135deg, rgba(255,255,255,0.99), rgba(248,250,252,0.98)) !important;
+        border-radius: 30px !important;
+        overflow: visible !important;
         box-shadow: 
-            0 20px 40px rgba(0,0,0,0.1),
-            0 5px 15px rgba(0,0,0,0.05) !important;
-        border: 2px solid rgba(102, 126, 234, 0.1) !important;
-        margin: 1rem 0 !important;
+            0 30px 60px rgba(0,0,0,0.12),
+            0 15px 30px rgba(0,0,0,0.08),
+            0 5px 15px rgba(0,0,0,0.04),
+            inset 0 2px 4px rgba(255,255,255,0.9) !important;
+        border: 2px solid transparent !important;
+        background-image: 
+            linear-gradient(135deg, rgba(255,255,255,0.99), rgba(248,250,252,0.98)),
+            linear-gradient(135deg, #667eea, #764ba2) !important;
+        background-origin: border-box !important;
+        background-clip: padding-box, border-box !important;
+        margin: 2rem 0 !important;
+        position: relative !important;
+        animation: tableContainerEntrance 1.5s ease-out !important;
+    }
+    
+    @keyframes tableContainerEntrance {
+        from {
+            opacity: 0;
+            transform: translateY(50px) scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
     }
     
     .stDataFrame > div {
-        border-radius: 20px !important;
+        border-radius: 25px !important;
         overflow: hidden !important;
         border: none !important;
-        box-shadow: 
-            0 20px 40px rgba(0,0,0,0.1),
-            0 5px 15px rgba(0,0,0,0.05) !important;
+        box-shadow: none !important;
     }
     
-    /* 表格头部样式 */
+    /* 表格头部样式 - 增强版 */
     .stDataFrame thead th {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: white !important;
-        font-weight: 700 !important;
-        font-size: 1rem !important;
-        padding: 1.5rem 1rem !important;
+        font-weight: 800 !important;
+        font-size: 1.1rem !important;
+        padding: 2rem 1.2rem !important;
         text-align: center !important;
         border: none !important;
         position: relative !important;
         overflow: hidden !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
     }
     
     .stDataFrame thead th::before {
@@ -325,220 +346,373 @@ st.markdown("""
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        animation: tableHeaderShimmer 3s ease-in-out infinite;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        animation: tableHeaderShimmer 2s ease-in-out infinite;
+    }
+    
+    .stDataFrame thead th::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+        animation: tableHeaderUnderline 3s ease-in-out infinite;
     }
     
     @keyframes tableHeaderShimmer {
         0% { left: -100%; }
-        50% { left: 100%; }
-        100% { left: -100%; }
+        100% { left: 100%; }
     }
     
-    /* 表格行样式 */
+    @keyframes tableHeaderUnderline {
+        0%, 100% { transform: translateX(-100%); }
+        50% { transform: translateX(100%); }
+    }
+    
+    /* 表格行样式 - 增强版 */
     .stDataFrame tbody tr {
-        transition: all 0.3s ease !important;
-        border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+        border-bottom: 1px solid rgba(0,0,0,0.03) !important;
+        position: relative !important;
+    }
+    
+    .stDataFrame tbody tr:nth-child(even) {
+        background: rgba(102, 126, 234, 0.02) !important;
     }
     
     .stDataFrame tbody tr:hover {
-        background: rgba(102, 126, 234, 0.05) !important;
-        transform: scale(1.01) !important;
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2) !important;
+        background: linear-gradient(90deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.05)) !important;
+        transform: scale(1.02) translateX(5px) !important;
+        box-shadow: 
+            0 15px 40px rgba(102, 126, 234, 0.15),
+            -5px 0 20px rgba(102, 126, 234, 0.1) !important;
+        z-index: 10 !important;
     }
     
     .stDataFrame tbody td {
-        padding: 1.2rem 1rem !important;
+        padding: 1.5rem 1.2rem !important;
         border: none !important;
-        font-size: 0.95rem !important;
-        font-weight: 500 !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
         text-align: center !important;
         vertical-align: middle !important;
+        position: relative !important;
     }
     
-    /* 风险等级样式 - 极高风险 */
+    /* 风险等级样式 - 极高风险 (超级增强版) */
     .stDataFrame tbody tr:has(td:contains("极高风险")) {
-        background: linear-gradient(90deg, rgba(255, 71, 87, 0.1), rgba(255, 71, 87, 0.05)) !important;
-        border-left: 5px solid #ff4757 !important;
-        animation: extremeRiskPulse 2s ease-in-out infinite !important;
+        background: linear-gradient(90deg, 
+            rgba(255, 71, 87, 0.15) 0%,
+            rgba(255, 71, 87, 0.08) 50%,
+            rgba(255, 71, 87, 0.15) 100%) !important;
+        border-left: 8px solid #ff4757 !important;
+        animation: 
+            extremeRiskPulse 1.5s ease-in-out infinite,
+            extremeRiskWave 3s linear infinite,
+            extremeRiskShake 10s ease-in-out infinite !important;
+        position: relative !important;
+        overflow: hidden !important;
+    }
+    
+    .stDataFrame tbody tr:has(td:contains("极高风险"))::before {
+        content: '⚠️';
+        position: absolute;
+        left: -30px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.5rem;
+        animation: warningBlink 1s ease-in-out infinite;
+    }
+    
+    .stDataFrame tbody tr:has(td:contains("极高风险"))::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 71, 87, 0.1), transparent);
+        animation: riskScanline 2s linear infinite;
+        pointer-events: none;
     }
     
     .stDataFrame tbody tr:has(td:contains("极高风险")):hover {
-        background: linear-gradient(90deg, rgba(255, 71, 87, 0.2), rgba(255, 71, 87, 0.1)) !important;
-        transform: scale(1.02) translateX(10px) !important;
+        background: linear-gradient(90deg, 
+            rgba(255, 71, 87, 0.25) 0%,
+            rgba(255, 71, 87, 0.15) 50%,
+            rgba(255, 71, 87, 0.25) 100%) !important;
+        transform: scale(1.03) translateX(15px) !important;
         box-shadow: 
-            0 10px 30px rgba(255, 71, 87, 0.3),
-            -5px 0 15px rgba(255, 71, 87, 0.2) !important;
+            0 20px 50px rgba(255, 71, 87, 0.4),
+            -10px 0 30px rgba(255, 71, 87, 0.3),
+            inset 0 0 30px rgba(255, 71, 87, 0.1) !important;
+        border-left-width: 12px !important;
     }
     
-    /* 风险等级样式 - 高风险 */
+    /* 风险等级样式 - 高风险 (增强版) */
     .stDataFrame tbody tr:has(td:contains("高风险")):not(:has(td:contains("极高风险"))) {
-        background: linear-gradient(90deg, rgba(255, 99, 72, 0.08), rgba(255, 99, 72, 0.03)) !important;
-        border-left: 4px solid #ff6348 !important;
-        animation: highRiskGlow 3s ease-in-out infinite !important;
+        background: linear-gradient(90deg, 
+            rgba(255, 99, 72, 0.12) 0%,
+            rgba(255, 99, 72, 0.06) 50%,
+            rgba(255, 99, 72, 0.12) 100%) !important;
+        border-left: 6px solid #ff6348 !important;
+        animation: 
+            highRiskGlow 2s ease-in-out infinite,
+            highRiskBreath 4s ease-in-out infinite !important;
+        position: relative !important;
+    }
+    
+    .stDataFrame tbody tr:has(td:contains("高风险")):not(:has(td:contains("极高风险")))::before {
+        content: '⚡';
+        position: absolute;
+        left: -25px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.2rem;
+        animation: warningFloat 2s ease-in-out infinite;
     }
     
     .stDataFrame tbody tr:has(td:contains("高风险")):not(:has(td:contains("极高风险"))):hover {
-        background: linear-gradient(90deg, rgba(255, 99, 72, 0.15), rgba(255, 99, 72, 0.08)) !important;
-        transform: scale(1.015) translateX(8px) !important;
+        background: linear-gradient(90deg, 
+            rgba(255, 99, 72, 0.2) 0%,
+            rgba(255, 99, 72, 0.12) 50%,
+            rgba(255, 99, 72, 0.2) 100%) !important;
+        transform: scale(1.025) translateX(12px) !important;
         box-shadow: 
-            0 8px 25px rgba(255, 99, 72, 0.25),
-            -4px 0 12px rgba(255, 99, 72, 0.15) !important;
+            0 15px 40px rgba(255, 99, 72, 0.35),
+            -8px 0 25px rgba(255, 99, 72, 0.25),
+            inset 0 0 20px rgba(255, 99, 72, 0.08) !important;
+        border-left-width: 10px !important;
     }
     
     /* 风险等级样式 - 中风险 */
     .stDataFrame tbody tr:has(td:contains("中风险")) {
-        background: linear-gradient(90deg, rgba(255, 165, 2, 0.06), rgba(255, 165, 2, 0.02)) !important;
-        border-left: 3px solid #ffa502 !important;
+        background: linear-gradient(90deg, rgba(255, 165, 2, 0.08), rgba(255, 165, 2, 0.04)) !important;
+        border-left: 4px solid #ffa502 !important;
+        animation: mediumRiskPulse 3s ease-in-out infinite !important;
     }
     
     .stDataFrame tbody tr:has(td:contains("中风险")):hover {
-        background: linear-gradient(90deg, rgba(255, 165, 2, 0.12), rgba(255, 165, 2, 0.06)) !important;
-        transform: scale(1.01) translateX(5px) !important;
+        background: linear-gradient(90deg, rgba(255, 165, 2, 0.15), rgba(255, 165, 2, 0.08)) !important;
+        transform: scale(1.015) translateX(8px) !important;
+        box-shadow: 0 10px 30px rgba(255, 165, 2, 0.2) !important;
     }
     
     /* 风险等级样式 - 低风险 */
     .stDataFrame tbody tr:has(td:contains("低风险")) {
-        background: linear-gradient(90deg, rgba(46, 213, 115, 0.06), rgba(46, 213, 115, 0.02)) !important;
+        background: linear-gradient(90deg, rgba(46, 213, 115, 0.06), rgba(46, 213, 115, 0.03)) !important;
         border-left: 3px solid #2ed573 !important;
     }
     
     /* 风险等级样式 - 极低风险 */
     .stDataFrame tbody tr:has(td:contains("极低风险")) {
-        background: linear-gradient(90deg, rgba(83, 82, 237, 0.06), rgba(83, 82, 237, 0.02)) !important;
+        background: linear-gradient(90deg, rgba(83, 82, 237, 0.06), rgba(83, 82, 237, 0.03)) !important;
         border-left: 3px solid #5352ed !important;
     }
     
-    /* 极高风险动画 */
+    /* 动画效果定义 */
     @keyframes extremeRiskPulse {
         0%, 100% {
             box-shadow: 
-                0 0 0 0 rgba(255, 71, 87, 0.7),
-                0 5px 15px rgba(255, 71, 87, 0.2);
+                0 0 0 0 rgba(255, 71, 87, 0.8),
+                0 10px 25px rgba(255, 71, 87, 0.3),
+                inset 0 0 20px rgba(255, 71, 87, 0.05);
         }
         50% {
             box-shadow: 
-                0 0 0 8px rgba(255, 71, 87, 0),
-                0 8px 25px rgba(255, 71, 87, 0.4);
+                0 0 0 15px rgba(255, 71, 87, 0),
+                0 15px 40px rgba(255, 71, 87, 0.5),
+                inset 0 0 30px rgba(255, 71, 87, 0.1);
         }
     }
     
-    /* 高风险动画 */
+    @keyframes extremeRiskWave {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+    
+    @keyframes extremeRiskShake {
+        0%, 90%, 100% { transform: translateX(0); }
+        91%, 93%, 95%, 97%, 99% { transform: translateX(-2px); }
+        92%, 94%, 96%, 98% { transform: translateX(2px); }
+    }
+    
     @keyframes highRiskGlow {
         0%, 100% {
             box-shadow: 
-                0 0 5px rgba(255, 99, 72, 0.3),
-                0 3px 10px rgba(255, 99, 72, 0.15);
+                0 0 10px rgba(255, 99, 72, 0.4),
+                0 5px 15px rgba(255, 99, 72, 0.2);
         }
         50% {
             box-shadow: 
-                0 0 15px rgba(255, 99, 72, 0.5),
-                0 5px 20px rgba(255, 99, 72, 0.25);
+                0 0 25px rgba(255, 99, 72, 0.6),
+                0 10px 30px rgba(255, 99, 72, 0.3);
         }
     }
     
-    /* 风险等级单元格特殊样式 */
-    .stDataFrame tbody td:has-text("极高风险") {
-        background: linear-gradient(135deg, #ff4757, #ff3742) !important;
+    @keyframes highRiskBreath {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.005); }
+    }
+    
+    @keyframes mediumRiskPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.95; }
+    }
+    
+    @keyframes warningBlink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+    
+    @keyframes warningFloat {
+        0%, 100% { transform: translateY(-50%); }
+        50% { transform: translateY(-60%); }
+    }
+    
+    @keyframes riskScanline {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+    
+    /* 风险等级单元格特殊样式 - 超级增强版 */
+    [data-testid="stDataFrameResizable"] td:contains("极高风险") {
+        background: linear-gradient(135deg, #ff4757 0%, #ff3838 50%, #ff2525 100%) !important;
+        color: white !important;
+        font-weight: 900 !important;
+        border-radius: 15px !important;
+        padding: 1rem 1.5rem !important;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.4) !important;
+        animation: extremeRiskTextPulse 1s ease-in-out infinite !important;
+        box-shadow: 
+            0 4px 10px rgba(255, 71, 87, 0.4),
+            inset 0 2px 4px rgba(255,255,255,0.2),
+            inset 0 -2px 4px rgba(0,0,0,0.2) !important;
+        position: relative !important;
+        overflow: hidden !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+    }
+    
+    [data-testid="stDataFrameResizable"] td:contains("高风险") {
+        background: linear-gradient(135deg, #ff6348 0%, #ff5733 50%, #ff4520 100%) !important;
         color: white !important;
         font-weight: 800 !important;
         border-radius: 12px !important;
-        padding: 0.8rem 1.2rem !important;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
-        animation: extremeRiskText 2s ease-in-out infinite !important;
+        padding: 0.9rem 1.4rem !important;
+        text-shadow: 0 2px 3px rgba(0,0,0,0.3) !important;
+        animation: highRiskTextGlow 2s ease-in-out infinite !important;
+        box-shadow: 
+            0 3px 8px rgba(255, 99, 72, 0.3),
+            inset 0 1px 3px rgba(255,255,255,0.2) !important;
     }
     
-    .stDataFrame tbody td:has-text("高风险") {
-        background: linear-gradient(135deg, #ff6348, #ff5722) !important;
-        color: white !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        padding: 0.7rem 1.1rem !important;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
-        animation: highRiskText 3s ease-in-out infinite !important;
+    @keyframes extremeRiskTextPulse {
+        0%, 100% { 
+            transform: scale(1);
+            box-shadow: 
+                0 4px 10px rgba(255, 71, 87, 0.4),
+                inset 0 2px 4px rgba(255,255,255,0.2),
+                inset 0 -2px 4px rgba(0,0,0,0.2);
+        }
+        50% { 
+            transform: scale(1.05);
+            box-shadow: 
+                0 6px 20px rgba(255, 71, 87, 0.6),
+                inset 0 2px 4px rgba(255,255,255,0.3),
+                inset 0 -2px 4px rgba(0,0,0,0.3);
+        }
     }
     
-    .stDataFrame tbody td:has-text("中风险") {
-        background: linear-gradient(135deg, #ffa502, #ff9500) !important;
-        color: white !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        padding: 0.6rem 1rem !important;
+    @keyframes highRiskTextGlow {
+        0%, 100% { 
+            filter: brightness(1) saturate(1); 
+        }
+        50% { 
+            filter: brightness(1.2) saturate(1.2); 
+        }
     }
     
-    .stDataFrame tbody td:has-text("低风险") {
-        background: linear-gradient(135deg, #2ed573, #27c65f) !important;
-        color: white !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        padding: 0.6rem 1rem !important;
-    }
-    
-    .stDataFrame tbody td:has-text("极低风险") {
-        background: linear-gradient(135deg, #5352ed, #4834d4) !important;
-        color: white !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        padding: 0.6rem 1rem !important;
-    }
-    
-    @keyframes extremeRiskText {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-    }
-    
-    @keyframes highRiskText {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.05); opacity: 0.9; }
-    }
-    
-    /* 表格行号样式 */
+    /* 表格行号样式 - 增强版 */
     .stDataFrame tbody tr td:first-child {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(102, 126, 234, 0.05)) !important;
-        font-weight: 700 !important;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(102, 126, 234, 0.08)) !important;
+        font-weight: 800 !important;
         color: #667eea !important;
+        text-shadow: 0 1px 2px rgba(102, 126, 234, 0.2) !important;
+        border-right: 2px solid rgba(102, 126, 234, 0.2) !important;
     }
     
-    /* 数值列特殊格式 */
+    /* 数值列特殊格式 - 增强版 */
     .stDataFrame tbody td:contains("¥") {
-        font-weight: 700 !important;
+        font-weight: 800 !important;
         color: #2ed573 !important;
+        text-shadow: 0 1px 2px rgba(46, 213, 115, 0.2) !important;
+        font-size: 1.05rem !important;
     }
     
     .stDataFrame tbody td:contains("天") {
-        font-weight: 600 !important;
+        font-weight: 700 !important;
         color: #667eea !important;
+        background: rgba(102, 126, 234, 0.05) !important;
+        border-radius: 8px !important;
+        padding: 0.5rem 1rem !important;
     }
     
     /* 表格容器增强 */
     .stDataFrame {
         background: transparent !important;
         border: none !important;
+        position: relative !important;
     }
     
     .stDataFrame > div > div {
-        border-radius: 20px !important;
+        border-radius: 25px !important;
         overflow: hidden !important;
+        position: relative !important;
     }
     
-    /* 滚动条美化 */
+    /* 滚动条美化 - 增强版 */
     .stDataFrame ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 12px;
+        height: 12px;
     }
     
     .stDataFrame ::-webkit-scrollbar-track {
-        background: rgba(102, 126, 234, 0.1);
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.05));
         border-radius: 10px;
+        margin: 10px;
     }
     
     .stDataFrame ::-webkit-scrollbar-thumb {
         background: linear-gradient(135deg, #667eea, #764ba2);
         border-radius: 10px;
+        box-shadow: inset 0 0 6px rgba(0,0,0,0.1);
     }
     
     .stDataFrame ::-webkit-scrollbar-thumb:hover {
         background: linear-gradient(135deg, #5a6fd8, #6b419e);
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+    }
+    
+    /* 特殊效果：聚光灯效果 */
+    .stDataFrame tbody tr:has(td:contains("极高风险")):hover::after {
+        animation: riskSpotlight 1s ease-in-out;
+    }
+    
+    @keyframes riskSpotlight {
+        0% {
+            background: radial-gradient(circle at 50% 50%, rgba(255, 71, 87, 0.3) 0%, transparent 50%);
+            opacity: 0;
+        }
+        50% {
+            opacity: 1;
+        }
+        100% {
+            background: radial-gradient(circle at 50% 50%, rgba(255, 71, 87, 0) 0%, transparent 80%);
+            opacity: 0;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -968,7 +1142,6 @@ def create_ultra_integrated_forecast_chart(merged_data):
                 marker=dict(
                     size=key_products_data['销售占比'] * 2,  # 按销售占比调整大小
                     sizemin=15,
-                    sizemax=60,
                     color=key_products_data['准确率'],
                     colorscale='RdYlGn',
                     cmin=0,
@@ -1025,7 +1198,6 @@ def create_ultra_integrated_forecast_chart(merged_data):
                 marker=dict(
                     size=other_products_data['销售占比'] * 2,
                     sizemin=8,
-                    sizemax=30,
                     color=other_products_data['准确率'],
                     colorscale='RdYlGn',
                     cmin=0,
@@ -1366,41 +1538,6 @@ with tab4:
             display_data['风险排序'] = display_data['风险等级'].map(risk_order)
             display_data = display_data.sort_values(['风险排序', '库龄'], ascending=[True, False])
             display_data = display_data.drop('风险排序', axis=1)
-            
-            # 显示表格统计信息
-            total_batches = len(display_data)
-            total_value = filtered_data['批次价值'].sum() / 1000000
-            avg_age = filtered_data['库龄'].mean()
-            
-            # 风险分布统计
-            risk_stats = filtered_data['风险等级'].value_counts()
-            extreme_count = risk_stats.get('极高风险', 0)
-            high_count = risk_stats.get('高风险', 0)
-            
-            st.markdown(f"""
-            <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); 
-                        border-radius: 15px; padding: 1.5rem; margin-bottom: 1.5rem; 
-                        border: 2px solid rgba(102, 126, 234, 0.2);">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-                    <div style="text-align: center;">
-                        <div style="font-size: 2rem; font-weight: 800; color: #667eea;">{total_batches}</div>
-                        <div style="font-size: 0.9rem; color: #666; font-weight: 600;">筛选批次</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 2rem; font-weight: 800; color: #2ed573;">¥{total_value:.2f}M</div>
-                        <div style="font-size: 0.9rem; color: #666; font-weight: 600;">总价值</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 2rem; font-weight: 800; color: #ffa502;">{avg_age:.0f}天</div>
-                        <div style="font-size: 0.9rem; color: #666; font-weight: 600;">平均库龄</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 2rem; font-weight: 800; color: #ff4757;">{extreme_count + high_count}</div>
-                        <div style="font-size: 0.9rem; color: #666; font-weight: 600;">高风险批次</div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
             
             # 显示增强表格
             st.dataframe(
