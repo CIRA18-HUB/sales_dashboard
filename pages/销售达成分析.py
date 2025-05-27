@@ -524,12 +524,14 @@ def create_mt_comprehensive_analysis(data):
                 '<b>MT渠道区域分析</b><br>' +
                 '区域: %{y}<br>' +
                 '销售额: ¥%{x:,.0f}<br>' +
-                '占MT总额: %{customdata:.1f}%<br>' +
-                '排名: 第%{customdata2}名' +
+                '占MT总额: %{customdata[0]:.1f}%<br>' +
+                '排名: 第%{customdata[1]}名' +
                 '<extra></extra>'
             ),
-            customdata=[v/regional_data.sum()*100 for v in regional_data.values],
-            customdata2=list(range(len(regional_data), 0, -1))
+            customdata=list(zip(
+                [v/regional_data.sum()*100 for v in regional_data.values],
+                list(range(len(regional_data), 0, -1))
+            ))
         ),
         row=1, col=2
     )
