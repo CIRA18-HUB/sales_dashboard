@@ -589,169 +589,507 @@ def calculate_customer_cycles(sales_data, current_year):
         cycles_df = cycles_df.nlargest(20, '总销售额')
     
     return cycles_df
+    """计算客户风险预测模型"""
+    if current_date is None:
+        current_date = datetime.now()
+    
+    # 获取最近12个月的数据用于建模
+    model_end_date = sales_data['订单日期'].max()
+    model_start_date = model_end_date - timedelta(days=365)
+    model_data = sales_data[sales_data['订单日期'] >= model_start_date].copy()
+    
+    risk_predictions = []
+    
+    for customer in model_data['经销商名称'].unique():
+        customer_orders = model_data[model_data['经销商名称'] == customer].sort_values('订单日期')
+        
+        if len(customer_orders) < 3:  # 需要至少3个订单才能建模
+            continue
+        
+        # 计算历史特征
+        order_dates = customer_orders['订单日期'].tolist()
+        order_amounts = customer_orders['金额'].tolist()
+        
+        # 计算间隔
+        intervals = []
+        for i in range(1, len(order_dates)):
+            intervals.append((order_dates[i] - order_dates[i-1]).days)
+        
+        # 基础统计
+        avg_interval = np.mean(intervals)
+        std_interval = np.std(intervals) if len(intervals) > 1 else avg_interval * 0.2
+        avg_amount = np.mean(order_amounts)
+        std_amount = np.std(order_amounts) if len(order_amounts) > 1 else avg_amount * 0.2
+        
+        # 计算趋势
+        if len(intervals) >= 3:
+            # 间隔趋势（是否在拉长）
+            recent_intervals = intervals[-3:]
+            interval_trend = (recent_intervals[-1] - recent_intervals[0]) / max(recent_intervals[0], 1)
+        else:
+            interval_trend = 0
+        
+        if len(order_amounts) >= 3:
+            # 金额趋势（是否在下降）
+            recent_amounts = order_amounts[-3:]
+            amount_trend = (recent_amounts[-1] - recent_amounts[0]) / max(recent_amounts[0], 1)
+        else:
+            amount_trend = 0
+        
+        # 当前状态
+        last_order_date = order_dates[-1]
+        days_since_last = (current_date - last_order_date).days
+        last_amount = order_amounts[-1]
+        
+        # 风险评分计算
+        # 1. 断单风险
+        if days_since_last > avg_interval:
+            # 使用正态分布计算超期概率
+            z_score = (days_since_last - avg_interval) / max(std_interval, 1)
+            # 基础断单概率
+            disconnect_risk_base = min(0.99, 1 / (1 + np.exp(-z_score)))
+            # 考虑趋势调整
+            disconnect_risk = disconnect_risk_base * (1 + interval_trend * 0.3)
+        else:
+            # 预测未来30天的断单风险
+            future_days = days_since_last + 30
+            z_score = (future_days - avg_interval) / max(std_interval, 1)
+            disconnect_risk = min(0.99, 1 / (1 + np.exp(-z_score + 1)))
+        
+        # 2. 减量风险
+        if last_amount < avg_amount * 0.7:
+            amount_z_score = (avg_amount - last_amount) / max(std_amount, 1)
+            reduction_risk_base = min(0.99, 1 / (1 + np.exp(-amount_z_score)))
+            reduction_risk = reduction_risk_base * (1 - amount_trend * 0.3)
+        else:
+            reduction_risk = max(0.1, 0.3 + amount_trend * 0.5) if amount_trend < 0 else 0.1
+        
+        # 3. 综合流失风险
+        # 权重：断单风险60%，减量风险40%
+        churn_risk = disconnect_risk * 0.6 + reduction_risk * 0.4
+        
+        # 调整因子
+        # 如果是老客户（订单数>10），降低风险
+        if len(customer_orders) > 10:
+            churn_risk *= 0.8
+        
+        # 如果最近有大额订单，降低风险
+        if last_amount > avg_amount * 1.5:
+            churn_risk *= 0.7
+        
+        # 确定风险等级
+        if churn_risk >= 0.8:
+            risk_level = '高风险'
+            risk_color = '#e74c3c'
+        elif churn_risk >= 0.5:
+            risk_level = '中风险'
+            risk_color = '#f39c12'
+        elif churn_risk >= 0.2:
+            risk_level = '低风险'
+            risk_color = '#f1c40f'
+        else:
+            risk_level = '安全'
+            risk_color = '#27ae60'
+        
+        # 确定主要风险类型
+        if disconnect_risk > reduction_risk * 1.5:
+            main_risk_type = '断单风险'
+        elif reduction_risk > disconnect_risk * 1.5:
+            main_risk_type = '减量风险'
+        else:
+            main_risk_type = '综合风险'
+        
+        # 生成行动建议
+        if churn_risk >= 0.8:
+            if days_since_last > avg_interval * 1.5:
+                action = '立即电话联系，了解是否有问题'
+            else:
+                action = '密切关注，准备主动联系'
+        elif churn_risk >= 0.5:
+            action = '定期回访，了解需求变化'
+        else:
+            action = '常规维护'
+        
+        # 预测下次订单
+        predicted_next_order = last_order_date + timedelta(days=int(avg_interval))
+        predicted_amount = avg_amount * (1 + amount_trend * 0.2)
+        
+        # 计算置信区间
+        confidence_interval = std_interval / max(avg_interval, 1) * 100
+        
+        risk_predictions.append({
+            '客户': customer,
+            '流失风险概率': churn_risk * 100,
+            '断单风险': disconnect_risk * 100,
+            '减量风险': reduction_risk * 100,
+            '置信区间': min(20, confidence_interval),
+            '风险等级': risk_level,
+            '风险颜色': risk_color,
+            '主要风险': main_risk_type,
+            '最后订单日期': last_order_date,
+            '距今天数': days_since_last,
+            '平均周期': avg_interval,
+            '平均金额': avg_amount,
+            '最后金额': last_amount,
+            '建议行动': action,
+            '预测下单日期': predicted_next_order,
+            '预测金额': predicted_amount,
+            '历史订单数': len(customer_orders),
+            '金额趋势': '下降' if amount_trend < -0.1 else '上升' if amount_trend > 0.1 else '稳定',
+            '周期趋势': '延长' if interval_trend > 0.1 else '缩短' if interval_trend < -0.1 else '稳定'
+        })
+    
+    # 转换为DataFrame并排序
+    risk_df = pd.DataFrame(risk_predictions)
+    if not risk_df.empty:
+        risk_df = risk_df.sort_values('流失风险概率', ascending=False)
+    
+    return risk_df
+
+def create_risk_dashboard(risk_df):
+    """创建风险仪表盘"""
+    # 1. 风险分布图
+    fig_dist = go.Figure()
+    
+    # 按风险等级分组
+    risk_levels = ['高风险', '中风险', '低风险', '安全']
+    colors = ['#e74c3c', '#f39c12', '#f1c40f', '#27ae60']
+    
+    for level, color in zip(risk_levels, colors):
+        level_data = risk_df[risk_df['风险等级'] == level]
+        if not level_data.empty:
+            fig_dist.add_trace(go.Bar(
+                name=level,
+                x=[level],
+                y=[len(level_data)],
+                marker_color=color,
+                text=len(level_data),
+                textposition='auto',
+                hovertemplate=f'{level}<br>客户数: %{{y}}<br><extra></extra>'
+            ))
+    
+    fig_dist.update_layout(
+        title='客户风险等级分布',
+        xaxis_title='风险等级',
+        yaxis_title='客户数量',
+        height=400,
+        showlegend=False,
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+    
+    # 2. 风险概率分布直方图
+    fig_hist = go.Figure()
+    
+    fig_hist.add_trace(go.Histogram(
+        x=risk_df['流失风险概率'],
+        nbinsx=20,
+        marker_color='#667eea',
+        opacity=0.7,
+        name='客户分布',
+        hovertemplate='风险概率: %{x:.0f}%<br>客户数: %{y}<extra></extra>'
+    ))
+    
+    # 添加风险区间标注
+    fig_hist.add_vrect(x0=80, x1=100, fillcolor="#e74c3c", opacity=0.1, 
+                      annotation_text="高风险区", annotation_position="top")
+    fig_hist.add_vrect(x0=50, x1=80, fillcolor="#f39c12", opacity=0.1,
+                      annotation_text="中风险区", annotation_position="top")
+    fig_hist.add_vrect(x0=20, x1=50, fillcolor="#f1c40f", opacity=0.1,
+                      annotation_text="低风险区", annotation_position="top")
+    fig_hist.add_vrect(x0=0, x1=20, fillcolor="#27ae60", opacity=0.1,
+                      annotation_text="安全区", annotation_position="top")
+    
+    fig_hist.update_layout(
+        title='客户流失风险概率分布',
+        xaxis_title='流失风险概率 (%)',
+        yaxis_title='客户数量',
+        height=400,
+        showlegend=False,
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+    
+    # 3. 风险矩阵散点图
+    fig_matrix = go.Figure()
+    
+    # 为每个客户创建散点
+    for _, customer in risk_df.iterrows():
+        hover_text = f"<b>{customer['客户']}</b><br>" + \
+                    f"断单风险: {customer['断单风险']:.1f}%<br>" + \
+                    f"减量风险: {customer['减量风险']:.1f}%<br>" + \
+                    f"综合风险: {customer['流失风险概率']:.1f}%<br>" + \
+                    f"建议: {customer['建议行动']}"
+        
+        fig_matrix.add_trace(go.Scatter(
+            x=[customer['断单风险']],
+            y=[customer['减量风险']],
+            mode='markers+text',
+            marker=dict(
+                size=15,
+                color=customer['风险颜色'],
+                line=dict(color='white', width=2)
+            ),
+            text=customer['客户'][:8] + '...' if len(customer['客户']) > 8 else customer['客户'],
+            textposition='top center',
+            textfont=dict(size=9),
+            name=customer['风险等级'],
+            hovertemplate=hover_text + '<extra></extra>',
+            showlegend=False
+        ))
+    
+    # 添加风险区域
+    fig_matrix.add_shape(type="rect", x0=50, y0=50, x1=100, y1=100,
+                        fillcolor="rgba(231, 76, 60, 0.1)", layer="below", line=dict(width=0))
+    fig_matrix.add_shape(type="rect", x0=0, y0=50, x1=50, y1=100,
+                        fillcolor="rgba(243, 156, 18, 0.1)", layer="below", line=dict(width=0))
+    fig_matrix.add_shape(type="rect", x0=50, y0=0, x1=100, y1=50,
+                        fillcolor="rgba(243, 156, 18, 0.1)", layer="below", line=dict(width=0))
+    fig_matrix.add_shape(type="rect", x0=0, y0=0, x1=50, y1=50,
+                        fillcolor="rgba(39, 174, 96, 0.1)", layer="below", line=dict(width=0))
+    
+    # 添加对角线
+    fig_matrix.add_trace(go.Scatter(
+        x=[0, 100], y=[0, 100],
+        mode='lines',
+        line=dict(color='gray', width=1, dash='dash'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    fig_matrix.update_layout(
+        title='客户风险矩阵',
+        xaxis=dict(title='断单风险 (%)', range=[-5, 105]),
+        yaxis=dict(title='减量风险 (%)', range=[-5, 105]),
+        height=500,
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+    
+    return fig_dist, fig_hist, fig_matrix
 
 def create_timeline_chart(cycles_df):
-    """创建客户下单时间轴图表"""
+    """创建美化的客户下单时间轴图表"""
     fig = go.Figure()
+    
+    # 设置颜色方案
+    color_scale = {
+        '正常': '#48bb78',
+        '轻度异常': '#ed8936', 
+        '严重异常': '#e53e3e'
+    }
     
     # 为每个客户创建一条时间轴
     for idx, customer_data in cycles_df.iterrows():
         y_position = idx
         orders = customer_data['订单详情']
         
-        # 绘制订单点和连线
+        # 收集所有订单数据用于绘制
+        dates = []
+        amounts = []
+        colors = []
+        sizes = []
+        hover_texts = []
+        
         for i, order in enumerate(orders):
-            # 确定点的颜色和符号
+            dates.append(order['日期'])
+            amounts.append(order['金额'])
+            
+            # 确定颜色和大小
             if order.get('距今天数'):
                 # 最后一个订单
-                if customer_data['异常状态'] == '严重异常':
-                    color = '#e74c3c'
-                    symbol = 'x'
-                    size = 15
-                elif customer_data['异常状态'] == '轻度异常':
-                    color = '#f39c12'
-                    symbol = 'triangle-up'
-                    size = 12
-                else:
-                    color = '#27ae60'
-                    symbol = 'circle'
-                    size = 10
+                color = color_scale.get(customer_data['异常状态'], '#667eea')
+                size = 20 if customer_data['异常状态'] == '严重异常' else 15
             else:
                 # 历史订单
                 interval = order['间隔天数']
                 avg_interval = customer_data['平均间隔']
                 if interval > avg_interval * 1.5:
-                    color = '#f39c12'
-                    symbol = 'triangle-up'
-                    size = 12
+                    color = color_scale['轻度异常']
+                    size = 15
                 else:
-                    color = '#27ae60'
-                    symbol = 'circle'
-                    size = 10
+                    color = color_scale['正常']
+                    size = 12
             
-            # 添加订单点
-            hover_text = f"订单日期: {order['日期'].strftime('%Y-%m-%d')}<br>"
-            hover_text += f"订单金额: ¥{order['金额']:,.0f}<br>"
+            colors.append(color)
+            sizes.append(size)
+            
+            # 构建悬停文本
+            hover_text = f"<b>{customer_data['客户']}</b><br>"
+            hover_text += f"订单日期: {order['日期'].strftime('%Y-%m-%d')}<br>"
+            hover_text += f"订单金额: <b>{format_amount(order['金额'])}</b><br>"
             if order.get('下一单日期'):
                 hover_text += f"间隔天数: {order['间隔天数']}天"
             else:
-                hover_text += f"距今天数: {order['间隔天数']}天<br>"
-                hover_text += f"状态: {customer_data['异常状态']}"
+                hover_text += f"距今天数: <b>{order['间隔天数']}天</b><br>"
+                hover_text += f"状态: <b>{customer_data['异常状态']}</b>"
             
-            fig.add_trace(go.Scatter(
-                x=[order['日期']], y=[y_position],
-                mode='markers',
-                marker=dict(size=size, color=color, symbol=symbol),
-                hovertemplate=hover_text + '<extra></extra>',
-                showlegend=False
-            ))
-            
-            # 添加间隔线
-            if order.get('下一单日期') and i < len(orders) - 1:
-                fig.add_trace(go.Scatter(
-                    x=[order['日期'], order['下一单日期']], 
-                    y=[y_position, y_position],
-                    mode='lines',
-                    line=dict(color='rgba(150,150,150,0.5)', width=2),
-                    hoverinfo='skip',
-                    showlegend=False
-                ))
-                
-                # 添加间隔天数标注
-                mid_date = order['日期'] + (order['下一单日期'] - order['日期']) / 2
-                fig.add_annotation(
-                    x=mid_date, y=y_position,
-                    text=f"{order['间隔天数']}天",
-                    showarrow=False,
-                    yshift=15,
-                    font=dict(size=10, color='#666')
-                )
+            hover_texts.append(hover_text)
         
-        # 添加平均周期基准线
-        fig.add_shape(
-            type="line",
-            x0=orders[0]['日期'], x1=customer_data['最后订单日期'] + timedelta(days=30),
-            y0=y_position - 0.3, y1=y_position - 0.3,
-            line=dict(color="rgba(102, 126, 234, 0.3)", width=2, dash="dash"),
+        # 绘制订单连线（渐变效果）
+        fig.add_trace(go.Scatter(
+            x=dates,
+            y=[y_position] * len(dates),
+            mode='lines',
+            line=dict(
+                color='rgba(150, 150, 150, 0.3)',
+                width=3,
+                shape='spline'
+            ),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+        
+        # 绘制订单点（根据金额大小调整）
+        normalized_amounts = np.array(amounts) / max(amounts) * 20 + 10
+        
+        fig.add_trace(go.Scatter(
+            x=dates,
+            y=[y_position] * len(dates),
+            mode='markers',
+            marker=dict(
+                size=normalized_amounts,
+                color=colors,
+                line=dict(color='white', width=2),
+                opacity=0.9
+            ),
+            text=[f"¥{amount/10000:.0f}万" if amount >= 10000 else f"¥{amount:.0f}" 
+                  for amount in amounts],
+            textposition='top center',
+            textfont=dict(size=9, color='#666'),
+            hovertemplate='%{hovertext}<extra></extra>',
+            hovertext=hover_texts,
+            showlegend=False
+        ))
+        
+        # 添加客户名称
+        fig.add_annotation(
+            x=dates[0] - timedelta(days=5),
+            y=y_position,
+            text=customer_data['客户'][:10] + '...' if len(customer_data['客户']) > 10 else customer_data['客户'],
+            xanchor='right',
+            showarrow=False,
+            font=dict(size=11, color='#2d3748')
         )
         
-        # 添加预测下单点
+        # 添加平均周期基准（虚线）
+        avg_interval_days = customer_data['平均间隔']
+        reference_dates = []
+        ref_date = dates[0]
+        while ref_date <= dates[-1] + timedelta(days=30):
+            reference_dates.append(ref_date)
+            ref_date += timedelta(days=avg_interval_days)
+        
+        fig.add_trace(go.Scatter(
+            x=reference_dates,
+            y=[y_position - 0.2] * len(reference_dates),
+            mode='markers',
+            marker=dict(
+                symbol='line-ns',
+                size=8,
+                color='rgba(102, 126, 234, 0.3)'
+            ),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+        
+        # 添加预测点
         if customer_data['预测下单日期'] > datetime.now():
             fig.add_trace(go.Scatter(
-                x=[customer_data['预测下单日期']], y=[y_position],
-                mode='markers',
-                marker=dict(size=10, color='rgba(102, 126, 234, 0.5)', 
-                           symbol='circle-open', line=dict(width=2)),
+                x=[customer_data['预测下单日期']],
+                y=[y_position],
+                mode='markers+text',
+                marker=dict(
+                    size=15,
+                    color='rgba(102, 126, 234, 0.5)',
+                    symbol='circle-open',
+                    line=dict(width=3)
+                ),
+                text='预测',
+                textposition='top center',
+                textfont=dict(size=9, color='#667eea'),
                 hovertemplate=f"预测下单日期: {customer_data['预测下单日期'].strftime('%Y-%m-%d')}<extra></extra>",
-                showlegend=False
-            ))
-            
-            # 连接最后订单到预测点
-            fig.add_trace(go.Scatter(
-                x=[customer_data['最后订单日期'], customer_data['预测下单日期']], 
-                y=[y_position, y_position],
-                mode='lines',
-                line=dict(color='rgba(102, 126, 234, 0.3)', width=2, dash='dot'),
-                hoverinfo='skip',
                 showlegend=False
             ))
     
     # 更新布局
     fig.update_layout(
-        height=max(600, len(cycles_df) * 40),
+        height=max(600, len(cycles_df) * 50),
         xaxis=dict(
-            title="时间",
+            title="时间轴",
             showgrid=True,
             gridwidth=1,
             gridcolor='rgba(0,0,0,0.05)',
-            type='date'
+            type='date',
+            tickformat='%Y-%m',
+            dtick='M1'
         ),
         yaxis=dict(
-            title="客户",
-            tickmode='array',
-            tickvals=list(range(len(cycles_df))),
-            ticktext=[f"{row['客户'][:15]}..." if len(row['客户']) > 15 else row['客户'] 
-                     for _, row in cycles_df.iterrows()],
+            showticklabels=False,
             showgrid=False,
+            range=[-0.5, len(cycles_df) - 0.5],
             autorange='reversed'
         ),
         hovermode='closest',
         paper_bgcolor='white',
-        plot_bgcolor='white',
-        margin=dict(l=150, r=50, t=20, b=60),
+        plot_bgcolor='rgba(250, 250, 250, 0.8)',
+        margin=dict(l=120, r=50, t=20, b=60),
         dragmode='pan'
     )
     
-    # 添加图例
-    fig.add_trace(go.Scatter(
-        x=[None], y=[None], mode='markers',
-        marker=dict(size=10, color='#27ae60', symbol='circle'),
-        legendgroup='status', showlegend=True, name='正常'
-    ))
-    fig.add_trace(go.Scatter(
-        x=[None], y=[None], mode='markers',
-        marker=dict(size=12, color='#f39c12', symbol='triangle-up'),
-        legendgroup='status', showlegend=True, name='轻度异常'
-    ))
-    fig.add_trace(go.Scatter(
-        x=[None], y=[None], mode='markers',
-        marker=dict(size=15, color='#e74c3c', symbol='x'),
-        legendgroup='status', showlegend=True, name='严重异常'
-    ))
-    fig.add_trace(go.Scatter(
-        x=[None], y=[None], mode='markers',
-        marker=dict(size=10, color='rgba(102, 126, 234, 0.5)', 
-                   symbol='circle-open', line=dict(width=2)),
-        legendgroup='status', showlegend=True, name='预测'
-    ))
+    # 添加渐变背景区域（表示时间流逝）
+    fig.add_shape(
+        type="rect",
+        xref="x",
+        yref="paper",
+        x0=datetime.now() - timedelta(days=30),
+        x1=datetime.now() + timedelta(days=30),
+        y0=0,
+        y1=1,
+        fillcolor="rgba(102, 126, 234, 0.05)",
+        layer="below",
+        line=dict(width=0)
+    )
     
-    fig.update_layout(legend=dict(
-        orientation="h",
-        yanchor="bottom",
-        y=1.02,
-        xanchor="right",
-        x=1
-    ))
+    # 添加今日标记线
+    fig.add_vline(
+        x=datetime.now(),
+        line_dash="dash",
+        line_color="rgba(102, 126, 234, 0.5)",
+        annotation_text="今日",
+        annotation_position="top"
+    )
+    
+    # 添加图例
+    legend_elements = [
+        ('正常', '#48bb78', 'circle'),
+        ('轻度异常', '#ed8936', 'circle'),
+        ('严重异常', '#e53e3e', 'circle'),
+        ('预测', 'rgba(102, 126, 234, 0.5)', 'circle-open')
+    ]
+    
+    for i, (name, color, symbol) in enumerate(legend_elements):
+        fig.add_trace(go.Scatter(
+            x=[None],
+            y=[None],
+            mode='markers',
+            marker=dict(size=12, color=color, symbol=symbol, line=dict(width=2, color='white')),
+            showlegend=True,
+            name=name
+        ))
+    
+    fig.update_layout(
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5,
+            bgcolor='rgba(255, 255, 255, 0.8)',
+            bordercolor='rgba(0, 0, 0, 0.1)',
+            borderwidth=1
+        )
+    )
     
     return fig
 
@@ -1129,7 +1467,7 @@ def main():
     # Tab 3: 风险评估
     with tabs[2]:
         # 创建子标签页
-        risk_subtabs = st.tabs(["📊 客户贡献分析", "🕐 下单周期监测", "⚠️ 异常行为提醒"])
+        risk_subtabs = st.tabs(["📊 客户贡献分析", "🕐 下单周期监测", "⚠️ 异常行为提醒", "🎯 风险预警模型"])
         
         with risk_subtabs[0]:
             # Top20客户分析
@@ -1272,6 +1610,138 @@ def main():
                     st.success("✅ 所有客户下单行为正常，无需特别关注")
             else:
                 st.info("暂无数据")
+        
+        with risk_subtabs[3]:
+            # 风险预警模型
+            st.markdown('''
+            <div class="chart-header">
+                <div class="chart-title">客户风险预警模型</div>
+                <div class="chart-subtitle">基于机器学习的30天流失风险预测</div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            if sales_data is not None and not sales_data.empty:
+                # 计算风险预测
+                risk_df = calculate_risk_prediction(sales_data)
+                
+                if not risk_df.empty:
+                    # 显示风险统计
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    high_risk = len(risk_df[risk_df['风险等级'] == '高风险'])
+                    medium_risk = len(risk_df[risk_df['风险等级'] == '中风险'])
+                    low_risk = len(risk_df[risk_df['风险等级'] == '低风险'])
+                    safe = len(risk_df[risk_df['风险等级'] == '安全'])
+                    
+                    with col1:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div class="metric-value" style="color: #e74c3c !important;">{high_risk}</div>
+                            <div class="metric-label">高风险客户</div>
+                            <div class="metric-sublabel">需立即行动</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col2:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div class="metric-value" style="color: #f39c12 !important;">{medium_risk}</div>
+                            <div class="metric-label">中风险客户</div>
+                            <div class="metric-sublabel">密切关注</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col3:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div class="metric-value" style="color: #f1c40f !important;">{low_risk}</div>
+                            <div class="metric-label">低风险客户</div>
+                            <div class="metric-sublabel">常规监控</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col4:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div class="metric-value" style="color: #27ae60 !important;">{safe}</div>
+                            <div class="metric-label">安全客户</div>
+                            <div class="metric-sublabel">状态正常</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # 创建风险仪表盘
+                    fig_dist, fig_hist, fig_matrix = create_risk_dashboard(risk_df)
+                    
+                    # 显示图表
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.plotly_chart(fig_dist, use_container_width=True, key="risk_dist")
+                    with col2:
+                        st.plotly_chart(fig_hist, use_container_width=True, key="risk_hist")
+                    
+                    st.plotly_chart(fig_matrix, use_container_width=True, key="risk_matrix_scatter")
+                    
+                    # 高风险客户详细列表
+                    st.markdown('''
+                    <div class="chart-header">
+                        <div class="chart-title">高风险客户详细分析</div>
+                        <div class="chart-subtitle">需要重点关注的客户列表</div>
+                    </div>
+                    ''', unsafe_allow_html=True)
+                    
+                    # 筛选高风险客户
+                    high_risk_customers = risk_df[risk_df['流失风险概率'] >= 50].head(10)
+                    
+                    if not high_risk_customers.empty:
+                        for _, customer in high_risk_customers.iterrows():
+                            risk_icon = '🔴' if customer['风险等级'] == '高风险' else '🟠'
+                            
+                            # 风险说明
+                            risk_factors = []
+                            if customer['断单风险'] > 70:
+                                risk_factors.append(f"断单风险高达 {customer['断单风险']:.0f}%")
+                            if customer['减量风险'] > 70:
+                                risk_factors.append(f"减量风险达 {customer['减量风险']:.0f}%")
+                            if customer['周期趋势'] == '延长':
+                                risk_factors.append("下单周期正在延长")
+                            if customer['金额趋势'] == '下降':
+                                risk_factors.append("订单金额持续下降")
+                            
+                            st.markdown(f"""
+                            <div class="insight-card" style="border-left-color: {customer['风险颜色']};">
+                                <h4>{risk_icon} {customer['客户']}</h4>
+                                <ul>
+                                    <li><strong>流失概率：</strong>{customer['流失风险概率']:.1f}% (±{customer['置信区间']:.0f}%)</li>
+                                    <li><strong>风险类型：</strong>{customer['主要风险']}</li>
+                                    <li><strong>最后订单：</strong>{customer['最后订单日期'].strftime('%Y-%m-%d')} ({customer['距今天数']}天前)</li>
+                                    <li><strong>平均周期：</strong>{customer['平均周期']:.0f}天 | 平均金额：{format_amount(customer['平均金额'])}</li>
+                                    <li><strong>风险因素：</strong>{' | '.join(risk_factors)}</li>
+                                    <li><strong>预测下单：</strong>{customer['预测下单日期'].strftime('%Y-%m-%d')} | 预测金额：{format_amount(customer['预测金额'])}</li>
+                                    <li><strong>建议行动：</strong><span style="color: {customer['风险颜色']}; font-weight: bold;">{customer['建议行动']}</span></li>
+                                </ul>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        # 导出风险报告
+                        if st.button("📥 导出风险预警报告", key="export_risk_report"):
+                            export_cols = ['客户', '流失风险概率', '风险等级', '主要风险', 
+                                         '最后订单日期', '距今天数', '平均周期', '平均金额',
+                                         '建议行动', '金额趋势', '周期趋势']
+                            export_df = risk_df[export_cols].copy()
+                            export_df['流失风险概率'] = export_df['流失风险概率'].round(1)
+                            csv = export_df.to_csv(index=False, encoding='utf-8-sig')
+                            st.download_button(
+                                label="下载CSV文件",
+                                data=csv,
+                                file_name=f"客户风险预警报告_{datetime.now().strftime('%Y%m%d')}.csv",
+                                mime="text/csv"
+                            )
+                    else:
+                        st.success("✅ 暂无高风险客户，业务状况良好！")
+                else:
+                    st.info("需要更多历史数据才能进行风险预测")
+            else:
+                st.info("暂无订单数据")
     
     # Tab 4: 价值分层
     with tabs[3]:
