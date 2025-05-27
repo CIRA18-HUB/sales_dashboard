@@ -1556,6 +1556,220 @@ def create_ultra_integrated_forecast_chart(merged_data):
         st.error(f"预测分析图表创建失败: {str(e)}")
         return go.Figure()
 
+def create_key_sku_ranking_chart(merged_data, product_name_map):
+    """创建重点SKU准确率排行图表"""
+    try:
+        # 全国重点SKU分析
+        product_sales = merged_data.groupby(['产品代码', '产品名称']).agg({
+            '实际销量': 'sum',
+            '预测销量': 'sum',
+            '准确率': 'mean'
+        }).reset_index()
+        
+        product_sales['销售额占比'] = (product_sales['实际销量'] / product_sales['实际销量'].sum() * 100)
+        product_sales = product_sales.sort_values('实际销量', ascending=False)
+        product_sales['累计占比'] = product_sales['销售额占比'].cumsum()
+        
+        # 筛选出占比80%的重点SKU
+        key_skus = product_sales[product_sales['累计占比'] <= 80.0].copy()
+        key_skus['准确率'] = key_skus['准确率'] * 100
+        key_skus = key_skus.sort_values('准确率', ascending=True)
+        
+        # 创建水平条形图
+        fig = go.Figure()
+        
+        # 添加准确率条形
+        fig.add_trace(go.Bar(
+            y=key_skus['产品名称'],
+            x=key_skus['准确率'],
+            orientation='h',
+            marker=dict(
+                color=key_skus['准确率'],
+                colorscale='RdYlGn',
+                cmin=60,
+                cmax=100,
+                colorbar=dict(
+                    title="准确率(%)",
+                    x=1.02
+                )
+            ),
+            text=key_skus.apply(lambda x: f"{x['准确率']:.1f}%<br>销量:{x['实际销量']:,.0f}", axis=1),
+            textposition='outside',
+            hovertemplate="<b>%{y}</b><br>" +
+                         "准确率: %{x:.1f}%<br>" +
+                         "实际销量: %{customdata[0]:,.0f}箱<br>" +
+                         "预测销量: %{customdata[1]:,.0f}箱<br>" +
+                         "销售占比: %{customdata[2]:.2f}%<br>" +
+                         "<extra></extra>",
+            customdata=np.column_stack((
+                key_skus['实际销量'],
+                key_skus['预测销量'],
+                key_skus['销售额占比']
+            ))
+        ))
+        
+        # 添加参考线
+        fig.add_vline(x=85, line_dash="dash", line_color="gray", annotation_text="目标线:85%")
+        
+        fig.update_layout(
+            title=f"重点SKU预测准确率排行榜<br><sub>销售额占比80%的核心产品</sub>",
+            xaxis_title="预测准确率 (%)",
+            yaxis_title="产品名称",
+            height=600,
+            margin=dict(l=200, r=100, t=100, b=50),
+            showlegend=False
+        )
+        
+        return fig
+        
+    except Exception as e:
+        st.error(f"重点SKU排行图表创建失败: {str(e)}")
+        return go.Figure()
+
+def create_product_analysis_chart(merged_data):
+    """创建产品预测分析图表"""
+    try:
+        # 准备完整的产品分析数据
+        all_products = merged_data.groupby(['产品代码', '产品名称']).agg({
+            '实际销量': 'sum',
+            '预测销量': 'sum',
+            '准确率': 'mean'
+        }).reset_index()
+        
+        all_products['准确率'] = all_products['准确率'] * 100
+        all_products['差异率'] = ((all_products['实际销量'] - all_products['预测销量']) / all_products['实际销量'] * 100).fillna(0)
+        
+        # 创建散点图
+        fig = go.Figure()
+        
+        # 按准确率分组着色
+        all_products['颜色组'] = pd.cut(all_products['准确率'], 
+                                       bins=[0, 70, 80, 90, 100], 
+                                       labels=['需改进', '一般', '良好', '优秀'])
+        
+        colors = {'需改进': '#FF0000', '一般': '#FFA500', '良好': '#FFFF00', '优秀': '#00FF00'}
+        
+        for group, color in colors.items():
+            group_data = all_products[all_products['颜色组'] == group]
+            if not group_data.empty:
+                fig.add_trace(go.Scatter(
+                    x=group_data['准确率'],
+                    y=group_data['差异率'],
+                    mode='markers',
+                    name=group,
+                    marker=dict(
+                        size=np.log1p(group_data['实际销量']) * 2,
+                        color=color,
+                        opacity=0.7,
+                        line=dict(width=1, color='white')
+                    ),
+                    text=group_data['产品名称'],
+                    hovertemplate="<b>%{text}</b><br>" +
+                                 "准确率: %{x:.1f}%<br>" +
+                                 "差异率: %{y:+.1f}%<br>" +
+                                 "实际销量: %{customdata[0]:,.0f}箱<br>" +
+                                 "预测销量: %{customdata[1]:,.0f}箱<br>" +
+                                 "<extra></extra>",
+                    customdata=np.column_stack((
+                        group_data['实际销量'],
+                        group_data['预测销量']
+                    ))
+                ))
+        
+        # 添加参考线
+        fig.add_hline(y=0, line_dash="dash", line_color="gray", annotation_text="预测准确")
+        fig.add_vline(x=85, line_dash="dash", line_color="gray", annotation_text="目标准确率")
+        
+        fig.update_layout(
+            title="产品预测准确率与差异率分布<br><sub>气泡大小表示销量规模</sub>",
+            xaxis_title="预测准确率 (%)",
+            yaxis_title="预测差异率 (%)",
+            height=600,
+            hovermode='closest'
+        )
+        
+        return fig
+        
+    except Exception as e:
+        st.error(f"产品分析图表创建失败: {str(e)}")
+        return go.Figure()
+
+def create_region_analysis_chart(merged_data):
+    """创建区域维度分析图表"""
+    try:
+        # 区域汇总
+        region_comparison = merged_data.groupby('所属区域').agg({
+            '实际销量': 'sum',
+            '预测销量': 'sum',
+            '准确率': 'mean'
+        }).reset_index()
+        
+        region_comparison['准确率'] = region_comparison['准确率'] * 100
+        region_comparison['销量占比'] = (region_comparison['实际销量'] / region_comparison['实际销量'].sum() * 100)
+        
+        # 创建组合图
+        fig = make_subplots(
+            rows=1, cols=2,
+            subplot_titles=("区域准确率对比", "区域销量与准确率关系"),
+            specs=[[{"type": "bar"}, {"type": "scatter"}]]
+        )
+        
+        # 1. 条形图
+        region_comparison_sorted = region_comparison.sort_values('准确率', ascending=True)
+        fig.add_trace(go.Bar(
+            y=region_comparison_sorted['所属区域'],
+            x=region_comparison_sorted['准确率'],
+            orientation='h',
+            marker=dict(
+                color=region_comparison_sorted['准确率'],
+                colorscale='RdYlGn',
+                cmin=70,
+                cmax=100
+            ),
+            text=region_comparison_sorted['准确率'].apply(lambda x: f"{x:.1f}%"),
+            textposition='outside',
+            hovertemplate="<b>%{y}</b><br>准确率: %{x:.1f}%<br><extra></extra>"
+        ), row=1, col=1)
+        
+        # 2. 散点图
+        fig.add_trace(go.Scatter(
+            x=region_comparison['实际销量'],
+            y=region_comparison['准确率'],
+            mode='markers+text',
+            marker=dict(
+                size=region_comparison['销量占比'] * 3,
+                color=region_comparison['准确率'],
+                colorscale='RdYlGn',
+                cmin=70,
+                cmax=100,
+                showscale=False
+            ),
+            text=region_comparison['所属区域'],
+            textposition="top center",
+            hovertemplate="<b>%{text}</b><br>" +
+                         "销量: %{x:,.0f}箱<br>" +
+                         "准确率: %{y:.1f}%<br>" +
+                         "销量占比: %{customdata:.1f}%<br>" +
+                         "<extra></extra>",
+            customdata=region_comparison['销量占比']
+        ), row=1, col=2)
+        
+        fig.update_xaxes(title_text="预测准确率 (%)", row=1, col=1)
+        fig.update_xaxes(title_text="实际销量 (箱)", row=1, col=2)
+        fig.update_yaxes(title_text="准确率 (%)", row=1, col=2)
+        
+        fig.update_layout(
+            height=500,
+            showlegend=False,
+            title_text="区域预测表现综合分析"
+        )
+        
+        return fig
+        
+    except Exception as e:
+        st.error(f"区域分析图表创建失败: {str(e)}")
+        return go.Figure()
+
 # 动画数值显示函数
 def animate_metric_value(value, prefix="", suffix="", duration=2000):
     """创建动画数值显示"""
@@ -1736,7 +1950,7 @@ with tab2:
     </div>
     """, unsafe_allow_html=True)
 
-# 标签3：销售预测准确性综合分析 - 多维度分析版本
+# 标签3：销售预测准确性综合分析 - 纯图表版本
 with tab3:
     st.markdown(f"### 📈 销售预测准确性综合分析 - {datetime.now().year}年数据")
     
@@ -1745,7 +1959,7 @@ with tab3:
         sub_tab1, sub_tab2, sub_tab3, sub_tab4 = st.tabs([
             "🎯 预测准确性全景图",
             "🏆 重点SKU准确率排行",
-            "📊 产品预测详细分析",
+            "📊 产品预测详细分析", 
             "🌍 区域维度深度分析"
         ])
         
@@ -1779,64 +1993,26 @@ with tab3:
             </div>
             """, unsafe_allow_html=True)
         
-        # 子标签2：重点SKU准确率排行
+        # 子标签2：重点SKU准确率排行 - 使用图表
         with sub_tab2:
             st.markdown("#### 🏆 销售额占比80%的重点SKU准确率排行")
             
-            # 1. 全国重点SKU分析
-            product_sales = merged_data.groupby(['产品代码', '产品名称']).agg({
-                '实际销量': 'sum',
-                '预测销量': 'sum',
-                '准确率': 'mean'
-            }).reset_index()
+            # 创建重点SKU排行图表
+            key_sku_fig = create_key_sku_ranking_chart(merged_data, product_name_map)
+            st.plotly_chart(key_sku_fig, use_container_width=True)
             
-            product_sales['销售额占比'] = (product_sales['实际销量'] / product_sales['实际销量'].sum() * 100).round(2)
-            product_sales['差异量'] = product_sales['实际销量'] - product_sales['预测销量']
-            product_sales['差异率'] = ((product_sales['差异量'] / product_sales['实际销量']) * 100).fillna(0).round(2)
-            
-            # 按销量降序排序并计算累计占比
-            product_sales = product_sales.sort_values('实际销量', ascending=False)
-            product_sales['累计占比'] = product_sales['销售额占比'].cumsum()
-            
-            # 筛选出占比80%的重点SKU
-            key_skus_national = product_sales[product_sales['累计占比'] <= 80.0].copy()
-            key_skus_national['准确率'] = (key_skus_national['准确率'] * 100).round(2)
-            key_skus_national['排名'] = range(1, len(key_skus_national) + 1)
-            
-            # 显示全国重点SKU表格
-            st.markdown("##### 🇨🇳 全国重点SKU预测准确率排行")
-            
-            # 格式化显示列
-            display_national = key_skus_national[['排名', '产品代码', '产品名称', '实际销量', '预测销量', 
-                                                 '准确率', '销售额占比', '差异量', '差异率']].copy()
-            display_national['准确率'] = display_national['准确率'].apply(lambda x: f"{x:.1f}%")
-            display_national['销售额占比'] = display_national['销售额占比'].apply(lambda x: f"{x:.2f}%")
-            display_national['差异率'] = display_national['差异率'].apply(lambda x: f"{x:+.1f}%")
-            
-            # 使用增强样式显示表格
-            st.markdown('<div class="advanced-table">', unsafe_allow_html=True)
-            st.dataframe(
-                display_national,
-                use_container_width=True,
-                height=400,
-                hide_index=True
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            # 2. 各区域重点SKU分析
-            st.markdown("##### 🌍 各区域重点SKU预测准确率分析")
-            
-            # 获取所有区域
-            regions = merged_data['所属区域'].unique()
+            # 区域对比视图
+            st.markdown("##### 🌍 各区域重点SKU对比")
             
             # 创建区域选择器
-            selected_region = st.selectbox("选择查看的区域", options=['全部区域对比'] + list(regions))
+            regions = merged_data['所属区域'].unique()
+            selected_regions = st.multiselect("选择要对比的区域", options=regions, default=list(regions[:3]))
             
-            if selected_region == '全部区域对比':
-                # 显示所有区域的对比
-                region_summary = []
+            if selected_regions:
+                # 创建区域对比雷达图
+                fig_radar = go.Figure()
                 
-                for region in regions:
+                for region in selected_regions:
                     region_data = merged_data[merged_data['所属区域'] == region]
                     region_products = region_data.groupby(['产品代码', '产品名称']).agg({
                         '实际销量': 'sum',
@@ -1851,209 +2027,132 @@ with tab3:
                     # 获取该区域的重点SKU
                     key_skus = region_products[region_products['累计占比'] <= 80.0]
                     
-                    region_summary.append({
-                        '区域': region,
-                        '重点SKU数量': len(key_skus),
-                        '平均准确率': f"{(key_skus['准确率'].mean() * 100):.1f}%",
-                        '总销量': region_products['实际销量'].sum(),
-                        '总预测量': region_products['预测销量'].sum(),
-                        '前三SKU': ', '.join(key_skus['产品名称'].head(3).tolist())
-                    })
+                    # 计算各项指标
+                    metrics = {
+                        '平均准确率': key_skus['准确率'].mean() * 100,
+                        'SKU数量': len(key_skus),
+                        '销量集中度': 80 / len(key_skus) if len(key_skus) > 0 else 0,
+                        '预测稳定性': (1 - key_skus['准确率'].std()) * 100 if len(key_skus) > 1 else 100
+                    }
+                    
+                    fig_radar.add_trace(go.Scatterpolar(
+                        r=[metrics['平均准确率'], metrics['SKU数量']*2, 
+                           metrics['销量集中度'], metrics['预测稳定性']],
+                        theta=['平均准确率', 'SKU多样性', '销量集中度', '预测稳定性'],
+                        fill='toself',
+                        name=region
+                    ))
                 
-                region_df = pd.DataFrame(region_summary)
-                region_df = region_df.sort_values('总销量', ascending=False)
-                
-                st.markdown('<div class="advanced-table">', unsafe_allow_html=True)
-                st.dataframe(region_df, use_container_width=True, hide_index=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            else:
-                # 显示特定区域的重点SKU
-                region_data = merged_data[merged_data['所属区域'] == selected_region]
-                region_products = region_data.groupby(['产品代码', '产品名称']).agg({
-                    '实际销量': 'sum',
-                    '预测销量': 'sum',
-                    '准确率': 'mean'
-                }).reset_index()
-                
-                region_products['销售额占比'] = (region_products['实际销量'] / region_products['实际销量'].sum() * 100).round(2)
-                region_products['差异量'] = region_products['实际销量'] - region_products['预测销量']
-                region_products['差异率'] = ((region_products['差异量'] / region_products['实际销量']) * 100).fillna(0).round(2)
-                
-                region_products = region_products.sort_values('实际销量', ascending=False)
-                region_products['累计占比'] = region_products['销售额占比'].cumsum()
-                
-                key_skus_region = region_products[region_products['累计占比'] <= 80.0].copy()
-                key_skus_region['准确率'] = (key_skus_region['准确率'] * 100).round(2)
-                key_skus_region['排名'] = range(1, len(key_skus_region) + 1)
-                
-                display_region = key_skus_region[['排名', '产品代码', '产品名称', '实际销量', '预测销量',
-                                                '准确率', '销售额占比', '差异量', '差异率']].copy()
-                display_region['准确率'] = display_region['准确率'].apply(lambda x: f"{x:.1f}%")
-                display_region['销售额占比'] = display_region['销售额占比'].apply(lambda x: f"{x:.2f}%")
-                display_region['差异率'] = display_region['差异率'].apply(lambda x: f"{x:+.1f}%")
-                
-                st.markdown('<div class="advanced-table">', unsafe_allow_html=True)
-                st.dataframe(
-                    display_region,
-                    use_container_width=True,
-                    height=400,
-                    hide_index=True
+                fig_radar.update_layout(
+                    polar=dict(
+                        radialaxis=dict(
+                            visible=True,
+                            range=[0, 100]
+                        )),
+                    showlegend=True,
+                    title="区域重点SKU综合表现对比",
+                    height=500
                 )
-                st.markdown('</div>', unsafe_allow_html=True)
+                
+                st.plotly_chart(fig_radar, use_container_width=True)
         
-        # 子标签3：产品预测详细分析
+        # 子标签3：产品预测详细分析 - 使用图表
         with sub_tab3:
-            st.markdown("#### 📊 全国每个产品预测与销售详细分析")
+            st.markdown("#### 📊 全国产品预测表现分析")
             
-            # 准备完整的产品分析数据
+            # 创建产品分析图表
+            product_fig = create_product_analysis_chart(merged_data)
+            st.plotly_chart(product_fig, use_container_width=True)
+            
+            # 产品表现分布统计
             all_products = merged_data.groupby(['产品代码', '产品名称']).agg({
                 '实际销量': 'sum',
                 '预测销量': 'sum',
                 '准确率': 'mean'
             }).reset_index()
             
-            all_products['销售额占比'] = (all_products['实际销量'] / all_products['实际销量'].sum() * 100).round(3)
-            all_products['差异额'] = all_products['实际销量'] - all_products['预测销量']
-            all_products['差异率'] = ((all_products['差异额'] / all_products['实际销量']) * 100).fillna(0).round(2)
-            all_products['准确率'] = (all_products['准确率'] * 100).round(2)
+            all_products['准确率'] = all_products['准确率'] * 100
             
-            # 添加预测评级
-            all_products['预测评级'] = all_products.apply(
-                lambda row: "🟢优秀" if row['准确率'] >= 90 else
-                           "🟡良好" if row['准确率'] >= 80 else
-                           "🟠一般" if row['准确率'] >= 70 else
-                           "🔴需改进",
-                axis=1
+            # 创建准确率分布直方图
+            fig_hist = go.Figure()
+            fig_hist.add_trace(go.Histogram(
+                x=all_products['准确率'],
+                nbinsx=20,
+                marker_color='rgba(102, 126, 234, 0.7)',
+                name='产品数量'
+            ))
+            
+            fig_hist.add_vline(x=85, line_dash="dash", line_color="red", 
+                              annotation_text="目标准确率:85%")
+            fig_hist.add_vline(x=all_products['准确率'].mean(), line_dash="dash", 
+                              line_color="green", annotation_text=f"平均准确率:{all_products['准确率'].mean():.1f}%")
+            
+            fig_hist.update_layout(
+                title="产品预测准确率分布",
+                xaxis_title="准确率 (%)",
+                yaxis_title="产品数量",
+                height=400,
+                bargap=0.1
             )
             
-            # 排序选项
-            col1, col2 = st.columns(2)
-            with col1:
-                sort_by = st.selectbox(
-                    "排序依据",
-                    options=['实际销量', '准确率', '差异率', '销售额占比'],
-                    index=0
-                )
+            st.plotly_chart(fig_hist, use_container_width=True)
             
-            with col2:
-                sort_order = st.radio(
-                    "排序方式",
-                    options=['降序', '升序'],
-                    horizontal=True
-                )
-            
-            # 应用排序
-            ascending = sort_order == '升序'
-            all_products = all_products.sort_values(sort_by, ascending=ascending)
-            all_products['序号'] = range(1, len(all_products) + 1)
-            
-            # 显示数据
-            display_all = all_products[['序号', '产品代码', '产品名称', '实际销量', '预测销量',
-                                       '销售额占比', '差异额', '差异率', '准确率', '预测评级']].copy()
-            
-            # 格式化显示
-            display_all['销售额占比'] = display_all['销售额占比'].apply(lambda x: f"{x:.3f}%")
-            display_all['差异率'] = display_all['差异率'].apply(lambda x: f"{x:+.1f}%")
-            display_all['准确率'] = display_all['准确率'].apply(lambda x: f"{x:.1f}%")
-            display_all['差异额'] = display_all['差异额'].apply(lambda x: f"{x:+,.0f}")
-            
-            st.markdown('<div class="advanced-table">', unsafe_allow_html=True)
-            st.dataframe(
-                display_all,
-                use_container_width=True,
-                height=600,
-                hide_index=True
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            # 统计信息
+            # 统计信息卡片
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("产品总数", len(all_products))
             with col2:
-                excellent_count = len(all_products[all_products['预测评级'] == "🟢优秀"])
-                st.metric("优秀预测产品", excellent_count)
+                excellent_count = len(all_products[all_products['准确率'] >= 90])
+                st.metric("优秀预测产品", f"{excellent_count} ({excellent_count/len(all_products)*100:.1f}%)")
             with col3:
-                poor_count = len(all_products[all_products['预测评级'] == "🔴需改进"])
-                st.metric("需改进产品", poor_count)
+                poor_count = len(all_products[all_products['准确率'] < 70])
+                st.metric("需改进产品", f"{poor_count} ({poor_count/len(all_products)*100:.1f}%)")
             with col4:
-                avg_accuracy = all_products['准确率'].str.rstrip('%').astype(float).mean()
+                avg_accuracy = all_products['准确率'].mean()
                 st.metric("平均准确率", f"{avg_accuracy:.1f}%")
         
-        # 子标签4：区域维度深度分析
+        # 子标签4：区域维度深度分析 - 使用图表
         with sub_tab4:
             st.markdown("#### 🌍 区域维度预测准确性深度分析")
             
-            # 创建区域对比图表
-            region_comparison = merged_data.groupby('所属区域').agg({
-                '实际销量': 'sum',
-                '预测销量': 'sum',
-                '准确率': 'mean'
-            }).reset_index()
+            # 创建区域分析图表
+            region_fig = create_region_analysis_chart(merged_data)
+            st.plotly_chart(region_fig, use_container_width=True)
             
-            region_comparison['差异量'] = region_comparison['实际销量'] - region_comparison['预测销量']
-            region_comparison['差异率'] = ((region_comparison['差异量'] / region_comparison['实际销量']) * 100).fillna(0)
-            region_comparison['准确率'] = region_comparison['准确率'] * 100
+            # 区域表现热力图
+            # 准备数据
+            region_product_matrix = merged_data.pivot_table(
+                values='准确率',
+                index='所属区域',
+                columns='产品名称',
+                aggfunc='mean'
+            ) * 100
             
-            # 创建雷达图
-            fig_radar = go.Figure()
+            # 选择前10个产品显示
+            top_products = merged_data.groupby('产品名称')['实际销量'].sum().nlargest(10).index
+            region_product_matrix = region_product_matrix[top_products]
             
-            # 为每个区域创建一条雷达线
-            categories = ['准确率', '销量占比', '预测偏差控制']
+            # 创建热力图
+            fig_heatmap = go.Figure(data=go.Heatmap(
+                z=region_product_matrix.values,
+                x=region_product_matrix.columns,
+                y=region_product_matrix.index,
+                colorscale='RdYlGn',
+                zmid=85,
+                text=region_product_matrix.values.round(1),
+                texttemplate='%{text}%',
+                textfont={"size": 10},
+                hovertemplate="<b>%{y} - %{x}</b><br>准确率: %{z:.1f}%<br><extra></extra>"
+            ))
             
-            for _, region in region_comparison.iterrows():
-                # 计算各项指标
-                accuracy = region['准确率']
-                sales_ratio = (region['实际销量'] / region_comparison['实际销量'].sum()) * 100
-                bias_control = max(0, 100 - abs(region['差异率']))  # 偏差控制得分
-                
-                fig_radar.add_trace(go.Scatterpolar(
-                    r=[accuracy, sales_ratio, bias_control],
-                    theta=categories,
-                    fill='toself',
-                    name=region['所属区域'],
-                    hovertemplate=f"<b>{region['所属区域']}</b><br>" +
-                                 "指标: %{theta}<br>" +
-                                 "数值: %{r:.1f}%<br>" +
-                                 "<extra></extra>"
-                ))
-            
-            fig_radar.update_layout(
-                polar=dict(
-                    radialaxis=dict(
-                        visible=True,
-                        range=[0, 100]
-                    )),
-                showlegend=True,
-                title="各区域预测能力多维度对比",
+            fig_heatmap.update_layout(
+                title="区域-产品预测准确率热力图<br><sub>显示销量前10产品</sub>",
+                xaxis_title="产品名称",
+                yaxis_title="区域",
                 height=500
             )
             
-            st.plotly_chart(fig_radar, use_container_width=True)
-            
-            # 区域详细数据表
-            st.markdown("##### 📊 区域预测表现详细数据")
-            
-            region_display = region_comparison.copy()
-            region_display['销量占比'] = (region_display['实际销量'] / region_display['实际销量'].sum() * 100).round(2)
-            region_display['准确率排名'] = region_display['准确率'].rank(ascending=False, method='min').astype(int)
-            
-            # 格式化显示
-            region_display = region_display[['准确率排名', '所属区域', '实际销量', '预测销量', 
-                                           '准确率', '销量占比', '差异量', '差异率']].sort_values('准确率排名')
-            
-            region_display['准确率'] = region_display['准确率'].apply(lambda x: f"{x:.1f}%")
-            region_display['销量占比'] = region_display['销量占比'].apply(lambda x: f"{x:.2f}%")
-            region_display['差异率'] = region_display['差异率'].apply(lambda x: f"{x:+.1f}%")
-            
-            st.markdown('<div class="advanced-table">', unsafe_allow_html=True)
-            st.dataframe(
-                region_display,
-                use_container_width=True,
-                hide_index=True
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.plotly_chart(fig_heatmap, use_container_width=True)
     
     else:
         st.warning(f"暂无{datetime.now().year}年的预测数据，请检查数据文件是否包含当年数据。")
