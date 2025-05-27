@@ -688,6 +688,8 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
         
         if region_details:
             region_stats = pd.DataFrame(region_details)
+        else:
+            region_stats = pd.DataFrame()
     else:
         region_stats = pd.DataFrame()
     
@@ -1546,8 +1548,192 @@ def main():
                 fig_risk_matrix,
                 "区域风险分布图",
                 "识别高风险区域，制定风险分散策略",
-                """
-                • <b>用途</b>：评估各区域的大客户依赖风险<br>
+                """• <b>用途</b>：评估各区域的大客户依赖风险<br>
                 • <b>风险等级</b>：<br>
                   - 红色区域(>30%)：高风险，需立即采取行动<br>
-                  - 橙色区域(15-30%)
+                  - 橙色区域(15-30%)：中风险，需要关注<br>
+                  - 绿色区域(<15%)：低风险，保持监控<br>
+                • <b>气泡大小</b>：代表区域总销售额<br>
+                • <b>管理策略</b>：<br>
+                  - 高风险区域：开发新客户，分散风险<br>
+                  - 中风险区域：培育潜力客户，平衡结构<br>
+                  - 低风险区域：维持现状，持续优化""",
+                "risk_matrix_chart"
+            )
+            
+            # 显示区域详细数据表
+            st.markdown("#### 区域风险详情")
+            region_display = metrics['region_stats'][['区域', '客户数', '总销售额', '最大客户依赖度', '最大客户']].copy()
+            region_display['总销售额'] = region_display['总销售额'].apply(lambda x: f"¥{x/10000:.1f}万")
+            region_display['最大客户依赖度'] = region_display['最大客户依赖度'].apply(lambda x: f"{x:.1f}%")
+            st.dataframe(region_display, use_container_width=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Tab 4: 价值分层管理
+    with tabs[3]:
+        st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
+        
+        # 客户价值分层
+        if 'sankey' in charts:
+            create_chart_with_tooltip(
+                charts['sankey'],
+                "客户价值流动分析",
+                "展示客户在不同价值层级间的分布与流动",
+                """• <b>图表说明</b>：桑基图展示客户价值分层流动<br>
+                • <b>分层标准</b>：<br>
+                  - 钻石客户：R≤30天, F≥12次, M≥100万<br>
+                  - 黄金客户：R≤60天, F≥8次, M≥50万<br>
+                  - 白银客户：R≤90天, F≥6次, M≥20万<br>
+                  - 流失风险：R>180天或F<3次<br>
+                • <b>二级分层</b>：根据销售额中位数分为高/低贡献<br>
+                • <b>管理策略</b>：针对不同层级客户制定差异化策略""",
+                "sankey_chart"
+            )
+        
+        # 客户价值旭日图
+        if 'sunburst' in charts:
+            create_chart_with_tooltip(
+                charts['sunburst'],
+                "客户贡献度层次分析",
+                "深入了解各类客户的销售贡献结构",
+                """• <b>使用方法</b>：点击扇形区域可以下钻查看详情<br>
+                • <b>颜色含义</b>：<br>
+                  - 红色：钻石客户（最高价值）<br>
+                  - 橙色：黄金客户（高价值）<br>
+                  - 灰色：白银客户（中等价值）<br>
+                  - 蓝色：潜力客户（待开发）<br>
+                  - 紫色：流失风险（需挽回）<br>
+                • <b>数据解读</b>：扇形大小代表销售额贡献""",
+                "sunburst_chart"
+            )
+        
+        # 客户价值统计卡片
+        st.markdown("### 客户价值分布")
+        st.markdown("""
+        <div class="value-card-container">
+            <div class="value-card">
+                <div class="value-card-icon">💎</div>
+                <div class="value-card-number">{0}</div>
+                <div class="value-card-label">钻石客户</div>
+                <div class="value-card-desc">核心战略客户</div>
+            </div>
+            <div class="value-card">
+                <div class="value-card-icon">🏆</div>
+                <div class="value-card-number">{1}</div>
+                <div class="value-card-label">黄金客户</div>
+                <div class="value-card-desc">重要价值客户</div>
+            </div>
+            <div class="value-card">
+                <div class="value-card-icon">🥈</div>
+                <div class="value-card-number">{2}</div>
+                <div class="value-card-label">白银客户</div>
+                <div class="value-card-desc">基础稳定客户</div>
+            </div>
+            <div class="value-card">
+                <div class="value-card-icon">🌟</div>
+                <div class="value-card-number">{3}</div>
+                <div class="value-card-label">潜力客户</div>
+                <div class="value-card-desc">待开发客户</div>
+            </div>
+            <div class="value-card">
+                <div class="value-card-icon">⚠️</div>
+                <div class="value-card-number">{4}</div>
+                <div class="value-card-label">流失风险</div>
+                <div class="value-card-desc">需要挽回</div>
+            </div>
+        </div>
+        """.format(
+            metrics['diamond_customers'],
+            metrics['gold_customers'],
+            metrics['silver_customers'],
+            metrics['potential_customers'],
+            metrics['risk_customers']
+        ), unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Tab 5: 目标达成追踪
+    with tabs[4]:
+        st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
+        
+        if 'target_scatter' in charts:
+            create_chart_with_tooltip(
+                charts['target_scatter'],
+                "客户目标达成分析",
+                "评估各客户的销售目标完成情况",
+                """• <b>图表解读</b>：<br>
+                  - 红色虚线：100%目标线<br>
+                  - 橙色虚线：80%达成线<br>
+                  - 气泡大小：代表达成率<br>
+                  - 气泡颜色：绿色(达成)、橙色(接近)、红色(未达成)<br>
+                • <b>分析要点</b>：<br>
+                  - 线上方：超额完成<br>
+                  - 线附近：基本达成<br>
+                  - 线下方：未达成<br>
+                • <b>管理建议</b>：重点关注红色气泡客户""",
+                "target_scatter_chart"
+            )
+        
+        # 达成情况统计
+        if not metrics['customer_achievement_details'].empty:
+            st.markdown("### 达成情况统计")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            achievement_df = metrics['customer_achievement_details']
+            excellent = len(achievement_df[achievement_df['达成率'] >= 100])
+            good = len(achievement_df[(achievement_df['达成率'] >= 80) & (achievement_df['达成率'] < 100)])
+            poor = len(achievement_df[achievement_df['达成率'] < 80])
+            
+            with col1:
+                st.metric("超额完成", excellent, f"{excellent/len(achievement_df)*100:.1f}%")
+            with col2:
+                st.metric("基本达成", good, f"{good/len(achievement_df)*100:.1f}%")
+            with col3:
+                st.metric("未达成", poor, f"{poor/len(achievement_df)*100:.1f}%")
+            with col4:
+                avg_rate = achievement_df['达成率'].mean()
+                st.metric("平均达成率", f"{avg_rate:.1f}%", 
+                         f"{'+' if avg_rate >= 80 else ''}{avg_rate-80:.1f}%")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Tab 6: 趋势洞察分析
+    with tabs[5]:
+        st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
+        
+        if 'trend' in charts:
+            create_chart_with_tooltip(
+                charts['trend'],
+                "销售趋势分析",
+                "追踪销售额和订单数的月度变化趋势",
+                """• <b>双轴图表</b>：<br>
+                  - 蓝色面积：月度销售额（左轴）<br>
+                  - 红色虚线：月度订单数（右轴）<br>
+                • <b>分析维度</b>：<br>
+                  - 销售额趋势：业务规模变化<br>
+                  - 订单数趋势：交易活跃度<br>
+                  - 两者关系：客单价变化<br>
+                • <b>洞察价值</b>：识别季节性规律和异常波动""",
+                "trend_chart"
+            )
+        
+        # 趋势洞察总结
+        st.markdown("""
+        <div class='insight-card'>
+            <h4>📊 趋势洞察要点</h4>
+            <ul style='margin: 0; padding-left: 20px;'>
+                <li>销售额呈现明显的季节性波动，需要提前做好库存和产能规划</li>
+                <li>订单数量与销售额的增长不同步，说明客单价在发生变化</li>
+                <li>建议分析高峰期和低谷期的原因，制定针对性的营销策略</li>
+                <li>关注异常波动月份，深入分析背后的业务原因</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# 运行主应用
+if __name__ == "__main__":
+    main()
