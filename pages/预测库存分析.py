@@ -327,7 +327,7 @@ st.markdown("""
     
     /* 统一内容容器样式 - 复用成功的metric-card模式 */
     .content-container {
-        background: rgba(255,255,255,0.95) !important;
+        background: rgba(255,255,255,0.96) !important;
         border-radius: 25px;
         padding: 2rem;
         margin-bottom: 2rem;
@@ -340,19 +340,37 @@ st.markdown("""
         backdrop-filter: blur(10px);
         position: relative;
         overflow: hidden;
-        transition: all 0.3s ease;
+        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border-left: 4px solid #667eea;
+    }
+    
+    .content-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+        transition: left 0.8s ease;
     }
     
     .content-container:hover {
-        transform: translateY(-5px);
+        transform: translateY(-10px) scale(1.02);
         box-shadow: 
-            0 20px 40px rgba(0,0,0,0.12),
-            0 8px 20px rgba(102, 126, 234, 0.1);
+            0 25px 50px rgba(0,0,0,0.15),
+            0 10px 25px rgba(102, 126, 234, 0.2);
+        border-color: rgba(102, 126, 234, 0.4);
+        animation: pulse 1.5s infinite;
+    }
+    
+    .content-container:hover::before {
+        left: 100%;
     }
     
     /* 洞察框样式 - 使用统一容器 */
     .insight-box {
-        background: rgba(255,255,255,0.95) !important;
+        background: rgba(255,255,255,0.96) !important;
         border-left: 4px solid #667eea;
         border-radius: 15px;
         padding: 1.5rem;
@@ -366,8 +384,9 @@ st.markdown("""
     }
     
     .insight-box:hover {
-        transform: translateY(-2px);
+        transform: translateY(-3px);
         box-shadow: 0 12px 25px rgba(102, 126, 234, 0.15);
+        border-color: rgba(102, 126, 234, 0.4);
     }
     
     .insight-box::before {
@@ -539,106 +558,101 @@ COLOR_SCHEME = {
 # 数据加载函数
 @st.cache_data
 def load_and_process_data():
-    """加载和处理所有数据"""
-    try:
-        # 读取数据文件
-        shipment_df = pd.read_excel('2409~250224出货数据.xlsx')
-        forecast_df = pd.read_excel('2409~2502人工预测.xlsx') 
-        inventory_df = pd.read_excel('含批次库存0221(2).xlsx')
-        price_df = pd.read_excel('单价.xlsx')
-        
-        # 处理日期
-        shipment_df['订单日期'] = pd.to_datetime(shipment_df['订单日期'])
-        forecast_df['所属年月'] = pd.to_datetime(forecast_df['所属年月'], format='%Y-%m')
-        
-        # 创建产品代码到名称的映射
-        product_name_map = {}
-        for idx, row in inventory_df.iterrows():
-            if pd.notna(row['物料']) and pd.notna(row['描述']) and isinstance(row['物料'], str) and row['物料'].startswith('F'):
-                product_name_map[row['物料']] = row['描述']
-        
-        # 处理库存数据
-        batch_data = []
-        current_material = None
-        current_desc = None
-        current_price = 0
-        
-        for idx, row in inventory_df.iterrows():
-            if pd.notna(row['物料']) and isinstance(row['物料'], str) and row['物料'].startswith('F'):
-                current_material = row['物料']
-                current_desc = row['描述']
-                # 获取单价
-                price_match = price_df[price_df['产品代码'] == current_material]
-                current_price = price_match['单价'].iloc[0] if len(price_match) > 0 else 100
-            elif pd.notna(row['生产日期']) and current_material:
-                # 这是批次信息行
-                prod_date = pd.to_datetime(row['生产日期'])
-                quantity = row['数量'] if pd.notna(row['数量']) else 0
-                batch_no = row['生产批号'] if pd.notna(row['生产批号']) else ''
-                
-                # 计算库龄
-                age_days = (datetime.now() - prod_date).days
-                
-                # 确定风险等级
-                if age_days >= 120:
-                    risk_level = '极高风险'
-                    risk_color = COLOR_SCHEME['risk_extreme']
-                    risk_advice = '🚨 立即7折清库'
-                elif age_days >= 90:
-                    risk_level = '高风险'
-                    risk_color = COLOR_SCHEME['risk_high'] 
-                    risk_advice = '⚠️ 建议8折促销'
-                elif age_days >= 60:
-                    risk_level = '中风险'
-                    risk_color = COLOR_SCHEME['risk_medium']
-                    risk_advice = '📢 适度9折促销'
-                elif age_days >= 30:
-                    risk_level = '低风险'
-                    risk_color = COLOR_SCHEME['risk_low']
-                    risk_advice = '✅ 正常销售'
-                else:
-                    risk_level = '极低风险'
-                    risk_color = COLOR_SCHEME['risk_minimal']
-                    risk_advice = '🌟 新鲜库存'
-                
-                # 计算预期损失
-                if age_days >= 120:
-                    expected_loss = quantity * current_price * 0.3
-                elif age_days >= 90:
-                    expected_loss = quantity * current_price * 0.2
-                elif age_days >= 60:
-                    expected_loss = quantity * current_price * 0.1
-                else:
-                    expected_loss = 0
-                
-                batch_data.append({
-                    '物料': current_material,
-                    '产品名称': current_desc,
-                    '生产日期': prod_date,
-                    '生产批号': batch_no,
-                    '数量': quantity,
-                    '库龄': age_days,
-                    '风险等级': risk_level,
-                    '风险颜色': risk_color,
-                    '处理建议': risk_advice,
-                    '单价': current_price,
-                    '批次价值': quantity * current_price,
-                    '预期损失': expected_loss
-                })
-        
-        processed_inventory = pd.DataFrame(batch_data)
-        
-        # 计算预测准确率
-        forecast_accuracy = calculate_forecast_accuracy(shipment_df, forecast_df)
-        
-        # 计算关键指标
-        metrics = calculate_key_metrics(processed_inventory, forecast_accuracy)
-        
-        return processed_inventory, forecast_accuracy, shipment_df, forecast_df, metrics, product_name_map
-        
-    except Exception as e:
-        st.warning(f"使用模拟数据进行演示: {str(e)}")
-        return get_mock_data()
+    """加载和处理所有数据 - 仅使用真实数据"""
+    # 读取数据文件
+    shipment_df = pd.read_excel('2409~250224出货数据.xlsx')
+    forecast_df = pd.read_excel('2409~2502人工预测.xlsx') 
+    inventory_df = pd.read_excel('含批次库存0221(2).xlsx')
+    price_df = pd.read_excel('单价.xlsx')
+    
+    # 处理日期
+    shipment_df['订单日期'] = pd.to_datetime(shipment_df['订单日期'])
+    forecast_df['所属年月'] = pd.to_datetime(forecast_df['所属年月'], format='%Y-%m')
+    
+    # 创建产品代码到名称的映射
+    product_name_map = {}
+    for idx, row in inventory_df.iterrows():
+        if pd.notna(row['物料']) and pd.notna(row['描述']) and isinstance(row['物料'], str) and row['物料'].startswith('F'):
+            product_name_map[row['物料']] = row['描述']
+    
+    # 处理库存数据
+    batch_data = []
+    current_material = None
+    current_desc = None
+    current_price = 0
+    
+    for idx, row in inventory_df.iterrows():
+        if pd.notna(row['物料']) and isinstance(row['物料'], str) and row['物料'].startswith('F'):
+            current_material = row['物料']
+            current_desc = row['描述']
+            # 获取单价
+            price_match = price_df[price_df['产品代码'] == current_material]
+            current_price = price_match['单价'].iloc[0] if len(price_match) > 0 else 100
+        elif pd.notna(row['生产日期']) and current_material:
+            # 这是批次信息行
+            prod_date = pd.to_datetime(row['生产日期'])
+            quantity = row['数量'] if pd.notna(row['数量']) else 0
+            batch_no = row['生产批号'] if pd.notna(row['生产批号']) else ''
+            
+            # 计算库龄
+            age_days = (datetime.now() - prod_date).days
+            
+            # 确定风险等级
+            if age_days >= 120:
+                risk_level = '极高风险'
+                risk_color = COLOR_SCHEME['risk_extreme']
+                risk_advice = '🚨 立即7折清库'
+            elif age_days >= 90:
+                risk_level = '高风险'
+                risk_color = COLOR_SCHEME['risk_high'] 
+                risk_advice = '⚠️ 建议8折促销'
+            elif age_days >= 60:
+                risk_level = '中风险'
+                risk_color = COLOR_SCHEME['risk_medium']
+                risk_advice = '📢 适度9折促销'
+            elif age_days >= 30:
+                risk_level = '低风险'
+                risk_color = COLOR_SCHEME['risk_low']
+                risk_advice = '✅ 正常销售'
+            else:
+                risk_level = '极低风险'
+                risk_color = COLOR_SCHEME['risk_minimal']
+                risk_advice = '🌟 新鲜库存'
+            
+            # 计算预期损失
+            if age_days >= 120:
+                expected_loss = quantity * current_price * 0.3
+            elif age_days >= 90:
+                expected_loss = quantity * current_price * 0.2
+            elif age_days >= 60:
+                expected_loss = quantity * current_price * 0.1
+            else:
+                expected_loss = 0
+            
+            batch_data.append({
+                '物料': current_material,
+                '产品名称': current_desc,
+                '生产日期': prod_date,
+                '生产批号': batch_no,
+                '数量': quantity,
+                '库龄': age_days,
+                '风险等级': risk_level,
+                '风险颜色': risk_color,
+                '处理建议': risk_advice,
+                '单价': current_price,
+                '批次价值': quantity * current_price,
+                '预期损失': expected_loss
+            })
+    
+    processed_inventory = pd.DataFrame(batch_data)
+    
+    # 计算预测准确率
+    forecast_accuracy = calculate_forecast_accuracy(shipment_df, forecast_df)
+    
+    # 计算关键指标
+    metrics = calculate_key_metrics(processed_inventory, forecast_accuracy)
+    
+    return processed_inventory, forecast_accuracy, shipment_df, forecast_df, metrics, product_name_map
 
 def calculate_forecast_accuracy(shipment_df, forecast_df):
     """计算预测准确率"""
@@ -668,10 +682,7 @@ def calculate_forecast_accuracy(shipment_df, forecast_df):
         return pd.DataFrame()
 
 def calculate_key_metrics(processed_inventory, forecast_accuracy):
-    """计算关键指标"""
-    if processed_inventory.empty:
-        return get_mock_metrics()
-    
+    """计算关键指标 - 仅使用真实数据"""
     total_batches = len(processed_inventory)
     high_risk_batches = len(processed_inventory[processed_inventory['风险等级'].isin(['极高风险', '高风险'])])
     high_risk_ratio = (high_risk_batches / total_batches * 100) if total_batches > 0 else 0
@@ -683,7 +694,7 @@ def calculate_key_metrics(processed_inventory, forecast_accuracy):
     high_risk_value_ratio = (high_risk_value / processed_inventory['批次价值'].sum() * 100) if processed_inventory['批次价值'].sum() > 0 else 0
     
     avg_age = processed_inventory['库龄'].mean()
-    forecast_acc = forecast_accuracy['预测准确率'].mean() * 100 if not forecast_accuracy.empty else 78.5
+    forecast_acc = forecast_accuracy['预测准确率'].mean() * 100 if not forecast_accuracy.empty else 0
     
     # 风险分布统计
     risk_counts = processed_inventory['风险等级'].value_counts().to_dict()
@@ -695,7 +706,7 @@ def calculate_key_metrics(processed_inventory, forecast_accuracy):
         'total_inventory_value': round(total_inventory_value, 2),
         'high_risk_value_ratio': round(high_risk_value_ratio, 1),
         'avg_age': round(avg_age, 0),
-        'forecast_accuracy': round(forecast_acc, 1),
+        'forecast_accuracy': round(forecast_acc, 1) if forecast_acc > 0 else 0,
         'high_risk_value': round(high_risk_value / 1000000, 1),
         'risk_counts': {
             'extreme': risk_counts.get('极高风险', 0),
@@ -706,71 +717,7 @@ def calculate_key_metrics(processed_inventory, forecast_accuracy):
         }
     }
 
-def get_mock_data():
-    """获取模拟数据"""
-    # 模拟库存数据
-    mock_inventory = pd.DataFrame({
-        '物料': [f'F{1000+i:04d}' for i in range(100)],
-        '产品名称': [f'产品{chr(65+i%26)}{i//26+1}' for i in range(100)],
-        '生产日期': pd.date_range(start='2023-01-01', periods=100, freq='3D'),
-        '生产批号': [f'B{2024000+i:07d}' for i in range(100)],
-        '数量': np.random.randint(50, 500, 100),
-        '库龄': np.random.randint(10, 200, 100),
-        '单价': np.random.uniform(50, 200, 100),
-    })
-    
-    # 计算衍生字段
-    mock_inventory['批次价值'] = mock_inventory['数量'] * mock_inventory['单价']
-    mock_inventory['风险等级'] = mock_inventory['库龄'].apply(lambda x: 
-        '极高风险' if x >= 120 else '高风险' if x >= 90 else '中风险' if x >= 60 else '低风险' if x >= 30 else '极低风险')
-    mock_inventory['预期损失'] = mock_inventory.apply(lambda row: 
-        row['批次价值'] * (0.3 if row['库龄'] >= 120 else 0.2 if row['库龄'] >= 90 else 0.1 if row['库龄'] >= 60 else 0), axis=1)
-    
-    # 模拟预测准确率数据
-    mock_forecast = pd.DataFrame({
-        '预测准确率': np.random.uniform(0.6, 0.95, 50)
-    })
-    
-    # 模拟出货数据
-    mock_shipment = pd.DataFrame({
-        '订单日期': pd.date_range(start='2024-01-01', periods=200, freq='D'),
-        '产品代码': np.random.choice([f'F{1000+i:04d}' for i in range(20)], 200),
-        '求和项:数量（箱）': np.random.randint(10, 100, 200),
-        '申请人': np.random.choice(['张三', '李四', '王五', '赵六', '孙七'], 200),
-        '所属区域': np.random.choice(['华北', '华南', '华东', '华西'], 200)
-    })
-    
-    # 模拟预测数据
-    mock_forecast_df = pd.DataFrame({
-        '所属年月': pd.date_range(start='2024-01-01', periods=12, freq='M'),
-        '产品代码': np.random.choice([f'F{1000+i:04d}' for i in range(20)], 12),
-        '预计销售量': np.random.randint(100, 1000, 12),
-        '销售员': np.random.choice(['张三', '李四', '王五', '赵六', '孙七'], 12)
-    })
-    
-    metrics = calculate_key_metrics(mock_inventory, mock_forecast)
-    
-    return mock_inventory, mock_forecast, mock_shipment, mock_forecast_df, metrics, {}
 
-def get_mock_metrics():
-    """获取模拟关键指标"""
-    return {
-        'total_batches': 1247,
-        'high_risk_batches': 216,
-        'high_risk_ratio': 17.3,
-        'total_inventory_value': 8.42,
-        'high_risk_value_ratio': 32.1,
-        'avg_age': 67,
-        'forecast_accuracy': 78.5,
-        'high_risk_value': 2.7,
-        'risk_counts': {
-            'extreme': 85,
-            'high': 131,
-            'medium': 298,
-            'low': 445,
-            'minimal': 288
-        }
-    }
 
 # 创建图表函数
 def create_risk_distribution_pie(processed_inventory):
@@ -975,34 +922,44 @@ def create_high_risk_bubble(processed_inventory):
     return fig
 
 def create_forecast_accuracy_trend(forecast_accuracy):
-    """创建预测准确率趋势图"""
+    """创建预测准确率趋势图 - 仅使用真实数据"""
     if forecast_accuracy.empty:
-        # 创建模拟数据
-        dates = pd.date_range(start='2024-09-01', periods=6, freq='M')
-        accuracy = [75.2, 78.1, 73.5, 78.5, 82.1, 79.3]
-        
-        fig = go.Figure(data=[go.Scatter(
-            x=dates,
-            y=accuracy,
-            mode='lines+markers',
-            name='预测准确率',
-            line=dict(color=COLOR_SCHEME['primary'], width=3),
-            marker=dict(size=8, color=COLOR_SCHEME['primary'])
-        )])
-    else:
-        monthly_acc = forecast_accuracy.groupby(
-            forecast_accuracy['所属年月'].dt.to_period('M')
-        )['预测准确率'].mean().reset_index()
-        monthly_acc['年月'] = monthly_acc['所属年月'].dt.to_timestamp()
-        
-        fig = go.Figure(data=[go.Scatter(
-            x=monthly_acc['年月'],
-            y=monthly_acc['预测准确率'] * 100,
-            mode='lines+markers',
-            name='预测准确率',
-            line=dict(color=COLOR_SCHEME['primary'], width=3),
-            marker=dict(size=8, color=COLOR_SCHEME['primary'])
-        )])
+        # 如果没有预测数据，显示空图表
+        fig = go.Figure()
+        fig.update_layout(
+            title="预测准确率月度趋势 (无数据)",
+            title_x=0.5,
+            xaxis_title="月份",
+            yaxis_title="预测准确率 (%)",
+            font=dict(size=14, family="Inter, sans-serif"),
+            height=400,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(248, 250, 252, 0.8)',
+            annotations=[
+                dict(
+                    text="暂无预测数据",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.5,
+                    xanchor='center', yanchor='middle',
+                    font=dict(size=20, color="gray")
+                )
+            ]
+        )
+        return fig
+    
+    monthly_acc = forecast_accuracy.groupby(
+        forecast_accuracy['所属年月'].dt.to_period('M')
+    )['预测准确率'].mean().reset_index()
+    monthly_acc['年月'] = monthly_acc['所属年月'].dt.to_timestamp()
+    
+    fig = go.Figure(data=[go.Scatter(
+        x=monthly_acc['年月'],
+        y=monthly_acc['预测准确率'] * 100,
+        mode='lines+markers',
+        name='预测准确率',
+        line=dict(color=COLOR_SCHEME['primary'], width=3),
+        marker=dict(size=8, color=COLOR_SCHEME['primary'])
+    )])
     
     # 添加目标线
     fig.add_hline(y=85, line_dash="dash", line_color="red", 
@@ -1138,14 +1095,16 @@ with tab2:
     
     col1, col2 = st.columns(2)
     
+    # 左侧：风险分布 + 库龄分析
     with col1:
         st.markdown('<div class="content-container">', unsafe_allow_html=True)
-        st.markdown('<h3 class="chart-title">风险等级分布饼图</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 class="chart-title">📊 风险等级分布</h3>', unsafe_allow_html=True)
         
+        # 风险分布饼图
         risk_pie_fig = create_risk_distribution_pie(processed_inventory)
         st.plotly_chart(risk_pie_fig, use_container_width=True)
         
-        # 洞察分析
+        # 风险分布洞察
         st.markdown(f"""
         <div class="insight-box">
             <div class="insight-title">📊 风险分布洞察</div>
@@ -1156,12 +1115,20 @@ with tab2:
             </div>
         </div>
         """, unsafe_allow_html=True)
+        
+        # 库龄分布直方图
+        st.markdown('<h3 class="chart-title">📈 库存批次库龄分布</h3>', unsafe_allow_html=True)
+        age_dist_fig = create_age_distribution(processed_inventory)
+        st.plotly_chart(age_dist_fig, use_container_width=True)
+        
         st.markdown('</div>', unsafe_allow_html=True)
     
+    # 右侧：价值分析 + 高风险优先级
     with col2:
         st.markdown('<div class="content-container">', unsafe_allow_html=True)
-        st.markdown('<h3 class="chart-title">风险等级价值分析</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 class="chart-title">💰 风险等级价值分析</h3>', unsafe_allow_html=True)
         
+        # 价值分析柱状图
         risk_value_fig = create_risk_value_analysis(processed_inventory)
         st.plotly_chart(risk_value_fig, use_container_width=True)
         
@@ -1177,63 +1144,57 @@ with tab2:
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 库龄分布和高风险分析
-    st.markdown('<div class="content-container">', unsafe_allow_html=True)
-    st.markdown('<h3 class="chart-title">库存批次库龄分布</h3>', unsafe_allow_html=True)
-    
-    age_dist_fig = create_age_distribution(processed_inventory)
-    st.plotly_chart(age_dist_fig, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 高风险批次气泡图
-    st.markdown('<div class="content-container">', unsafe_allow_html=True)
-    st.markdown('<h3 class="chart-title">高风险批次优先级矩阵</h3>', unsafe_allow_html=True)
-    
-    try:
-        bubble_fig = create_high_risk_bubble(processed_inventory)
-        st.plotly_chart(bubble_fig, use_container_width=True)
-    except Exception as e:
-        st.error(f"气泡图生成失败，正在使用备用图表: {e}")
-        # 创建简化的散点图作为备用
-        high_risk_data = processed_inventory[
-            processed_inventory['风险等级'].isin(['极高风险', '高风险'])
-        ].head(20)
         
-        if not high_risk_data.empty:
-            fig = go.Figure()
-            for risk_level, color in [('极高风险', COLOR_SCHEME['risk_extreme']), 
-                                      ('高风险', COLOR_SCHEME['risk_high'])]:
-                subset = high_risk_data[high_risk_data['风险等级'] == risk_level]
-                if not subset.empty:
-                    fig.add_trace(go.Scatter(
-                        x=subset['库龄'],
-                        y=subset['批次价值'],
-                        mode='markers',
-                        name=risk_level,
-                        marker=dict(color=color, size=10)
-                    ))
+        # 高风险批次优先级矩阵
+        st.markdown('<h3 class="chart-title">🎯 高风险批次优先级矩阵</h3>', unsafe_allow_html=True)
+        
+        try:
+            bubble_fig = create_high_risk_bubble(processed_inventory)
+            st.plotly_chart(bubble_fig, use_container_width=True)
+        except Exception as e:
+            st.error(f"气泡图生成失败，使用备用图表: {e}")
+            # 创建简化的散点图作为备用
+            high_risk_data = processed_inventory[
+                processed_inventory['风险等级'].isin(['极高风险', '高风险'])
+            ].head(20)
             
-            fig.update_layout(
-                title="高风险批次分布 (简化版)",
-                xaxis_title="库龄 (天)",
-                yaxis_title="批次价值 (元)",
-                height=400
-            )
-            st.plotly_chart(fig, use_container_width=True)
-    
-    st.markdown("""
-    <div class="insight-box">
-        <div class="insight-title">🎯 处理优先级建议</div>
-        <div class="insight-content">
-            • 优先处理右上角的高库龄、高价值批次<br>
-            • 气泡大小代表批次数量，越大的批次清库难度越高<br>
-            • 建议制定差异化促销策略：极高风险7折，高风险8折
+            if not high_risk_data.empty:
+                fig = go.Figure()
+                for risk_level, color in [('极高风险', COLOR_SCHEME['risk_extreme']), 
+                                          ('高风险', COLOR_SCHEME['risk_high'])]:
+                    subset = high_risk_data[high_risk_data['风险等级'] == risk_level]
+                    if not subset.empty:
+                        fig.add_trace(go.Scatter(
+                            x=subset['库龄'],
+                            y=subset['批次价值'],
+                            mode='markers',
+                            name=risk_level,
+                            marker=dict(color=color, size=10)
+                        ))
+                
+                fig.update_layout(
+                    title="高风险批次分布 (简化版)",
+                    xaxis_title="库龄 (天)",
+                    yaxis_title="批次价值 (元)",
+                    height=400,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(248, 250, 252, 0.8)'
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        
+        # 处理优先级建议
+        st.markdown("""
+        <div class="insight-box">
+            <div class="insight-title">🎯 处理优先级建议</div>
+            <div class="insight-content">
+                • 优先处理右上角的高库龄、高价值批次<br>
+                • 气泡大小代表批次数量，越大的批次清库难度越高<br>
+                • 建议制定差异化促销策略：极高风险7折，高风险8折
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # 标签3：预测准确性
 with tab3:
@@ -1255,21 +1216,36 @@ with tab3:
         
         # 预测改进建议
         current_acc = metrics['forecast_accuracy']
-        improvement_potential = 85 - current_acc
-        
-        st.markdown(f"""
-        <div style="text-align: center; padding: 2rem;">
-            <div style="font-size: 3rem; background: linear-gradient(135deg, {COLOR_SCHEME['primary']}, {COLOR_SCHEME['secondary']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                {current_acc:.1f}%
+        if current_acc > 0:
+            improvement_potential = 85 - current_acc
+            
+            st.markdown(f"""
+            <div style="text-align: center; padding: 2rem;">
+                <div style="font-size: 3rem; background: linear-gradient(135deg, {COLOR_SCHEME['primary']}, {COLOR_SCHEME['secondary']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                    {current_acc:.1f}%
+                </div>
+                <div style="font-size: 1.2rem; color: #666; margin-bottom: 1rem;">
+                    当前预测准确率
+                </div>
+                <div style="font-size: 1rem; color: #888;">
+                    距离目标85%还有{improvement_potential:.1f}%的提升空间
+                </div>
             </div>
-            <div style="font-size: 1.2rem; color: #666; margin-bottom: 1rem;">
-                当前预测准确率
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div style="text-align: center; padding: 2rem;">
+                <div style="font-size: 3rem; color: #999;">
+                    暂无数据
+                </div>
+                <div style="font-size: 1.2rem; color: #666; margin-bottom: 1rem;">
+                    预测准确率
+                </div>
+                <div style="font-size: 1rem; color: #888;">
+                    需要导入预测数据进行分析
+                </div>
             </div>
-            <div style="font-size: 1rem; color: #888;">
-                距离目标85%还有{improvement_potential:.1f}%的提升空间
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
         
         st.markdown(f"""
         <div class="insight-box">
