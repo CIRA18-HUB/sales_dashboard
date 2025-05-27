@@ -583,10 +583,10 @@ def calculate_customer_cycles(sales_data, current_year):
                            '轻度异常' if days_since_last <= avg_interval * 2 else '严重异常'
             })
     
-    # 按总销售额排序，获取Top 20
+    # 按总销售额排序，获取Top 10（减少密集度）
     cycles_df = pd.DataFrame(customer_cycles)
     if not cycles_df.empty:
-        cycles_df = cycles_df.nlargest(20, '总销售额')
+        cycles_df = cycles_df.nlargest(10, '总销售额')  # 从20改为10
     
     return cycles_df
 
@@ -817,11 +817,22 @@ def create_risk_dashboard(risk_df):
     
     # 为每个客户创建散点
     for _, customer in risk_df.iterrows():
-        hover_text = f"<b>{customer['客户']}</b><br>" + \
-                    f"断单风险: {customer['断单风险']:.1f}%<br>" + \
-                    f"减量风险: {customer['减量风险']:.1f}%<br>" + \
-                    f"综合风险: {customer['流失风险概率']:.1f}%<br>" + \
-                    f"建议: {customer['建议行动']}"
+        hover_text = f"<b style='font-size:14px;'>{customer['客户']}</b><br><br>" + \
+                    f"<b>📊 风险评估结果：</b><br>" + \
+                    f"• 综合流失风险: <b style='color:{customer['风险颜色']}'>{customer['流失风险概率']:.1f}%</b><br>" + \
+                    f"• 断单风险: {customer['断单风险']:.1f}%<br>" + \
+                    f"• 减量风险: {customer['减量风险']:.1f}%<br>" + \
+                    f"• 风险等级: <b>{customer['风险等级']}</b><br><br>" + \
+                    f"<b>📈 业务指标：</b><br>" + \
+                    f"• 最后订单: {customer['最后订单日期'].strftime('%Y-%m-%d')} ({customer['距今天数']}天前)<br>" + \
+                    f"• 平均下单周期: {customer['平均周期']:.0f}天<br>" + \
+                    f"• 平均订单金额: {format_amount(customer['平均金额'])}<br>" + \
+                    f"• 最后订单金额: {format_amount(customer['最后金额'])}<br><br>" + \
+                    f"<b>📋 趋势分析：</b><br>" + \
+                    f"• 金额趋势: {customer['金额趋势']}<br>" + \
+                    f"• 周期趋势: {customer['周期趋势']}<br><br>" + \
+                    f"<b>🎯 建议行动：</b><br>" + \
+                    f"<span style='color:{customer['风险颜色']}'>{customer['建议行动']}</span>"
         
         fig_matrix.add_trace(go.Scatter(
             x=[customer['断单风险']],
@@ -881,9 +892,9 @@ def create_timeline_chart(cycles_df):
         '严重异常': '#e53e3e'
     }
     
-    # 为每个客户创建一条时间轴
+    # 为每个客户创建一条时间轴（增加间距）
     for idx, customer_data in cycles_df.iterrows():
-        y_position = idx
+        y_position = idx * 1.5  # 增加行间距，从idx改为idx * 1.5
         orders = customer_data['订单详情']
         
         # 收集所有订单数据用于绘制
@@ -984,7 +995,7 @@ def create_timeline_chart(cycles_df):
         
         fig.add_trace(go.Scatter(
             x=reference_dates,
-            y=[y_position - 0.2] * len(reference_dates),
+            y=[y_position - 0.3] * len(reference_dates),  # 调整位置以匹配新的间距
             mode='markers',
             marker=dict(
                 symbol='line-ns',
@@ -1016,7 +1027,7 @@ def create_timeline_chart(cycles_df):
     
     # 更新布局
     fig.update_layout(
-        height=max(600, len(cycles_df) * 50),
+        height=max(600, len(cycles_df) * 80),  # 增加每行高度
         xaxis=dict(
             title="时间轴",
             showgrid=True,
@@ -1029,13 +1040,13 @@ def create_timeline_chart(cycles_df):
         yaxis=dict(
             showticklabels=False,
             showgrid=False,
-            range=[-0.5, len(cycles_df) - 0.5],
+            range=[-0.5, len(cycles_df) * 1.5 - 0.5],  # 调整范围以匹配新的y位置
             autorange='reversed'
         ),
         hovermode='closest',
         paper_bgcolor='white',
         plot_bgcolor='rgba(250, 250, 250, 0.8)',
-        margin=dict(l=120, r=50, t=20, b=60),
+        margin=dict(l=150, r=50, t=60, b=60),  # 增加左边距以容纳客户名称
         dragmode='pan'
     )
     
@@ -1237,11 +1248,19 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
     # 4. 价值分层桑基图
     if not metrics['rfm_df'].empty:
         try:
-            source, target, value, labels, colors = [], [], [], ['全部客户'], ['#f0f0f0']
-            customer_types = [('钻石客户', '#ff6b6b'), ('黄金客户', '#ffd93d'), ('白银客户', '#c0c0c0'), 
-                            ('潜力客户', '#4ecdc4'), ('流失风险', '#a8a8a8')]
+            source, target, value, labels, colors = [], [], [], ['全部客户'], ['#667eea']
+            # 使用更好的配色方案
+            customer_types = [
+                ('钻石客户', '#ff6b6b'),  # 红色
+                ('黄金客户', '#feca57'),  # 金色
+                ('白银客户', '#a29bfe'),  # 银紫色
+                ('潜力客户', '#48dbfb'),  # 天蓝色
+                ('流失风险', '#ee5a6f')   # 暗红色
+            ]
             
             node_idx = 1
+            link_colors = []  # 添加连接线颜色
+            
             for ct, color in customer_types:
                 count = len(metrics['rfm_df'][metrics['rfm_df']['类型'] == ct])
                 if count > 0:
@@ -1250,20 +1269,47 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                     source.append(0)
                     target.append(node_idx)
                     value.append(count)
+                    # 为连接线添加渐变颜色
+                    link_colors.append(f'rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.4)')
                     node_idx += 1
             
             if source:
                 fig_sankey = go.Figure(data=[go.Sankey(
-                    node=dict(pad=15, thickness=20, line=dict(color="white", width=1),
-                             label=labels, color=colors),
-                    link=dict(source=source, target=target, value=value,
-                             color='rgba(180, 180, 180, 0.3)')
+                    node=dict(
+                        pad=20,
+                        thickness=25,
+                        line=dict(color="white", width=2),
+                        label=labels,
+                        color=colors,
+                        # 增加字体设置
+                        font=dict(
+                            size=14,
+                            family="Arial, sans-serif",
+                            color="white"
+                        )
+                    ),
+                    link=dict(
+                        source=source,
+                        target=target,
+                        value=value,
+                        color=link_colors,  # 使用渐变颜色
+                        # 增加悬停信息
+                        hovertemplate='%{source.label} → %{target.label}<br>客户数: %{value}<extra></extra>'
+                    ),
+                    # 优化方向
+                    orientation='h'
                 )])
+                
                 fig_sankey.update_layout(
-                    height=500, 
-                    margin=dict(t=60, b=60, l=60, r=60),
+                    title=dict(
+                        text="客户价值分层流向图",
+                        font=dict(size=16, color='#2d3748')
+                    ),
+                    height=500,
+                    margin=dict(t=80, b=60, l=60, r=60),
                     paper_bgcolor='white',
-                    plot_bgcolor='white'
+                    plot_bgcolor='white',
+                    font=dict(size=14, family="Arial, sans-serif")
                 )
                 charts['sankey'] = fig_sankey
         except Exception as e:
@@ -1490,7 +1536,7 @@ def main():
     # Tab 3: 风险评估
     with tabs[2]:
         # 创建子标签页
-        risk_subtabs = st.tabs(["📊 客户贡献分析", "🕐 下单周期监测", "⚠️ 异常行为提醒", "🎯 风险预警模型"])
+        risk_subtabs = st.tabs(["📊 客户贡献分析", "🕐 下单周期监测", "🎯 风险预警模型"])
         
         with risk_subtabs[0]:
             # Top20客户分析
@@ -1520,7 +1566,7 @@ def main():
             st.markdown('''
             <div class="chart-header">
                 <div class="chart-title">客户下单周期监测</div>
-                <div class="chart-subtitle">追踪Top 20客户的下单规律，识别异常行为</div>
+                <div class="chart-subtitle">追踪Top 10客户的下单规律，识别异常行为</div>
             </div>
             ''', unsafe_allow_html=True)
             
@@ -1578,63 +1624,6 @@ def main():
                 st.info("暂无订单数据")
         
         with risk_subtabs[2]:
-            # 异常行为提醒
-            st.markdown('''
-            <div class="chart-header">
-                <div class="chart-title">异常行为实时提醒</div>
-                <div class="chart-subtitle">需要立即关注的客户异常行为</div>
-            </div>
-            ''', unsafe_allow_html=True)
-            
-            if sales_data is not None and not sales_data.empty and 'cycles_df' in locals() and not cycles_df.empty:
-                # 筛选异常客户
-                abnormal_customers = cycles_df[cycles_df['异常状态'] != '正常'].copy()
-                
-                if not abnormal_customers.empty:
-                    # 按异常严重程度排序
-                    abnormal_customers['严重度'] = abnormal_customers['异常状态'].map({
-                        '轻度异常': 1, '严重异常': 2
-                    })
-                    abnormal_customers = abnormal_customers.sort_values('严重度', ascending=False)
-                    
-                    # 显示异常客户列表
-                    for _, customer in abnormal_customers.iterrows():
-                        status_color = '#e74c3c' if customer['异常状态'] == '严重异常' else '#f39c12'
-                        status_icon = '🔴' if customer['异常状态'] == '严重异常' else '⚠️'
-                        
-                        # 计算风险描述
-                        days_overdue = customer['距今天数'] - customer['平均间隔']
-                        risk_desc = f"已超过正常周期 {days_overdue:.0f} 天未下单"
-                        
-                        st.markdown(f"""
-                        <div class="insight-card" style="border-left-color: {status_color};">
-                            <h4>{status_icon} {customer['客户']}</h4>
-                            <ul>
-                                <li><strong>异常状态：</strong>{customer['异常状态']}</li>
-                                <li><strong>最后订单：</strong>{customer['最后订单日期'].strftime('%Y-%m-%d')} ({customer['距今天数']}天前)</li>
-                                <li><strong>平均周期：</strong>{customer['平均间隔']:.0f}天</li>
-                                <li><strong>风险描述：</strong>{risk_desc}</li>
-                                <li><strong>建议行动：</strong>{'立即联系客户了解情况' if customer['异常状态'] == '严重异常' else '密切关注，准备跟进'}</li>
-                            </ul>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    # 导出按钮
-                    if st.button("📥 导出异常客户清单", key="export_abnormal"):
-                        export_df = abnormal_customers[['客户', '异常状态', '最后订单日期', '距今天数', '平均间隔']].copy()
-                        csv = export_df.to_csv(index=False, encoding='utf-8-sig')
-                        st.download_button(
-                            label="下载CSV文件",
-                            data=csv,
-                            file_name=f"异常客户清单_{datetime.now().strftime('%Y%m%d')}.csv",
-                            mime="text/csv"
-                        )
-                else:
-                    st.success("✅ 所有客户下单行为正常，无需特别关注")
-            else:
-                st.info("暂无数据")
-        
-        with risk_subtabs[3]:
             # 风险预警模型
             st.markdown('''
             <div class="chart-header">
@@ -1783,9 +1772,9 @@ def main():
         st.markdown('''
         <div class="chart-header">
             <div class="chart-title">客户目标达成分析</div>
-            <div class="chart-subtitle">评估各客户的销售目标完成情况</div>
+            <div class="chart-subtitle">评估当前年度（{0}年）各客户的销售目标完成情况</div>
         </div>
-        ''', unsafe_allow_html=True)
+        '''.format(metrics['current_year']), unsafe_allow_html=True)
         
         if 'target_scatter' in charts:
             st.plotly_chart(charts['target_scatter'], use_container_width=True, key="target_scatter_chart")
