@@ -105,11 +105,14 @@ st.markdown("""
         border-radius: 15px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         text-align: center;
-        height: 100%;
+        height: 180px;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         animation: cardFadeIn 0.6s ease-out;
         position: relative;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
     
     .metric-card::before {
@@ -141,13 +144,13 @@ st.markdown("""
     }
     
     .metric-value {
-        font-size: 1.6rem;
+        font-size: 1.8rem;
         font-weight: 700;
         color: #667eea;
         animation: numberCount 1.5s ease-out;
         margin-bottom: 0.5rem;
-        word-break: break-word;
-        line-height: 1.3;
+        word-break: break-all;
+        line-height: 1.2;
     }
     
     .metric-label {
@@ -544,12 +547,6 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     total_sales = current_year_sales['金额'].sum()
     avg_customer_contribution = total_sales / normal_customers if normal_customers > 0 else 0
     
-    # 计算客户销售汇总 - 确保始终存在
-    if not current_year_sales.empty:
-        customer_actual_sales = current_year_sales.groupby('经销商名称')['金额'].sum()
-    else:
-        customer_actual_sales = pd.Series()
-    
     # 3. 同比增长率
     last_year_total = monthly_data['往年同期'].sum()
     growth_rate = ((total_sales - last_year_total) / last_year_total * 100) if last_year_total > 0 else 0
@@ -613,6 +610,8 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     # 5. RFM客户价值分析
     current_date = datetime.now()
     customer_rfm = []
+    
+    customer_actual_sales = current_year_sales.groupby('经销商名称')['金额'].sum()
     
     for customer in customer_actual_sales.index:
         customer_orders = current_year_sales[current_year_sales['经销商名称'] == customer]
@@ -690,11 +689,14 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     # 7. 额外计算一些指标
     # 客户集中度（前20%客户贡献）
     concentration_rate = 0  # 默认值
-    if len(customer_actual_sales) > 0:
-        sorted_sales = customer_actual_sales.sort_values(ascending=False)
-        top20_count = max(1, int(len(sorted_sales) * 0.2))
-        top20_sales = sorted_sales.head(top20_count).sum()
-        concentration_rate = (top20_sales / total_sales * 100) if total_sales > 0 else 0
+    try:
+        if len(customer_actual_sales) > 0:
+            sorted_sales = customer_actual_sales.sort_values(ascending=False)
+            top20_count = max(1, int(len(sorted_sales) * 0.2))
+            top20_sales = sorted_sales.head(top20_count).sum()
+            concentration_rate = (top20_sales / total_sales * 100) if total_sales > 0 else 0
+    except:
+        concentration_rate = 0
     
     return {
         'total_customers': total_customers,
