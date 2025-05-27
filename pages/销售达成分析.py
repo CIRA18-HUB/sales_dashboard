@@ -255,8 +255,10 @@ def calculate_overview_metrics(data):
         'total_achievement': total_achievement,
         'growth_rate': growth_rate,
         'tt_sales': tt_sales,
+        'tt_target': tt_target,  # 添加tt_target
         'tt_achievement': tt_achievement,
         'mt_sales': mt_sales,
+        'mt_target': mt_target,  # 添加mt_target
         'mt_achievement': mt_achievement,
         'city_achievement_rate': city_achievement_rate,
         'regions': regions
@@ -613,76 +615,7 @@ def main():
         st.error("🚫 请先登录系统")
         st.stop()
     
-    # 侧边栏
-    with st.sidebar:
-        st.markdown("""
-        <div style="text-align: center; padding: 1rem 0;">
-            <h2 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                       -webkit-background-clip: text; 
-                       -webkit-text-fill-color: transparent;
-                       font-weight: 800;">
-                📊 Trolli SAL
-            </h2>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # 主要功能
-        st.markdown("#### 🏠 主要功能")
-        
-        if st.button("🏠 欢迎页面", use_container_width=True):
-            st.switch_page("登陆界面haha.py")
-        
-        st.markdown("---")
-        
-        # 分析模块
-        st.markdown("#### 📈 分析模块")
-        
-        if st.button("📦 产品组合分析", use_container_width=True):
-            st.switch_page("pages/产品组合分析.py")
-        
-        if st.button("📊 预测库存分析", use_container_width=True):
-            st.switch_page("pages/预测库存分析.py")
-        
-        if st.button("👥 客户依赖分析", use_container_width=True):
-            st.switch_page("pages/客户依赖分析.py")
-        
-        if st.button("🎯 销售达成分析", use_container_width=True, type="primary"):
-            st.rerun()
-        
-        st.markdown("---")
-        
-        # 用户信息
-        st.markdown("#### 👤 用户信息")
-        
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); 
-                    border: 1px solid rgba(102,126,234,0.3); 
-                    border-radius: 10px; 
-                    padding: 1rem; 
-                    margin: 0.5rem 0;">
-            <div style="font-size: 0.9rem; color: #666; margin-bottom: 0.3rem;">当前用户</div>
-            <div style="font-size: 1.1rem; font-weight: bold; 
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        -webkit-background-clip: text;
-                        -webkit-text-fill-color: transparent;">
-                管理员 cira
-            </div>
-            <div style="font-size: 0.8rem; color: #999; margin-top: 0.5rem;">
-                ✅ 已认证
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 退出登录按钮
-        if st.button("🚪 退出登录", use_container_width=True):
-            st.session_state.authenticated = False
-            st.switch_page("登陆界面haha.py")
-    
-    # 主页面内容
+    # 主页面内容（不显示侧边栏）
     st.markdown("""
     <div class="main-header">
         <h1>🎯 销售达成分析</h1>
