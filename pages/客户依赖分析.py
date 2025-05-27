@@ -141,11 +141,13 @@ st.markdown("""
     }
     
     .metric-value {
-        font-size: 2.5rem;
+        font-size: 1.6rem;
         font-weight: 700;
         color: #667eea;
         animation: numberCount 1.5s ease-out;
         margin-bottom: 0.5rem;
+        word-break: break-word;
+        line-height: 1.3;
     }
     
     .metric-label {
@@ -449,7 +451,7 @@ st.markdown("""
     
     /* 提示框美化 */
     div[data-testid="stMetricValue"] {
-        font-size: 2.5rem;
+        font-size: 1.8rem;
         font-weight: 700;
         background: linear-gradient(135deg, #667eea, #764ba2);
         -webkit-background-clip: text;
@@ -542,6 +544,12 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     total_sales = current_year_sales['金额'].sum()
     avg_customer_contribution = total_sales / normal_customers if normal_customers > 0 else 0
     
+    # 计算客户销售汇总 - 确保始终存在
+    if not current_year_sales.empty:
+        customer_actual_sales = current_year_sales.groupby('经销商名称')['金额'].sum()
+    else:
+        customer_actual_sales = pd.Series()
+    
     # 3. 同比增长率
     last_year_total = monthly_data['往年同期'].sum()
     growth_rate = ((total_sales - last_year_total) / last_year_total * 100) if last_year_total > 0 else 0
@@ -605,8 +613,6 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     # 5. RFM客户价值分析
     current_date = datetime.now()
     customer_rfm = []
-    
-    customer_actual_sales = current_year_sales.groupby('经销商名称')['金额'].sum()
     
     for customer in customer_actual_sales.index:
         customer_orders = current_year_sales[current_year_sales['经销商名称'] == customer]
@@ -1189,7 +1195,7 @@ def main():
             <div class='insight-card'>
                 <h4>💡 业务健康状况</h4>
                 <ul style='margin: 0; padding-left: 20px;'>
-                    <li>{0}年销售额达{1:.2f}亿元，同比{2}</li>
+                    <li>{0}年销售额达¥{1:,.2f}，同比{2}</li>
                     <li>客户群体整体健康，但存在{3}家流失风险客户需要重点关注</li>
                     <li>高价值客户群体贡献了约{4:.1f}%的销售额</li>
                     <li>前20%客户贡献{5:.1f}%销售额，集中度{6}</li>
@@ -1197,12 +1203,12 @@ def main():
             </div>
             """.format(
                 metrics['current_year'],
-                metrics['total_sales'] / 100000000,
+                metrics['total_sales'],
                 f"增长{metrics['growth_rate']:.1f}%" if metrics['growth_rate'] > 0 else f"下降{abs(metrics['growth_rate']):.1f}%",
                 metrics['risk_customers'],
                 metrics['high_value_rate'] * 1.5,  # 估算值
-                metrics['concentration_rate'],
-                '偏高' if metrics['concentration_rate'] > 80 else '合理'
+                metrics.get('concentration_rate', 0),
+                '偏高' if metrics.get('concentration_rate', 0) > 80 else '合理'
             ), unsafe_allow_html=True)
         
         with col2:
