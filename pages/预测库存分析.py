@@ -22,7 +22,7 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
     st.switch_page("登陆界面haha.py")
     st.stop()
 
-# 统一的增强CSS样式 - 继承自销售达成分析的高级样式
+# 统一的增强CSS样式 - 修复背景透明度问题
 st.markdown("""
 <style>
     /* 导入Google字体 */
@@ -60,9 +60,9 @@ st.markdown("""
         100% { transform: translateY(0px) translateX(0px); }
     }
     
-    /* 主容器背景 */
+    /* 主容器背景 - 增强不透明度 */
     .main .block-container {
-        background: rgba(255,255,255,0.95);
+        background: rgba(255,255,255,0.98) !important;
         border-radius: 20px;
         padding: 2rem;
         margin-top: 2rem;
@@ -164,9 +164,9 @@ st.markdown("""
         margin-top: 0.5rem;
     }
     
-    /* 增强的指标卡片样式 */
+    /* 增强的指标卡片样式 - 确保背景不透明 */
     .metric-card {
-        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        background: rgba(255,255,255,0.95) !important;
         padding: 2.5rem 2rem;
         border-radius: 25px;
         box-shadow: 
@@ -285,9 +285,9 @@ st.markdown("""
         font-style: italic;
     }
     
-    /* 图表容器样式 */
+    /* 图表容器样式 - 确保背景不透明 */
     .chart-container {
-        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        background: rgba(255,255,255,0.96) !important;
         border-radius: 25px;
         padding: 2rem;
         margin-bottom: 2rem;
@@ -339,9 +339,9 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
     }
     
-    /* 洞察框样式 */
+    /* 洞察框样式 - 确保背景不透明 */
     .insight-box {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        background: rgba(102, 126, 234, 0.15) !important;
         border-left: 4px solid #667eea;
         border-radius: 15px;
         padding: 1.5rem;
@@ -389,7 +389,7 @@ st.markdown("""
     /* 标签页样式增强 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 15px;
-        background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
+        background: rgba(248, 250, 252, 0.95) !important;
         padding: 1rem;
         border-radius: 20px;
         box-shadow: 
@@ -401,7 +401,7 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] {
         height: 65px;
         padding: 0 35px;
-        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        background: rgba(255,255,255,0.95) !important;
         border-radius: 15px;
         border: 1px solid rgba(102, 126, 234, 0.15);
         font-weight: 700;
@@ -434,7 +434,7 @@ st.markdown("""
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: white;
         border: none;
         transform: translateY(-3px) scale(1.02);
@@ -903,35 +903,47 @@ def create_high_risk_bubble(processed_inventory):
                               ('高风险', COLOR_SCHEME['risk_high'])]:
         risk_subset = high_risk_data[high_risk_data['风险等级'] == risk_level]
         if not risk_subset.empty:
-            # 修复marker size计算，确保数据有效性
-            quantities = risk_subset['数量'].fillna(0)  # 填充NaN值
-            marker_sizes = np.clip(quantities / 10, 8, 50)  # 限制大小范围，避免异常值
-            
-            # 确保没有无效值
-            marker_sizes = np.where(np.isfinite(marker_sizes), marker_sizes, 15)  # 用默认值替换无效值
-            
-            fig.add_trace(go.Scatter(
-                x=risk_subset['库龄'],
-                y=risk_subset['批次价值'],
-                mode='markers',
-                name=risk_level,
-                marker=dict(
-                    size=marker_sizes,
-                    sizemode='diameter',
-                    sizemin=8,
-                    sizemax=50,
-                    color=color,
-                    opacity=0.8,
-                    line=dict(width=2, color='white')
-                ),
-                text=risk_subset['产品名称'],
-                hovertemplate="<b>%{text}</b><br>" +
-                              "库龄: %{x}天<br>" +
-                              "价值: ¥%{y:,.0f}<br>" +
-                              "数量: %{customdata}箱<br>" +
-                              "<extra></extra>",
-                customdata=risk_subset['数量']
-            ))
+            try:
+                # 确保数据质量
+                quantities = risk_subset['数量'].fillna(100).astype(float)  # 填充默认值并转换类型
+                quantities = np.where(quantities <= 0, 100, quantities)  # 替换非正数
+                quantities = np.where(np.isfinite(quantities), quantities, 100)  # 替换无穷大和NaN
+                
+                # 计算marker size，确保在合理范围内
+                marker_sizes = np.clip(quantities / 10, 8, 50)
+                marker_sizes = np.where(np.isfinite(marker_sizes), marker_sizes, 15)
+                
+                # 确保所有必要字段存在且有效
+                x_values = risk_subset['库龄'].fillna(0).astype(float)
+                y_values = risk_subset['批次价值'].fillna(0).astype(float)
+                product_names = risk_subset['产品名称'].fillna('未知产品').astype(str)
+                
+                fig.add_trace(go.Scatter(
+                    x=x_values,
+                    y=y_values,
+                    mode='markers',
+                    name=risk_level,
+                    marker=dict(
+                        size=marker_sizes.tolist(),  # 转换为列表
+                        sizemode='diameter',
+                        sizemin=8,
+                        sizemax=50,
+                        color=color,
+                        opacity=0.8,
+                        line=dict(width=2, color='white')
+                    ),
+                    text=product_names,
+                    hovertemplate="<b>%{text}</b><br>" +
+                                  "库龄: %{x}天<br>" +
+                                  "价值: ¥%{y:,.0f}<br>" +
+                                  "数量: %{customdata}箱<br>" +
+                                  "<extra></extra>",
+                    customdata=quantities.tolist()  # 转换为列表
+                ))
+            except Exception as e:
+                # 如果有任何错误，跳过这个风险等级
+                print(f"处理{risk_level}数据时出错: {e}")
+                continue
     
     fig.update_layout(
         title="高风险批次优先级分析 (气泡大小=数量)",
@@ -1166,8 +1178,37 @@ with tab2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
     st.markdown('<h3 class="chart-title">高风险批次优先级矩阵</h3>', unsafe_allow_html=True)
     
-    bubble_fig = create_high_risk_bubble(processed_inventory)
-    st.plotly_chart(bubble_fig, use_container_width=True)
+    try:
+        bubble_fig = create_high_risk_bubble(processed_inventory)
+        st.plotly_chart(bubble_fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"气泡图生成失败，正在使用备用图表: {e}")
+        # 创建简化的散点图作为备用
+        high_risk_data = processed_inventory[
+            processed_inventory['风险等级'].isin(['极高风险', '高风险'])
+        ].head(20)
+        
+        if not high_risk_data.empty:
+            fig = go.Figure()
+            for risk_level, color in [('极高风险', COLOR_SCHEME['risk_extreme']), 
+                                      ('高风险', COLOR_SCHEME['risk_high'])]:
+                subset = high_risk_data[high_risk_data['风险等级'] == risk_level]
+                if not subset.empty:
+                    fig.add_trace(go.Scatter(
+                        x=subset['库龄'],
+                        y=subset['批次价值'],
+                        mode='markers',
+                        name=risk_level,
+                        marker=dict(color=color, size=10)
+                    ))
+            
+            fig.update_layout(
+                title="高风险批次分布 (简化版)",
+                xaxis_title="库龄 (天)",
+                yaxis_title="批次价值 (元)",
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("""
     <div class="insight-box">
@@ -1360,7 +1401,7 @@ with tab5:
         if not urgent_items.empty:
             for _, item in urgent_items.iterrows():
                 st.markdown(f"""
-                <div style="background: #fff5f5; border-left: 4px solid #ff4757; padding: 1rem; margin-bottom: 1rem; border-radius: 5px;">
+                <div style="background: rgba(255, 245, 245, 0.9); border-left: 4px solid #ff4757; padding: 1rem; margin-bottom: 1rem; border-radius: 5px;">
                     <strong>{item['产品名称']}</strong><br>
                     <small>批号: {item['生产批号']} | 库龄: {item['库龄']}天</small><br>
                     价值: ¥{item['批次价值']:,.0f} | 建议: {item['处理建议']}
@@ -1412,7 +1453,7 @@ with tab5:
         for strategy in strategies:
             color = '#ff4757' if strategy['priority'] == 'high' else '#ffa502' if strategy['priority'] == 'medium' else '#2ed573'
             st.markdown(f"""
-            <div style="background: {color}15; border-left: 4px solid {color}; padding: 1rem; margin-bottom: 1rem; border-radius: 5px;">
+            <div style="background: rgba(255,255,255,0.8); border-left: 4px solid {color}; padding: 1rem; margin-bottom: 1rem; border-radius: 5px;">
                 <strong style="color: {color};">{strategy['title']}</strong><br>
                 <small style="color: #666;">{strategy['content']}</small>
             </div>
