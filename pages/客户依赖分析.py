@@ -144,7 +144,7 @@ st.markdown("""
     }
     
     .metric-value {
-        font-size: 1.8rem;
+        font-size: 2.2rem;
         font-weight: 700;
         color: #667eea;
         animation: numberCount 1.5s ease-out;
@@ -480,6 +480,90 @@ st.markdown("""
         color: #718096;
         margin-bottom: 1rem;
     }
+    
+    /* 新增的客户价值卡片动画 */
+    .value-card-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+    
+    .value-card {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .value-card:hover {
+        transform: translateY(-10px) scale(1.05);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+    }
+    
+    .value-card-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        animation: iconFloat 3s ease-in-out infinite;
+    }
+    
+    @keyframes iconFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    
+    .value-card-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: #2d3748;
+    }
+    
+    .value-card-label {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #4a5568;
+        margin-bottom: 0.3rem;
+    }
+    
+    .value-card-desc {
+        font-size: 0.9rem;
+        color: #718096;
+    }
+    
+    /* 雷达图增强样式 */
+    .radar-tooltip {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        pointer-events: none;
+        display: none;
+        z-index: 1000;
+    }
+    
+    .radar-dimension {
+        font-weight: 600;
+        color: #667eea;
+        margin-bottom: 0.5rem;
+    }
+    
+    .radar-value {
+        font-size: 1.2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .radar-desc {
+        font-size: 0.85rem;
+        color: #cbd5e0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -730,7 +814,7 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
     """创建高级交互式图表"""
     charts = {}
     
-    # 1. 客户健康状态雷达图
+    # 1. 增强版客户健康状态雷达图
     categories = ['健康度', '目标达成', '价值贡献', '活跃度', '稳定性']
     
     values = [
@@ -741,16 +825,32 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
         (100 - metrics['max_dependency'])
     ]
     
+    # 对应的详细说明
+    descriptions = {
+        '健康度': f"正常运营客户占比 {metrics['normal_rate']:.1f}%\n越高说明客户群体越稳定",
+        '目标达成': f"销售目标达成率 {metrics['target_achievement_rate']:.1f}%\n反映整体销售执行力",
+        '价值贡献': f"高价值客户占比 {metrics['high_value_rate']:.1f}%\n钻石+黄金客户比例",
+        '活跃度': f"活跃客户占比 {((metrics['normal_customers'] - metrics['risk_customers']) / metrics['normal_customers'] * 100):.1f}%\n近期有交易的客户比例",
+        '稳定性': f"风险分散度 {(100 - metrics['max_dependency']):.1f}%\n100-最大客户依赖度"
+    }
+    
     fig_radar = go.Figure()
     
+    # 添加当前状态
     fig_radar.add_trace(go.Scatterpolar(
         r=values,
         theta=categories,
         fill='toself',
         name='当前状态',
         fillcolor='rgba(102, 126, 234, 0.3)',
-        line=dict(color='#667eea', width=2),
-        hovertemplate='%{theta}: %{r:.1f}%<extra></extra>'
+        line=dict(color='#667eea', width=3),
+        customdata=[[desc] for desc in descriptions.values()],
+        hovertemplate='<b>%{theta}</b><br>%{customdata[0]}<extra></extra>',
+        hoverlabel=dict(
+            bgcolor="rgba(0,0,0,0.9)",
+            font_size=12,
+            font_family="Arial"
+        )
     ))
     
     # 添加基准线
@@ -769,81 +869,72 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
             radialaxis=dict(
                 visible=True,
                 range=[0, 100],
-                ticksuffix='%'
+                ticksuffix='%',
+                tickfont=dict(size=12)
+            ),
+            angularaxis=dict(
+                tickfont=dict(size=14, weight='bold')
             )
         ),
         showlegend=True,
         height=500,
-        margin=dict(t=40, b=40, l=40, r=40)
+        margin=dict(t=40, b=40, l=40, r=40),
+        font=dict(size=14)
     )
     
     charts['health_radar'] = fig_radar
     
-    # 2. 3D区域风险热力图
-    if not metrics['region_stats'].empty:
-        regions = metrics['region_stats']['区域'].tolist()
-        dependencies = metrics['region_stats']['最大客户依赖度'].tolist()
-        sales = metrics['region_stats']['总销售额'].tolist()
-        customers = metrics['region_stats']['客户数'].tolist()
-        
-        # 创建3D散点图
-        fig_3d = go.Figure()
-        
-        fig_3d.add_trace(go.Scatter3d(
-            x=customers,
-            y=[s/10000 for s in sales],
-            z=dependencies,
-            mode='markers+text',
-            text=regions,
-            marker=dict(
-                size=[d/2 for d in dependencies],
-                color=dependencies,
-                colorscale='RdYlGn_r',
-                showscale=True,
-                colorbar=dict(title="依赖度%", x=1.02),
-                line=dict(width=2, color='white'),
-                opacity=0.8
-            ),
-            textposition='top center',
-            hovertemplate='<b>%{text}</b><br>' +
-                         '客户数: %{x}<br>' +
-                         '销售额: %{y:.1f}万<br>' +
-                         '依赖度: %{z:.1f}%<br>' +
-                         '<extra></extra>'
-        ))
-        
-        fig_3d.update_layout(
-            scene=dict(
-                xaxis_title="客户数量",
-                yaxis_title="销售额（万元）",
-                zaxis_title="客户依赖度（%）",
-                camera=dict(
-                    eye=dict(x=1.5, y=1.5, z=1.2)
-                ),
-                bgcolor='rgba(0,0,0,0)'
-            ),
-            height=600,
-            margin=dict(t=40, b=40, l=40, r=40)
-        )
-        
-        charts['risk_3d'] = fig_3d
-    
-    # 3. 客户价值流动桑基图
+    # 2. 客户价值流动桑基图（优化版）
     if not metrics['rfm_df'].empty:
         # 准备桑基图数据
         source = []
         target = []
         value = []
-        labels = ['所有客户', '钻石客户', '黄金客户', '白银客户', '潜力客户', '流失风险']
+        labels = ['全部客户']
+        colors = ['#e8e8e8']
         
-        # 客户类型分布
-        customer_types = ['钻石客户', '黄金客户', '白银客户', '潜力客户', '流失风险']
-        for i, ct in enumerate(customer_types):
+        # 客户类型及其对应的颜色
+        customer_types = [
+            ('钻石客户', '#e74c3c'),
+            ('黄金客户', '#f39c12'),
+            ('白银客户', '#95a5a6'),
+            ('潜力客户', '#3498db'),
+            ('流失风险', '#9b59b6')
+        ]
+        
+        node_idx = 1
+        for ct, color in customer_types:
             count = len(metrics['rfm_df'][metrics['rfm_df']['类型'] == ct])
             if count > 0:
+                labels.append(f"{ct}\n({count}家)")
+                colors.append(color)
                 source.append(0)
-                target.append(i + 1)
+                target.append(node_idx)
                 value.append(count)
+                node_idx += 1
+        
+        # 添加二级分层（销售额贡献）
+        for idx, (ct, color) in enumerate(customer_types, 1):
+            if idx < len(labels):  # 确保节点存在
+                type_customers = metrics['rfm_df'][metrics['rfm_df']['类型'] == ct]
+                if not type_customers.empty:
+                    # 根据销售额分层
+                    high_sales = len(type_customers[type_customers['M'] > type_customers['M'].median()])
+                    low_sales = len(type_customers) - high_sales
+                    
+                    if high_sales > 0:
+                        labels.append(f"高贡献\n({high_sales}家)")
+                        colors.append(color)
+                        source.append(idx)
+                        target.append(len(labels) - 1)
+                        value.append(high_sales)
+                    
+                    if low_sales > 0:
+                        labels.append(f"低贡献\n({low_sales}家)")
+                        colors.append('#cccccc')
+                        source.append(idx)
+                        target.append(len(labels) - 1)
+                        value.append(low_sales)
         
         fig_sankey = go.Figure(data=[go.Sankey(
             node=dict(
@@ -851,23 +942,99 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
                 thickness=20,
                 line=dict(color="black", width=0.5),
                 label=labels,
-                color=["#667eea", "#e74c3c", "#f39c12", "#95a5a6", "#3498db", "#9b59b6"],
+                color=colors,
                 hovertemplate='%{label}<br>客户数: %{value}<extra></extra>'
             ),
             link=dict(
                 source=source,
                 target=target,
                 value=value,
-                color='rgba(102, 126, 234, 0.3)'
+                color='rgba(200, 200, 200, 0.3)'
             )
         )])
         
         fig_sankey.update_layout(
-            height=500,
-            margin=dict(t=40, b=40, l=40, r=40)
+            height=600,
+            margin=dict(t=40, b=40, l=40, r=40),
+            font=dict(size=12)
         )
         
         charts['sankey'] = fig_sankey
+    
+    # 3. 客户贡献度旭日图（增强版）
+    if not metrics['rfm_df'].empty:
+        # 准备旭日图数据
+        sunburst_data = []
+        
+        # 根节点
+        total_value = metrics['rfm_df']['M'].sum()
+        sunburst_data.append({
+            'labels': '全部客户',
+            'parents': '',
+            'values': total_value,
+            'text': f"总销售额: ¥{total_value/10000:.1f}万"
+        })
+        
+        # 颜色映射
+        type_colors = {
+            '钻石客户': '#e74c3c',
+            '黄金客户': '#f39c12',
+            '白银客户': '#95a5a6',
+            '潜力客户': '#3498db',
+            '流失风险': '#9b59b6'
+        }
+        
+        # 按客户类型分组
+        for customer_type in ['钻石客户', '黄金客户', '白银客户', '潜力客户', '流失风险']:
+            type_customers = metrics['rfm_df'][metrics['rfm_df']['类型'] == customer_type]
+            
+            if not type_customers.empty:
+                type_total = type_customers['M'].sum()
+                # 添加类型节点
+                sunburst_data.append({
+                    'labels': f"{customer_type}\n({len(type_customers)}家)",
+                    'parents': '全部客户',
+                    'values': type_total,
+                    'text': f"¥{type_total/10000:.1f}万 ({type_total/total_value*100:.1f}%)",
+                    'color': type_colors[customer_type]
+                })
+                
+                # 添加前10个客户（如果超过10个）
+                top_customers = type_customers.nlargest(10, 'M')
+                for _, customer in top_customers.iterrows():
+                    customer_name = customer['客户'][:15] + '...' if len(customer['客户']) > 15 else customer['客户']
+                    sunburst_data.append({
+                        'labels': customer_name,
+                        'parents': f"{customer_type}\n({len(type_customers)}家)",
+                        'values': customer['M'],
+                        'text': f"¥{customer['M']/10000:.1f}万",
+                        'color': type_colors[customer_type]
+                    })
+        
+        if sunburst_data:
+            df_sunburst = pd.DataFrame(sunburst_data)
+            
+            fig_sunburst = go.Figure(go.Sunburst(
+                labels=df_sunburst['labels'],
+                parents=df_sunburst['parents'],
+                values=df_sunburst['values'],
+                text=df_sunburst['text'],
+                branchvalues="total",
+                marker=dict(
+                    colors=df_sunburst.get('color', '#cccccc'),
+                    line=dict(color='white', width=2)
+                ),
+                hovertemplate='<b>%{label}</b><br>%{text}<br>占比: %{percentRoot}<extra></extra>',
+                textfont=dict(size=12)
+            ))
+            
+            fig_sunburst.update_layout(
+                height=700,
+                margin=dict(t=40, b=40, l=40, r=40),
+                font=dict(size=14)
+            )
+            
+            charts['sunburst'] = fig_sunburst
     
     # 4. 动态月度趋势面积图
     if not sales_data.empty:
@@ -924,59 +1091,21 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
         
         charts['trend'] = fig_trend
     
-    # 5. 客户贡献度旭日图
-    if not metrics['rfm_df'].empty:
-        # 准备旭日图数据
-        sunburst_data = []
-        
-        # 按客户类型分组
-        for customer_type in ['钻石客户', '黄金客户', '白银客户', '潜力客户', '流失风险']:
-            type_customers = metrics['rfm_df'][metrics['rfm_df']['类型'] == customer_type]
-            
-            if not type_customers.empty:
-                # 添加类型节点
-                sunburst_data.append({
-                    'labels': customer_type,
-                    'parents': '',
-                    'values': type_customers['M'].sum()
-                })
-                
-                # 添加前5个客户
-                top_customers = type_customers.nlargest(5, 'M')
-                for _, customer in top_customers.iterrows():
-                    sunburst_data.append({
-                        'labels': customer['客户'][:10],
-                        'parents': customer_type,
-                        'values': customer['M']
-                    })
-        
-        if sunburst_data:
-            df_sunburst = pd.DataFrame(sunburst_data)
-            
-            fig_sunburst = go.Figure(go.Sunburst(
-                labels=df_sunburst['labels'],
-                parents=df_sunburst['parents'],
-                values=df_sunburst['values'],
-                branchvalues="total",
-                marker=dict(
-                    colorscale='Viridis',
-                    line=dict(color='white', width=2)
-                ),
-                hovertemplate='<b>%{label}</b><br>销售额: ¥%{value:,.0f}<br>占比: %{percentRoot}<extra></extra>'
-            ))
-            
-            fig_sunburst.update_layout(
-                height=600,
-                margin=dict(t=40, b=40, l=40, r=40)
-            )
-            
-            charts['sunburst'] = fig_sunburst
-    
-    # 6. 目标达成散点图
+    # 5. 目标达成散点图（优化版）
     if not metrics['customer_achievement_details'].empty:
         achievement_df = metrics['customer_achievement_details']
         
         fig_scatter = go.Figure()
+        
+        # 根据达成率设置颜色
+        colors = []
+        for rate in achievement_df['达成率']:
+            if rate >= 100:
+                colors.append('#48bb78')  # 绿色
+            elif rate >= 80:
+                colors.append('#f39c12')  # 橙色
+            else:
+                colors.append('#f56565')  # 红色
         
         # 添加散点
         fig_scatter.add_trace(go.Scatter(
@@ -985,14 +1114,13 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
             mode='markers',
             marker=dict(
                 size=achievement_df['达成率'].apply(lambda x: min(max(x/5, 10), 50)),
-                color=achievement_df['达成率'],
-                colorscale='RdYlGn',
-                showscale=True,
-                colorbar=dict(title="达成率%"),
-                line=dict(width=1, color='white')
+                color=colors,
+                line=dict(width=1, color='white'),
+                opacity=0.8
             ),
             text=achievement_df['客户'],
-            hovertemplate='<b>%{text}</b><br>目标: ¥%{x:,.0f}<br>实际: ¥%{y:,.0f}<br><extra></extra>'
+            customdata=achievement_df[['达成率', '状态']],
+            hovertemplate='<b>%{text}</b><br>目标: ¥%{x:,.0f}<br>实际: ¥%{y:,.0f}<br>达成率: %{customdata[0]:.1f}%<br>状态: %{customdata[1]}<extra></extra>'
         ))
         
         # 添加目标线
@@ -1020,7 +1148,8 @@ def create_advanced_charts(metrics, sales_data, monthly_data):
             xaxis_title="目标金额",
             yaxis_title="实际金额",
             height=600,
-            margin=dict(t=40, b=40, l=40, r=40)
+            margin=dict(t=40, b=40, l=40, r=40),
+            hovermode='closest'
         )
         
         charts['target_scatter'] = fig_scatter
@@ -1077,20 +1206,17 @@ def main():
         "📉 趋势洞察分析"
     ])
     
-    # Tab 1: 关键指标总览 - 只显示指标卡片
+    # Tab 1: 关键指标总览 - 优化后的指标卡片
     with tabs[0]:
-        # 第一行指标
+        # 核心指标展示
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-label">💰 {metrics['current_year']}年总销售额</div>
+                <div class="metric-label">💰 年度销售总额</div>
                 <div class="metric-value data-point">¥{metrics['total_sales']/100000000:.2f}亿</div>
                 <div class="metric-detail">同比 {'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%</div>
-                <div class="metric-trend {'trend-up' if metrics['growth_rate'] > 0 else 'trend-down'}">
-                    {'增长' if metrics['growth_rate'] > 0 else '下降'}
-                </div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1099,10 +1225,7 @@ def main():
             <div class="metric-card">
                 <div class="metric-label">❤️ 客户健康度</div>
                 <div class="metric-value data-point">{metrics['normal_rate']:.1f}%</div>
-                <div class="metric-detail">正常运营 {metrics['normal_customers']} 家</div>
-                <div class="metric-trend {'trend-up' if metrics['normal_rate'] > 85 else 'trend-down'}">
-                    {'优秀' if metrics['normal_rate'] > 85 else '需改善'}
-                </div>
+                <div class="metric-detail">正常客户 {metrics['normal_customers']} 家</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1114,9 +1237,6 @@ def main():
                     {metrics['max_dependency']:.1f}%
                 </div>
                 <div class="metric-detail">{metrics['max_dependency_region']} 区域</div>
-                <div class="metric-trend {'trend-down' if metrics['max_dependency'] > 30 else 'trend-up'}">
-                    {'高风险' if metrics['max_dependency'] > 30 else '可控'}
-                </div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1125,71 +1245,12 @@ def main():
             <div class="metric-card">
                 <div class="metric-label">🎯 目标达成率</div>
                 <div class="metric-value data-point">{metrics['target_achievement_rate']:.1f}%</div>
-                <div class="metric-detail">达成 {metrics['achieved_customers']}/{metrics['total_target_customers']} 家</div>
-                <div class="metric-trend {'trend-up' if metrics['target_achievement_rate'] > 80 else 'trend-down'}">
-                    {'良好' if metrics['target_achievement_rate'] > 80 else '需提升'}
-                </div>
+                <div class="metric-detail">{metrics['achieved_customers']}/{metrics['total_target_customers']} 家达成</div>
             </div>
             """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 第二行指标
-        col5, col6, col7, col8 = st.columns(4)
-        
-        with col5:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">💎 高价值客户占比</div>
-                <div class="metric-value data-point">{metrics['high_value_rate']:.1f}%</div>
-                <div class="metric-detail">钻石+黄金 {metrics['diamond_customers']+metrics['gold_customers']} 家</div>
-                <div class="metric-trend {'trend-up' if metrics['high_value_rate'] > 60 else 'trend-down'}">
-                    {'健康' if metrics['high_value_rate'] > 60 else '需培育'}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        with col6:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">💰 平均客户贡献</div>
-                <div class="metric-value data-point">¥{metrics['avg_customer_contribution']/10000:.1f}万</div>
-                <div class="metric-detail">每客户平均销售额</div>
-                <div class="metric-trend trend-up">稳定</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col7:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">🔒 客户集中度</div>
-                <div class="metric-value data-point">{metrics['concentration_rate']:.1f}%</div>
-                <div class="metric-detail">前20%客户贡献</div>
-                <div class="metric-trend {'trend-down' if metrics['concentration_rate'] > 80 else 'trend-up'}">
-                    {'过高' if metrics['concentration_rate'] > 80 else '合理'}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col8:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">⏰ 流失预警</div>
-                <div class="metric-value data-point" style="color: {'#f56565' if metrics['risk_customers'] > 10 else '#48bb78'};">
-                    {metrics['risk_customers']} 家
-                </div>
-                <div class="metric-detail">需要立即干预</div>
-                <div class="metric-trend {'trend-down' if metrics['risk_customers'] > 10 else 'trend-up'}">
-                    {'紧急' if metrics['risk_customers'] > 10 else '可控'}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
         
         # 核心洞察总结
+        st.markdown("<br>", unsafe_allow_html=True)
         col1, col2 = st.columns([1, 1])
         
         with col1:
@@ -1234,12 +1295,13 @@ def main():
     with tabs[1]:
         st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
         
+        # 增强版雷达图
         create_chart_with_tooltip(
             charts['health_radar'],
             "客户健康状态综合评估",
-            "多维度评估客户群体的整体健康状况",
+            "多维度评估客户群体的整体健康状况（悬停查看详情）",
             """
-            • <b>用途</b>：全面评估客户群体的健康程度<br>
+            • <b>使用说明</b>：将鼠标悬停在雷达图的各个维度上查看详细信息<br>
             • <b>维度说明</b>：<br>
               - 健康度：正常运营客户占比<br>
               - 目标达成：完成销售目标的客户比例<br>
@@ -1252,54 +1314,41 @@ def main():
             "health_radar_chart"
         )
         
-        # 客户状态分布
+        # 客户状态分布（优化展示）
         if not customer_status.empty:
             status_counts = customer_status['状态'].value_counts()
-            
-            fig_status = go.Figure()
-            
-            # 使用环形图展示
-            fig_status.add_trace(go.Pie(
-                labels=status_counts.index,
-                values=status_counts.values,
-                hole=0.6,
-                marker=dict(colors=['#48bb78', '#f56565']),
-                textinfo='label+percent+value',
-                textfont=dict(size=14),
-                hovertemplate='<b>%{label}</b><br>数量: %{value}<br>占比: %{percent}<extra></extra>'
-            ))
-            
-            # 在中心添加总数
-            fig_status.add_annotation(
-                text=f'<b>{metrics["total_customers"]}</b><br>总客户数',
-                x=0.5, y=0.5,
-                font=dict(size=20, color='#2d3748'),
-                showarrow=False
-            )
-            
-            fig_status.update_layout(
-                height=400,
-                margin=dict(t=40, b=40, l=40, r=40),
-                showlegend=True
-            )
             
             col1, col2 = st.columns([2, 1])
             
             with col1:
-                create_chart_with_tooltip(
-                    fig_status,
-                    "客户状态分布",
-                    "当前客户运营状态概览",
-                    """
-                    • <b>用途</b>：监控客户群体的运营状态<br>
-                    • <b>指标说明</b>：<br>
-                      - 正常：正常运营的活跃客户<br>
-                      - 闭户：已停止合作的客户<br>
-                    • <b>健康标准</b>：正常客户占比应>85%<br>
-                    • <b>行动建议</b>：定期回访闭户客户，了解原因并尝试挽回
-                    """,
-                    "status_pie_chart"
+                fig_status = go.Figure()
+                
+                # 使用环形图展示
+                fig_status.add_trace(go.Pie(
+                    labels=status_counts.index,
+                    values=status_counts.values,
+                    hole=0.6,
+                    marker=dict(colors=['#48bb78', '#f56565']),
+                    textinfo='label+percent+value',
+                    textfont=dict(size=14),
+                    hovertemplate='<b>%{label}</b><br>数量: %{value}<br>占比: %{percent}<extra></extra>'
+                ))
+                
+                # 在中心添加总数
+                fig_status.add_annotation(
+                    text=f'<b>{metrics["total_customers"]}</b><br>总客户数',
+                    x=0.5, y=0.5,
+                    font=dict(size=20, color='#2d3748'),
+                    showarrow=False
                 )
+                
+                fig_status.update_layout(
+                    height=400,
+                    margin=dict(t=40, b=40, l=40, r=40),
+                    showlegend=True
+                )
+                
+                st.plotly_chart(fig_status, use_container_width=True)
             
             with col2:
                 # 健康度评分卡
@@ -1326,505 +1375,74 @@ def main():
     with tabs[2]:
         st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
         
-        if 'risk_3d' in charts:
-            # 3D风险图占用全宽
+        # 区域风险分析
+        if not metrics['region_stats'].empty:
+            # 创建风险评估矩阵
+            fig_risk_matrix = go.Figure()
+            
+            # 添加风险区域背景
+            fig_risk_matrix.add_shape(
+                type="rect", x0=0, y0=30, x1=100, y1=100,
+                fillcolor="rgba(255, 0, 0, 0.1)", layer="below"
+            )
+            fig_risk_matrix.add_shape(
+                type="rect", x0=0, y0=15, x1=100, y1=30,
+                fillcolor="rgba(255, 165, 0, 0.1)", layer="below"
+            )
+            fig_risk_matrix.add_shape(
+                type="rect", x0=0, y0=0, x1=100, y1=15,
+                fillcolor="rgba(0, 255, 0, 0.1)", layer="below"
+            )
+            
+            # 添加散点
+            for _, region in metrics['region_stats'].iterrows():
+                color = '#ff4444' if region['最大客户依赖度'] > 30 else '#ff8800' if region['最大客户依赖度'] > 15 else '#48bb78'
+                fig_risk_matrix.add_trace(go.Scatter(
+                    x=[region['客户数']],
+                    y=[region['最大客户依赖度']],
+                    mode='markers+text',
+                    marker=dict(
+                        size=region['总销售额']/100000,  # 根据销售额调整大小
+                        color=color,
+                        line=dict(color='white', width=2)
+                    ),
+                    text=region['区域'],
+                    textposition="top center",
+                    name=region['区域'],
+                    hovertemplate=f"<b>{region['区域']}</b><br>" +
+                                 f"客户数: {region['客户数']}<br>" +
+                                 f"依赖度: {region['最大客户依赖度']:.1f}%<br>" +
+                                 f"总销售: ¥{region['总销售额']/10000:.1f}万<br>" +
+                                 f"最大客户: {region['最大客户']}<extra></extra>"
+                ))
+            
+            # 添加风险线
+            fig_risk_matrix.add_hline(y=30, line_dash="dash", line_color="red", 
+                                      annotation_text="高风险线", annotation_position="right")
+            fig_risk_matrix.add_hline(y=15, line_dash="dash", line_color="orange", 
+                                      annotation_text="中风险线", annotation_position="right")
+            
+            fig_risk_matrix.update_layout(
+                title="区域客户依赖风险矩阵",
+                xaxis_title="客户数量",
+                yaxis_title="最大客户依赖度(%)",
+                height=500,
+                showlegend=False,
+                hovermode='closest'
+            )
+            
             create_chart_with_tooltip(
-                charts['risk_3d'],
-                "大客户依赖风险三维分布图",
-                "立体展示各区域的大客户依赖风险",
+                fig_risk_matrix,
+                "区域客户依赖风险评估",
+                "识别高风险区域，制定风险分散策略",
                 """
-                • <b>用途</b>：识别高风险区域，制定风险分散策略<br>
-                • <b>坐标说明</b>：<br>
-                  - X轴：区域客户数量<br>
-                  - Y轴：区域销售额（万元）<br>
-                  - Z轴：最大客户依赖度（%）<br>
-                  - 球体大小：依赖度大小<br>
-                  - 颜色：风险等级（红色高风险，绿色低风险）<br>
-                • <b>风险标准</b>：依赖度>30%为高风险<br>
+                • <b>用途</b>：评估各区域的大客户依赖风险<br>
+                • <b>风险等级</b>：<br>
+                  - 红色区域(>30%)：高风险，需立即采取行动<br>
+                  - 橙色区域(15-30%)：中风险，需要关注<br>
+                  - 绿色区域(<15%)：低风险，保持监控<br>
+                • <b>气泡大小</b>：代表区域总销售额<br>
                 • <b>管理策略</b>：<br>
                   - 高风险区域：开发新客户，分散风险<br>
+                  - 中风险区域：培育潜力客户，平衡结构<br>
                   - 低风险区域：维持现状，持续优化
-                """,
-                "risk_3d_chart"
-            )
-            
-            # 风险区域详情
-            if not metrics['region_stats'].empty:
-                risk_regions = metrics['region_stats'][
-                    metrics['region_stats']['最大客户依赖度'] > 30
-                ].sort_values('最大客户依赖度', ascending=False)
-                
-                if not risk_regions.empty:
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.warning(f"⚠️ 发现 {len(risk_regions)} 个高风险区域（依赖度>30%）")
-                    
-                    # 创建风险区域对比图
-                    fig_risk_compare = go.Figure()
-                    
-                    fig_risk_compare.add_trace(go.Bar(
-                        x=risk_regions['区域'],
-                        y=risk_regions['最大客户依赖度'],
-                        marker_color=['#ff4444' if d > 40 else '#ff8800' if d > 30 else '#ffaa00' 
-                                     for d in risk_regions['最大客户依赖度']],
-                        text=[f"{d:.1f}%" for d in risk_regions['最大客户依赖度']],
-                        textposition='outside',
-                        hovertemplate='<b>%{x}</b><br>依赖度: %{y:.1f}%<extra></extra>'
-                    ))
-                    
-                    fig_risk_compare.add_hline(y=30, line_dash="dash", line_color="red", 
-                                              annotation_text="风险线(30%)")
-                    
-                    fig_risk_compare.update_layout(
-                        title="高风险区域大客户依赖度对比",
-                        xaxis_title="区域",
-                        yaxis_title="最大客户依赖度(%)",
-                        height=400,
-                        showlegend=False
-                    )
-                    
-                    st.plotly_chart(fig_risk_compare, use_container_width=True)
-                    
-                    # 详细信息展开
-                    for _, region in risk_regions.iterrows():
-                        with st.expander(f"🔍 {region['区域']}区域详情 - 依赖度 {region['最大客户依赖度']:.1f}%"):
-                            col1, col2, col3, col4 = st.columns(4)
-                            
-                            with col1:
-                                st.metric("最大客户", region['最大客户'])
-                            with col2:
-                                st.metric("客户贡献", f"¥{region['最大客户销售额']/10000:.1f}万")
-                            with col3:
-                                st.metric("区域客户数", f"{region['客户数']}家")
-                            with col4:
-                                st.metric("平均贡献", f"¥{region['平均销售额']/10000:.1f}万")
-                            
-                            # TOP3客户贡献可视化
-                            if 'TOP3客户' in region and region['TOP3客户']:
-                                st.markdown("**TOP3客户贡献分析：**")
-                                
-                                top3_names = [c['name'] for c in region['TOP3客户']]
-                                top3_values = [c['percentage'] for c in region['TOP3客户']]
-                                top3_sales = [c['sales'] for c in region['TOP3客户']]
-                                
-                                fig_top3 = go.Figure()
-                                
-                                fig_top3.add_trace(go.Bar(
-                                    x=top3_values,
-                                    y=top3_names,
-                                    orientation='h',
-                                    marker_color=['#e74c3c', '#f39c12', '#f1c40f'],
-                                    text=[f"{v:.1f}% (¥{s/10000:.1f}万)" for v, s in zip(top3_values, top3_sales)],
-                                    textposition='outside',
-                                    hovertemplate='<b>%{y}</b><br>占比: %{x:.1f}%<extra></extra>'
-                                ))
-                                
-                                fig_top3.update_layout(
-                                    xaxis_title="贡献占比(%)",
-                                    height=200,
-                                    margin=dict(l=0, r=0, t=20, b=0)
-                                )
-                                
-                                st.plotly_chart(fig_top3, use_container_width=True)
-                                
-                                # 风险缓解建议
-                                st.info(f"""
-                                **风险缓解建议：**
-                                - 开发5-8家新客户，将依赖度降至25%以下
-                                - 对{region['最大客户']}制定专属维护计划
-                                - 推动区域内其他客户增加采购量
-                                """)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Tab 4: 价值分层管理
-    with tabs[3]:
-        st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
-        
-        # 客户价值分布卡片
-        col1, col2, col3, col4, col5 = st.columns(5)
-        
-        value_cards = [
-            (col1, "💎", "钻石客户", metrics['diamond_customers'], "#e74c3c", "顶级VIP客户"),
-            (col2, "🥇", "黄金客户", metrics['gold_customers'], "#f39c12", "核心大客户"),
-            (col3, "🥈", "白银客户", metrics['silver_customers'], "#95a5a6", "重要客户"),
-            (col4, "🌟", "潜力客户", metrics['potential_customers'], "#3498db", "待开发客户"),
-            (col5, "⚠️", "流失风险", metrics['risk_customers'], "#9b59b6", "需挽回客户")
-        ]
-        
-        for col, icon, label, value, color, desc in value_cards:
-            with col:
-                st.markdown(f"""
-                <div style='text-align: center; padding: 1.5rem; background: {color}; 
-                          color: white; border-radius: 15px; height: 150px;
-                          display: flex; flex-direction: column; justify-content: center;
-                          transition: all 0.3s ease; cursor: pointer;'
-                     onmouseover="this.style.transform='translateY(-5px) scale(1.05)'"
-                     onmouseout="this.style.transform='translateY(0) scale(1)'">
-                    <div style='font-size: 2rem;'>{icon}</div>
-                    <h3 style='margin: 0.5rem 0; font-size: 2rem;'>{value}</h3>
-                    <p style='margin: 0; font-size: 0.9rem;'>{label}</p>
-                    <p style='margin: 0; font-size: 0.75rem; opacity: 0.8;'>{desc}</p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 桑基图和旭日图
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            if 'sankey' in charts:
-                create_chart_with_tooltip(
-                    charts['sankey'],
-                    "客户价值流向分析",
-                    "展示客户在不同价值层级的分布",
-                    """
-                    • <b>用途</b>：可视化客户价值分层结构<br>
-                    • <b>流向说明</b>：从总客户池流向各价值层级<br>
-                    • <b>颜色含义</b>：<br>
-                      - 红色：钻石客户（最高价值）<br>
-                      - 橙色：黄金客户（高价值）<br>
-                      - 灰色：白银客户（中等价值）<br>
-                      - 蓝色：潜力客户（待培育）<br>
-                      - 紫色：流失风险（需挽回）<br>
-                    • <b>管理重点</b>：提升潜力客户，预防客户流失
-                    """,
-                    "value_sankey"
-                )
-        
-        with col2:
-            if 'sunburst' in charts:
-                create_chart_with_tooltip(
-                    charts['sunburst'],
-                    "客户贡献度层级分析",
-                    "按价值层级展示具体客户贡献",
-                    """
-                    • <b>用途</b>：深入分析各层级客户的销售贡献<br>
-                    • <b>图表结构</b>：<br>
-                      - 内圈：客户价值类型<br>
-                      - 外圈：该类型TOP5客户<br>
-                      - 面积：销售额占比<br>
-                    • <b>交互方法</b>：点击内圈可展开查看具体客户<br>
-                    • <b>洞察价值</b>：<br>
-                      - 识别各层级的关键客户<br>
-                      - 发现贡献集中度<br>
-                      - 制定差异化策略
-                    """,
-                    "value_sunburst"
-                )
-        
-        # RFM分析洞察
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("""
-        <div class='insight-card'>
-            <h4>🎯 客户价值管理策略</h4>
-            <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;'>
-                <div>
-                    <h5 style='color: #e74c3c;'>💎 钻石客户（{0}家）</h5>
-                    <ul style='margin: 0; padding-left: 20px; font-size: 0.9rem;'>
-                        <li>建立1对1专属服务团队</li>
-                        <li>提供定制化解决方案</li>
-                        <li>季度业务回顾会议</li>
-                    </ul>
-                </div>
-                <div>
-                    <h5 style='color: #f39c12;'>🥇 黄金客户（{1}家）</h5>
-                    <ul style='margin: 0; padding-left: 20px; font-size: 0.9rem;'>
-                        <li>月度拜访和需求调研</li>
-                        <li>优先供货和技术支持</li>
-                        <li>培育升级为钻石客户</li>
-                    </ul>
-                </div>
-                <div>
-                    <h5 style='color: #3498db;'>🌟 潜力客户（{2}家）</h5>
-                    <ul style='margin: 0; padding-left: 20px; font-size: 0.9rem;'>
-                        <li>精准营销和产品推荐</li>
-                        <li>提供试用和优惠政策</li>
-                        <li>挖掘增长潜力点</li>
-                    </ul>
-                </div>
-                <div>
-                    <h5 style='color: #9b59b6;'>⚠️ 流失风险（{3}家）</h5>
-                    <ul style='margin: 0; padding-left: 20px; font-size: 0.9rem;'>
-                        <li>立即启动挽回计划</li>
-                        <li>了解流失原因并改进</li>
-                        <li>提供专项激励方案</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-        """.format(
-            metrics['diamond_customers'],
-            metrics['gold_customers'],
-            metrics['potential_customers'],
-            metrics['risk_customers']
-        ), unsafe_allow_html=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Tab 5: 目标达成追踪
-    with tabs[4]:
-        st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
-        
-        if 'target_scatter' in charts:
-            # 散点图占用全宽
-            create_chart_with_tooltip(
-                charts['target_scatter'],
-                "客户目标达成分布图",
-                "可视化每个客户的目标完成情况",
-                """
-                • <b>用途</b>：精准定位需要支持的客户<br>
-                • <b>图表说明</b>：<br>
-                  - X轴：销售目标金额<br>
-                  - Y轴：实际完成金额<br>
-                  - 点大小：达成率高低<br>
-                  - 颜色：达成程度（绿色优秀，红色落后）<br>
-                • <b>参考线</b>：<br>
-                  - 红色虚线：100%目标线<br>
-                  - 橙色点线：80%达成线<br>
-                • <b>管理应用</b>：<br>
-                  - 红线以下：未达成目标，需要支持<br>
-                  - 橙线以下：严重落后，立即干预<br>
-                  - 绿色区域：超额完成，总结经验
-                """,
-                "target_scatter_chart"
-            )
-            
-            # 达成情况统计
-            achievement_df = metrics['customer_achievement_details']
-            if not achievement_df.empty:
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                col1, col2 = st.columns([3, 1])
-                
-                with col1:
-                    # 达成率分布直方图
-                    fig_hist = go.Figure()
-                    
-                    fig_hist.add_trace(go.Histogram(
-                        x=achievement_df['达成率'],
-                        nbinsx=20,
-                        marker_color='#667eea',
-                        name='客户数',
-                        hovertemplate='达成率: %{x:.0f}%<br>客户数: %{y}<extra></extra>'
-                    ))
-                    
-                    fig_hist.add_vline(x=80, line_dash="dash", line_color="orange", 
-                                      annotation_text="达成线(80%)")
-                    fig_hist.add_vline(x=100, line_dash="dash", line_color="green", 
-                                      annotation_text="目标线(100%)")
-                    
-                    fig_hist.update_layout(
-                        title="达成率分布直方图",
-                        xaxis_title="达成率(%)",
-                        yaxis_title="客户数量",
-                        height=350,
-                        showlegend=False
-                    )
-                    
-                    st.plotly_chart(fig_hist, use_container_width=True)
-                
-                with col2:
-                    # 达成情况统计卡
-                    achieved = len(achievement_df[achievement_df['达成率'] >= 80])
-                    excellent = len(achievement_df[achievement_df['达成率'] >= 100])
-                    poor = len(achievement_df[achievement_df['达成率'] < 50])
-                    
-                    st.markdown(f"""
-                    <div style='background: linear-gradient(135deg, #f8f9fa, #e9ecef); 
-                              padding: 2rem; border-radius: 15px; height: 350px;'>
-                        <h4 style='margin-bottom: 1.5rem; color: #2d3748;'>📊 达成统计</h4>
-                        <div style='margin-bottom: 1rem;'>
-                            <div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
-                                <span>✅ 达成(≥80%)</span>
-                                <span style='font-weight: bold; color: #48bb78;'>{achieved}家</span>
-                            </div>
-                            <div style='background: #48bb78; height: 6px; border-radius: 3px; 
-                                      width: {achieved/len(achievement_df)*100:.0f}%;'></div>
-                        </div>
-                        <div style='margin-bottom: 1rem;'>
-                            <div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
-                                <span>🌟 超额(≥100%)</span>
-                                <span style='font-weight: bold; color: #667eea;'>{excellent}家</span>
-                            </div>
-                            <div style='background: #667eea; height: 6px; border-radius: 3px; 
-                                      width: {excellent/len(achievement_df)*100:.0f}%;'></div>
-                        </div>
-                        <div style='margin-bottom: 1rem;'>
-                            <div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
-                                <span>⚠️ 落后(<50%)</span>
-                                <span style='font-weight: bold; color: #f56565;'>{poor}家</span>
-                            </div>
-                            <div style='background: #f56565; height: 6px; border-radius: 3px; 
-                                      width: {poor/len(achievement_df)*100:.0f}%;'></div>
-                        </div>
-                        <hr style='border-color: #e2e8f0; margin: 1.5rem 0;'>
-                        <div style='text-align: center;'>
-                            <h2 style='color: #667eea; margin: 0;'>{metrics['target_achievement_rate']:.1f}%</h2>
-                            <p style='color: #718096; margin: 0;'>整体达成率</p>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                # TOP10落后客户警示
-                bottom_customers = achievement_df.nsmallest(10, '达成率')
-                if not bottom_customers.empty:
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.error("⚠️ 需要重点支持的客户（达成率最低TOP10）")
-                    
-                    fig_bottom = go.Figure()
-                    
-                    fig_bottom.add_trace(go.Bar(
-                        x=bottom_customers['客户'],
-                        y=bottom_customers['达成率'],
-                        marker_color=['#ff4444' if r < 50 else '#ff8800' for r in bottom_customers['达成率']],
-                        text=[f"{r:.0f}%" for r in bottom_customers['达成率']],
-                        textposition='outside',
-                        hovertemplate='<b>%{x}</b><br>达成率: %{y:.1f}%<br>目标: ¥%{customdata[0]:,.0f}<br>实际: ¥%{customdata[1]:,.0f}<extra></extra>',
-                        customdata=bottom_customers[['目标', '实际']].values
-                    ))
-                    
-                    fig_bottom.add_hline(y=80, line_dash="dash", line_color="orange")
-                    
-                    fig_bottom.update_layout(
-                        xaxis_title="客户",
-                        yaxis_title="达成率(%)",
-                        height=300,
-                        xaxis_tickangle=-45,
-                        showlegend=False
-                    )
-                    
-                    st.plotly_chart(fig_bottom, use_container_width=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Tab 6: 趋势洞察分析
-    with tabs[5]:
-        st.markdown("<div class='advanced-card'>", unsafe_allow_html=True)
-        
-        if 'trend' in charts:
-            create_chart_with_tooltip(
-                charts['trend'],
-                "销售趋势双轴分析",
-                "展示销售额和订单数的月度变化趋势",
-                """
-                • <b>用途</b>：分析业务发展趋势和季节性规律<br>
-                • <b>双轴说明</b>：<br>
-                  - 左轴：销售额（蓝色面积图）<br>
-                  - 右轴：订单数量（红色虚线）<br>
-                • <b>洞察要点</b>：<br>
-                  - 销售额趋势：判断业务增长情况<br>
-                  - 订单数趋势：反映客户活跃度<br>
-                  - 两者关系：单价变化趋势<br>
-                • <b>应用价值</b>：<br>
-                  - 预测未来销售走势<br>
-                  - 制定库存和生产计划<br>
-                  - 优化促销活动时机
-                """,
-                "trend_analysis_chart"
-            )
-        
-        # 季节性分析
-        if not sales_data.empty:
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # 计算月度平均值
-            sales_data['月份'] = sales_data['订单日期'].dt.month
-            monthly_avg = sales_data.groupby('月份')['金额'].mean()
-            
-            # 创建季节性指数图
-            fig_seasonal = go.Figure()
-            
-            fig_seasonal.add_trace(go.Bar(
-                x=['1月', '2月', '3月', '4月', '5月', '6月', 
-                   '7月', '8月', '9月', '10月', '11月', '12月'],
-                y=monthly_avg.values,
-                marker_color=['#3498db' if i not in [3,4,5,11,12] else '#e74c3c' 
-                             for i in range(1, 13)],
-                text=[f"¥{v/10000:.1f}万" for v in monthly_avg.values],
-                textposition='outside',
-                hovertemplate='%{x}<br>平均销售额: ¥%{y:,.0f}<extra></extra>'
-            ))
-            
-            # 添加平均线
-            avg_line = monthly_avg.mean()
-            fig_seasonal.add_hline(y=avg_line, line_dash="dash", line_color="gray",
-                                  annotation_text=f"年均值: ¥{avg_line/10000:.1f}万")
-            
-            fig_seasonal.update_layout(
-                title="月度销售季节性分析",
-                xaxis_title="月份",
-                yaxis_title="平均销售额",
-                height=400,
-                showlegend=False
-            )
-            
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                st.plotly_chart(fig_seasonal, use_container_width=True)
-            
-            with col2:
-                # 季节性洞察
-                peak_months = monthly_avg.nlargest(3).index.tolist()
-                low_months = monthly_avg.nsmallest(3).index.tolist()
-                
-                st.markdown(f"""
-                <div style='background: #f8f9fa; padding: 1.5rem; border-radius: 15px;'>
-                    <h4>📅 季节性特征</h4>
-                    <div style='margin-bottom: 1rem;'>
-                        <h5 style='color: #e74c3c;'>🔥 销售旺季</h5>
-                        <p>{', '.join([f"{m}月" for m in peak_months])}</p>
-                    </div>
-                    <div style='margin-bottom: 1rem;'>
-                        <h5 style='color: #3498db;'>❄️ 销售淡季</h5>
-                        <p>{', '.join([f"{m}月" for m in low_months])}</p>
-                    </div>
-                    <hr style='border-color: #e2e8f0;'>
-                    <h5>💡 经营建议</h5>
-                    <ul style='margin: 0; padding-left: 20px; font-size: 0.9rem;'>
-                        <li>旺季前1-2个月备货</li>
-                        <li>淡季加强客户维护</li>
-                        <li>制定差异化定价策略</li>
-                    </ul>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        # 未来趋势预测
-        st.markdown("""
-        <div class='insight-card'>
-            <h4>🔮 趋势预测与建议</h4>
-            <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;'>
-                <div>
-                    <h5>📈 增长机会</h5>
-                    <ul style='margin: 0; padding-left: 20px; font-size: 0.9rem;'>
-                        <li>Q2季度为传统旺季，提前准备库存</li>
-                        <li>节假日促销效果显著，制定专项方案</li>
-                        <li>新客户开发在Q1效果最佳</li>
-                    </ul>
-                </div>
-                <div>
-                    <h5>⚠️ 风险提示</h5>
-                    <ul style='margin: 0; padding-left: 20px; font-size: 0.9rem;'>
-                        <li>客户集中度过高，需要风险分散</li>
-                        <li>部分区域依赖单一大客户</li>
-                        <li>流失预警客户需立即干预</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # 页脚
-    st.markdown("""
-    <div style='text-align: center; color: #666; margin-top: 3rem; padding: 2rem 0; border-top: 1px solid #e0e0e0;'>
-        <p>Trolli SAL | 客户依赖分析 | 数据更新时间: {}</p>
-        <p style='font-size: 0.9rem; opacity: 0.8;'>智能分析 · 精准决策 · 价值创造</p>
-    </div>
-    """.format(datetime.now().strftime('%Y-%m-%d %H:%M')), unsafe_allow_html=True)
-
-# 运行主应用
-if __name__ == "__main__":
-    main()
