@@ -138,7 +138,7 @@ st.markdown("""
     }
     
     /* 统一的卡片容器样式 */
-    .metric-card, .content-container, .insight-box {
+    .metric-card, .content-container, .chart-container, .insight-box {
         background: rgba(255,255,255,0.98) !important;
         border-radius: 25px;
         padding: 2rem;
@@ -153,30 +153,27 @@ st.markdown("""
         border-left: 4px solid #667eea;
     }
     
-    /* Plotly图表圆角样式 - 重要修改 */
-    .js-plotly-plot .plotly .modebar {
-        border-top-right-radius: 20px !important;
-    }
-    
-    .js-plotly-plot .plotly {
+    /* Plotly 图表圆角样式 */
+    .js-plotly-plot {
         border-radius: 20px !important;
         overflow: hidden !important;
-        box-shadow: 
-            0 15px 35px rgba(0,0,0,0.08),
-            0 5px 15px rgba(0,0,0,0.03) !important;
-        border: 1px solid rgba(102, 126, 234, 0.2) !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08) !important;
     }
     
-    /* Plotly图表容器样式 */
-    div[data-testid="stPlotlyChart"] {
+    /* Plotly 图表容器圆角 */
+    [data-testid="stPlotlyChart"] {
         border-radius: 20px !important;
         overflow: hidden !important;
-        margin-bottom: 2rem !important;
-        background: rgba(255,255,255,0.98) !important;
-        padding: 1rem !important;
-        box-shadow: 
-            0 15px 35px rgba(0,0,0,0.08),
-            0 5px 15px rgba(0,0,0,0.03) !important;
+    }
+    
+    /* Plotly iframe 圆角 */
+    [data-testid="stPlotlyChart"] > div {
+        border-radius: 20px !important;
+        overflow: hidden !important;
+    }
+    
+    [data-testid="stPlotlyChart"] iframe {
+        border-radius: 20px !important;
     }
     
     /* 指标卡片增强样式 - 修复文字截断 */
@@ -244,7 +241,7 @@ st.markdown("""
         }
     }
     
-    .metric-card:hover, .content-container:hover {
+    .metric-card:hover, .content-container:hover, .chart-container:hover {
         transform: translateY(-8px);
         box-shadow: 0 25px 50px rgba(0,0,0,0.12);
     }
@@ -1264,7 +1261,10 @@ def create_integrated_risk_analysis(processed_inventory):
                 bgcolor="white",
                 font_size=14,
                 font_family="Inter"
-            )
+            ),
+            paper_bgcolor='rgba(255,255,255,0.98)',
+            plot_bgcolor='rgba(255,255,255,0.98)',
+            margin=dict(l=20, r=20, t=80, b=20)
         )
         
         # 更新子图标题样式
@@ -1516,7 +1516,10 @@ def create_ultra_integrated_forecast_chart(merged_data):
                 bgcolor="white",
                 font_size=14,
                 font_family="Inter"
-            )
+            ),
+            paper_bgcolor='rgba(255,255,255,0.98)',
+            plot_bgcolor='rgba(255,255,255,0.98)',
+            margin=dict(l=20, r=20, t=100, b=20)
         )
         
         return fig
