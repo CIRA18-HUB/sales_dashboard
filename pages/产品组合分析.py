@@ -18,114 +18,313 @@ st.set_page_config(
     layout="wide"
 )
 
-# 增强的CSS样式
+# 增强的CSS样式 - 与销售达成分析一致
 st.markdown("""
 <style>
-    /* 主标题样式 */
+    /* 导入Google字体 */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    /* 全局字体 */
+    .stApp {
+        font-family: 'Inter', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-attachment: fixed;
+    }
+    
+    /* 添加浮动粒子背景动画 */
+    .stApp::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: 
+            radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 2px, transparent 2px),
+            radial-gradient(circle at 75% 75%, rgba(255,255,255,0.1) 2px, transparent 2px);
+        background-size: 100px 100px;
+        animation: float 20s linear infinite;
+        pointer-events: none;
+        z-index: -1;
+    }
+    
+    @keyframes float {
+        0% { transform: translateY(0px) translateX(0px); }
+        25% { transform: translateY(-20px) translateX(10px); }
+        50% { transform: translateY(0px) translateX(-10px); }
+        75% { transform: translateY(-10px) translateX(5px); }
+        100% { transform: translateY(0px) translateX(0px); }
+    }
+    
+    /* 主容器背景 */
+    .main .block-container {
+        background: rgba(255,255,255,0.95);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-top: 2rem;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    /* 主标题样式 - 增强动画 */
     .main-header {
         text-align: center;
-        padding: 2rem 0;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 3rem 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+        background-size: 200% 200%;
         color: white;
-        border-radius: 10px;
+        border-radius: 25px;
         margin-bottom: 2rem;
-        animation: fadeIn 1s ease-in;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* 增强的指标卡片样式 */
-    .metric-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        text-align: center;
-        height: 100%;
-        transition: all 0.3s ease;
-        animation: slideUp 0.6s ease-out;
+        animation: gradientShift 4s ease infinite, fadeInScale 1.5s ease-out, glow 2s ease-in-out infinite alternate;
+        box-shadow: 
+            0 15px 35px rgba(102, 126, 234, 0.4),
+            0 5px 15px rgba(0,0,0,0.1),
+            inset 0 1px 0 rgba(255,255,255,0.1);
         position: relative;
         overflow: hidden;
+        transform: perspective(1000px) rotateX(0deg);
+        transition: transform 0.3s ease;
     }
     
-    .metric-card:hover {
-        transform: translateY(-5px) scale(1.02);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    .main-header:hover {
+        transform: perspective(1000px) rotateX(-2deg) scale(1.02);
+        box-shadow: 
+            0 25px 50px rgba(102, 126, 234, 0.5),
+            0 10px 30px rgba(0,0,0,0.15);
     }
     
-    .metric-card::before {
+    .main-header::before {
         content: '';
         position: absolute;
         top: -50%;
         left: -50%;
         width: 200%;
         height: 200%;
-        background: linear-gradient(45deg, transparent, rgba(102,126,234,0.1), transparent);
-        transform: rotate(45deg);
-        transition: all 0.6s;
-        opacity: 0;
+        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.15), transparent);
+        animation: shimmer 3s linear infinite;
     }
     
-    .metric-card:hover::before {
-        animation: shimmer 0.6s ease-in-out;
+    .main-header::after {
+        content: '✨';
+        position: absolute;
+        top: 10%;
+        right: 10%;
+        font-size: 2rem;
+        animation: sparkle 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes glow {
+        from { box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4), 0 5px 15px rgba(0,0,0,0.1); }
+        to { box-shadow: 0 20px 40px rgba(102, 126, 234, 0.6), 0 8px 20px rgba(0,0,0,0.15); }
+    }
+    
+    @keyframes sparkle {
+        0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        50% { transform: scale(1.3) rotate(180deg); opacity: 0.7; }
+    }
+    
+    @keyframes gradientShift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
     }
     
     @keyframes shimmer {
-        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); opacity: 0; }
-        50% { opacity: 1; }
-        100% { transform: translateX(100%) translateY(100%) rotate(45deg); opacity: 0; }
+        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
     }
     
-    @keyframes slideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+    @keyframes fadeInScale {
+        from { 
+            opacity: 0; 
+            transform: translateY(-50px) scale(0.8) rotateX(-10deg); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0) scale(1) rotateX(0deg); 
+        }
+    }
+    
+    /* 增强的指标卡片样式 */
+    .metric-card {
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        padding: 2.5rem 2rem;
+        border-radius: 25px;
+        box-shadow: 
+            0 15px 35px rgba(0,0,0,0.08),
+            0 5px 15px rgba(0,0,0,0.03),
+            inset 0 1px 0 rgba(255,255,255,0.9);
+        text-align: center;
+        height: 100%;
+        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        animation: slideUpStagger 1s ease-out;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.3);
+        backdrop-filter: blur(10px);
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+        transition: left 0.8s ease;
+    }
+    
+    .metric-card::after {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: linear-gradient(45deg, #667eea, #764ba2, #667eea);
+        border-radius: 25px;
+        z-index: -1;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-15px) scale(1.05) rotateY(5deg);
+        box-shadow: 
+            0 30px 60px rgba(0,0,0,0.15),
+            0 15px 30px rgba(102, 126, 234, 0.2);
+        border-color: rgba(102, 126, 234, 0.3);
+        animation: pulse 1.5s infinite;
+    }
+    
+    .metric-card:hover::before {
+        left: 100%;
+    }
+    
+    .metric-card:hover::after {
+        opacity: 0.1;
+    }
+    
+    @keyframes slideUpStagger {
+        from { 
+            opacity: 0; 
+            transform: translateY(60px) scale(0.8) rotateX(-15deg); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0) scale(1) rotateX(0deg); 
+        }
     }
     
     .metric-value {
-        font-size: 2.2rem;
-        font-weight: bold;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-size: 3.2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+        background-size: 200% 200%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem;
+        background-clip: text;
+        margin-bottom: 1rem;
+        animation: textGradient 4s ease infinite, bounce 2s ease-in-out infinite;
+        line-height: 1;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+        40% { transform: translateY(-3px); }
+        60% { transform: translateY(-2px); }
+    }
+    
+    @keyframes textGradient {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
     }
     
     .metric-label {
-        color: #666;
+        color: #374151;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-top: 0.8rem;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+    
+    .metric-sublabel {
+        color: #6b7280;
         font-size: 0.9rem;
-        margin-top: 0.5rem;
+        margin-top: 0.8rem;
+        font-weight: 500;
+        font-style: italic;
     }
     
     /* 标签页样式增强 */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: #f8f9fa;
-        padding: 0.5rem;
-        border-radius: 10px;
+        gap: 15px;
+        background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
+        padding: 1rem;
+        border-radius: 20px;
+        box-shadow: 
+            inset 0 2px 4px rgba(0,0,0,0.06),
+            0 4px 8px rgba(0,0,0,0.04);
+        backdrop-filter: blur(10px);
     }
     
     .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        padding: 0 24px;
-        background-color: white;
-        border-radius: 8px;
-        border: 1px solid #e0e0e0;
-        font-weight: 600;
-        transition: all 0.3s ease;
+        height: 65px;
+        padding: 0 35px;
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 15px;
+        border: 1px solid rgba(102, 126, 234, 0.15);
+        font-weight: 700;
+        font-size: 1rem;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+    
+    .stTabs [data-baseweb="tab"]::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.15), transparent);
+        transition: left 0.8s ease;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-5px) scale(1.05);
+        box-shadow: 0 15px 30px rgba(102, 126, 234, 0.2);
+        border-color: rgba(102, 126, 234, 0.4);
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover::before {
+        left: 100%;
     }
     
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 
+            0 15px 40px rgba(102, 126, 234, 0.4),
+            0 5px 15px rgba(0,0,0,0.1);
+        animation: activeTab 0.5s ease;
+    }
+    
+    .stTabs [aria-selected="true"]::before {
+        display: none;
+    }
+    
+    @keyframes activeTab {
+        0% { transform: scale(0.95); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1.02); }
     }
     
     /* 动画卡片延迟 */
@@ -133,6 +332,104 @@ st.markdown("""
     .metric-card:nth-child(2) { animation-delay: 0.2s; }
     .metric-card:nth-child(3) { animation-delay: 0.3s; }
     .metric-card:nth-child(4) { animation-delay: 0.4s; }
+    .metric-card:nth-child(5) { animation-delay: 0.5s; }
+    .metric-card:nth-child(6) { animation-delay: 0.6s; }
+    
+    /* 图表容器样式 */
+    .chart-container {
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 25px;
+        padding: 1.5rem;
+        box-shadow: 
+            0 15px 35px rgba(0,0,0,0.08),
+            inset 0 1px 0 rgba(255,255,255,0.9);
+        border: 1px solid rgba(255,255,255,0.3);
+        animation: chartFadeIn 1.2s ease-out;
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .chart-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.02), transparent);
+        animation: chartShimmer 8s linear infinite;
+    }
+    
+    @keyframes chartShimmer {
+        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+    }
+    
+    @keyframes chartFadeIn {
+        from { 
+            opacity: 0; 
+            transform: translateY(30px) scale(0.95); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0) scale(1); 
+        }
+    }
+    
+    /* 添加脉动效果 */
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .metric-value {
+            font-size: 2.5rem;
+        }
+        .metric-card {
+            padding: 2rem 1.5rem;
+        }
+        .main-header {
+            padding: 2rem 0;
+        }
+    }
+    
+    /* 添加加载动画 */
+    @keyframes loading {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .loading {
+        animation: loading 2s linear infinite;
+    }
+    
+    /* 成功动画 */
+    @keyframes success {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    
+    .success {
+        animation: success 0.6s ease-in-out;
+    }
+    
+    /* 促销活动有效率标题样式 */
+    .promo-header {
+        text-align: center;
+        padding: 1.5rem 0;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border-radius: 15px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+        font-weight: 700;
+        font-size: 1.5rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -342,7 +639,7 @@ def create_bcg_matrix(data, dimension='national', selected_region=None):
             return region_analysis
         return pd.DataFrame()
 
-def plot_interactive_bcg_matrix(product_df, title="BCG产品矩阵"):
+def plot_bcg_matrix(product_df, title="BCG产品矩阵"):
     """绘制简化的BCG矩阵图"""
     if len(product_df) == 0:
         return go.Figure()
@@ -1003,7 +1300,7 @@ def main():
         
         # 显示BCG矩阵图表
         if len(product_analysis) > 0:
-            fig = plot_interactive_bcg_matrix(product_analysis, title=title)
+            fig = plot_bcg_matrix(product_analysis, title=title)
             st.plotly_chart(fig, use_container_width=True)
             
             # JBP符合度分析
