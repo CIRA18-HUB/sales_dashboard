@@ -138,7 +138,7 @@ st.markdown("""
     }
     
     /* 统一的卡片容器样式 */
-    .metric-card, .content-container, .chart-container, .insight-box {
+    .metric-card, .content-container, .insight-box {
         background: rgba(255,255,255,0.98) !important;
         border-radius: 25px;
         padding: 2rem;
@@ -244,7 +244,7 @@ st.markdown("""
         }
     }
     
-    .metric-card:hover, .content-container:hover, .chart-container:hover {
+    .metric-card:hover, .content-container:hover {
         transform: translateY(-8px);
         box-shadow: 0 25px 50px rgba(0,0,0,0.12);
     }
