@@ -692,6 +692,27 @@ def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashb
     else:
         avg_effective_sales = 0
 
+    # 计算每个区域的新品渗透率，用于总览页面
+    regional_penetration_data = []
+    regions = sales_2025['区域'].unique()
+    
+    for region in regions:
+        region_data = sales_2025[sales_2025['区域'] == region]
+        
+        # 总客户数
+        total_customers_region = region_data['客户名称'].nunique()
+        
+        # 购买新品的客户数
+        new_product_customers_region = region_data[region_data['产品代码'].isin(new_products)]['客户名称'].nunique()
+        
+        # 新品渗透率
+        penetration_rate_region = (new_product_customers_region / total_customers_region * 100) if total_customers_region > 0 else 0
+        
+        regional_penetration_data.append({
+            'region': region,
+            'penetration_rate': penetration_rate_region
+        })
+
     return {
         'total_sales': total_sales,
         'star_ratio': star_ratio,
@@ -702,7 +723,8 @@ def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashb
         'promo_effectiveness': promo_effectiveness,
         'effective_products_rate': effective_rate_all,
         'effective_products_count': effective_count,
-        'avg_effective_sales': avg_effective_sales
+        'avg_effective_sales': avg_effective_sales,
+        'regional_penetration_data': regional_penetration_data  # 新增区域渗透率数据
     }
 
 
@@ -1081,7 +1103,7 @@ def analyze_promotion_effectiveness_enhanced(data):
     return pd.DataFrame(effectiveness_results)
 
 
-# 区域覆盖率分析
+# 修改区域覆盖率分析 - 加强悬停功能
 def create_regional_coverage_analysis(data):
     """创建更易读的区域产品覆盖率分析"""
     sales_df = data['sales_df']
@@ -1096,8 +1118,26 @@ def create_regional_coverage_analysis(data):
         total_products = len(dashboard_products)
         coverage_rate = (len(products_sold) / total_products * 100) if total_products > 0 else 0
 
-        # 找出漏铺的产品
+        # 找出漏铺的产品并获取产品名称
         missing_products = [p for p in dashboard_products if p not in products_sold]
+        
+        # 获取漏铺产品的名称
+        missing_product_names = []
+        for product_code in missing_products[:10]:  # 只显示前10个
+            product_info = sales_df[sales_df['产品代码'] == product_code]
+            if len(product_info) > 0:
+                product_name = product_info['产品简称'].iloc[0]
+            else:
+                product_name = f"产品{product_code}"
+            missing_product_names.append(product_name)
+        
+        # 创建漏铺产品列表文本
+        if len(missing_products) > 10:
+            missing_products_text = ', '.join(missing_product_names) + f', 等共{len(missing_products)}个产品'
+        elif len(missing_products) > 0:
+            missing_products_text = ', '.join(missing_product_names)
+        else:
+            missing_products_text = '无'
 
         total_sales = region_data['销售额'].sum()
         dashboard_sales = region_data[region_data['产品代码'].isin(dashboard_products)]['销售额'].sum()
@@ -1111,7 +1151,8 @@ def create_regional_coverage_analysis(data):
             'dashboard_sales': dashboard_sales,
             'gap': max(0, 80 - coverage_rate),
             'missing_products': missing_products,
-            'missing_count': len(missing_products)
+            'missing_count': len(missing_products),
+            'missing_products_text': missing_products_text
         })
 
     df = pd.DataFrame(regional_stats).sort_values('coverage_rate', ascending=True)
@@ -1136,6 +1177,18 @@ def create_regional_coverage_analysis(data):
         else:
             colors.append('#991b1b')  # 深红色
 
+    # 创建自定义hover数据
+    customdata = []
+    for _, row in df.iterrows():
+        customdata.append([
+            row['products_sold'],
+            row['total_products'],
+            row['missing_count'],
+            row['total_sales'],
+            row['dashboard_sales'],
+            row['missing_products_text']
+        ])
+
     fig.add_trace(go.Bar(
         y=df['region'],
         x=df['coverage_rate'],
@@ -1156,8 +1209,9 @@ def create_regional_coverage_analysis(data):
 漏铺产品数: %{customdata[2]}个<br>
 总销售额: ¥%{customdata[3]:,.0f}<br>
 仪表盘产品销售额: ¥%{customdata[4]:,.0f}<br>
+<br><b>漏铺产品:</b><br>%{customdata[5]}<br>
 <extra></extra>""",
-        customdata=df[['products_sold', 'total_products', 'missing_count', 'total_sales', 'dashboard_sales']].values
+        customdata=customdata
     ))
 
     fig.add_vline(x=80, line_dash="dash", line_color="red",
@@ -1541,7 +1595,7 @@ def create_optimized_promotion_chart(promo_results):
     return fig
 
 
-# 新增：创建漏铺产品详细分析
+# 修复漏铺产品分析函数的KeyError
 def create_missing_products_analysis(data, selected_region=None):
     """创建漏铺产品详细分析"""
     sales_df = data['sales_df']
@@ -1582,9 +1636,14 @@ def create_missing_products_analysis(data, selected_region=None):
                 'total_sales_other': total_sales
             })
 
-        df = pd.DataFrame(product_performance).sort_values('avg_sales_other_regions', ascending=False)
-
-        if len(df) > 0:
+        # 修复：只有在有数据时才创建DataFrame和排序
+        if len(product_performance) > 0:
+            df = pd.DataFrame(product_performance)
+            
+            # 检查是否有数据可以排序
+            if len(df) > 0 and 'avg_sales_other_regions' in df.columns:
+                df = df.sort_values('avg_sales_other_regions', ascending=False)
+            
             # 创建图表
             fig = go.Figure()
 
@@ -1622,12 +1681,13 @@ def create_missing_products_analysis(data, selected_region=None):
 
             return fig, df
         else:
+            # 没有漏铺产品或没有其他区域数据
             return None, pd.DataFrame()
     else:
         return None, pd.DataFrame()
 
 
-# 新增：创建区域新品渗透率分析
+# 修改区域新品渗透率分析 - 修复问题1和2
 def create_regional_penetration_analysis(data):
     """创建区域新品渗透率分析"""
     sales_df = data['sales_df']
@@ -1669,7 +1729,7 @@ def create_regional_penetration_analysis(data):
             'new_products_count': new_products_sold
         })
 
-    df = pd.DataFrame(regional_stats).sort_values('penetration_rate', ascending=False)
+    df = pd.DataFrame(regional_stats).sort_values('penetration_rate', ascending=True)  # 改为升序，使东区在左边
 
     # 创建图表
     fig = go.Figure()
@@ -1710,21 +1770,37 @@ def create_regional_penetration_analysis(data):
         customdata=df[['new_product_sales', 'total_sales']].values
     ))
 
-    # 添加平均线
-    avg_penetration = df['penetration_rate'].mean()
-    fig.add_hline(y=avg_penetration, line_dash="dash", line_color="gray",
-                  annotation_text=f"平均渗透率: {avg_penetration:.1f}%",
-                  annotation_position="left")
+    # 计算全国平均渗透率
+    total_customers_all = sales_2025['客户名称'].nunique()
+    new_customers_all = sales_2025[sales_2025['产品代码'].isin(new_products)]['客户名称'].nunique()
+    national_avg_penetration = (new_customers_all / total_customers_all * 100) if total_customers_all > 0 else 0
+
+    # 添加全国平均线（红色虚线）
+    fig.add_hline(y=national_avg_penetration, line_dash="dash", line_color="red",
+                  annotation_text=f"全国渗透率: {national_avg_penetration:.1f}%",
+                  annotation_position="top left",
+                  annotation_textangle=0)
 
     fig.update_layout(
         title=dict(text="<b>区域新品渗透率分析</b>", font=dict(size=20)),
         xaxis=dict(title="销售区域"),
-        yaxis=dict(title="新品渗透率 (%)", side='left'),
+        yaxis=dict(
+            title="新品渗透率 (%)", 
+            side='left',
+            range=[0, max(df['penetration_rate'].max() * 1.2, national_avg_penetration * 1.3)]  # 确保标注不被遮挡
+        ),
         yaxis2=dict(title="新品销售占比 (%)", overlaying='y', side='right'),
         height=600,
         hovermode='x unified',
-        legend=dict(x=0.02, y=0.98, bgcolor='rgba(255,255,255,0.8)'),
-        plot_bgcolor='white'
+        legend=dict(
+            x=0.02, 
+            y=0.98, 
+            bgcolor='rgba(255,255,255,0.8)',
+            bordercolor='rgba(0,0,0,0.2)',
+            borderwidth=1
+        ),
+        plot_bgcolor='white',
+        margin=dict(t=100)  # 增加顶部边距，避免标注被遮挡
     )
 
     return fig, df
@@ -2283,6 +2359,53 @@ def main():
             </div>
             """, unsafe_allow_html=True)
 
+        # 添加区域新品渗透率图表（与总览页面的新品渗透率指标联动）
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<div class='content-container'>", unsafe_allow_html=True)
+        
+        # 创建简化的区域渗透率图表
+        regional_data = pd.DataFrame(metrics['regional_penetration_data'])
+        regional_data = regional_data.sort_values('penetration_rate', ascending=True)
+        
+        fig_regional = go.Figure()
+        
+        # 添加柱状图
+        fig_regional.add_trace(go.Bar(
+            x=regional_data['region'],
+            y=regional_data['penetration_rate'],
+            text=[f"{rate:.1f}%" for rate in regional_data['penetration_rate']],
+            textposition='outside',
+            marker=dict(color='#4CAF50'),
+            hovertemplate="""<b>%{x}区域</b><br>
+新品渗透率: %{y:.1f}%<br>
+<extra></extra>"""
+        ))
+        
+        # 添加全国平均线（红色虚线）
+        fig_regional.add_hline(
+            y=metrics['penetration_rate'], 
+            line_dash="dash", 
+            line_color="red",
+            annotation_text=f"全国渗透率: {metrics['penetration_rate']:.1f}%",
+            annotation_position="top left",
+            annotation_textangle=0
+        )
+        
+        fig_regional.update_layout(
+            title=dict(text="<b>区域新品渗透率分析</b>", font=dict(size=18)),
+            xaxis=dict(title="销售区域"),
+            yaxis=dict(
+                title="新品渗透率 (%)",
+                range=[0, max(regional_data['penetration_rate'].max() * 1.2, metrics['penetration_rate'] * 1.3)]
+            ),
+            height=400,
+            plot_bgcolor='white',
+            margin=dict(t=80)
+        )
+        
+        st.plotly_chart(fig_regional, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
     # Tab 2: BCG产品矩阵
     with tabs[1]:
         # 选择维度控件
@@ -2810,7 +2933,7 @@ def main():
                               f"{'高于' if avg_penetration > 50 else '低于'}行业平均")
 
                 with col2:
-                    top_region = penetration_df.iloc[0]
+                    top_region = penetration_df.iloc[-1]  # 因为是升序排列，最后一个是最高的
                     st.success(f"""
                     **🏆 最佳区域**
                     {top_region['region']}: {top_region['penetration_rate']:.1f}%
@@ -2818,7 +2941,7 @@ def main():
                     """)
 
                 with col3:
-                    bottom_region = penetration_df.iloc[-1]
+                    bottom_region = penetration_df.iloc[0]  # 第一个是最低的
                     st.warning(f"""
                     **⚠️ 待提升区域**
                     {bottom_region['region']}: {bottom_region['penetration_rate']:.1f}%
