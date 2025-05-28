@@ -474,7 +474,7 @@ def load_and_process_data():
 
 
 def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='全国'):
-    """创建整合的趋势分析图表 - 专业且有趣的现代化设计"""
+    """创建整合的趋势分析图表 - 优化布局和视觉效果"""
     # 获取区域数据
     if selected_region == '全国':
         region_sales = sales_data.copy()
@@ -525,41 +525,39 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
     # 合并数据
     monthly_trend = monthly_trend.merge(active_customers, on='年月', how='left')
 
-    # 创建综合图表 - 优化布局
+    # 创建2x2布局 - 更宽松的空间
     fig = make_subplots(
-        rows=3, cols=3,
-        row_heights=[0.5, 0.3, 0.2],
-        column_widths=[0.45, 0.275, 0.275],
+        rows=2, cols=2,
+        row_heights=[0.55, 0.45],  # 上下两行
+        column_widths=[0.6, 0.4],  # 左右两列
         subplot_titles=(
-            '', '', '',
-            '', '', '',
-            '', '', ''
+            '', '', '', ''
         ),
         specs=[
-            [{"secondary_y": True, "colspan": 2}, None, {"type": "pie"}],
-            [{"secondary_y": False}, {"type": "bar"}, {"secondary_y": True}],
-            [{"secondary_y": False, "colspan": 3}, None, None]
+            [{"secondary_y": True}, {"type": "pie"}],
+            [{"secondary_y": True}, {"secondary_y": False}]
         ],
-        vertical_spacing=0.15,
-        horizontal_spacing=0.12
+        vertical_spacing=0.18,  # 增加垂直间距
+        horizontal_spacing=0.15  # 增加水平间距
     )
 
-    # 定义专业配色方案
+    # 定义克制的配色方案
     primary_color = '#667eea'
-    primary_gradient = 'rgba(102, 126, 234, 0.15)'
+    primary_light = 'rgba(102, 126, 234, 0.1)'
     secondary_color = '#ff6b6b'
+    tertiary_color = '#9b59b6'
     accent_colors = ['#3498db', '#2ecc71', '#f39c12', '#e74c3c']
 
-    # 自定义悬停模板样式
+    # 统一的悬停模板样式
     hover_template_style = """
-        <span style='font-size: 14px; font-family: Microsoft YaHei;'>
-            <b style='color: #667eea;'>%{customdata[0]}</b><br>
+        <span style='font-size: 13px; font-family: Microsoft YaHei;'>
+            <b>%{customdata[0]}</b><br>
             %{customdata[1]}
         </span>
         <extra></extra>
     """
 
-    # 1. 主趋势图（左上，跨2列）
+    # 1. 主趋势图（左上） - 占主要视觉空间
     # 销售额面积图
     fig.add_trace(
         go.Scatter(
@@ -567,41 +565,22 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             y=monthly_trend['销售额'],
             mode='lines',
             name='销售额',
-            line=dict(color=primary_color, width=4, shape='spline'),
+            line=dict(color=primary_color, width=3, shape='spline'),
             fill='tozeroy',
-            fillcolor=primary_gradient,
+            fillcolor=primary_light,
             customdata=np.column_stack((
                 monthly_trend['年月_str'],
-                [f"💰 销售额: <b>¥{val:,.0f}</b><br>📈 环比增长: <b>{growth:.1f}%</b><br>💵 平均客单价: <b>¥{avg:,.0f}</b>"
+                [f"💰 销售额: <b>¥{val:,.0f}</b><br>📈 环比: <b>{growth:.1f}%</b><br>💵 均价: <b>¥{avg:,.0f}</b>"
                  for val, growth, avg in zip(monthly_trend['销售额'],
                                              monthly_trend['环比增长'].fillna(0),
                                              monthly_trend['平均客单价'])]
             )),
             hovertemplate=hover_template_style,
             hoverlabel=dict(
-                bgcolor="rgba(255, 255, 255, 0.95)",
+                bgcolor="white",
                 bordercolor=primary_color,
-                font=dict(size=13, color='#2d3748', family="Microsoft YaHei")
+                font=dict(size=12, color='#2d3748')
             )
-        ),
-        row=1, col=1, secondary_y=False
-    )
-
-    # 添加数据点标记
-    fig.add_trace(
-        go.Scatter(
-            x=monthly_trend['年月_str'],
-            y=monthly_trend['销售额'],
-            mode='markers',
-            name='数据点',
-            marker=dict(
-                size=12,
-                color=primary_color,
-                line=dict(color='white', width=3),
-                symbol='circle'
-            ),
-            showlegend=False,
-            hoverinfo='skip'
         ),
         row=1, col=1, secondary_y=False
     )
@@ -613,26 +592,25 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             y=monthly_trend['订单数'],
             mode='lines+markers',
             name='订单数',
-            line=dict(color=secondary_color, width=3, dash='dot'),
-            marker=dict(size=8, color=secondary_color, line=dict(color='white', width=2)),
+            line=dict(color=secondary_color, width=2.5, dash='dot'),
+            marker=dict(size=6, color=secondary_color),
             customdata=np.column_stack((
                 monthly_trend['年月_str'],
-                [f"📦 订单数: <b>{val}笔</b><br>📊 环比变化: <b>{growth:.1f}%</b>"
+                [f"📦 订单数: <b>{val}笔</b><br>📊 环比: <b>{growth:.1f}%</b>"
                  for val, growth in zip(monthly_trend['订单数'],
                                         monthly_trend['订单环比'].fillna(0))]
             )),
             hovertemplate=hover_template_style,
             hoverlabel=dict(
-                bgcolor="rgba(255, 255, 255, 0.95)",
+                bgcolor="white",
                 bordercolor=secondary_color,
-                font=dict(size=13, color='#2d3748', family="Microsoft YaHei")
+                font=dict(size=12, color='#2d3748')
             )
         ),
         row=1, col=1, secondary_y=True
     )
 
     # 2. 金额区间贡献饼图（右上）
-    # 计算百分比
     total_dist_sales = distribution['销售额'].sum()
     percentages = (distribution['销售额'] / total_dist_sales * 100).round(1)
 
@@ -640,114 +618,75 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
         go.Pie(
             labels=distribution['金额区间'],
             values=distribution['销售额'],
-            hole=0.5,
+            hole=0.45,
             marker=dict(
                 colors=accent_colors,
-                line=dict(color='white', width=3)
+                line=dict(color='white', width=2)
             ),
             textinfo='label+percent',
-            textfont=dict(size=14, color='white', family="Microsoft YaHei"),
+            textfont=dict(size=13, color='white'),
             textposition='auto',
             customdata=np.column_stack((
                 distribution['金额区间'],
-                [
-                    f"💰 销售额: <b>¥{val:,.0f}</b><br>📊 占比: <b>{pct:.1f}%</b><br>📦 订单数: <b>{cnt}笔</b><br>💵 平均: <b>¥{avg:,.0f}</b>"
-                    for val, pct, cnt, avg in zip(distribution['销售额'],
-                                                  percentages,
-                                                  distribution['订单数'],
-                                                  distribution['平均金额'])]
+                [f"💰 销售额: <b>¥{val:,.0f}</b><br>📊 占比: <b>{pct:.1f}%</b><br>📦 订单: <b>{cnt}笔</b>"
+                 for val, pct, cnt in zip(distribution['销售额'],
+                                          percentages,
+                                          distribution['订单数'])]
             )),
             hovertemplate="""
-                <span style='font-size: 14px; font-family: Microsoft YaHei;'>
-                    <b style='color: #667eea;'>%{label}</b><br>
+                <span style='font-size: 13px; font-family: Microsoft YaHei;'>
+                    <b>%{label}</b><br>
                     %{customdata[1]}
                 </span>
                 <extra></extra>
             """,
             hoverlabel=dict(
-                bgcolor="rgba(255, 255, 255, 0.95)",
+                bgcolor="white",
                 bordercolor="#667eea",
-                font=dict(size=13, color='#2d3748', family="Microsoft YaHei")
+                font=dict(size=12, color='#2d3748')
             ),
-            pull=[0.1 if i == distribution['销售额'].idxmax() else 0 for i in range(len(distribution))]
+            pull=[0.05 if i == distribution['销售额'].idxmax() else 0 for i in range(len(distribution))]
         ),
-        row=1, col=3
+        row=1, col=2
     )
 
-    # 在饼图中心添加总计（动态效果）
+    # 饼图中心文字
     fig.add_annotation(
-        x=0.835, y=0.75,
-        text=f"<b>💎 总计</b><br><span style='font-size:20px; color:#667eea;'>{format_amount(total_sales)}</span>",
+        x=1.15, y=0.73,
+        text=f"<b>总计</b><br><span style='font-size:18px;'>{format_amount(total_sales)}</span>",
         showarrow=False,
-        font=dict(size=16, color='#2d3748', family="Microsoft YaHei"),
+        font=dict(size=14, color='#2d3748'),
         xref="paper", yref="paper"
     )
 
-    # 3. 平均客单价趋势（左中）
+    # 3. 客单价与客户数合并图（左下） - 双Y轴
+    # 平均客单价柱状图
     fig.add_trace(
-        go.Scatter(
+        go.Bar(
             x=monthly_trend['年月_str'],
             y=monthly_trend['平均客单价'],
-            mode='lines+markers+text',
             name='平均客单价',
-            line=dict(color='#9b59b6', width=3),
             marker=dict(
-                size=12,
-                color='#9b59b6',
-                line=dict(color='white', width=2)
+                color=tertiary_color,
+                opacity=0.6,
+                line=dict(color=tertiary_color, width=1)
             ),
-            fill='tozeroy',
-            fillcolor='rgba(155, 89, 182, 0.1)',
-            text=[f'¥{v / 10000:.1f}万' if v > 0 else '' for v in monthly_trend['平均客单价']],
-            textposition='top center',
-            textfont=dict(size=10, color='#9b59b6'),
             customdata=np.column_stack((
                 monthly_trend['年月_str'],
-                [f"💵 平均客单价: <b>¥{val:,.0f}</b><br>📊 标准差: <b>¥{std:,.0f}</b>"
-                 for val, std in zip(monthly_trend['平均客单价'],
-                                     monthly_trend['标准差'].fillna(0))]
+                [f"💵 平均客单价: <b>¥{val:,.0f}</b>" for val in monthly_trend['平均客单价']]
             )),
             hovertemplate=hover_template_style,
             hoverlabel=dict(
-                bgcolor="rgba(255, 255, 255, 0.95)",
-                bordercolor='#9b59b6',
-                font=dict(size=13, color='#2d3748', family="Microsoft YaHei")
-            )
+                bgcolor="white",
+                bordercolor=tertiary_color,
+                font=dict(size=12, color='#2d3748')
+            ),
+            yaxis='y3'
         ),
         row=2, col=1, secondary_y=False
     )
 
-    # 4. 订单金额分布（中中）
-    fig.add_trace(
-        go.Bar(
-            x=distribution['金额区间'],
-            y=distribution['订单数'],
-            name='订单分布',
-            marker=dict(
-                color=accent_colors,
-                line=dict(color='white', width=2),
-            ),
-            text=[f'{count}' for count in distribution['订单数']],
-            textposition='outside',
-            textfont=dict(size=14, color='#2d3748', family="Microsoft YaHei"),
-            customdata=np.column_stack((
-                distribution['金额区间'],
-                [f"📦 订单数: <b>{cnt}笔</b><br>💰 销售额: <b>¥{val:,.0f}</b><br>💵 平均金额: <b>¥{avg:,.0f}</b>"
-                 for cnt, val, avg in zip(distribution['订单数'],
-                                          distribution['销售额'],
-                                          distribution['平均金额'])]
-            )),
-            hovertemplate=hover_template_style,
-            hoverlabel=dict(
-                bgcolor="rgba(255, 255, 255, 0.95)",
-                bordercolor='#3498db',
-                font=dict(size=13, color='#2d3748', family="Microsoft YaHei")
-            )
-        ),
-        row=2, col=2
-    )
-
-    # 5. 活跃客户数（右中）
+    # 活跃客户数折线图
     fig.add_trace(
         go.Scatter(
             x=monthly_trend['年月_str'],
@@ -756,39 +695,39 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             name='活跃客户数',
             line=dict(color='#e74c3c', width=3),
             marker=dict(
-                size=12,
+                size=10,
                 color='#e74c3c',
-                line=dict(color='white', width=2),
-                symbol='diamond'
+                line=dict(color='white', width=2)
             ),
             text=[f'{y}' for y in monthly_trend['活跃客户数']],
             textposition='top center',
-            textfont=dict(size=11, color='#e74c3c', family="Microsoft YaHei"),
+            textfont=dict(size=10, color='#e74c3c'),
             customdata=np.column_stack((
                 monthly_trend['年月_str'],
-                [f"👥 活跃客户数: <b>{val}家</b>" for val in monthly_trend['活跃客户数']]
+                [f"👥 活跃客户: <b>{val}家</b>" for val in monthly_trend['活跃客户数']]
             )),
             hovertemplate=hover_template_style,
             hoverlabel=dict(
-                bgcolor="rgba(255, 255, 255, 0.95)",
+                bgcolor="white",
                 bordercolor='#e74c3c',
-                font=dict(size=13, color='#2d3748', family="Microsoft YaHei")
-            )
+                font=dict(size=12, color='#2d3748')
+            ),
+            yaxis='y4'
         ),
-        row=2, col=3, secondary_y=True
+        row=2, col=1, secondary_y=True
     )
 
-    # 6. 环比增长率（底部，跨3列）
+    # 4. 环比增长率（右下）
     colors_bar = []
     for x in monthly_trend['环比增长'].fillna(0):
         if x > 20:
-            colors_bar.append('#2ecc71')  # 深绿色，高增长
+            colors_bar.append('#2ecc71')
         elif x > 0:
-            colors_bar.append('#27ae60')  # 浅绿色，正增长
+            colors_bar.append('#27ae60')
         elif x > -10:
-            colors_bar.append('#e67e22')  # 橙色，轻微下降
+            colors_bar.append('#e67e22')
         else:
-            colors_bar.append('#e74c3c')  # 红色，大幅下降
+            colors_bar.append('#e74c3c')
 
     fig.add_trace(
         go.Bar(
@@ -797,25 +736,25 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             name='销售额环比',
             marker=dict(
                 color=colors_bar,
-                line=dict(color='white', width=2),
+                line=dict(color='white', width=1)
             ),
             text=[f'{x:.1f}%' if pd.notna(x) else '0.0%' for x in monthly_trend['环比增长']],
             textposition='outside',
-            textfont=dict(size=12, color='#2d3748', family="Microsoft YaHei"),
+            textfont=dict(size=11, color='#2d3748'),
             customdata=np.column_stack((
                 monthly_trend['年月_str'],
-                [f"📈 销售额环比: <b>{s:.1f}%</b><br>📦 订单数环比: <b>{o:.1f}%</b>"
+                [f"📈 销售环比: <b>{s:.1f}%</b><br>📦 订单环比: <b>{o:.1f}%</b>"
                  for s, o in zip(monthly_trend['环比增长'].fillna(0),
                                  monthly_trend['订单环比'].fillna(0))]
             )),
             hovertemplate=hover_template_style,
             hoverlabel=dict(
-                bgcolor="rgba(255, 255, 255, 0.95)",
+                bgcolor="white",
                 bordercolor='#667eea',
-                font=dict(size=13, color='#2d3748', family="Microsoft YaHei")
+                font=dict(size=12, color='#2d3748')
             )
         ),
-        row=3, col=1
+        row=2, col=2
     )
 
     # 添加零线
@@ -823,37 +762,33 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
         type="line",
         x0=0, x1=1,
         y0=0, y1=0,
-        xref="x7 domain", yref="y9",
-        line=dict(color="#95a5a6", width=2, dash="dash"),
+        xref="x4 domain", yref="y5",
+        line=dict(color="#95a5a6", width=1.5, dash="dash"),
         opacity=0.5
     )
 
-    # 添加自定义标题（专业且有趣）
+    # 添加简洁的标题（无彩色框）
     titles = [
-        (0.35, 0.98, f"📈 {selected_region} - 销售额与订单数趋势", 18, primary_color),
-        (0.835, 0.98, "🎯 金额区间贡献", 15, '#e74c3c'),
-        (0.13, 0.48, "💰 平均客单价", 15, '#9b59b6'),
-        (0.425, 0.48, "📊 订单分布", 15, '#3498db'),
-        (0.725, 0.48, "👥 活跃客户数", 15, '#e74c3c'),
-        (0.5, 0.23, "📊 环比增长率", 15, primary_color)
+        (0.3, 0.97, f"📈 {selected_region} - 销售额与订单数趋势", 16),
+        (0.8, 0.97, "🎯 金额区间贡献", 14),
+        (0.3, 0.45, "💰 平均客单价与活跃客户数", 14),
+        (0.8, 0.45, "📊 环比增长率", 14)
     ]
 
-    for x, y, text, size, color in titles:
+    for x, y, text, size in titles:
         fig.add_annotation(
             x=x, y=y,
             xref="paper", yref="paper",
             text=f"<b>{text}</b>",
             showarrow=False,
-            font=dict(size=size, color=color, family="Microsoft YaHei"),
-            bgcolor="rgba(255, 255, 255, 0.9)",
-            bordercolor=color,
-            borderwidth=2,
-            borderpad=10,
-            opacity=0.95
+            font=dict(size=size, color='#2d3748', family="Microsoft YaHei"),
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            bordercolor="rgba(200, 200, 200, 0.3)",
+            borderwidth=1,
+            borderpad=6
         )
 
-    # 添加趣味性装饰元素
-    # 在右上角添加动态指标
+    # 右下角动态指标（位置优化）
     if len(monthly_trend) > 1:
         latest_growth = monthly_trend['环比增长'].iloc[-1]
         growth_emoji = "🚀" if latest_growth > 10 else "📈" if latest_growth > 0 else "📉"
@@ -862,136 +797,106 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             xref="paper", yref="paper",
             text=f"{growth_emoji} 最新环比: <b>{latest_growth:.1f}%</b>",
             showarrow=False,
-            font=dict(size=14, color=primary_color, family="Microsoft YaHei"),
-            bgcolor="rgba(102, 126, 234, 0.1)",
-            bordercolor=primary_color,
+            font=dict(size=12, color=primary_color, family="Microsoft YaHei"),
+            bgcolor="rgba(240, 240, 240, 0.8)",
+            bordercolor="rgba(200, 200, 200, 0.3)",
             borderwidth=1,
-            borderpad=8
+            borderpad=5
         )
 
     # 更新轴标签
-    fig.update_xaxes(title_text="", row=1, col=1, tickangle=-45, showgrid=False, tickfont=dict(size=11))
-    fig.update_xaxes(title_text="", row=2, col=1, tickangle=-45, showgrid=False, tickfont=dict(size=11))
-    fig.update_xaxes(title_text="", row=2, col=2, showgrid=False, tickfont=dict(size=11))
-    fig.update_xaxes(title_text="", row=2, col=3, tickangle=-45, showgrid=False, tickfont=dict(size=11))
-    fig.update_xaxes(title_text="", row=3, col=1, tickangle=-45, showgrid=False, tickfont=dict(size=11))
+    fig.update_xaxes(title_text="", tickangle=-45, showgrid=False, tickfont=dict(size=10))
+    fig.update_yaxes(title_text="销售额", row=1, col=1, secondary_y=False, showgrid=True, tickfont=dict(size=10))
+    fig.update_yaxes(title_text="订单数", row=1, col=1, secondary_y=True, showgrid=False, tickfont=dict(size=10))
+    fig.update_yaxes(title_text="平均客单价", row=2, col=1, secondary_y=False, showgrid=True, tickfont=dict(size=10))
+    fig.update_yaxes(title_text="活跃客户数", row=2, col=1, secondary_y=True, showgrid=False, tickfont=dict(size=10))
+    fig.update_yaxes(title_text="增长率 (%)", row=2, col=2, showgrid=True, tickfont=dict(size=10))
 
-    fig.update_yaxes(title_text="销售额", row=1, col=1, secondary_y=False, showgrid=True, tickfont=dict(size=11))
-    fig.update_yaxes(title_text="订单数", row=1, col=1, secondary_y=True, showgrid=False, tickfont=dict(size=11))
-    fig.update_yaxes(title_text="", row=2, col=1, showgrid=True, tickfont=dict(size=11))
-    fig.update_yaxes(title_text="", row=2, col=2, showgrid=True, tickfont=dict(size=11))
-    fig.update_yaxes(title_text="", row=2, col=3, secondary_y=True, showgrid=True, tickfont=dict(size=11))
-    fig.update_yaxes(title_text="增长率 (%)", row=3, col=1, showgrid=True, tickfont=dict(size=11))
-
-    # 总体布局设置 - 专业且有趣
+    # 总体布局设置 - 简洁专业
     fig.update_layout(
-        height=1050,
+        height=900,  # 降低高度
         showlegend=True,
         hovermode='x unified',
-        hoverdistance=100,
-        spikedistance=1000,
-        plot_bgcolor='rgba(248, 250, 255, 0.5)',
+        plot_bgcolor='rgba(250, 250, 250, 0.5)',
         paper_bgcolor='white',
         title={
             'text': f'<b>{selected_region} 销售综合分析仪表板</b><br>' +
-                    f'<span style="font-size:16px; color:#666;">📊 总销售额: <b style="color:{primary_color}">{format_amount(total_sales)}</b> | ' +
-                    f'📦 总订单数: <b style="color:{secondary_color}">{total_orders:,}</b> | ' +
-                    f'💰 平均客单价: <b style="color:#9b59b6">{format_amount(avg_order_value)}</b></span>',
-            'font': {'size': 28, 'color': primary_color, 'family': 'Microsoft YaHei'},
+                    f'<span style="font-size:14px; color:#666;">总销售额: <b>{format_amount(total_sales)}</b> | ' +
+                    f'总订单数: <b>{total_orders:,}</b> | 平均客单价: <b>{format_amount(avg_order_value)}</b></span>',
+            'font': {'size': 24, 'color': primary_color, 'family': 'Microsoft YaHei'},
             'x': 0.5,
             'xanchor': 'center',
             'y': 0.995,
-            'yanchor': 'top',
-            'pad': {'t': 20}
+            'yanchor': 'top'
         },
         legend=dict(
             orientation="h",
             yanchor="top",
-            y=-0.08,
+            y=-0.1,
             xanchor="center",
             x=0.5,
-            bgcolor='rgba(255, 255, 255, 0.95)',
-            bordercolor=primary_color,
-            borderwidth=2,
-            font=dict(size=13, family="Microsoft YaHei"),
+            bgcolor='rgba(255, 255, 255, 0.9)',
+            bordercolor='rgba(200, 200, 200, 0.3)',
+            borderwidth=1,
+            font=dict(size=11, family="Microsoft YaHei"),
             itemsizing='constant',
-            itemwidth=50,
-            itemclick="toggleothers",  # 点击图例隐藏其他
-            itemdoubleclick="toggle"  # 双击切换
+            itemwidth=40
         ),
-        margin=dict(t=150, b=130, l=80, r=80),
-        font=dict(family="Microsoft YaHei, Arial", size=12, color='#2d3748'),
-        # 统一的悬停标签样式
-        hoverlabel=dict(
-            bgcolor="rgba(255, 255, 255, 0.95)",
-            bordercolor=primary_color,
-            font=dict(size=13, color='#2d3748', family="Microsoft YaHei"),
-            align="left"
-        ),
-        # 添加渐变背景效果
+        margin=dict(t=120, b=120, l=80, r=80),
+        font=dict(family="Microsoft YaHei, Arial", size=11, color='#2d3748'),
+        # 轻微的背景区分
         shapes=[
-            # 主图背景
+            # 主图区域
             dict(
                 type="rect",
                 xref="paper", yref="paper",
-                x0=-0.01, y0=0.47, x1=0.64, y1=0.98,
-                fillcolor="rgba(102, 126, 234, 0.02)",
-                line=dict(color="rgba(102, 126, 234, 0.1)", width=1),
+                x0=-0.02, y0=0.48, x1=0.62, y1=1.02,
+                fillcolor="rgba(248, 249, 250, 0.5)",
+                line=dict(color="rgba(200, 200, 200, 0.2)", width=1),
                 layer="below"
             ),
-            # 饼图背景
+            # 饼图区域
             dict(
                 type="rect",
                 xref="paper", yref="paper",
-                x0=0.66, y0=0.47, x1=1.01, y1=0.98,
-                fillcolor="rgba(231, 76, 60, 0.02)",
-                line=dict(color="rgba(231, 76, 60, 0.1)", width=1),
+                x0=0.64, y0=0.48, x1=1.02, y1=1.02,
+                fillcolor="rgba(248, 249, 250, 0.5)",
+                line=dict(color="rgba(200, 200, 200, 0.2)", width=1),
                 layer="below"
             ),
-            # 中部背景
+            # 下方左侧区域
             dict(
                 type="rect",
                 xref="paper", yref="paper",
-                x0=-0.01, y0=0.2, x1=1.01, y1=0.45,
-                fillcolor="rgba(155, 89, 182, 0.02)",
-                line=dict(color="rgba(155, 89, 182, 0.1)", width=1),
+                x0=-0.02, y0=-0.02, x1=0.62, y1=0.46,
+                fillcolor="rgba(248, 249, 250, 0.5)",
+                line=dict(color="rgba(200, 200, 200, 0.2)", width=1),
                 layer="below"
             ),
-            # 底部背景
+            # 下方右侧区域
             dict(
                 type="rect",
                 xref="paper", yref="paper",
-                x0=-0.01, y0=-0.01, x1=1.01, y1=0.18,
-                fillcolor="rgba(46, 204, 113, 0.02)",
-                line=dict(color="rgba(46, 204, 113, 0.1)", width=1),
+                x0=0.64, y0=-0.02, x1=1.02, y1=0.46,
+                fillcolor="rgba(248, 249, 250, 0.5)",
+                line=dict(color="rgba(200, 200, 200, 0.2)", width=1),
                 layer="below"
             )
         ]
     )
 
-    # 设置网格线样式
+    # 网格线样式
     fig.update_xaxes(
         showgrid=True,
         gridwidth=1,
-        gridcolor='rgba(102, 126, 234, 0.08)',
-        zeroline=False,
-        showspikes=True,
-        spikecolor="rgba(102, 126, 234, 0.3)",
-        spikesnap="cursor",
-        spikemode="across",
-        spikethickness=1
+        gridcolor='rgba(200, 200, 200, 0.15)',
+        zeroline=False
     )
     fig.update_yaxes(
         showgrid=True,
         gridwidth=1,
-        gridcolor='rgba(102, 126, 234, 0.08)',
+        gridcolor='rgba(200, 200, 200, 0.15)',
         zeroline=False
-    )
-
-    # 添加动画效果
-    fig.update_traces(
-        hoverinfo="text",
-        hoverlabel_align="left"
     )
 
     return fig
