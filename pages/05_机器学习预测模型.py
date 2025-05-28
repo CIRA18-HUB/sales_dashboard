@@ -444,8 +444,8 @@ COLOR_SCHEME = {
 def load_and_process_data():
     """加载和处理预测数据"""
     try:
-        # 读取数据文件 - 注意文件在pages文件夹下
-        df = pd.read_excel('pages/预测与销量记录数据仪表盘.xlsx')
+        # 读取数据文件
+        df = pd.read_excel('预测与销量记录数据仪表盘.xlsx')
         
         # 转换月份为日期格式
         df['月份'] = pd.to_datetime(df['月份'])
