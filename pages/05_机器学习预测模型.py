@@ -483,7 +483,11 @@ def calculate_metrics(df_valid):
             'recent_month': None,
             'most_used_model': 'N/A',
             'model_count': 0,
-            'product_metrics': pd.DataFrame()
+            'product_metrics': pd.DataFrame(),
+            'products_with_records': 0,
+            'high_accuracy_count': 0,
+            'medium_accuracy_count': 0,
+            'low_accuracy_count': 0
         }
     
     # 计算每个产品的指标
@@ -529,8 +533,16 @@ def calculate_metrics(df_valid):
         recent_avg_accuracy = 0
         recent_weighted_accuracy = 0
     
-    # 高准确率产品统计
+    # 产品统计
     total_products = len(product_metrics)
+    products_with_records = total_products  # 有记录的产品数等于product_metrics的长度
+    
+    # 准确率分布统计
+    high_accuracy_count = (product_metrics['平均准确率'] > 0.8).sum()
+    medium_accuracy_count = ((product_metrics['平均准确率'] >= 0.6) & (product_metrics['平均准确率'] <= 0.8)).sum()
+    low_accuracy_count = (product_metrics['平均准确率'] < 0.6).sum()
+    
+    # 高准确率产品统计 (>85%)
     high_accuracy_products = (product_metrics['平均准确率'] > 0.85).sum()
     high_accuracy_ratio = high_accuracy_products / total_products * 100 if total_products > 0 else 0
     
@@ -550,7 +562,11 @@ def calculate_metrics(df_valid):
         'recent_month': recent_month,
         'most_used_model': most_used_model,
         'model_count': model_count,
-        'product_metrics': product_metrics
+        'product_metrics': product_metrics,
+        'products_with_records': products_with_records,
+        'high_accuracy_count': high_accuracy_count,
+        'medium_accuracy_count': medium_accuracy_count,
+        'low_accuracy_count': low_accuracy_count
     }
 
 def create_accuracy_trend_chart(df_valid):
@@ -673,6 +689,93 @@ def create_accuracy_trend_chart(df_valid):
         
     except Exception as e:
         st.error(f"准确率趋势图表创建失败: {str(e)}")
+        return go.Figure()
+
+def create_all_products_trend_chart(df_valid):
+    """创建全部产品准确率趋势图"""
+    try:
+        # 获取所有产品列表
+        all_products = df_valid['产品简称'].unique()
+        
+        # 创建子图布局
+        n_products = len(all_products)
+        n_cols = 3
+        n_rows = (n_products + n_cols - 1) // n_cols
+        
+        fig = make_subplots(
+            rows=n_rows, 
+            cols=n_cols,
+            subplot_titles=[f"{product}" for product in all_products],
+            vertical_spacing=0.08,
+            horizontal_spacing=0.05
+        )
+        
+        # 为每个产品添加趋势线
+        for idx, product in enumerate(all_products):
+            row = idx // n_cols + 1
+            col = idx % n_cols + 1
+            
+            product_data = df_valid[df_valid['产品简称'] == product].sort_values('月份')
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=product_data['月份'],
+                    y=product_data['准确率'] * 100,
+                    mode='lines+markers',
+                    name=product,
+                    line=dict(width=2),
+                    marker=dict(size=6),
+                    customdata=np.column_stack((
+                        product_data['实际销量'],
+                        product_data['预测销量'],
+                        product_data['选择模型'],
+                        product_data['计算详情']
+                    )),
+                    hovertemplate="<b>%{fullData.name}</b><br>" +
+                                  "月份: %{x|%Y-%m}<br>" +
+                                  "准确率: %{y:.1f}%<br>" +
+                                  "实际销量: %{customdata[0]:.0f}箱<br>" +
+                                  "预测销量: %{customdata[1]:.0f}箱<br>" +
+                                  "使用模型: %{customdata[2]}<br>" +
+                                  "%{customdata[3]}<br>" +
+                                  "<extra></extra>",
+                    showlegend=False
+                ),
+                row=row, col=col
+            )
+            
+            # 添加85%参考线
+            fig.add_hline(
+                y=85, 
+                line_dash="dot", 
+                line_color="gray",
+                row=row, col=col
+            )
+            
+            # 设置y轴范围
+            fig.update_yaxes(range=[0, 105], row=row, col=col)
+        
+        # 计算需要的高度
+        height = max(1200, n_rows * 300)
+        
+        fig.update_layout(
+            title="全部产品准确率趋势分析<br><sub>每个产品的准确率变化趋势</sub>",
+            height=height,
+            showlegend=False,
+            paper_bgcolor='white',
+            plot_bgcolor='rgba(255,255,255,0.9)',
+            margin=dict(l=50, r=50, t=100, b=50),
+            font=dict(color='black')
+        )
+        
+        # 更新所有子图的网格
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+        
+        return fig
+        
+    except Exception as e:
+        st.error(f"全部产品趋势图表创建失败: {str(e)}")
         return go.Figure()
 
 def create_product_ranking_chart(df_valid, metrics):
@@ -879,7 +982,7 @@ def create_accuracy_distribution_chart(df_valid):
         return go.Figure()
 
 def create_model_analysis_charts(df_valid):
-    """创建模型分析图表 - 修复版"""
+    """创建模型分析图表 - 修复版（不给饼图设置坐标轴）"""
     try:
         # 模型使用频率统计
         model_counts = df_valid['选择模型'].value_counts()
@@ -889,7 +992,7 @@ def create_model_analysis_charts(df_valid):
         model_accuracy.columns = ['模型', '平均准确率', '使用次数']
         model_accuracy = model_accuracy.sort_values('使用次数', ascending=False)
         
-        # 创建子图 - 修复布局问题
+        # 创建子图
         fig = make_subplots(
             rows=1, cols=2,
             subplot_titles=("模型使用频率", "模型准确率vs使用频率"),
@@ -897,7 +1000,7 @@ def create_model_analysis_charts(df_valid):
             horizontal_spacing=0.15
         )
         
-        # 1. 饼图 - 模型使用频率（不设置xaxis和yaxis）
+        # 1. 饼图 - 模型使用频率
         fig.add_trace(go.Pie(
             labels=model_counts.index[:8],  # 只显示前8个
             values=model_counts.values[:8],
@@ -939,7 +1042,7 @@ def create_model_analysis_charts(df_valid):
         fig.add_hline(y=85, line_dash="dash", line_color="gray", 
                       annotation_text="目标: 85%", row=1, col=2)
         
-        # 只对散点图设置坐标轴
+        # 只对散点图设置坐标轴（row=1, col=2）
         fig.update_xaxes(title_text="使用次数", row=1, col=2, showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
         fig.update_yaxes(title_text="平均准确率 (%)", row=1, col=2, showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
         
@@ -957,78 +1060,6 @@ def create_model_analysis_charts(df_valid):
         
     except Exception as e:
         st.error(f"模型分析图表创建失败: {str(e)}")
-        return go.Figure()
-
-def create_product_trend_chart(df_valid):
-    """创建产品准确率趋势图"""
-    try:
-        # 选择销量前10的产品
-        top_products = df_valid.groupby('产品简称')['实际销量'].sum().nlargest(10).index
-        df_top = df_valid[df_valid['产品简称'].isin(top_products)]
-        
-        # 创建图表
-        fig = go.Figure()
-        
-        # 为每个产品添加趋势线
-        for product in top_products:
-            product_data = df_top[df_top['产品简称'] == product].sort_values('月份')
-            
-            fig.add_trace(go.Scatter(
-                x=product_data['月份'],
-                y=product_data['准确率'] * 100,
-                mode='lines+markers',
-                name=product,
-                line=dict(width=2),
-                marker=dict(size=8),
-                customdata=np.column_stack((
-                    product_data['实际销量'],
-                    product_data['预测销量'],
-                    product_data['选择模型'],
-                    product_data['计算详情']
-                )),
-                hovertemplate="<b>%{fullData.name}</b><br>" +
-                              "月份: %{x|%Y-%m}<br>" +
-                              "准确率: %{y:.1f}%<br>" +
-                              "实际销量: %{customdata[0]:.0f}箱<br>" +
-                              "预测销量: %{customdata[1]:.0f}箱<br>" +
-                              "使用模型: %{customdata[2]}<br>" +
-                              "%{customdata[3]}<br>" +
-                              "<extra></extra>"
-            ))
-        
-        # 添加85%目标线
-        fig.add_hline(y=85, line_dash="dot", line_color="gray", 
-                      annotation_text="目标: 85%")
-        
-        fig.update_layout(
-            title="重点产品准确率趋势<br><sub>销量TOP10产品的准确率变化</sub>",
-            xaxis_title="月份",
-            yaxis_title="准确率 (%)",
-            height=700,
-            hovermode='x unified',
-            showlegend=True,
-            legend=dict(
-                yanchor="top",
-                y=0.99,
-                xanchor="left",
-                x=1.02,
-                bgcolor='white',
-                bordercolor='gray',
-                borderwidth=1
-            ),
-            paper_bgcolor='white',
-            plot_bgcolor='rgba(255,255,255,0.9)',
-            margin=dict(l=50, r=200, t=100, b=50),
-            font=dict(color='black')
-        )
-        
-        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
-        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)', range=[0, 105])
-        
-        return fig
-        
-    except Exception as e:
-        st.error(f"产品趋势图表创建失败: {str(e)}")
         return go.Figure()
 
 # 加载数据
@@ -1169,6 +1200,65 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
         
+        # 第三部分：准确率分布统计
+        st.markdown("### 📊 准确率分布统计")
+        col9, col10, col11, col12, col13 = st.columns(5)
+        
+        with col9:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-card-inner">
+                    <div class="metric-value">{metrics['total_products']}</div>
+                    <div class="metric-label">📊 总产品数</div>
+                    <div class="metric-description">系统中的产品总数</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col10:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-card-inner">
+                    <div class="metric-value">{metrics['products_with_records']}</div>
+                    <div class="metric-label">📝 有记录产品数</div>
+                    <div class="metric-description">有准确率记录的产品</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col11:
+            st.markdown(f"""
+            <div class="metric-card accuracy-excellent">
+                <div class="metric-card-inner">
+                    <div class="metric-value">{metrics['high_accuracy_count']}</div>
+                    <div class="metric-label">🟢 高准确率产品</div>
+                    <div class="metric-description">>80%</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col12:
+            st.markdown(f"""
+            <div class="metric-card accuracy-medium">
+                <div class="metric-card-inner">
+                    <div class="metric-value">{metrics['medium_accuracy_count']}</div>
+                    <div class="metric-label">🟡 中等准确率产品</div>
+                    <div class="metric-description">60%-80%</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col13:
+            st.markdown(f"""
+            <div class="metric-card accuracy-low">
+                <div class="metric-card-inner">
+                    <div class="metric-value">{metrics['low_accuracy_count']}</div>
+                    <div class="metric-label">🔴 低准确率产品</div>
+                    <div class="metric-description"><60%</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
         # 显示数据概览
         st.markdown("### 📊 数据概览")
         st.info(f"数据时间范围：{df_valid['月份'].min().strftime('%Y-%m')} 至 {df_valid['月份'].max().strftime('%Y-%m')}")
@@ -1182,6 +1272,11 @@ with tab2:
         # 创建准确率趋势图表
         trend_fig = create_accuracy_trend_chart(df_valid)
         st.plotly_chart(trend_fig, use_container_width=True)
+        
+        # 全部产品准确率趋势
+        st.markdown("### 📈 全部产品准确率趋势")
+        all_products_fig = create_all_products_trend_chart(df_valid)
+        st.plotly_chart(all_products_fig, use_container_width=True)
         
         # 洞察分析
         st.markdown(f"""
@@ -1266,11 +1361,6 @@ with tab5:
         # 创建模型分析图表
         model_fig = create_model_analysis_charts(df_valid)
         st.plotly_chart(model_fig, use_container_width=True)
-        
-        # 产品趋势图
-        st.markdown("### 📈 重点产品准确率趋势")
-        trend_fig = create_product_trend_chart(df_valid)
-        st.plotly_chart(trend_fig, use_container_width=True)
         
         # 模型洞察
         st.markdown(f"""
