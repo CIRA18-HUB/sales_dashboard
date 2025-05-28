@@ -24,7 +24,7 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
     st.switch_page("登陆界面haha.py")
     st.stop()
 
-# 统一的增强CSS样式 - 基于预测库存分析的样式
+# 统一的增强CSS样式 - 修复版
 st.markdown("""
 <style>
     /* 导入Google字体 */
@@ -62,9 +62,9 @@ st.markdown("""
         100% { transform: translateY(0px) translateX(0px); }
     }
 
-    /* 主容器背景 */
+    /* 主容器背景 - 确保不透明 */
     .main .block-container {
-        background: rgba(255,255,255,0.98) !important;
+        background: rgba(255,255,255,1) !important;
         border-radius: 20px;
         padding: 2rem;
         margin-top: 2rem;
@@ -137,9 +137,9 @@ st.markdown("""
         margin-top: 0.5rem;
     }
 
-    /* 统一的卡片容器样式 */
+    /* 统一的卡片容器样式 - 确保背景不透明 */
     .metric-card, .content-container, .chart-container, .insight-box {
-        background: rgba(255,255,255,0.98) !important;
+        background: white !important;
         border-radius: 25px;
         padding: 2rem;
         margin-bottom: 2rem;
@@ -159,7 +159,7 @@ st.markdown("""
         height: 100%;
         padding: 2.5rem 2rem;
         position: relative;
-        overflow: visible !important;
+        overflow: hidden !important;
         perspective: 1000px;
         animation: cardEntrance 1s ease-out;
         transform-style: preserve-3d;
@@ -223,9 +223,9 @@ st.markdown("""
         box-shadow: 0 25px 50px rgba(0,0,0,0.12);
     }
 
-    /* 数值样式 */
+    /* 数值样式 - 调整字体大小避免溢出 */
     .metric-value {
-        font-size: 2.8rem !important;
+        font-size: 2.2rem !important;
         font-weight: 800;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
@@ -234,9 +234,11 @@ st.markdown("""
         margin-bottom: 1rem;
         line-height: 1.2;
         white-space: nowrap;
-        overflow: visible !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis;
         display: inline-block;
-        min-width: 100%;
+        max-width: 100%;
+        padding: 0 0.5rem;
         animation: numberCount 2s ease-out;
     }
 
@@ -300,8 +302,9 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
     }
 
-    /* 洞察框样式 */
+    /* 洞察框样式 - 确保背景不透明 */
     .insight-box {
+        background: white !important;
         border-left: 4px solid #667eea;
         border-radius: 15px;
         padding: 1.5rem;
@@ -321,25 +324,31 @@ st.markdown("""
         font-size: 1rem;
     }
 
-    /* 标签页样式增强 */
+    /* 标签页样式增强 - 修复布局问题 */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 15px;
-        background: rgba(248, 250, 252, 0.95) !important;
-        padding: 1rem;
+        gap: 10px;
+        background: rgba(248, 250, 252, 1) !important;
+        padding: 0.8rem;
         border-radius: 20px;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-start;
     }
 
     .stTabs [data-baseweb="tab"] {
-        height: 65px;
-        padding: 0 35px;
-        background: rgba(255,255,255,0.95) !important;
+        height: 55px;
+        padding: 0 25px;
+        background: white !important;
         border-radius: 15px;
         border: 1px solid rgba(102, 126, 234, 0.15);
         font-weight: 700;
-        font-size: 1rem;
+        font-size: 0.95rem;
         transition: all 0.3s ease;
         color: #333 !important;
+        white-space: nowrap;
+        flex: 0 1 auto;
+        margin-bottom: 0.5rem;
     }
 
     .stTabs [data-baseweb="tab"]:hover {
@@ -360,6 +369,7 @@ st.markdown("""
         border-radius: 20px !important;
         overflow: hidden !important;
         box-shadow: 0 10px 25px rgba(0,0,0,0.08) !important;
+        background: white !important;
     }
 
     /* 准确率等级颜色 */
@@ -371,10 +381,15 @@ st.markdown("""
 
     /* 响应式设计 */
     @media (max-width: 768px) {
-        .metric-value { font-size: 2.2rem !important; }
-        .metric-card { padding: 2rem 1.5rem; }
+        .metric-value { font-size: 1.8rem !important; }
+        .metric-card { padding: 1.5rem 1rem; }
         .page-header { padding: 2rem 1rem; }
-        .page-title { font-size: 2.5rem; }
+        .page-title { font-size: 2.2rem; }
+        .stTabs [data-baseweb="tab"] { 
+            padding: 0 15px; 
+            font-size: 0.85rem;
+            height: 45px;
+        }
     }
 
     /* 加载动画初始状态 */
@@ -399,6 +414,16 @@ st.markdown("""
     .metric-card:nth-child(2) { animation-delay: 0.2s; }
     .metric-card:nth-child(3) { animation-delay: 0.3s; }
     .metric-card:nth-child(4) { animation-delay: 0.4s; }
+
+    /* 确保所有文字在白色背景上清晰可见 */
+    div[class*="metric"] {
+        background: white !important;
+    }
+    
+    /* 修复注释框背景 */
+    div[class*="annotation"] {
+        background: rgba(255,255,255,0.98) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -568,7 +593,7 @@ def create_accuracy_trend_chart(df_valid):
             annotation_position="right"
         )
         
-        # 添加说明
+        # 添加说明 - 确保背景不透明
         fig.add_annotation(
             x=0.02, y=0.98,
             xref='paper', yref='paper',
@@ -577,10 +602,10 @@ def create_accuracy_trend_chart(df_valid):
 <b>加权准确率</b>: 基于销量加权，销量大的产品影响更大""",
             showarrow=False,
             align='left',
-            bgcolor='rgba(255,255,255,0.95)',
+            bgcolor='white',
             bordercolor='gray',
             borderwidth=1,
-            font=dict(size=11)
+            font=dict(size=11, color='black')
         )
         
         fig.update_layout(
@@ -594,9 +619,12 @@ def create_accuracy_trend_chart(df_valid):
                 yanchor="top",
                 y=0.99,
                 xanchor="right",
-                x=0.98
+                x=0.98,
+                bgcolor='white',
+                bordercolor='gray',
+                borderwidth=1
             ),
-            paper_bgcolor='rgba(255,255,255,0)',
+            paper_bgcolor='white',
             plot_bgcolor='rgba(255,255,255,0.9)',
             margin=dict(l=50, r=50, t=80, b=50)
         )
@@ -655,8 +683,9 @@ def create_product_ranking_chart(metrics):
             height=800,
             showlegend=False,
             margin=dict(l=200, r=100, t=100, b=50),
-            paper_bgcolor='rgba(255,255,255,0)',
-            plot_bgcolor='rgba(255,255,255,0.9)'
+            paper_bgcolor='white',
+            plot_bgcolor='rgba(255,255,255,0.9)',
+            font=dict(color='black')
         )
         
         fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
@@ -729,7 +758,7 @@ def create_accuracy_distribution_chart(metrics):
             secondary_y=True
         )
         
-        # 添加统计信息
+        # 添加统计信息 - 确保背景不透明
         high_accuracy_count = dist_counts[['85-90%', '90-95%', '>95%']].sum()
         high_accuracy_pct = high_accuracy_count / total_products * 100
         
@@ -742,10 +771,10 @@ def create_accuracy_distribution_chart(metrics):
 占比: <b style="color: {'green' if high_accuracy_pct > 50 else 'orange'};">{high_accuracy_pct:.1f}%</b>""",
             showarrow=False,
             align='right',
-            bgcolor='rgba(255,255,255,0.95)',
+            bgcolor='white',
             bordercolor='gray',
             borderwidth=1,
-            font=dict(size=12)
+            font=dict(size=12, color='black')
         )
         
         fig.update_xaxes(title_text="准确率区间")
@@ -756,9 +785,10 @@ def create_accuracy_distribution_chart(metrics):
             title="产品预测准确率分布<br><sub>各准确率区间的产品数量统计</sub>",
             height=600,
             hovermode='x unified',
-            paper_bgcolor='rgba(255,255,255,0)',
+            paper_bgcolor='white',
             plot_bgcolor='rgba(255,255,255,0.9)',
-            margin=dict(l=50, r=100, t=100, b=50)
+            margin=dict(l=50, r=100, t=100, b=50),
+            font=dict(color='black')
         )
         
         return fig
@@ -768,7 +798,7 @@ def create_accuracy_distribution_chart(metrics):
         return go.Figure()
 
 def create_model_analysis_charts(df_valid):
-    """创建模型分析图表"""
+    """创建模型分析图表 - 修复版"""
     try:
         # 模型使用频率统计
         model_counts = df_valid['选择模型'].value_counts()
@@ -778,7 +808,7 @@ def create_model_analysis_charts(df_valid):
         model_accuracy.columns = ['模型', '平均准确率', '使用次数']
         model_accuracy = model_accuracy.sort_values('使用次数', ascending=False)
         
-        # 创建子图
+        # 创建子图 - 修复布局问题
         fig = make_subplots(
             rows=1, cols=2,
             subplot_titles=("模型使用频率", "模型准确率vs使用频率"),
@@ -786,7 +816,7 @@ def create_model_analysis_charts(df_valid):
             horizontal_spacing=0.15
         )
         
-        # 1. 饼图 - 模型使用频率
+        # 1. 饼图 - 模型使用频率（不设置xaxis和yaxis）
         fig.add_trace(go.Pie(
             labels=model_counts.index[:8],  # 只显示前8个
             values=model_counts.values[:8],
@@ -822,10 +852,11 @@ def create_model_analysis_charts(df_valid):
                           "<extra></extra>"
         ), row=1, col=2)
         
-        # 添加85%参考线
+        # 添加85%参考线（只对散点图）
         fig.add_hline(y=85, line_dash="dash", line_color="gray", 
                       annotation_text="目标: 85%", row=1, col=2)
         
+        # 只对散点图设置坐标轴
         fig.update_xaxes(title_text="使用次数", row=1, col=2, showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
         fig.update_yaxes(title_text="平均准确率 (%)", row=1, col=2, showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
         
@@ -833,9 +864,10 @@ def create_model_analysis_charts(df_valid):
             title="机器学习模型使用分析",
             height=600,
             showlegend=False,
-            paper_bgcolor='rgba(255,255,255,0)',
-            plot_bgcolor='rgba(255,255,255,0)',
-            margin=dict(l=50, r=150, t=100, b=50)
+            paper_bgcolor='white',
+            plot_bgcolor='white',
+            margin=dict(l=50, r=150, t=100, b=50),
+            font=dict(color='black')
         )
         
         return fig
@@ -892,11 +924,15 @@ def create_product_trend_chart(df_valid):
                 yanchor="top",
                 y=0.99,
                 xanchor="left",
-                x=1.02
+                x=1.02,
+                bgcolor='white',
+                bordercolor='gray',
+                borderwidth=1
             ),
-            paper_bgcolor='rgba(255,255,255,0)',
+            paper_bgcolor='white',
             plot_bgcolor='rgba(255,255,255,0.9)',
-            margin=dict(l=50, r=200, t=100, b=50)
+            margin=dict(l=50, r=200, t=100, b=50),
+            font=dict(color='black')
         )
         
         fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
@@ -1031,10 +1067,14 @@ with tab1:
         """, unsafe_allow_html=True)
     
     with col8:
+        # 缩短模型名称以避免溢出
+        model_name = metrics['most_used_model']
+        if len(model_name) > 15:
+            model_name = model_name[:12] + '...'
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-card-inner">
-                <div class="metric-value" style="font-size: 1.8rem !important;">{metrics['most_used_model']}</div>
+                <div class="metric-value" style="font-size: 1.5rem !important;">{model_name}</div>
                 <div class="metric-label">🏆 最常用模型</div>
                 <div class="metric-description">使用{metrics['model_count']}次</div>
             </div>
