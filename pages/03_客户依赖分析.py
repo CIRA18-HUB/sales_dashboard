@@ -15,7 +15,6 @@ warnings.filterwarnings('ignore')
 # 尝试导入 streamlit-echarts
 try:
     from streamlit_echarts import st_echarts
-
     ECHARTS_AVAILABLE = True
 except ImportError:
     ECHARTS_AVAILABLE = False
@@ -42,13 +41,6 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
     st.error("请先登录！")
     st.switch_page("app.py")
     st.stop()
-
-# 检查依赖组件
-if not ECHARTS_AVAILABLE:
-    with st.sidebar:
-        st.warning("🔧 **提示**：安装 streamlit-echarts 可以获得更好的桑基图效果")
-        st.code("pip install streamlit-echarts", language="bash")
-        st.caption("安装后重启应用即可使用高级桑基图")
 
 # 统一高级CSS样式
 st.markdown("""
@@ -1255,6 +1247,7 @@ def create_timeline_chart(cycles_df):
 
 def create_enhanced_charts(metrics, sales_data, monthly_data):
     """创建增强图表"""
+    global ECHARTS_AVAILABLE  # 声明使用全局变量
     charts = {}
 
     # 1. 客户健康雷达图
@@ -1494,9 +1487,10 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
 
             except Exception as e:
                 print(f"ECharts 桑基图创建失败: {e}")
-                ECHARTS_AVAILABLE = False
+                # 不要在这里修改全局变量，只是标记为不使用 ECharts
+                charts['sankey'] = None  # 稍后会使用备选方案
 
-        if not ECHARTS_AVAILABLE:
+        if not ECHARTS_AVAILABLE or charts.get('sankey') is None:
             # 使用 Plotly 树状图作为更稳定的备选方案
             try:
                 import plotly.express as px
@@ -1758,6 +1752,8 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
 
 
 def main():
+    global ECHARTS_AVAILABLE  # 声明使用全局变量
+    
     # 主标题
     st.markdown("""
     <div class="main-header">
