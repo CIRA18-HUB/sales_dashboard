@@ -961,6 +961,7 @@ def analyze_promotion_effectiveness_enhanced(data):
             # 新品只要环比增长即算有效
             is_effective = mom_growth > 0
             effectiveness_reason = f"{'✅ 有效' if is_effective else '❌ 无效'}（新品，环比{'增长' if mom_growth > 0 else '下降'}{abs(mom_growth):.1f}%）"
+            positive_count = None  # 新品不计算positive_count
         else:
             # 非新品：三个指标中至少两个为正增长
             positive_count = sum([mom_growth > 0, yoy_growth > 0, avg_growth > 0])
@@ -975,7 +976,7 @@ def analyze_promotion_effectiveness_enhanced(data):
             'mom_growth': mom_growth,
             'yoy_growth': yoy_growth,
             'avg_growth': avg_growth,
-            'positive_count': positive_count if not is_new_product else None,
+            'positive_count': positive_count,
             'effectiveness_reason': effectiveness_reason,
             'march_sales': march_2025,
             'april_2024_sales': april_2024,
@@ -1444,7 +1445,7 @@ def analyze_effective_products(data, dimension='national', selected_region=None)
 def create_effective_products_chart(product_df, title="有效产品分析"):
     """创建有效产品分析图表"""
     if len(product_df) == 0:
-        return go.Figure()
+        return go.Figure(), 0
     
     # 排序：有效产品在前，按月均箱数降序
     product_df = product_df.sort_values(['is_effective', 'monthly_avg_boxes'], 
@@ -2002,21 +2003,29 @@ def main():
                     effective_products = promo_results[promo_results['is_effective'] == True]
                     ineffective_products = promo_results[promo_results['is_effective'] == False]
                     
+                    # 计算非新品的同比增长率平均值
+                    effective_non_new = effective_products[~effective_products['is_new_product']]
+                    avg_yoy_effective = effective_non_new['yoy_growth'].mean() if len(effective_non_new) > 0 else 0
+                    
                     st.info(f"""
                     **🎯 有效促销产品特征**
                     - 有效产品数: {len(effective_products)}个
                     - 平均销售额: ¥{effective_products['sales'].mean():,.0f}
                     - 环比增长率: {effective_products['mom_growth'].mean():.1f}%
-                    - 同比增长率: {effective_products[~effective_products['is_new_product']]['yoy_growth'].mean():.1f}%
+                    - 同比增长率: {avg_yoy_effective:.1f}%
                     """)
                 
                 with col2:
+                    # 计算非新品的同比增长率平均值
+                    ineffective_non_new = ineffective_products[~ineffective_products['is_new_product']]
+                    avg_yoy_ineffective = ineffective_non_new['yoy_growth'].mean() if len(ineffective_non_new) > 0 else 0
+                    
                     st.warning(f"""
                     **⚠️ 无效促销产品分析**
                     - 无效产品数: {len(ineffective_products)}个
                     - 平均销售额: ¥{ineffective_products['sales'].mean():,.0f}
                     - 环比增长率: {ineffective_products['mom_growth'].mean():.1f}%
-                    - 同比增长率: {ineffective_products[~ineffective_products['is_new_product']]['yoy_growth'].mean():.1f}%
+                    - 同比增长率: {avg_yoy_ineffective:.1f}%
                     """)
                 
                 # 新品促销分析
@@ -2298,6 +2307,38 @@ def main():
                     - 开发新的组合套装产品
                     """)
         
+        elif analysis_type == "📍 区域覆盖分析":
+            # 区域覆盖分析
+            # 创建更易读的区域覆盖率分析
+            fig, coverage_df = create_regional_coverage_analysis(data)
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # 覆盖率分析洞察
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                avg_coverage = coverage_df['coverage_rate'].mean()
+                st.metric("平均覆盖率", f"{avg_coverage:.1f}%", 
+                         "整体表现良好" if avg_coverage >= 70 else "需要提升")
+                
+                low_coverage_regions = coverage_df[coverage_df['coverage_rate'] < 80]
+                if len(low_coverage_regions) > 0:
+                    st.warning(f"⚠️ 有{len(low_coverage_regions)}个区域低于80%目标线")
+            
+            with col2:
+                # 漏铺市机会分析
+                total_gap = coverage_df['gap'].sum()
+                if total_gap > 0:
+                    potential_products = int(total_gap * len(data['dashboard_products']) / 100)
+                    st.info(f"""
+                    **📈 漏铺市机会**
+                    - 总体覆盖缺口: {total_gap:.0f}%
+                    - 潜在可增产品: 约{potential_products}个
+                    - 建议优先开发覆盖率最低的区域
+                    """)
+                else:
+                    st.success("✅ 所有区域覆盖率均达到80%以上")
+        
         elif analysis_type == "✅ 有效产品分析":
             st.subheader("有效产品分析（月均销售≥15箱）")
             
@@ -2427,36 +2468,4 @@ def main():
                 st.warning("暂无产品数据")
 
 if __name__ == "__main__":
-    main() "📍 区域覆盖分析":
-            # 区域覆盖分析
-            # 创建更易读的区域覆盖率分析
-            fig, coverage_df = create_regional_coverage_analysis(data)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # 覆盖率分析洞察
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                avg_coverage = coverage_df['coverage_rate'].mean()
-                st.metric("平均覆盖率", f"{avg_coverage:.1f}%", 
-                         "整体表现良好" if avg_coverage >= 70 else "需要提升")
-                
-                low_coverage_regions = coverage_df[coverage_df['coverage_rate'] < 80]
-                if len(low_coverage_regions) > 0:
-                    st.warning(f"⚠️ 有{len(low_coverage_regions)}个区域低于80%目标线")
-            
-            with col2:
-                # 漏铺市机会分析
-                total_gap = coverage_df['gap'].sum()
-                if total_gap > 0:
-                    potential_products = int(total_gap * len(data['dashboard_products']) / 100)
-                    st.info(f"""
-                    **📈 漏铺市机会**
-                    - 总体覆盖缺口: {total_gap:.0f}%
-                    - 潜在可增产品: 约{potential_products}个
-                    - 建议优先开发覆盖率最低的区域
-                    """)
-                else:
-                    st.success("✅ 所有区域覆盖率均达到80%以上")
-        
-        elif analysis_type ==
+    main()
