@@ -1002,6 +1002,7 @@ def get_strategy_suggestion(category):
 
 # 修改促销活动有效性分析函数
 # 修改促销活动有效性分析函数
+# 修改促销活动有效性分析函数
 def analyze_promotion_effectiveness_enhanced(data):
     """增强的促销活动有效性分析（新品需要有效增长幅度）"""
     promotion_df = data['promotion_df']
@@ -1037,8 +1038,8 @@ def analyze_promotion_effectiveness_enhanced(data):
         yoy_growth = ((april_2025 - april_2024) / april_2024 * 100) if april_2024 > 0 else 0
         avg_growth = ((april_2025 - avg_2024) / avg_2024 * 100) if avg_2024 > 0 else 0
 
-        # 判断是否为新品（去年同期没有销售额）
-        is_new_product = april_2024 == 0  # 修改：只要去年4月没有销售额就算新品
+        # 判断是否为新品（去年同期没有销售额，或者去年平均销售额是nan或0）
+        is_new_product = (april_2024 == 0) or (pd.isna(avg_2024) or avg_2024 == 0)
 
         # 判断有效性（新品特殊处理）
         if is_new_product:
