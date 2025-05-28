@@ -714,14 +714,7 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
         hoverdistance=20,  # 设置悬停距离
         plot_bgcolor='white',
         paper_bgcolor='white',
-        title={
-            'text': f'<b>{selected_region} 销售综合分析</b>',
-            'font': {'size': 20, 'color': primary_color},
-            'x': 0.5,
-            'xanchor': 'center',
-            'y': 0.99,
-            'yanchor': 'top'
-        },
+        # 删除title部分，不显示主标题
         legend=dict(
             orientation="h",
             yanchor="top",
@@ -731,7 +724,7 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             font=dict(size=10),
             itemsizing='constant'
         ),
-        margin=dict(t=80, b=100, l=80, r=80),
+        margin=dict(t=50, b=100, l=80, r=80),  # 减小顶部边距，因为没有标题了
         font=dict(family="Microsoft YaHei, Arial", size=10)
     )
 
@@ -2433,6 +2426,7 @@ def main():
     # Tab 6: 趋势分析（简化版，移除卡片）
     # Tab 6: 趋势分析（简化版，移除卡片）
     # Tab 6: 趋势分析（简化版，移除卡片）
+    # Tab 6: 趋势分析（简化版，移除卡片）
     with tabs[5]:
         if st.button("", key="tab5_hidden", help="", disabled=True, type="secondary"):
             st.session_state.active_tab = 5
@@ -2466,33 +2460,13 @@ def main():
         else:
             selected_region = '全国'
 
-        # 添加折叠式显示选项
-        display_mode = st.radio(
-            "显示模式",
-            ["完整视图", "紧凑视图"],
-            horizontal=True,
-            help="紧凑视图将以折叠方式显示各个图表"
-        )
-
-        # 创建增强的趋势分析
+        # 创建增强的趋势分析（单一综合图表）
         with st.spinner(f'正在加载{selected_region}数据...'):
             trend_fig = create_integrated_trend_analysis(sales_data, monthly_data, selected_region)
 
         if trend_fig:
-            if display_mode == "完整视图":
-                # 显示完整图表
-                st.plotly_chart(trend_fig, use_container_width=True, key=f"integrated_trend_chart_{selected_region}")
-            else:
-                # 紧凑视图 - 使用expander折叠显示
-                with st.expander("📈 销售趋势与订单分析", expanded=True):
-                    # 只显示主趋势图部分
-                    st.info("主趋势图和饼图部分")
-
-                with st.expander("💰 客单价与客户分析", expanded=False):
-                    st.info("客单价和活跃客户数分析")
-
-                with st.expander("📊 环比增长分析", expanded=False):
-                    st.info("环比增长率分析")
+            # 显示综合图表
+            st.plotly_chart(trend_fig, use_container_width=True, key=f"integrated_trend_chart_{selected_region}")
 
             # 趋势洞察
             st.markdown(f"""
