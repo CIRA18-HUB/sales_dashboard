@@ -116,13 +116,13 @@ class SimplifiedMLPredictor:
 @st.cache_resource
 def load_all_data():
     """加载所有必需的数据文件"""
-    # GitHub仓库基础URL（请替换为您的实际仓库URL）
-    base_url = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/"
+    # GitHub仓库基础URL
+    base_url = "https://raw.githubusercontent.com/CIRA18-HUB/sales_dashboard/main/"
     
     data = {}
     files = {
         'shipping': '预测模型出货数据每日xlsx.xlsx',
-        'inventory': '含批次库存0221(2).xlsx',
+        'inventory': '含批次库存0221(2).xlsx', 
         'product': '产品信息.xlsx',
         'promotion': '销售业务员促销文件.xlsx'
     }
