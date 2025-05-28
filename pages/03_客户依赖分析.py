@@ -15,6 +15,7 @@ warnings.filterwarnings('ignore')
 # 尝试导入 streamlit-echarts
 try:
     from streamlit_echarts import st_echarts
+
     ECHARTS_AVAILABLE = True
 except ImportError:
     ECHARTS_AVAILABLE = False
@@ -404,6 +405,276 @@ def load_and_process_data():
         return None, None, None, None
 
 
+def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='全国'):
+    """创建整合的趋势分析图表 - 信息密度更高的单一图表"""
+    # 获取区域数据
+    if selected_region == '全国':
+        region_sales = sales_data.copy()
+    else:
+        customer_region_map = monthly_data[['客户', '所属大区']].drop_duplicates()
+        sales_with_region = sales_data.merge(
+            customer_region_map, left_on='经销商名称', right_on='客户', how='left'
+        )
+        region_sales = sales_with_region[sales_with_region['所属大区'] == selected_region]
+
+    if region_sales.empty:
+        return None
+
+    # 计算基础指标
+    total_sales = region_sales['金额'].sum()
+    total_orders = len(region_sales)
+    avg_order_value = total_sales / total_orders if total_orders > 0 else 0
+
+    # 月度趋势数据
+    region_sales['年月'] = region_sales['订单日期'].dt.to_period('M')
+    monthly_trend = region_sales.groupby('年月').agg({
+        '金额': ['sum', 'count', 'mean', 'std']
+    }).reset_index()
+    monthly_trend.columns = ['年月', '销售额', '订单数', '平均客单价', '标准差']
+    monthly_trend['年月_str'] = monthly_trend['年月'].astype(str)
+
+    # 计算同比和环比
+    monthly_trend['环比增长'] = monthly_trend['销售额'].pct_change() * 100
+    monthly_trend['订单环比'] = monthly_trend['订单数'].pct_change() * 100
+
+    # 订单金额分布分析
+    bins = [0, 10000, 20000, 40000, float('inf')]
+    labels = ['<1万', '1-2万', '2-4万', '>4万']
+    region_sales['金额区间'] = pd.cut(region_sales['金额'], bins=bins, labels=labels)
+
+    distribution = region_sales.groupby('金额区间').agg({
+        '金额': ['count', 'sum', 'mean']
+    }).reset_index()
+    distribution.columns = ['金额区间', '订单数', '销售额', '平均金额']
+
+    # 客户分析
+    customer_monthly = region_sales.groupby(['年月', '经销商名称'])['金额'].sum().reset_index()
+    active_customers = customer_monthly.groupby('年月')['经销商名称'].nunique().reset_index()
+    active_customers.columns = ['年月', '活跃客户数']
+
+    # 合并数据
+    monthly_trend = monthly_trend.merge(active_customers, on='年月', how='left')
+
+    # 创建综合图表
+    fig = make_subplots(
+        rows=3, cols=2,
+        row_heights=[0.4, 0.3, 0.3],
+        column_widths=[0.7, 0.3],
+        subplot_titles=(
+            f'{selected_region} - 销售额与订单数趋势',
+            '订单金额分布',
+            '平均客单价与活跃客户数',
+            '各金额区间贡献占比',
+            '环比增长率',
+            ''
+        ),
+        specs=[
+            [{"secondary_y": True}, {"type": "bar"}],
+            [{"secondary_y": True}, {"type": "pie"}],
+            [{"secondary_y": False, "colspan": 2}, None]
+        ],
+        vertical_spacing=0.08,
+        horizontal_spacing=0.12
+    )
+
+    # 1. 主趋势图（左上）- 销售额和订单数
+    # 销售额面积图
+    fig.add_trace(
+        go.Scatter(
+            x=monthly_trend['年月_str'],
+            y=monthly_trend['销售额'],
+            mode='lines',
+            name='销售额',
+            line=dict(color='#667eea', width=3),
+            fill='tozeroy',
+            fillcolor='rgba(102, 126, 234, 0.15)',
+            hovertemplate='<b>%{x}</b><br>' +
+                          '销售额: ¥%{y:,.0f}<br>' +
+                          '环比: %{customdata[0]:.1f}%<br>' +
+                          '均价: ¥%{customdata[1]:,.0f}<br>' +
+                          '<extra></extra>',
+            customdata=np.column_stack((
+                monthly_trend['环比增长'].fillna(0),
+                monthly_trend['平均客单价']
+            )),
+            yaxis='y1'
+        ),
+        row=1, col=1, secondary_y=False
+    )
+
+    # 订单数折线图
+    fig.add_trace(
+        go.Scatter(
+            x=monthly_trend['年月_str'],
+            y=monthly_trend['订单数'],
+            mode='lines+markers',
+            name='订单数',
+            line=dict(color='#ff6b6b', width=2, dash='dot'),
+            marker=dict(size=6),
+            hovertemplate='<b>%{x}</b><br>' +
+                          '订单数: %{y}笔<br>' +
+                          '环比: %{customdata:.1f}%<br>' +
+                          '<extra></extra>',
+            customdata=monthly_trend['订单环比'].fillna(0),
+            yaxis='y2'
+        ),
+        row=1, col=1, secondary_y=True
+    )
+
+    # 2. 订单金额分布柱状图（右上）
+    fig.add_trace(
+        go.Bar(
+            x=distribution['金额区间'],
+            y=distribution['订单数'],
+            name='订单分布',
+            marker=dict(
+                color=['#3498db', '#2ecc71', '#f39c12', '#e74c3c'],
+                line=dict(color='white', width=2)
+            ),
+            text=[f'{count}<br>¥{amount / 10000:.0f}万'
+                  for count, amount in zip(distribution['订单数'], distribution['销售额'])],
+            textposition='auto',
+            hovertemplate='<b>%{x}</b><br>' +
+                          '订单数: %{y}笔<br>' +
+                          '销售额: ¥%{customdata[0]:,.0f}<br>' +
+                          '平均: ¥%{customdata[1]:,.0f}<br>' +
+                          '<extra></extra>',
+            customdata=np.column_stack((
+                distribution['销售额'],
+                distribution['平均金额']
+            ))
+        ),
+        row=1, col=2
+    )
+
+    # 3. 平均客单价和活跃客户数（左中）
+    fig.add_trace(
+        go.Bar(
+            x=monthly_trend['年月_str'],
+            y=monthly_trend['平均客单价'],
+            name='平均客单价',
+            marker_color='rgba(52, 152, 219, 0.6)',
+            yaxis='y5',
+            hovertemplate='<b>%{x}</b><br>' +
+                          '平均客单价: ¥%{y:,.0f}<br>' +
+                          '标准差: ¥%{customdata:,.0f}<br>' +
+                          '<extra></extra>',
+            customdata=monthly_trend['标准差'].fillna(0)
+        ),
+        row=2, col=1, secondary_y=False
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=monthly_trend['年月_str'],
+            y=monthly_trend['活跃客户数'],
+            mode='lines+markers',
+            name='活跃客户数',
+            line=dict(color='#e74c3c', width=3),
+            marker=dict(size=8),
+            yaxis='y6',
+            hovertemplate='<b>%{x}</b><br>' +
+                          '活跃客户: %{y}家<br>' +
+                          '<extra></extra>'
+        ),
+        row=2, col=1, secondary_y=True
+    )
+
+    # 4. 金额区间贡献饼图（右中）
+    fig.add_trace(
+        go.Pie(
+            labels=distribution['金额区间'],
+            values=distribution['销售额'],
+            hole=0.4,
+            marker=dict(
+                colors=['#3498db', '#2ecc71', '#f39c12', '#e74c3c'],
+                line=dict(color='white', width=2)
+            ),
+            textinfo='label+percent',
+            hovertemplate='<b>%{label}</b><br>' +
+                          '销售额: ¥%{value:,.0f}<br>' +
+                          '占比: %{percent}<br>' +
+                          '<extra></extra>'
+        ),
+        row=2, col=2
+    )
+
+    # 5. 环比增长率图（底部）
+    # 创建渐变色条形图
+    colors = ['#e74c3c' if x < 0 else '#2ecc71' for x in monthly_trend['环比增长'].fillna(0)]
+
+    fig.add_trace(
+        go.Bar(
+            x=monthly_trend['年月_str'],
+            y=monthly_trend['环比增长'].fillna(0),
+            name='销售额环比',
+            marker=dict(
+                color=colors,
+                line=dict(color='white', width=1)
+            ),
+            text=[f'{x:.1f}%' if pd.notna(x) else '' for x in monthly_trend['环比增长']],
+            textposition='outside',
+            hovertemplate='<b>%{x}</b><br>' +
+                          '销售额环比: %{y:.1f}%<br>' +
+                          '订单数环比: %{customdata:.1f}%<br>' +
+                          '<extra></extra>',
+            customdata=monthly_trend['订单环比'].fillna(0)
+        ),
+        row=3, col=1
+    )
+
+    # 添加零线
+    fig.add_hline(y=0, line_dash="dash", line_color="gray", row=3, col=1, opacity=0.5)
+
+    # 更新布局
+    fig.update_xaxes(title_text="", row=1, col=1, tickangle=-45)
+    fig.update_xaxes(title_text="金额区间", row=1, col=2)
+    fig.update_xaxes(title_text="", row=2, col=1, tickangle=-45)
+    fig.update_xaxes(title_text="月份", row=3, col=1, tickangle=-45)
+
+    fig.update_yaxes(title_text="销售额", row=1, col=1, secondary_y=False)
+    fig.update_yaxes(title_text="订单数", row=1, col=1, secondary_y=True)
+    fig.update_yaxes(title_text="订单数", row=1, col=2)
+    fig.update_yaxes(title_text="平均客单价", row=2, col=1, secondary_y=False)
+    fig.update_yaxes(title_text="活跃客户数", row=2, col=1, secondary_y=True)
+    fig.update_yaxes(title_text="环比增长率 (%)", row=3, col=1)
+
+    # 总体布局设置
+    fig.update_layout(
+        height=900,
+        showlegend=True,
+        hovermode='x unified',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        title={
+            'text': f'<b>{selected_region} - 销售综合分析仪表板</b><br>' +
+                    f'<span style="font-size:14px; color:#666;">总销售额: {format_amount(total_sales)} | ' +
+                    f'总订单数: {total_orders:,} | 平均客单价: {format_amount(avg_order_value)}</span>',
+            'font': {'size': 20, 'color': '#2d3748'},
+            'x': 0.5,
+            'xanchor': 'center',
+            'y': 0.98,
+            'yanchor': 'top'
+        },
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
+            bgcolor='rgba(255, 255, 255, 0.8)',
+            bordercolor='rgba(0, 0, 0, 0.1)',
+            borderwidth=1
+        ),
+        margin=dict(t=100, b=100, l=60, r=60),
+        font=dict(family="Microsoft YaHei, Arial", size=12)
+    )
+
+    # 设置网格线
+    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
+
+    return fig
 def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     """计算业务指标"""
     # 基础客户指标
@@ -1405,23 +1676,23 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
 
                 # 获取Top 10客户用于悬停显示
                 top_customers = type_customers.nlargest(10, 'M')
-                
+
                 # 构建悬停文本 - 包含客户列表
                 hover_lines = []
                 hover_lines.append(f"<b>{emoji} {customer_type}</b>")
                 hover_lines.append(f"客户数: {count}家 ({percentage:.1f}%)")
                 hover_lines.append("")
                 hover_lines.append("<b>Top 10客户：</b>")
-                
+
                 for idx, (_, cust) in enumerate(top_customers.iterrows(), 1):
                     customer_name = cust['客户']
                     if len(customer_name) > 15:
                         customer_name = customer_name[:15] + "..."
                     hover_lines.append(f"{idx}. {customer_name} ({format_amount(cust['M'])})")
-                
+
                 if len(type_customers) > 10:
                     hover_lines.append(f"... 还有{len(type_customers) - 10}个客户")
-                
+
                 hover_text = "<br>".join(hover_lines)
 
                 data_for_treemap.append({
@@ -1698,7 +1969,13 @@ def create_enhanced_trend_analysis(sales_data, monthly_data, selected_region='�
 
 def main():
     global ECHARTS_AVAILABLE  # 声明使用全局变量
-    
+
+    # 初始化session_state来保存标签状态
+    if 'active_tab' not in st.session_state:
+        st.session_state.active_tab = 0
+    if 'risk_subtab' not in st.session_state:
+        st.session_state.risk_subtab = 0
+
     # 主标题
     st.markdown("""
     <div class="main-header">
@@ -1718,14 +1995,34 @@ def main():
     # 创建图表
     charts = create_enhanced_charts(metrics, sales_data, monthly_data)
 
-    # 标签页
-    tabs = st.tabs([
+    # 标签页 - 使用session_state来保持标签状态
+    tab_list = [
         "📊 核心指标", "🎯 健康诊断", "⚠️ 风险评估",
         "💎 价值分层", "📈 目标追踪", "📉 趋势分析"
-    ])
+    ]
+
+    # 创建标签页并设置默认选中的标签
+    tabs = st.tabs(tab_list)
+
+    # 使用JavaScript来控制标签切换
+    st.markdown(f"""
+    <script>
+        // 保持当前标签页状态
+        var tabIndex = {st.session_state.active_tab};
+        var tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+        if (tabs && tabs.length > tabIndex) {{
+            setTimeout(function() {{
+                tabs[tabIndex].click();
+            }}, 100);
+        }}
+    </script>
+    """, unsafe_allow_html=True)
 
     # Tab 1: 核心指标
     with tabs[0]:
+        if st.button("", key="tab0_hidden", help="", disabled=True, type="secondary"):
+            st.session_state.active_tab = 0
+
         # 核心业务指标
         st.markdown("### 💰 核心业务指标")
         col1, col2, col3, col4 = st.columns(4)
@@ -1850,8 +2147,48 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
 
+        # 新增趋势分析关键指标（从Tab 6移过来）
+        st.markdown("### 📊 趋势分析关键指标")
+
+        # 计算全国数据
+        if not sales_data.empty:
+            total_sales_all = sales_data['金额'].sum()
+            total_orders_all = len(sales_data)
+            avg_order_value_all = total_sales_all / total_orders_all if total_orders_all > 0 else 0
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{format_amount(total_sales_all)}</div>
+                    <div class="metric-label">全国总销售额</div>
+                    <div class="metric-sublabel">年度累计</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{total_orders_all:,}</div>
+                    <div class="metric-label">全国总订单数</div>
+                    <div class="metric-sublabel">年度累计</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col3:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{format_amount(avg_order_value_all)}</div>
+                    <div class="metric-label">全国平均客单价</div>
+                    <div class="metric-sublabel">年度平均</div>
+                </div>
+                """, unsafe_allow_html=True)
+
     # Tab 2: 健康诊断
     with tabs[1]:
+        if st.button("", key="tab1_hidden", help="", disabled=True, type="secondary"):
+            st.session_state.active_tab = 1
+
         if 'health_radar' in charts:
             st.markdown('''
             <div class="chart-header">
@@ -1863,8 +2200,12 @@ def main():
 
     # Tab 3: 风险评估
     with tabs[2]:
-        # 创建子标签页
-        risk_subtabs = st.tabs(["📊 客户贡献分析", "🕐 下单周期监测", "🎯 风险预警模型"])
+        if st.button("", key="tab2_hidden", help="", disabled=True, type="secondary"):
+            st.session_state.active_tab = 2
+
+        # 创建子标签页 - 使用独特的key
+        risk_subtab_list = ["📊 客户贡献分析", "🕐 下单周期监测", "🎯 风险预警模型"]
+        risk_subtabs = st.tabs(risk_subtab_list)
 
         with risk_subtabs[0]:
             # Top20客户分析
@@ -2004,6 +2345,9 @@ def main():
 
     # Tab 4: 价值分层
     with tabs[3]:
+        if st.button("", key="tab3_hidden", help="", disabled=True, type="secondary"):
+            st.session_state.active_tab = 3
+
         st.markdown('''
         <div class="chart-header">
             <div class="chart-title">客户价值流动分析</div>
@@ -2033,6 +2377,9 @@ def main():
 
     # Tab 5: 目标追踪
     with tabs[4]:
+        if st.button("", key="tab4_hidden", help="", disabled=True, type="secondary"):
+            st.session_state.active_tab = 4
+
         st.markdown('''
         <div class="chart-header">
             <div class="chart-title">客户目标达成分析</div>
@@ -2043,59 +2390,37 @@ def main():
         if 'target_scatter' in charts:
             st.plotly_chart(charts['target_scatter'], use_container_width=True, key="target_scatter_chart")
 
-    # Tab 6: 趋势分析（增强版）
+    # Tab 6: 趋势分析（简化版，移除卡片）
     with tabs[5]:
+        if st.button("", key="tab5_hidden", help="", disabled=True, type="secondary"):
+            st.session_state.active_tab = 5
+
         st.markdown('''
         <div class="chart-header">
             <div class="chart-title">销售趋势综合分析</div>
-            <div class="chart-subtitle">对比区域与全国的销售表现，分析订单金额分布</div>
+            <div class="chart-subtitle">多维度展示销售数据的时间序列变化和分布特征</div>
         </div>
         ''', unsafe_allow_html=True)
 
-        # 区域选择
+        # 区域选择器 - 使用form来避免页面刷新
         if not monthly_data.empty and '所属大区' in monthly_data.columns:
             regions = ['全国'] + sorted(monthly_data['所属大区'].dropna().unique().tolist())
-            selected_region = st.selectbox('选择区域', regions, key='region_selector')
+
+            with st.form(key='region_form'):
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    selected_region = st.selectbox('选择区域', regions, key='region_selector_form')
+                with col2:
+                    submit_button = st.form_submit_button("确定", use_container_width=True)
         else:
             selected_region = '全国'
 
-        # 创建增强的趋势分析
-        trend_fig, total_sales, total_orders, avg_order_value = create_enhanced_trend_analysis(
-            sales_data, monthly_data, selected_region
-        )
+        # 创建增强的趋势分析（单一综合图表）
+        trend_fig = create_integrated_trend_analysis(sales_data, monthly_data, selected_region)
 
         if trend_fig:
-            # 显示关键指标
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value">{format_amount(total_sales)}</div>
-                    <div class="metric-label">总销售额</div>
-                    <div class="metric-sublabel">{selected_region}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-            with col2:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value">{total_orders:,}</div>
-                    <div class="metric-label">总订单数</div>
-                    <div class="metric-sublabel">{selected_region}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-            with col3:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value">{format_amount(avg_order_value)}</div>
-                    <div class="metric-label">平均客单价</div>
-                    <div class="metric-sublabel">{selected_region}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-            # 显示综合分析图表
-            st.plotly_chart(trend_fig, use_container_width=True, key="enhanced_trend_chart")
+            # 显示综合图表
+            st.plotly_chart(trend_fig, use_container_width=True, key="integrated_trend_chart")
 
             # 趋势洞察
             st.markdown(f"""
