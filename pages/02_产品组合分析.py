@@ -599,13 +599,7 @@ def analyze_effective_products_cached(sales_df, dashboard_products, dimension='n
 
 # 添加缓存函数来优化漏铺产品分析
 @st.cache_data
-def create_missing_products_analysis_cached(sales_df, dashboard_products, selected_region):
-    """缓存漏铺产品分析结果"""
-    data = {
-        'sales_df': sales_df,
-        'dashboard_products': dashboard_products
-    }
-    return create_missing_products_analysis(data, selected_region)
+
 
 
 # 添加缓存函数来优化新品渗透率分析
@@ -692,27 +686,6 @@ def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashb
     else:
         avg_effective_sales = 0
 
-    # 计算每个区域的新品渗透率，用于总览页面
-    regional_penetration_data = []
-    regions = sales_2025['区域'].unique()
-    
-    for region in regions:
-        region_data = sales_2025[sales_2025['区域'] == region]
-        
-        # 总客户数
-        total_customers_region = region_data['客户名称'].nunique()
-        
-        # 购买新品的客户数
-        new_product_customers_region = region_data[region_data['产品代码'].isin(new_products)]['客户名称'].nunique()
-        
-        # 新品渗透率
-        penetration_rate_region = (new_product_customers_region / total_customers_region * 100) if total_customers_region > 0 else 0
-        
-        regional_penetration_data.append({
-            'region': region,
-            'penetration_rate': penetration_rate_region
-        })
-
     return {
         'total_sales': total_sales,
         'star_ratio': star_ratio,
@@ -723,8 +696,7 @@ def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashb
         'promo_effectiveness': promo_effectiveness,
         'effective_products_rate': effective_rate_all,
         'effective_products_count': effective_count,
-        'avg_effective_sales': avg_effective_sales,
-        'regional_penetration_data': regional_penetration_data  # 新增区域渗透率数据
+        'avg_effective_sales': avg_effective_sales
     }
 
 
@@ -1035,7 +1007,7 @@ def get_strategy_suggestion(category):
 
 # 修改促销活动有效性分析函数
 def analyze_promotion_effectiveness_enhanced(data):
-    """增强的促销活动有效性分析（新品只需环比增长）"""
+    """增强的促销活动有效性分析（新品需要有效的环比增长幅度）"""
     promotion_df = data['promotion_df']
     sales_df = data['sales_df']
 
@@ -1072,11 +1044,11 @@ def analyze_promotion_effectiveness_enhanced(data):
         # 判断是否为新品（去年没有销售额）
         is_new_product = april_2024 == 0 and avg_2024 == 0
 
-        # 判断有效性（新品特殊处理）
+        # 判断有效性
         if is_new_product:
-            # 新品只要环比增长即算有效
-            is_effective = mom_growth > 0
-            effectiveness_reason = f"{'✅ 有效' if is_effective else '❌ 无效'}（新品，环比{'增长' if mom_growth > 0 else '下降'}{abs(mom_growth):.1f}%）"
+            # 新品：环比增长需要达到有效增长幅度（15%以上）
+            is_effective = mom_growth >= 15
+            effectiveness_reason = f"{'✅ 有效' if is_effective else '❌ 无效'}（新品，环比{'增长' if mom_growth > 0 else '下降'}{abs(mom_growth):.1f}%，{'达到' if mom_growth >= 15 else '未达到'}有效增长幅度15%）"
             positive_count = None  # 新品不计算positive_count
         else:
             # 非新品：三个指标中至少两个为正增长
@@ -1105,7 +1077,7 @@ def analyze_promotion_effectiveness_enhanced(data):
 
 # 修改区域覆盖率分析 - 加强悬停功能
 def create_regional_coverage_analysis(data):
-    """创建更易读的区域产品覆盖率分析"""
+    """创建更易读的区域产品覆盖率分析（包含漏铺产品详细信息）"""
     sales_df = data['sales_df']
     dashboard_products = data['dashboard_products']
 
@@ -1121,23 +1093,53 @@ def create_regional_coverage_analysis(data):
         # 找出漏铺的产品并获取产品名称
         missing_products = [p for p in dashboard_products if p not in products_sold]
         
-        # 获取漏铺产品的名称
-        missing_product_names = []
-        for product_code in missing_products[:10]:  # 只显示前10个
+        # 计算漏铺产品在其他区域的表现
+        missing_product_details = []
+        for product_code in missing_products:
+            # 获取产品名称
             product_info = sales_df[sales_df['产品代码'] == product_code]
             if len(product_info) > 0:
                 product_name = product_info['产品简称'].iloc[0]
             else:
                 product_name = f"产品{product_code}"
-            missing_product_names.append(product_name)
+            
+            # 计算在其他区域的表现
+            other_regions_data = sales_df[(sales_df['产品代码'] == product_code) & (sales_df['区域'] != region)]
+            if len(other_regions_data) > 0:
+                avg_sales_other = other_regions_data.groupby('区域')['销售额'].sum().mean()
+                regions_count = other_regions_data['区域'].nunique()
+            else:
+                avg_sales_other = 0
+                regions_count = 0
+            
+            missing_product_details.append({
+                'name': product_name,
+                'code': product_code,
+                'avg_sales': avg_sales_other,
+                'regions_count': regions_count
+            })
         
-        # 创建漏铺产品列表文本
+        # 按其他区域平均销售额排序，取前10个
+        missing_product_details.sort(key=lambda x: x['avg_sales'], reverse=True)
+        top_missing_products = missing_product_details[:10]
+        
+        # 创建漏铺产品文本（用于显示）
         if len(missing_products) > 10:
-            missing_products_text = ', '.join(missing_product_names) + f', 等共{len(missing_products)}个产品'
+            missing_products_text = ', '.join([p['name'] for p in top_missing_products]) + f', 等共{len(missing_products)}个产品'
         elif len(missing_products) > 0:
-            missing_products_text = ', '.join(missing_product_names)
+            missing_products_text = ', '.join([p['name'] for p in missing_product_details])
         else:
             missing_products_text = '无'
+        
+        # 创建详细的漏铺产品HTML文本（用于悬停）
+        if len(missing_product_details) > 0:
+            missing_products_html = "<br><b>漏铺产品详情（TOP 10）:</b><br>"
+            for i, product in enumerate(top_missing_products[:10]):
+                missing_products_html += f"{i+1}. {product['name']}: 其他区域平均¥{product['avg_sales']:,.0f} ({product['regions_count']}个区域在售)<br>"
+            if len(missing_products) > 10:
+                missing_products_html += f"... 还有{len(missing_products) - 10}个产品未显示"
+        else:
+            missing_products_html = "无漏铺产品"
 
         total_sales = region_data['销售额'].sum()
         dashboard_sales = region_data[region_data['产品代码'].isin(dashboard_products)]['销售额'].sum()
@@ -1152,30 +1154,26 @@ def create_regional_coverage_analysis(data):
             'gap': max(0, 80 - coverage_rate),
             'missing_products': missing_products,
             'missing_count': len(missing_products),
-            'missing_products_text': missing_products_text
+            'missing_products_text': missing_products_text,
+            'missing_products_html': missing_products_html,
+            'missing_product_details': missing_product_details
         })
 
     df = pd.DataFrame(regional_stats).sort_values('coverage_rate', ascending=True)
 
     fig = go.Figure()
 
-    # 使用渐变色方案
-    colors = []
-    for rate in df['coverage_rate']:
-        if rate >= 95:
-            colors.append('#1e7c1e')  # 深绿色
-        elif rate >= 90:
-            colors.append('#2e8b57')  # 海洋绿
-        elif rate >= 85:
-            colors.append('#3cb371')  # 中海洋绿
-        elif rate >= 80:
-            colors.append('#10b981')  # 标准绿
-        elif rate >= 70:
-            colors.append('#f59e0b')  # 橙色
-        elif rate >= 60:
-            colors.append('#ef4444')  # 红色
-        else:
-            colors.append('#991b1b')  # 深红色
+    # 为5个区域使用5种不同的颜色
+    color_map = {
+        '东区': '#FF6B6B',    # 红色
+        '西区': '#4ECDC4',    # 青色
+        '南区': '#45B7D1',    # 蓝色
+        '北区': '#FFA07A',    # 橙色
+        '中区': '#98D8C8'     # 薄荷绿
+    }
+    
+    # 根据区域名称获取颜色
+    colors = [color_map.get(region, '#667eea') for region in df['region']]
 
     # 创建自定义hover数据
     customdata = []
@@ -1186,7 +1184,7 @@ def create_regional_coverage_analysis(data):
             row['missing_count'],
             row['total_sales'],
             row['dashboard_sales'],
-            row['missing_products_text']
+            row['missing_products_html']
         ])
 
     fig.add_trace(go.Bar(
@@ -1196,7 +1194,7 @@ def create_regional_coverage_analysis(data):
         name='覆盖率',
         marker=dict(
             color=colors,
-            line=dict(width=0)
+            line=dict(width=2, color='white')
         ),
         text=[f"{rate:.1f}% ({sold}/{total}产品)" for rate, sold, total in
               zip(df['coverage_rate'], df['products_sold'], df['total_products'])],
@@ -1209,7 +1207,7 @@ def create_regional_coverage_analysis(data):
 漏铺产品数: %{customdata[2]}个<br>
 总销售额: ¥%{customdata[3]:,.0f}<br>
 仪表盘产品销售额: ¥%{customdata[4]:,.0f}<br>
-<br><b>漏铺产品:</b><br>%{customdata[5]}<br>
+<br>%{customdata[5]}<br>
 <extra></extra>""",
         customdata=customdata
     ))
@@ -2359,52 +2357,6 @@ def main():
             </div>
             """, unsafe_allow_html=True)
 
-        # 添加区域新品渗透率图表（与总览页面的新品渗透率指标联动）
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("<div class='content-container'>", unsafe_allow_html=True)
-        
-        # 创建简化的区域渗透率图表
-        regional_data = pd.DataFrame(metrics['regional_penetration_data'])
-        regional_data = regional_data.sort_values('penetration_rate', ascending=True)
-        
-        fig_regional = go.Figure()
-        
-        # 添加柱状图
-        fig_regional.add_trace(go.Bar(
-            x=regional_data['region'],
-            y=regional_data['penetration_rate'],
-            text=[f"{rate:.1f}%" for rate in regional_data['penetration_rate']],
-            textposition='outside',
-            marker=dict(color='#4CAF50'),
-            hovertemplate="""<b>%{x}区域</b><br>
-新品渗透率: %{y:.1f}%<br>
-<extra></extra>"""
-        ))
-        
-        # 添加全国平均线（红色虚线）
-        fig_regional.add_hline(
-            y=metrics['penetration_rate'], 
-            line_dash="dash", 
-            line_color="red",
-            annotation_text=f"全国渗透率: {metrics['penetration_rate']:.1f}%",
-            annotation_position="top left",
-            annotation_textangle=0
-        )
-        
-        fig_regional.update_layout(
-            title=dict(text="<b>区域新品渗透率分析</b>", font=dict(size=18)),
-            xaxis=dict(title="销售区域"),
-            yaxis=dict(
-                title="新品渗透率 (%)",
-                range=[0, max(regional_data['penetration_rate'].max() * 1.2, metrics['penetration_rate'] * 1.3)]
-            ),
-            height=400,
-            plot_bgcolor='white',
-            margin=dict(t=80)
-        )
-        
-        st.plotly_chart(fig_regional, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
 
     # Tab 2: BCG产品矩阵
     with tabs[1]:
@@ -2747,358 +2699,302 @@ def main():
 
             st.plotly_chart(fig, use_container_width=True)
 
-    # Tab 5: 市场网络与覆盖分析
-    with tabs[4]:
-        # 选择控件
-        analysis_type = st.radio("选择分析类型",
-                                 ["🔗 产品关联网络", "📍 区域覆盖分析", "🏪 漏铺产品分析", "🌟 新品渗透率",
-                                  "✅ 有效产品分析", "📊 环比同比分析"],
-                                 horizontal=True, key="market_analysis_type")
+    # Tab 5: 市场网络与覆盖分析 - 替换整个 Tab 5 部分
+with tabs[4]:
+    # 选择控件
+    analysis_type = st.radio("选择分析类型",
+                             ["🔗 产品关联网络", "📍 区域覆盖分析", "🌟 新品渗透率",
+                              "✅ 有效产品分析", "📊 环比同比分析"],
+                             horizontal=True, key="market_analysis_type")
 
-        if analysis_type == "🔗 产品关联网络":
-            # 产品关联网络
-            st.subheader("产品关联网络分析")
+    if analysis_type == "🔗 产品关联网络":
+        # 产品关联网络
+        st.subheader("产品关联网络分析")
 
-            # 添加产品筛选器
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                product_filter = st.selectbox(
-                    "🎯 筛选产品类型",
-                    options=['all', 'star', 'new', 'promo'],
-                    format_func=lambda x: {
-                        'all': '全部仪表盘产品',
-                        'star': '⭐ 星品',
-                        'new': '🌟 新品',
-                        'promo': '🚀 促销品'
-                    }[x],
-                    key="network_filter"
-                )
+        # 添加产品筛选器
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            product_filter = st.selectbox(
+                "🎯 筛选产品类型",
+                options=['all', 'star', 'new', 'promo'],
+                format_func=lambda x: {
+                    'all': '全部仪表盘产品',
+                    'star': '⭐ 星品',
+                    'new': '🌟 新品',
+                    'promo': '🚀 促销品'
+                }[x],
+                key="network_filter"
+            )
 
-            with col2:
-                if product_filter == 'all':
-                    st.info("💡 **节点颜色说明**: 🟡 星品 | 🟢 新品 | 🟠 促销品 | 🟣 常规品")
-                elif product_filter == 'star':
-                    st.info("⭐ **星品关联网络**: 展示仪表盘产品中所有星品之间的客户关联关系")
-                elif product_filter == 'new':
-                    st.info("🌟 **新品关联网络**: 展示仪表盘产品中所有新品之间的客户关联关系")
-                else:
-                    st.info("🚀 **促销品关联网络**: 展示仪表盘产品中所有促销产品之间的客户关联关系")
+        with col2:
+            if product_filter == 'all':
+                st.info("💡 **节点颜色说明**: 🟡 星品 | 🟢 新品 | 🟠 促销品 | 🟣 常规品")
+            elif product_filter == 'star':
+                st.info("⭐ **星品关联网络**: 展示仪表盘产品中所有星品之间的客户关联关系")
+            elif product_filter == 'new':
+                st.info("🌟 **新品关联网络**: 展示仪表盘产品中所有新品之间的客户关联关系")
+            else:
+                st.info("🚀 **促销品关联网络**: 展示仪表盘产品中所有促销产品之间的客户关联关系")
 
-            # 创建基于真实数据的2D网络图 - 使用缓存版本
-            with st.spinner('正在生成产品关联网络图...'):
-                network_fig = create_product_network_cached(
-                    data['sales_df'],
-                    data['dashboard_products'],
-                    data['star_products'],
-                    data['new_products'],
-                    data['promotion_df'],
-                    product_filter
-                )
-            st.plotly_chart(network_fig, use_container_width=True)
+        # 创建基于真实数据的2D网络图 - 使用缓存版本
+        with st.spinner('正在生成产品关联网络图...'):
+            network_fig = create_product_network_cached(
+                data['sales_df'],
+                data['dashboard_products'],
+                data['star_products'],
+                data['new_products'],
+                data['promotion_df'],
+                product_filter
+            )
+        st.plotly_chart(network_fig, use_container_width=True)
 
-            # 关联分析洞察
-            with st.expander("💡 产品关联营销策略", expanded=True):
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    st.info("""
-                    **🎯 关联分析价值**
-                    - 识别经常一起购买的产品组合
-                    - 发现交叉销售机会
-                    - 优化产品组合策略
-                    - 提升客户购买体验
-                    """)
-
-                with col2:
-                    st.success("""
-                    **📈 应用建议**
-                    - 将高关联产品打包销售
-                    - 在促销时同时推广关联产品
-                    - 基于关联度设计货架陈列
-                    - 开发新的组合套装产品
-                    """)
-
-        elif analysis_type == "📍 区域覆盖分析":
-            # 区域覆盖分析
-            fig, coverage_df = create_regional_coverage_analysis(data)
-            st.plotly_chart(fig, use_container_width=True)
-
-            # 覆盖率分析洞察
+        # 关联分析洞察
+        with st.expander("💡 产品关联营销策略", expanded=True):
             col1, col2 = st.columns(2)
 
             with col1:
-                avg_coverage = coverage_df['coverage_rate'].mean()
-                st.metric("平均覆盖率", f"{avg_coverage:.1f}%",
-                          "整体表现良好" if avg_coverage >= 70 else "需要提升")
-
-                low_coverage_regions = coverage_df[coverage_df['coverage_rate'] < 80]
-                if len(low_coverage_regions) > 0:
-                    st.warning(f"⚠️ 有{len(low_coverage_regions)}个区域低于80%目标线")
+                st.info("""
+                **🎯 关联分析价值**
+                - 识别经常一起购买的产品组合
+                - 发现交叉销售机会
+                - 优化产品组合策略
+                - 提升客户购买体验
+                """)
 
             with col2:
-                # 漏铺市机会分析
-                total_gap = coverage_df['gap'].sum()
-                if total_gap > 0:
-                    potential_products = int(total_gap * len(data['dashboard_products']) / 100)
-                    st.info(f"""
-                    **📈 漏铺市机会**
-                    - 总体覆盖缺口: {total_gap:.0f}%
-                    - 潜在可增产品: 约{potential_products}个
-                    - 建议优先开发覆盖率最低的区域
-                    """)
-                else:
-                    st.success("✅ 所有区域覆盖率均达到80%以上")
+                st.success("""
+                **📈 应用建议**
+                - 将高关联产品打包销售
+                - 在促销时同时推广关联产品
+                - 基于关联度设计货架陈列
+                - 开发新的组合套装产品
+                """)
 
-            # 添加区域详情表
-            with st.expander("📋 查看各区域覆盖详情", expanded=False):
-                display_cols = ['region', 'coverage_rate', 'products_sold', 'missing_count', 'total_sales']
-                display_df = coverage_df[display_cols].copy()
-                display_df.columns = ['区域', '覆盖率(%)', '已铺产品数', '漏铺产品数', '总销售额']
-                display_df['覆盖率(%)'] = display_df['覆盖率(%)'].apply(lambda x: f"{x:.1f}%")
-                display_df['总销售额'] = display_df['总销售额'].apply(lambda x: f"¥{x:,.0f}")
-                st.dataframe(display_df, use_container_width=True, hide_index=True)
+    elif analysis_type == "📍 区域覆盖分析":
+        # 区域覆盖分析
+        fig, coverage_df = create_regional_coverage_analysis(data)
+        st.plotly_chart(fig, use_container_width=True)
 
-        elif analysis_type == "🏪 漏铺产品分析":
-            st.subheader("漏铺产品详细分析")
+        # 覆盖率分析洞察
+        col1, col2 = st.columns(2)
 
-            # 选择区域
-            regions = data['sales_df']['区域'].unique()
-            selected_region = st.selectbox("🗺️ 选择要分析的区域", regions)
+        with col1:
+            avg_coverage = coverage_df['coverage_rate'].mean()
+            st.metric("平均覆盖率", f"{avg_coverage:.1f}%",
+                      "整体表现良好" if avg_coverage >= 70 else "需要提升")
 
-            # 生成漏铺产品分析 - 使用缓存版本
-            with st.spinner('正在分析漏铺产品...'):
-                fig, missing_df = create_missing_products_analysis_cached(
-                    data['sales_df'],
-                    data['dashboard_products'],
-                    selected_region
-                )
+            low_coverage_regions = coverage_df[coverage_df['coverage_rate'] < 80]
+            if len(low_coverage_regions) > 0:
+                st.warning(f"⚠️ 有{len(low_coverage_regions)}个区域低于80%目标线")
 
-            if fig:
-                st.plotly_chart(fig, use_container_width=True)
-
-                # 分析洞察
-                with st.expander("💡 漏铺产品策略建议", expanded=True):
-                    if len(missing_df) > 0:
-                        high_potential = missing_df[missing_df['avg_sales_other_regions'] > 0]
-
-                        col1, col2 = st.columns(2)
-
-                        with col1:
-                            st.info(f"""
-                            **📊 漏铺分析**
-                            - 漏铺产品总数: {len(missing_df)}个
-                            - 有销售潜力产品: {len(high_potential)}个
-                            - 预计增收机会: ¥{high_potential['avg_sales_other_regions'].sum():,.0f}
-                            """)
-
-                        with col2:
-                            top_3 = high_potential.head(3)
-                            if len(top_3) > 0:
-                                st.success(f"""
-                                **🎯 优先铺货建议（TOP 3）**
-                                {chr(10).join([f"- {row['product_name']}: 预计¥{row['avg_sales_other_regions']:,.0f}" for _, row in top_3.iterrows()])}
-                                """)
-
-                # 详细数据表
-                with st.expander("📋 查看所有漏铺产品详情", expanded=False):
-                    if len(missing_df) > 0:
-                        display_df = missing_df.copy()
-                        display_df.columns = ['产品代码', '产品名称', '其他区域平均销售额', '销售区域数',
-                                              '其他区域总销售额']
-                        display_df['其他区域平均销售额'] = display_df['其他区域平均销售额'].apply(
-                            lambda x: f"¥{x:,.0f}")
-                        display_df['其他区域总销售额'] = display_df['其他区域总销售额'].apply(lambda x: f"¥{x:,.0f}")
-                        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        with col2:
+            # 漏铺市机会分析
+            total_gap = coverage_df['gap'].sum()
+            if total_gap > 0:
+                potential_products = int(total_gap * len(data['dashboard_products']) / 100)
+                st.info(f"""
+                **📈 漏铺市机会**
+                - 总体覆盖缺口: {total_gap:.0f}%
+                - 潜在可增产品: 约{potential_products}个
+                - 建议优先开发覆盖率最低的区域
+                """)
             else:
-                st.success(f"✅ {selected_region}区域已覆盖所有仪表盘产品！")
+                st.success("✅ 所有区域覆盖率均达到80%以上")
 
-        elif analysis_type == "🌟 新品渗透率":
-            st.subheader("区域新品渗透率分析")
+        # 添加区域详情表
+        with st.expander("📋 查看各区域覆盖详情", expanded=False):
+            display_cols = ['region', 'coverage_rate', 'products_sold', 'missing_count', 'total_sales']
+            display_df = coverage_df[display_cols].copy()
+            display_df.columns = ['区域', '覆盖率(%)', '已铺产品数', '漏铺产品数', '总销售额']
+            display_df['覆盖率(%)'] = display_df['覆盖率(%)'].apply(lambda x: f"{x:.1f}%")
+            display_df['总销售额'] = display_df['总销售额'].apply(lambda x: f"¥{x:,.0f}")
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
 
-            # 生成新品渗透率分析 - 使用缓存版本
-            with st.spinner('正在分析新品渗透率...'):
-                fig, penetration_df = create_regional_penetration_analysis_cached(
-                    data['sales_df'],
-                    data['new_products']
-                )
+    elif analysis_type == "🌟 新品渗透率":
+        st.subheader("区域新品渗透率分析")
+
+        # 生成新品渗透率分析 - 使用缓存版本
+        with st.spinner('正在分析新品渗透率...'):
+            fig, penetration_df = create_regional_penetration_analysis_cached(
+                data['sales_df'],
+                data['new_products']
+            )
+        st.plotly_chart(fig, use_container_width=True)
+
+        # 分析洞察
+        with st.expander("💡 新品渗透策略建议", expanded=True):
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                avg_penetration = penetration_df['penetration_rate'].mean()
+                st.metric("平均渗透率", f"{avg_penetration:.1f}%",
+                          f"{'高于' if avg_penetration > 50 else '低于'}行业平均")
+
+            with col2:
+                top_region = penetration_df.iloc[-1]  # 因为是升序排列，最后一个是最高的
+                st.success(f"""
+                **🏆 最佳区域**
+                {top_region['region']}: {top_region['penetration_rate']:.1f}%
+                客户: {top_region['new_product_customers']}/{top_region['total_customers']}
+                """)
+
+            with col3:
+                bottom_region = penetration_df.iloc[0]  # 第一个是最低的
+                st.warning(f"""
+                **⚠️ 待提升区域**
+                {bottom_region['region']}: {bottom_region['penetration_rate']:.1f}%
+                潜力: {bottom_region['total_customers'] - bottom_region['new_product_customers']}个客户
+                """)
+
+        # 详细数据表
+        with st.expander("📋 查看各区域新品渗透详情", expanded=False):
+            display_df = penetration_df.copy()
+            display_df = display_df[['region', 'penetration_rate', 'new_product_customers',
+                                     'total_customers', 'sales_ratio', 'new_product_sales']]
+            display_df.columns = ['区域', '渗透率(%)', '新品客户数', '总客户数', '销售占比(%)', '新品销售额']
+            display_df['渗透率(%)'] = display_df['渗透率(%)'].apply(lambda x: f"{x:.1f}%")
+            display_df['销售占比(%)'] = display_df['销售占比(%)'].apply(lambda x: f"{x:.1f}%")
+            display_df['新品销售额'] = display_df['新品销售额'].apply(lambda x: f"¥{x:,.0f}")
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+    elif analysis_type == "✅ 有效产品分析":
+        st.subheader("有效产品分析（月均销售≥15箱）")
+
+        # 选择维度
+        eff_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True,
+                                 key="eff_dimension")
+
+        if eff_dimension == "🌏 全国维度":
+            product_analysis = analyze_effective_products_cached(
+                data['sales_df'],
+                data['dashboard_products'],
+                'national'
+            )
+            title = "全国有效产品分析"
+        else:
+            regions = data['sales_df']['区域'].unique()
+            selected_region = st.selectbox("选择区域", regions)
+            product_analysis = analyze_effective_products_cached(
+                data['sales_df'],
+                data['dashboard_products'],
+                'regional',
+                selected_region
+            )
+            title = f"{selected_region}区域有效产品分析"
+
+        if len(product_analysis) > 0:
+            fig, effectiveness_rate = create_effective_products_chart(product_analysis, title)
             st.plotly_chart(fig, use_container_width=True)
 
-            # 分析洞察
-            with st.expander("💡 新品渗透策略建议", expanded=True):
-                col1, col2, col3 = st.columns(3)
+            # 策略建议
+            with st.expander("💡 有效产品策略建议", expanded=True):
+                effective_products = product_analysis[product_analysis['is_effective'] == True]
+                ineffective_products = product_analysis[product_analysis['is_effective'] == False]
 
-                with col1:
-                    avg_penetration = penetration_df['penetration_rate'].mean()
-                    st.metric("平均渗透率", f"{avg_penetration:.1f}%",
-                              f"{'高于' if avg_penetration > 50 else '低于'}行业平均")
+                st.info(f"""
+                **📋 策略建议**
+                - 有效产品（{len(effective_products)}个）：继续保持良好销售势头，可作为主推产品
+                - 接近标准产品：月均销售10-15箱的产品，稍加推广即可达标
+                - 低效产品：月均销售低于10箱的产品，需要重新评估市场定位
+                - 区域差异：不同区域的有效产品可能不同，需因地制宜
+                """)
+        else:
+            st.warning("暂无产品数据")
 
-                with col2:
-                    top_region = penetration_df.iloc[-1]  # 因为是升序排列，最后一个是最高的
-                    st.success(f"""
-                    **🏆 最佳区域**
-                    {top_region['region']}: {top_region['penetration_rate']:.1f}%
-                    客户: {top_region['new_product_customers']}/{top_region['total_customers']}
-                    """)
+    else:  # 环比同比分析
+        st.subheader("📊 仪表盘产品环比同比分析")
 
-                with col3:
-                    bottom_region = penetration_df.iloc[0]  # 第一个是最低的
-                    st.warning(f"""
-                    **⚠️ 待提升区域**
-                    {bottom_region['region']}: {bottom_region['penetration_rate']:.1f}%
-                    潜力: {bottom_region['total_customers'] - bottom_region['new_product_customers']}个客户
-                    """)
+        # 分析产品增长率 - 使用缓存版本
+        growth_df = analyze_growth_rates_cached(
+            data['sales_df'],
+            data['dashboard_products']
+        )
 
-            # 详细数据表
-            with st.expander("📋 查看各区域新品渗透详情", expanded=False):
-                display_df = penetration_df.copy()
-                display_df = display_df[['region', 'penetration_rate', 'new_product_customers',
-                                         'total_customers', 'sales_ratio', 'new_product_sales']]
-                display_df.columns = ['区域', '渗透率(%)', '新品客户数', '总客户数', '销售占比(%)', '新品销售额']
-                display_df['渗透率(%)'] = display_df['渗透率(%)'].apply(lambda x: f"{x:.1f}%")
-                display_df['销售占比(%)'] = display_df['销售占比(%)'].apply(lambda x: f"{x:.1f}%")
-                display_df['新品销售额'] = display_df['新品销售额'].apply(lambda x: f"¥{x:,.0f}")
-                st.dataframe(display_df, use_container_width=True, hide_index=True)
+        if len(growth_df) > 0:
+            # 创建环比同比图表
+            fig_mom, fig_yoy = create_growth_rate_charts(growth_df)
 
-        elif analysis_type == "✅ 有效产品分析":
-            st.subheader("有效产品分析（月均销售≥15箱）")
+            if fig_mom and fig_yoy:
+                # 显示环比分析
+                st.plotly_chart(fig_mom, use_container_width=True)
 
-            # 选择维度
-            eff_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True,
-                                     key="eff_dimension")
+                # 显示同比分析
+                st.plotly_chart(fig_yoy, use_container_width=True)
 
-            if eff_dimension == "🌏 全国维度":
-                product_analysis = analyze_effective_products_cached(
-                    data['sales_df'],
-                    data['dashboard_products'],
-                    'national'
-                )
-                title = "全国有效产品分析"
-            else:
-                regions = data['sales_df']['区域'].unique()
-                selected_region = st.selectbox("选择区域", regions)
-                product_analysis = analyze_effective_products_cached(
-                    data['sales_df'],
-                    data['dashboard_products'],
-                    'regional',
-                    selected_region
-                )
-                title = f"{selected_region}区域有效产品分析"
+                # 增长率分析洞察
+                with st.expander("💡 增长率分析洞察", expanded=True):
+                    active_products = growth_df[growth_df['has_current_sales'] == True]
 
-            if len(product_analysis) > 0:
-                fig, effectiveness_rate = create_effective_products_chart(product_analysis, title)
-                st.plotly_chart(fig, use_container_width=True)
+                    col1, col2, col3 = st.columns(3)
 
-                # 策略建议
-                with st.expander("💡 有效产品策略建议", expanded=True):
-                    effective_products = product_analysis[product_analysis['is_effective'] == True]
-                    ineffective_products = product_analysis[product_analysis['is_effective'] == False]
+                    with col1:
+                        mom_positive = (active_products['mom_sales_growth'] > 0).sum()
+                        mom_negative = (active_products['mom_sales_growth'] <= 0).sum()
+                        avg_mom = active_products['mom_sales_growth'].mean()
 
-                    st.info(f"""
-                    **📋 策略建议**
-                    - 有效产品（{len(effective_products)}个）：继续保持良好销售势头，可作为主推产品
-                    - 接近标准产品：月均销售10-15箱的产品，稍加推广即可达标
-                    - 低效产品：月均销售低于10箱的产品，需要重新评估市场定位
-                    - 区域差异：不同区域的有效产品可能不同，需因地制宜
-                    """)
-            else:
-                st.warning("暂无产品数据")
+                        st.info(f"""
+                        **📈 环比分析（4月 vs 3月）**
+                        - 正增长产品: {mom_positive}个
+                        - 负增长产品: {mom_negative}个
+                        - 平均增长率: {avg_mom:.1f}%
+                        - 最高增长: {active_products['mom_sales_growth'].max():.1f}%
+                        - 最大下滑: {active_products['mom_sales_growth'].min():.1f}%
+                        """)
 
-        else:  # 环比同比分析
-            st.subheader("📊 仪表盘产品环比同比分析")
+                    with col2:
+                        non_new_products = active_products[active_products['is_new_product'] == False]
+                        yoy_positive = (non_new_products['yoy_sales_growth'] > 0).sum()
+                        yoy_negative = (non_new_products['yoy_sales_growth'] <= 0).sum()
+                        avg_yoy = non_new_products['yoy_sales_growth'].mean()
 
-            # 分析产品增长率 - 使用缓存版本
-            growth_df = analyze_growth_rates_cached(
-                data['sales_df'],
-                data['dashboard_products']
-            )
+                        st.success(f"""
+                        **📊 同比分析（2025 vs 2024）**
+                        - 正增长产品: {yoy_positive}个
+                        - 负增长产品: {yoy_negative}个
+                        - 平均增长率: {avg_yoy:.1f}%
+                        - 新品数量: {active_products['is_new_product'].sum()}个
+                        - 最高增长: {non_new_products['yoy_sales_growth'].max():.1f}%
+                        """)
 
-            if len(growth_df) > 0:
-                # 创建环比同比图表
-                fig_mom, fig_yoy = create_growth_rate_charts(growth_df)
+                    with col3:
+                        # 双增长产品（环比同比都增长）
+                        double_growth = active_products[
+                            (active_products['mom_sales_growth'] > 0) &
+                            (active_products['yoy_sales_growth'] > 0) &
+                            (~active_products['is_new_product'])
+                            ]
 
-                if fig_mom and fig_yoy:
-                    # 显示环比分析
-                    st.plotly_chart(fig_mom, use_container_width=True)
+                        st.warning(f"""
+                        **⭐ 明星增长产品**
+                        - 双增长产品: {len(double_growth)}个
+                        - 占老品比例: {len(double_growth) / (len(active_products) - active_products['is_new_product'].sum()) * 100:.1f}%
+                        - 建议: 重点关注和推广
+                        - 策略: 可作为主打产品
+                        """)
 
-                    # 显示同比分析
-                    st.plotly_chart(fig_yoy, use_container_width=True)
+                # 产品增长明细表
+                with st.expander("📋 产品增长率明细表", expanded=False):
+                    # 准备显示数据
+                    display_df = growth_df[growth_df['has_current_sales'] == True].copy()
+                    display_df = display_df.sort_values('current_sales', ascending=False)
 
-                    # 增长率分析洞察
-                    with st.expander("💡 增长率分析洞察", expanded=True):
-                        active_products = growth_df[growth_df['has_current_sales'] == True]
+                    # 格式化显示
+                    display_df['环比增长'] = display_df['mom_sales_growth'].apply(lambda x: f"{x:+.1f}%")
+                    display_df['同比增长'] = display_df.apply(
+                        lambda row: "新品" if row['is_new_product'] else f"{row['yoy_sales_growth']:+.1f}%",
+                        axis=1
+                    )
+                    display_df['当期销售额'] = display_df['current_sales'].apply(lambda x: f"¥{x:,.0f}")
+                    display_df['产品类型'] = display_df['is_new_product'].apply(lambda x: "🌟新品" if x else "老品")
 
-                        col1, col2, col3 = st.columns(3)
-
-                        with col1:
-                            mom_positive = (active_products['mom_sales_growth'] > 0).sum()
-                            mom_negative = (active_products['mom_sales_growth'] <= 0).sum()
-                            avg_mom = active_products['mom_sales_growth'].mean()
-
-                            st.info(f"""
-                            **📈 环比分析（4月 vs 3月）**
-                            - 正增长产品: {mom_positive}个
-                            - 负增长产品: {mom_negative}个
-                            - 平均增长率: {avg_mom:.1f}%
-                            - 最高增长: {active_products['mom_sales_growth'].max():.1f}%
-                            - 最大下滑: {active_products['mom_sales_growth'].min():.1f}%
-                            """)
-
-                        with col2:
-                            non_new_products = active_products[active_products['is_new_product'] == False]
-                            yoy_positive = (non_new_products['yoy_sales_growth'] > 0).sum()
-                            yoy_negative = (non_new_products['yoy_sales_growth'] <= 0).sum()
-                            avg_yoy = non_new_products['yoy_sales_growth'].mean()
-
-                            st.success(f"""
-                            **📊 同比分析（2025 vs 2024）**
-                            - 正增长产品: {yoy_positive}个
-                            - 负增长产品: {yoy_negative}个
-                            - 平均增长率: {avg_yoy:.1f}%
-                            - 新品数量: {active_products['is_new_product'].sum()}个
-                            - 最高增长: {non_new_products['yoy_sales_growth'].max():.1f}%
-                            """)
-
-                        with col3:
-                            # 双增长产品（环比同比都增长）
-                            double_growth = active_products[
-                                (active_products['mom_sales_growth'] > 0) &
-                                (active_products['yoy_sales_growth'] > 0) &
-                                (~active_products['is_new_product'])
-                                ]
-
-                            st.warning(f"""
-                            **⭐ 明星增长产品**
-                            - 双增长产品: {len(double_growth)}个
-                            - 占老品比例: {len(double_growth) / (len(active_products) - active_products['is_new_product'].sum()) * 100:.1f}%
-                            - 建议: 重点关注和推广
-                            - 策略: 可作为主打产品
-                            """)
-
-                    # 产品增长明细表
-                    with st.expander("📋 产品增长率明细表", expanded=False):
-                        # 准备显示数据
-                        display_df = growth_df[growth_df['has_current_sales'] == True].copy()
-                        display_df = display_df.sort_values('current_sales', ascending=False)
-
-                        # 格式化显示
-                        display_df['环比增长'] = display_df['mom_sales_growth'].apply(lambda x: f"{x:+.1f}%")
-                        display_df['同比增长'] = display_df.apply(
-                            lambda row: "新品" if row['is_new_product'] else f"{row['yoy_sales_growth']:+.1f}%",
-                            axis=1
-                        )
-                        display_df['当期销售额'] = display_df['current_sales'].apply(lambda x: f"¥{x:,.0f}")
-                        display_df['产品类型'] = display_df['is_new_product'].apply(lambda x: "🌟新品" if x else "老品")
-
-                        # 选择显示列
-                        st.dataframe(
-                            display_df[['product_name', '产品类型', '当期销售额', '环比增长', '同比增长']],
-                            use_container_width=True,
-                            hide_index=True
-                        )
-                else:
-                    st.warning("暂无足够的数据进行环比同比分析")
-            else:
-                st.warning("暂无产品数据")
+                    # 选择显示列
+                    st.dataframe(
+                        display_df[['product_name', '产品类型', '当期销售额', '环比增长', '同比增长']],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+        else:
+            st.warning("暂无产品数据")
 
 
 if __name__ == "__main__":
