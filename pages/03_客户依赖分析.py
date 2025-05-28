@@ -540,7 +540,8 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
         'high_value_rate': high_value_rate,
         'current_year': current_year, 'rfm_df': rfm_df, 'concentration_rate': concentration_rate,
         'customer_achievement_details': pd.DataFrame(
-            customer_achievement_details) if customer_achievement_details else pd.DataFrame()
+            customer_achievement_details) if customer_achievement_details else pd.DataFrame(),
+        'sales_with_region': sales_with_region
     }
 
 
@@ -1368,7 +1369,7 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
         )
         charts['risk_matrix'] = fig_risk
 
-    # 4. 价值分层桑基图（使用ECharts或备选方案）
+    # 4. 优化的价值分层图（使用Plotly树状图）
     if not metrics['rfm_df'].empty:
         # 使用更鲜明的配色方案
         customer_types = [
@@ -1382,290 +1383,90 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
         # 统计总客户数
         total_count = len(metrics['rfm_df'])
 
-        if ECHARTS_AVAILABLE:
-            # 使用 ECharts 创建桑基图
-            try:
-                # 准备节点数据
-                nodes = [{
-                    "name": f"全部客户\n{total_count}家",
-                    "itemStyle": {"color": "#9b59b6"}
-                }]
-                links = []
+        # 准备数据
+        data_for_treemap = []
 
-                for customer_type, color, emoji in customer_types:
-                    type_customers = metrics['rfm_df'][metrics['rfm_df']['类型'] == customer_type]
-                    count = len(type_customers)
+        # 添加根节点
+        data_for_treemap.append({
+            'labels': '全部客户',
+            'parents': '',
+            'values': total_count,
+            'text': f'全部客户<br>{total_count}家',
+            'color': '#9b59b6'
+        })
 
-                    if count > 0:
-                        percentage = count / total_count * 100
-                        node_name = f"{emoji} {customer_type}\n{count}家 ({percentage:.1f}%)"
+        # 为每个客户类型准备悬停信息
+        for customer_type, color, emoji in customer_types:
+            type_customers = metrics['rfm_df'][metrics['rfm_df']['类型'] == customer_type]
+            count = len(type_customers)
 
-                        # 节点数据
-                        nodes.append({
-                            "name": node_name,
-                            "itemStyle": {"color": color}
-                        })
+            if count > 0:
+                percentage = count / total_count * 100
 
-                        # 获取客户名单
-                        customer_names = type_customers.nlargest(10, 'M')['客户'].tolist()
-                        customer_sales = type_customers.nlargest(10, 'M')['M'].tolist()
+                # 获取Top 10客户用于悬停显示
+                top_customers = type_customers.nlargest(10, 'M')
+                
+                # 构建悬停文本 - 包含客户列表
+                hover_lines = []
+                hover_lines.append(f"<b>{emoji} {customer_type}</b>")
+                hover_lines.append(f"客户数: {count}家 ({percentage:.1f}%)")
+                hover_lines.append("")
+                hover_lines.append("<b>Top 10客户：</b>")
+                
+                for idx, (_, cust) in enumerate(top_customers.iterrows(), 1):
+                    customer_name = cust['客户']
+                    if len(customer_name) > 15:
+                        customer_name = customer_name[:15] + "..."
+                    hover_lines.append(f"{idx}. {customer_name} ({format_amount(cust['M'])})")
+                
+                if len(type_customers) > 10:
+                    hover_lines.append(f"... 还有{len(type_customers) - 10}个客户")
+                
+                hover_text = "<br>".join(hover_lines)
 
-                        # 构建简化的tooltip文本
-                        tooltip_text = f"{emoji} {customer_type}: {count}家 ({percentage:.1f}%)"
-
-                        links.append({
-                            "source": f"全部客户\n{total_count}家",
-                            "target": node_name,
-                            "value": count
-                        })
-
-                # ECharts 配置
-                option = {
-                    "title": {
-                        "text": "客户价值分层流向分析",
-                        "left": "center",
-                        "top": 20,
-                        "textStyle": {
-                            "fontSize": 20,
-                            "fontWeight": "bold",
-                            "color": "#2d3748"
-                        }
-                    },
-                    "tooltip": {
-                        "trigger": "item",
-                        "triggerOn": "mousemove",
-                        "backgroundColor": "rgba(255,255,255,0.98)",
-                        "borderColor": "#667eea",
-                        "borderWidth": 2,
-                        "borderRadius": 8,
-                        "padding": [10, 15],
-                        "textStyle": {
-                            "fontSize": 13,
-                            "color": "#2d3748",
-                            "lineHeight": 20
-                        },
-                        "extraCssText": "box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);"
-                    },
-                    "series": [{
-                        "type": "sankey",
-                        "layout": "none",
-                        "emphasis": {
-                            "focus": "adjacency",
-                            "itemStyle": {
-                                "shadowBlur": 20,
-                                "shadowColor": "rgba(102, 126, 234, 0.5)"
-                            }
-                        },
-                        "data": nodes,
-                        "links": links,
-                        "lineStyle": {
-                            "color": "gradient",
-                            "curveness": 0.5,
-                            "opacity": 0.6
-                        },
-                        "label": {
-                            "position": "right",
-                            "fontSize": 14,
-                            "fontWeight": "bold",
-                            "color": "#374151"
-                        },
-                        "itemStyle": {
-                            "borderWidth": 2,
-                            "borderColor": "#fff",
-                            "borderRadius": 4
-                        },
-                        "animationDuration": 1500,
-                        "animationEasing": "cubicOut"
-                    }],
-                    "color": ['#9b59b6', '#e74c3c', '#f39c12', '#3498db', '#2ecc71', '#95a5a6'],
-                    "backgroundColor": "#f8f9fa"
-                }
-
-                # 创建一个占位符用于渲染 ECharts
-                charts['sankey'] = ('echarts', option)
-                print("✅ ECharts 桑基图配置创建成功")
-
-            except Exception as e:
-                print(f"ECharts 桑基图创建失败: {e}")
-                # 不要在这里修改全局变量，只是标记为不使用 ECharts
-                charts['sankey'] = None  # 稍后会使用备选方案
-
-        if not ECHARTS_AVAILABLE or charts.get('sankey') is None:
-            # 使用 Plotly 树状图作为更稳定的备选方案
-            try:
-                import plotly.express as px
-
-                # 准备数据
-                data_for_treemap = []
-
-                # 添加根节点
                 data_for_treemap.append({
-                    'labels': '全部客户',
-                    'parents': '',
-                    'values': total_count,
-                    'text': f'全部客户<br>{total_count}家',
-                    'color': '#9b59b6'
+                    'labels': f"{emoji} {customer_type}",
+                    'parents': '全部客户',
+                    'values': count,
+                    'text': f"{emoji} {customer_type}<br>{count}家",  # 简化显示文本
+                    'color': color,
+                    'hover_text': hover_text,
+                    'percentage': percentage
                 })
 
-                # 添加各类型客户
-                for customer_type, color, emoji in customer_types:
-                    type_customers = metrics['rfm_df'][metrics['rfm_df']['类型'] == customer_type]
-                    count = len(type_customers)
+        # 创建数据框
+        df_treemap = pd.DataFrame(data_for_treemap)
 
-                    if count > 0:
-                        percentage = count / total_count * 100
+        # 创建树状图
+        fig_treemap = go.Figure(go.Treemap(
+            labels=df_treemap['labels'],
+            parents=df_treemap['parents'],
+            values=df_treemap['values'],
+            text=df_treemap['text'],
+            textinfo="text",
+            customdata=df_treemap[['hover_text', 'percentage']].values if 'hover_text' in df_treemap.columns else None,
+            hovertemplate='%{customdata[0]}<extra></extra>' if 'hover_text' in df_treemap.columns else '%{label}<br>%{value}家<extra></extra>',
+            marker=dict(
+                colors=df_treemap['color'],
+                line=dict(width=3, color='white')
+            ),
+            textfont=dict(size=16, family="Microsoft YaHei")
+        ))
 
-                        # 获取客户名单用于悬停显示
-                        top_customers = type_customers.nlargest(10, 'M')
-                        hover_text = f"{emoji} {customer_type}<br>"
-                        hover_text += f"客户数: {count}家<br>"
-                        hover_text += f"占比: {percentage:.1f}%<br><br>"
-                        hover_text += "Top 10客户：<br>"
-                        for _, cust in top_customers.iterrows():
-                            hover_text += f"• {cust['客户'][:15]}... ({format_amount(cust['M'])})<br>"
-                        if len(type_customers) > 10:
-                            hover_text += f"... 还有{len(type_customers) - 10}个客户"
+        fig_treemap.update_layout(
+            title=dict(
+                text="客户价值分层流向分析",
+                font=dict(size=20, color='#2d3748', family="Microsoft YaHei"),
+                x=0.5,
+                xanchor='center'
+            ),
+            height=600,
+            margin=dict(t=80, b=20, l=20, r=20),
+            paper_bgcolor='#f8f9fa',
+            plot_bgcolor='white'
+        )
 
-                        data_for_treemap.append({
-                            'labels': f"{emoji} {customer_type}",
-                            'parents': '全部客户',
-                            'values': count,
-                            'text': f"{emoji} {customer_type}<br>{count}家 ({percentage:.1f}%)",
-                            'color': color,
-                            'hover_text': hover_text
-                        })
-
-                # 创建数据框
-                df_treemap = pd.DataFrame(data_for_treemap)
-
-                # 创建树状图
-                fig_treemap = go.Figure(go.Treemap(
-                    labels=df_treemap['labels'],
-                    parents=df_treemap['parents'],
-                    values=df_treemap['values'],
-                    text=df_treemap['text'],
-                    textinfo="text",
-                    hovertext=df_treemap.get('hover_text', df_treemap['text']),
-                    hovertemplate='%{hovertext}<extra></extra>',
-                    marker=dict(
-                        colors=df_treemap['color'],
-                        line=dict(width=3, color='white')
-                    ),
-                    textfont=dict(size=16, family="Microsoft YaHei")
-                ))
-
-                fig_treemap.update_layout(
-                    title=dict(
-                        text="客户价值分层分布",
-                        font=dict(size=20, color='#2d3748', family="Microsoft YaHei"),
-                        x=0.5,
-                        xanchor='center'
-                    ),
-                    height=550,
-                    margin=dict(t=100, b=20, l=20, r=20),
-                    paper_bgcolor='#f8f9fa',
-                    plot_bgcolor='white'
-                )
-
-                charts['sankey'] = fig_treemap
-                print("✅ 使用树状图作为桑基图的替代方案")
-
-            except Exception as e:
-                print(f"树状图创建也失败: {e}")
-                # 最后的备选方案：堆叠条形图
-                try:
-                    # 创建堆叠条形图的代码...（保持原有的备选方案）
-                    customer_type_counts = metrics['rfm_df']['类型'].value_counts()
-
-                    fig_bar = go.Figure()
-
-                    # 按价值从高到低排序
-                    ordered_types = ['钻石客户', '黄金客户', '白银客户', '潜力客户', '流失风险']
-
-                    for customer_type in ordered_types:
-                        if customer_type in customer_type_counts.index:
-                            count = customer_type_counts[customer_type]
-                            percentage = count / len(metrics['rfm_df']) * 100
-
-                            # 查找对应的颜色和emoji
-                            for ct, color, emoji in customer_types:
-                                if ct == customer_type:
-                                    break
-
-                            # 获取该类型的客户列表
-                            type_customers = metrics['rfm_df'][metrics['rfm_df']['类型'] == customer_type]
-                            top_customers = type_customers.nlargest(10, 'M')
-
-                            # 构建悬停文本
-                            hover_text = f"<b>{emoji} {customer_type}</b><br>"
-                            hover_text += f"客户数: {count}家<br>"
-                            hover_text += f"占比: {percentage:.1f}%<br><br>"
-                            hover_text += "<b>Top 10客户：</b><br>"
-                            for _, cust in top_customers.iterrows():
-                                hover_text += f"• {cust['客户']} ({format_amount(cust['M'])})<br>"
-                            if len(type_customers) > 10:
-                                hover_text += f"... 还有{len(type_customers) - 10}个客户"
-
-                            fig_bar.add_trace(go.Bar(
-                                y=[customer_type],
-                                x=[count],
-                                name=f"{emoji} {customer_type}",
-                                orientation='h',
-                                marker=dict(
-                                    color=color,
-                                    line=dict(color='white', width=2)
-                                ),
-                                text=f"{count}家 ({percentage:.1f}%)",
-                                textposition='inside',
-                                textfont=dict(size=14, color='white', family='Microsoft YaHei'),
-                                hovertemplate=hover_text + '<extra></extra>',
-                                showlegend=True
-                            ))
-
-                    fig_bar.update_layout(
-                        title=dict(
-                            text="客户价值分层分布",
-                            font=dict(size=20, color='#2d3748', family="Microsoft YaHei"),
-                            x=0.5,
-                            xanchor='center'
-                        ),
-                        xaxis=dict(
-                            title="客户数量",
-                            showgrid=True,
-                            gridwidth=1,
-                            gridcolor='rgba(0,0,0,0.05)'
-                        ),
-                        yaxis=dict(
-                            title="",
-                            showgrid=False,
-                            categoryorder='array',
-                            categoryarray=['流失风险', '潜力客户', '白银客户', '黄金客户', '钻石客户']
-                        ),
-                        height=500,
-                        plot_bgcolor='white',
-                        paper_bgcolor='#f8f9fa',
-                        margin=dict(t=100, b=80, l=150, r=80),
-                        barmode='relative',
-                        hoverlabel=dict(
-                            bgcolor="white",
-                            font_size=12,
-                            font_family="Microsoft YaHei"
-                        ),
-                        legend=dict(
-                            orientation="h",
-                            yanchor="bottom",
-                            y=-0.2,
-                            xanchor="center",
-                            x=0.5
-                        )
-                    )
-
-                    charts['sankey'] = fig_bar
-                    print("✅ 使用堆叠条形图作为最终备选方案")
-
-                except Exception as e3:
-                    print(f"所有备选方案都失败: {e3}")
-                    charts['sankey'] = None
+        charts['sankey'] = fig_treemap
 
     # 5. 月度趋势图
     if not sales_data.empty:
@@ -1749,6 +1550,150 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
             print(f"散点图创建失败: {e}")
 
     return charts
+
+
+def create_enhanced_trend_analysis(sales_data, monthly_data, selected_region='全国'):
+    """创建增强的趋势分析图表"""
+    # 获取区域数据
+    if selected_region == '全国':
+        # 全国数据
+        region_sales = sales_data.copy()
+    else:
+        # 特定区域数据
+        customer_region_map = monthly_data[['客户', '所属大区']].drop_duplicates()
+        sales_with_region = sales_data.merge(
+            customer_region_map, left_on='经销商名称', right_on='客户', how='left'
+        )
+        region_sales = sales_with_region[sales_with_region['所属大区'] == selected_region]
+
+    if region_sales.empty:
+        return None, None, None, None
+
+    # 计算基础指标
+    total_sales = region_sales['金额'].sum()
+    total_orders = len(region_sales)
+    avg_order_value = total_sales / total_orders if total_orders > 0 else 0
+
+    # 订单金额分布分析
+    bins = [0, 10000, 20000, 40000, float('inf')]
+    labels = ['<1万', '1-2万', '2-4万', '>4万']
+    region_sales['金额区间'] = pd.cut(region_sales['金额'], bins=bins, labels=labels)
+
+    # 计算各区间的订单数和金额
+    distribution = region_sales.groupby('金额区间').agg({
+        '金额': ['count', 'sum']
+    }).reset_index()
+    distribution.columns = ['金额区间', '订单数', '销售额']
+
+    # 月度趋势数据
+    region_sales['年月'] = region_sales['订单日期'].dt.to_period('M')
+    monthly_trend = region_sales.groupby('年月').agg({
+        '金额': ['sum', 'count', 'mean']
+    }).reset_index()
+    monthly_trend.columns = ['年月', '销售额', '订单数', '平均客单价']
+    monthly_trend['年月'] = monthly_trend['年月'].astype(str)
+
+    # 创建综合分析图表
+    fig = make_subplots(
+        rows=2, cols=2,
+        row_heights=[0.3, 0.7],
+        column_widths=[0.5, 0.5],
+        subplot_titles=('月度销售趋势', '月度订单数趋势', '订单金额分布', '金额区间贡献度'),
+        specs=[[{"secondary_y": False}, {"secondary_y": False}],
+               [{"secondary_y": True, "colspan": 2}, None]],
+        vertical_spacing=0.15,
+        horizontal_spacing=0.1
+    )
+
+    # 1. 销售额趋势（左上）
+    fig.add_trace(
+        go.Scatter(
+            x=monthly_trend['年月'],
+            y=monthly_trend['销售额'],
+            mode='lines+markers',
+            name='销售额',
+            line=dict(color='#667eea', width=3),
+            fill='tozeroy',
+            fillcolor='rgba(102, 126, 234, 0.2)',
+            hovertemplate='月份: %{x}<br>销售额: ¥%{y:,.0f}<extra></extra>'
+        ),
+        row=1, col=1
+    )
+
+    # 2. 订单数趋势（右上）
+    fig.add_trace(
+        go.Scatter(
+            x=monthly_trend['年月'],
+            y=monthly_trend['订单数'],
+            mode='lines+markers',
+            name='订单数',
+            line=dict(color='#ff6b6b', width=3),
+            marker=dict(size=8),
+            hovertemplate='月份: %{x}<br>订单数: %{y}笔<extra></extra>'
+        ),
+        row=1, col=2
+    )
+
+    # 3. 订单金额分布（下方左侧）
+    fig.add_trace(
+        go.Bar(
+            x=distribution['金额区间'],
+            y=distribution['订单数'],
+            name='订单数',
+            marker_color='#667eea',
+            opacity=0.7,
+            yaxis='y3',
+            hovertemplate='%{x}<br>订单数: %{y}笔<extra></extra>'
+        ),
+        row=2, col=1
+    )
+
+    # 4. 金额贡献（下方右侧）
+    fig.add_trace(
+        go.Bar(
+            x=distribution['金额区间'],
+            y=distribution['销售额'],
+            name='销售额',
+            marker_color='#ff8800',
+            opacity=0.7,
+            yaxis='y4',
+            hovertemplate='%{x}<br>销售额: ¥%{y:,.0f}<extra></extra>'
+        ),
+        row=2, col=1, secondary_y=True
+    )
+
+    # 更新布局
+    fig.update_xaxes(title_text="月份", row=1, col=1, tickangle=-45)
+    fig.update_xaxes(title_text="月份", row=1, col=2, tickangle=-45)
+    fig.update_xaxes(title_text="金额区间", row=2, col=1)
+
+    fig.update_yaxes(title_text="销售额", row=1, col=1)
+    fig.update_yaxes(title_text="订单数", row=1, col=2)
+    fig.update_yaxes(title_text="订单数", row=2, col=1, secondary_y=False)
+    fig.update_yaxes(title_text="销售额", row=2, col=1, secondary_y=True)
+
+    fig.update_layout(
+        height=800,
+        showlegend=True,
+        hovermode='x unified',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        title=dict(
+            text=f"{selected_region} - 销售综合分析仪表板",
+            font=dict(size=24, color='#2d3748'),
+            x=0.5,
+            xanchor='center'
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.15,
+            xanchor="center",
+            x=0.5
+        )
+    )
+
+    return fig, total_sales, total_orders, avg_order_value
 
 
 def main():
@@ -2062,41 +2007,12 @@ def main():
         st.markdown('''
         <div class="chart-header">
             <div class="chart-title">客户价值流动分析</div>
-            <div class="chart-subtitle">展示客户在不同价值层级间的分布</div>
+            <div class="chart-subtitle">展示客户在不同价值层级间的分布，悬停查看详细客户名单</div>
         </div>
         ''', unsafe_allow_html=True)
 
         if 'sankey' in charts and charts['sankey'] is not None:
-            # 检查是否是 ECharts 配置
-            if isinstance(charts['sankey'], tuple) and charts['sankey'][0] == 'echarts':
-                if ECHARTS_AVAILABLE:
-                    # 使用 streamlit-echarts 渲染
-                    st_echarts(
-                        options=charts['sankey'][1],
-                        height="550px",
-                        key="sankey_echarts"
-                    )
-                else:
-                    st.error("需要安装 streamlit-echarts 组件来显示桑基图。请运行：pip install streamlit-echarts")
-            else:
-                # 显示 Plotly 图表
-                st.plotly_chart(charts['sankey'], use_container_width=True, key="sankey_chart")
-
-                # 如果可以安装streamlit-echarts，显示提示
-                if not ECHARTS_AVAILABLE:
-                    with st.expander("💡 想要更好的桑基图效果？"):
-                        st.markdown("""
-                        当前使用的是备选图表。安装 `streamlit-echarts` 可以获得更好的桑基图效果：
-
-                        ```bash
-                        pip install streamlit-echarts
-                        ```
-
-                        安装后重启应用即可看到增强的桑基图，支持：
-                        - 🎯 更流畅的动画效果
-                        - 📊 更好的交互体验
-                        - 👁️ 悬停查看详细客户名单
-                        """)
+            st.plotly_chart(charts['sankey'], use_container_width=True, key="sankey_chart")
 
             # 添加价值分层说明
             st.markdown("""
@@ -2109,6 +2025,7 @@ def main():
                     <li><span style='color: #2ecc71; font-size: 1.2em;'>●</span> <strong>🌟 潜力客户</strong>：需要培育和激活的客户群体</li>
                     <li><span style='color: #95a5a6; font-size: 1.2em;'>●</span> <strong>⚠️ 流失风险</strong>：长期未下单或订单减少的风险客户</li>
                 </ul>
+                <p style="margin-top: 1rem; color: #667eea; font-weight: 600;">💡 提示：将鼠标悬停在图表上可查看每个分类的Top 10客户名单</p>
             </div>
             """, unsafe_allow_html=True)
         else:
@@ -2126,30 +2043,74 @@ def main():
         if 'target_scatter' in charts:
             st.plotly_chart(charts['target_scatter'], use_container_width=True, key="target_scatter_chart")
 
-    # Tab 6: 趋势分析
+    # Tab 6: 趋势分析（增强版）
     with tabs[5]:
         st.markdown('''
         <div class="chart-header">
-            <div class="chart-title">销售趋势分析</div>
-            <div class="chart-subtitle">追踪销售额和订单数的月度变化趋势</div>
+            <div class="chart-title">销售趋势综合分析</div>
+            <div class="chart-subtitle">对比区域与全国的销售表现，分析订单金额分布</div>
         </div>
         ''', unsafe_allow_html=True)
 
-        if 'trend' in charts:
-            st.plotly_chart(charts['trend'], use_container_width=True, key="trend_chart")
+        # 区域选择
+        if not monthly_data.empty and '所属大区' in monthly_data.columns:
+            regions = ['全国'] + sorted(monthly_data['所属大区'].dropna().unique().tolist())
+            selected_region = st.selectbox('选择区域', regions, key='region_selector')
+        else:
+            selected_region = '全国'
 
-        # 趋势洞察
-        st.markdown("""
-        <div class='insight-card'>
-            <h4>📊 关键洞察</h4>
-            <ul>
-                <li>销售额呈现季节性波动，需提前规划产能</li>
-                <li>订单数与销售额增长不同步，客单价在变化</li>
-                <li>建议深入分析高峰低谷期原因</li>
-                <li>关注异常波动月份的业务驱动因素</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        # 创建增强的趋势分析
+        trend_fig, total_sales, total_orders, avg_order_value = create_enhanced_trend_analysis(
+            sales_data, monthly_data, selected_region
+        )
+
+        if trend_fig:
+            # 显示关键指标
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{format_amount(total_sales)}</div>
+                    <div class="metric-label">总销售额</div>
+                    <div class="metric-sublabel">{selected_region}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{total_orders:,}</div>
+                    <div class="metric-label">总订单数</div>
+                    <div class="metric-sublabel">{selected_region}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col3:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{format_amount(avg_order_value)}</div>
+                    <div class="metric-label">平均客单价</div>
+                    <div class="metric-sublabel">{selected_region}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # 显示综合分析图表
+            st.plotly_chart(trend_fig, use_container_width=True, key="enhanced_trend_chart")
+
+            # 趋势洞察
+            st.markdown(f"""
+            <div class='insight-card'>
+                <h4>📊 {selected_region} 关键洞察</h4>
+                <ul>
+                    <li>销售额呈现季节性波动，需提前规划产能</li>
+                    <li>小额订单（<1万）占比较高，可考虑提升客单价策略</li>
+                    <li>大额订单（>4万）贡献了主要收入，需重点维护</li>
+                    <li>建议深入分析高峰低谷期原因，优化销售策略</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.info(f"暂无{selected_region}的销售数据")
 
 
 if __name__ == "__main__":
