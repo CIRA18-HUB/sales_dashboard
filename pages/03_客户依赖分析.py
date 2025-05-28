@@ -370,6 +370,74 @@ st.markdown("""
             transform: translateX(0);
         }
     }
+
+    /* ===== 新增的现代化样式 ===== */
+
+    /* 现代化图表容器样式 */
+    .stPlotlyChart > div {
+        background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%);
+        border-radius: 20px !important;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.15), 
+                    0 1px 8px rgba(0,0,0,0.05) !important;
+        padding: 15px;
+        border: 1px solid rgba(102, 126, 234, 0.1);
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+    }
+
+    .stPlotlyChart > div:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.2), 
+                    0 5px 15px rgba(0,0,0,0.08) !important;
+    }
+
+    /* 优化下拉选择框样式 */
+    .stSelectbox > div > div {
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 12px;
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    .stSelectbox > div > div:hover {
+        border-color: #667eea;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.15);
+    }
+
+    /* 趋势分析特殊样式 */
+    .trend-analysis-container {
+        background: linear-gradient(135deg, #f8fafc 0%, #e9ecef 100%);
+        border-radius: 24px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+    }
+
+    /* 增强的图表悬停效果 */
+    .js-plotly-plot .plotly:hover {
+        cursor: pointer;
+    }
+
+    /* 美化滚动条 */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #5a67d8 0%, #6b46a1 100%);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -406,7 +474,7 @@ def load_and_process_data():
 
 
 def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='全国'):
-    """创建整合的趋势分析图表 - 信息密度更高的单一图表"""
+    """创建整合的趋势分析图表 - 现代化设计风格"""
     # 获取区域数据
     if selected_region == '全国':
         region_sales = sales_data.copy()
@@ -455,41 +523,44 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
     # 合并数据
     monthly_trend = monthly_trend.merge(active_customers, on='年月', how='left')
 
-    # 创建综合图表 - 优化布局
+    # 创建综合图表 - 调整布局比例，突出主图
     fig = make_subplots(
-        rows=3, cols=2,
-        row_heights=[0.4, 0.3, 0.3],
-        column_widths=[0.7, 0.3],
+        rows=3, cols=3,
+        row_heights=[0.5, 0.25, 0.25],  # 调整行高，主图占50%
+        column_widths=[0.4, 0.3, 0.3],  # 调整列宽
         subplot_titles=(
-            f'<b>{selected_region} - 销售额与订单数趋势</b>',
-            '<b>订单金额分布</b>',
-            '<b>平均客单价与活跃客户数</b>',
-            '<b>各金额区间贡献占比</b>',
-            '<b>环比增长率</b>',
-            ''
+            '', '', '',  # 使用自定义标题
+            '', '', '',
+            '', '', ''
         ),
         specs=[
-            [{"secondary_y": True}, {"type": "bar"}],
-            [{"secondary_y": True}, {"type": "pie"}],
-            [{"secondary_y": False, "colspan": 2}, None]
+            [{"secondary_y": True, "colspan": 2}, None, {"type": "pie"}],
+            [{"secondary_y": False}, {"type": "bar"}, {"secondary_y": True}],
+            [{"secondary_y": False, "colspan": 3}, None, None]
         ],
-        vertical_spacing=0.1,
-        horizontal_spacing=0.12
+        vertical_spacing=0.12,
+        horizontal_spacing=0.1
     )
 
-    # 1. 主趋势图（左上）- 销售额和订单数
-    # 销售额面积图
+    # 定义现代化配色方案
+    primary_color = '#667eea'  # 主色调
+    primary_gradient = 'rgba(102, 126, 234, 0.1)'  # 渐变色
+    secondary_color = '#ff6b6b'  # 辅助色
+    accent_colors = ['#3498db', '#2ecc71', '#f39c12', '#e74c3c']  # 强调色
+
+    # 1. 主趋势图（左上，跨2列） - 视觉焦点
+    # 销售额面积图 - 添加渐变效果
     fig.add_trace(
         go.Scatter(
             x=monthly_trend['年月_str'],
             y=monthly_trend['销售额'],
             mode='lines',
             name='销售额',
-            line=dict(color='#667eea', width=3),
+            line=dict(color=primary_color, width=4, shape='spline'),  # 平滑曲线
             fill='tozeroy',
-            fillcolor='rgba(102, 126, 234, 0.15)',
+            fillcolor=primary_gradient,
             hovertemplate='<b>%{x}</b><br>' +
-                          '销售额: ¥%{y:,.0f}<br>' +
+                          '销售额: <b>¥%{y:,.0f}</b><br>' +
                           '环比: %{customdata[0]:.1f}%<br>' +
                           '均价: ¥%{customdata[1]:,.0f}<br>' +
                           '<extra></extra>',
@@ -501,6 +572,25 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
         row=1, col=1, secondary_y=False
     )
 
+    # 添加销售额数据点
+    fig.add_trace(
+        go.Scatter(
+            x=monthly_trend['年月_str'],
+            y=monthly_trend['销售额'],
+            mode='markers',
+            name='销售额数据点',
+            marker=dict(
+                size=10,
+                color=primary_color,
+                line=dict(color='white', width=2),
+                symbol='circle'
+            ),
+            showlegend=False,
+            hoverinfo='skip'
+        ),
+        row=1, col=1, secondary_y=False
+    )
+
     # 订单数折线图
     fig.add_trace(
         go.Scatter(
@@ -508,10 +598,10 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             y=monthly_trend['订单数'],
             mode='lines+markers',
             name='订单数',
-            line=dict(color='#ff6b6b', width=2, dash='dot'),
-            marker=dict(size=6),
+            line=dict(color=secondary_color, width=3, dash='dot'),
+            marker=dict(size=8, color=secondary_color, line=dict(color='white', width=1.5)),
             hovertemplate='<b>%{x}</b><br>' +
-                          '订单数: %{y}笔<br>' +
+                          '订单数: <b>%{y}笔</b><br>' +
                           '环比: %{customdata:.1f}%<br>' +
                           '<extra></extra>',
             customdata=monthly_trend['订单环比'].fillna(0)
@@ -519,21 +609,75 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
         row=1, col=1, secondary_y=True
     )
 
-    # 2. 订单金额分布柱状图（右上）
+    # 2. 金额区间贡献饼图（右上）- 现代化饼图
+    fig.add_trace(
+        go.Pie(
+            labels=distribution['金额区间'],
+            values=distribution['销售额'],
+            hole=0.5,  # 环形图
+            marker=dict(
+                colors=accent_colors,
+                line=dict(color='white', width=3)
+            ),
+            textinfo='label+percent',
+            textfont=dict(size=12, color='white'),
+            textposition='auto',
+            hovertemplate='<b>%{label}</b><br>' +
+                          '销售额: <b>¥%{value:,.0f}</b><br>' +
+                          '占比: %{percent}<br>' +
+                          '<extra></extra>',
+            pull=[0.05 if i == distribution['销售额'].idxmax() else 0 for i in range(len(distribution))]  # 突出最大值
+        ),
+        row=1, col=3
+    )
+
+    # 在饼图中心添加总计
+    fig.add_annotation(
+        x=0.83, y=0.75,  # 调整位置以适应新布局
+        text=f"<b>总计</b><br>{format_amount(total_sales)}",
+        showarrow=False,
+        font=dict(size=14, color=primary_color, family="Microsoft YaHei"),
+        xref="paper", yref="paper"
+    )
+
+    # 3. 平均客单价趋势（左中）
+    fig.add_trace(
+        go.Scatter(
+            x=monthly_trend['年月_str'],
+            y=monthly_trend['平均客单价'],
+            mode='lines+markers',
+            name='平均客单价',
+            line=dict(color='#9b59b6', width=3),
+            marker=dict(
+                size=10,
+                color='#9b59b6',
+                line=dict(color='white', width=2)
+            ),
+            fill='tozeroy',
+            fillcolor='rgba(155, 89, 182, 0.1)',
+            hovertemplate='<b>%{x}</b><br>' +
+                          '平均客单价: <b>¥%{y:,.0f}</b><br>' +
+                          '<extra></extra>'
+        ),
+        row=2, col=1, secondary_y=False
+    )
+
+    # 4. 订单金额分布（中中）
     fig.add_trace(
         go.Bar(
             x=distribution['金额区间'],
             y=distribution['订单数'],
             name='订单分布',
             marker=dict(
-                color=['#3498db', '#2ecc71', '#f39c12', '#e74c3c'],
-                line=dict(color='white', width=2)
+                color=accent_colors,
+                line=dict(color='white', width=2),
+                pattern_shape=""  # 可以添加图案
             ),
-            text=[f'{count}<br>¥{amount / 10000:.0f}万'
-                  for count, amount in zip(distribution['订单数'], distribution['销售额'])],
-            textposition='auto',
+            text=[f'{count}' for count in distribution['订单数']],
+            textposition='outside',
+            textfont=dict(size=12, color='#2d3748'),
             hovertemplate='<b>%{x}</b><br>' +
-                          '订单数: %{y}笔<br>' +
+                          '订单数: <b>%{y}笔</b><br>' +
                           '销售额: ¥%{customdata[0]:,.0f}<br>' +
                           '平均: ¥%{customdata[1]:,.0f}<br>' +
                           '<extra></extra>',
@@ -542,62 +686,35 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
                 distribution['平均金额']
             ))
         ),
-        row=1, col=2
+        row=2, col=2
     )
 
-    # 3. 平均客单价和活跃客户数（左中）
-    fig.add_trace(
-        go.Bar(
-            x=monthly_trend['年月_str'],
-            y=monthly_trend['平均客单价'],
-            name='平均客单价',
-            marker_color='rgba(52, 152, 219, 0.6)',
-            hovertemplate='<b>%{x}</b><br>' +
-                          '平均客单价: ¥%{y:,.0f}<br>' +
-                          '标准差: ¥%{customdata:,.0f}<br>' +
-                          '<extra></extra>',
-            customdata=monthly_trend['标准差'].fillna(0)
-        ),
-        row=2, col=1, secondary_y=False
-    )
-
+    # 5. 活跃客户数（右中）
     fig.add_trace(
         go.Scatter(
             x=monthly_trend['年月_str'],
             y=monthly_trend['活跃客户数'],
-            mode='lines+markers',
+            mode='lines+markers+text',
             name='活跃客户数',
             line=dict(color='#e74c3c', width=3),
-            marker=dict(size=8),
-            hovertemplate='<b>%{x}</b><br>' +
-                          '活跃客户: %{y}家<br>' +
-                          '<extra></extra>'
-        ),
-        row=2, col=1, secondary_y=True
-    )
-
-    # 4. 金额区间贡献饼图（右中）
-    fig.add_trace(
-        go.Pie(
-            labels=distribution['金额区间'],
-            values=distribution['销售额'],
-            hole=0.4,
             marker=dict(
-                colors=['#3498db', '#2ecc71', '#f39c12', '#e74c3c'],
-                line=dict(color='white', width=2)
+                size=12,
+                color='#e74c3c',
+                line=dict(color='white', width=2),
+                symbol='diamond'
             ),
-            textinfo='label+percent',
-            hovertemplate='<b>%{label}</b><br>' +
-                          '销售额: ¥%{value:,.0f}<br>' +
-                          '占比: %{percent}<br>' +
+            text=[f'{y}' for y in monthly_trend['活跃客户数']],
+            textposition='top center',
+            textfont=dict(size=10, color='#e74c3c'),
+            hovertemplate='<b>%{x}</b><br>' +
+                          '活跃客户: <b>%{y}家</b><br>' +
                           '<extra></extra>'
         ),
-        row=2, col=2
+        row=2, col=3, secondary_y=True
     )
 
-    # 5. 环比增长率图（底部）
-    # 创建渐变色条形图
-    colors = ['#e74c3c' if x < 0 else '#2ecc71' for x in monthly_trend['环比增长'].fillna(0)]
+    # 6. 环比增长率（底部，跨3列）
+    colors_bar = ['#e74c3c' if x < 0 else '#2ecc71' for x in monthly_trend['环比增长'].fillna(0)]
 
     fig.add_trace(
         go.Bar(
@@ -605,13 +722,15 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             y=monthly_trend['环比增长'].fillna(0),
             name='销售额环比',
             marker=dict(
-                color=colors,
-                line=dict(color='white', width=1)
+                color=colors_bar,
+                line=dict(color='white', width=2),
+                cornerradius=5  # 圆角
             ),
             text=[f'{x:.1f}%' if pd.notna(x) else '' for x in monthly_trend['环比增长']],
             textposition='outside',
+            textfont=dict(size=11, color='#2d3748'),
             hovertemplate='<b>%{x}</b><br>' +
-                          '销售额环比: %{y:.1f}%<br>' +
+                          '销售额环比: <b>%{y:.1f}%</b><br>' +
                           '订单数环比: %{customdata:.1f}%<br>' +
                           '<extra></extra>',
             customdata=monthly_trend['订单环比'].fillna(0)
@@ -622,69 +741,120 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
     # 添加零线
     fig.add_shape(
         type="line",
-        x0=0,
-        x1=1,
-        y0=0,
-        y1=0,
-        xref="x5 domain",
-        yref="y7",
-        line=dict(color="gray", width=1, dash="dash"),
+        x0=0, x1=1,
+        y0=0, y1=0,
+        xref="x7 domain", yref="y9",
+        line=dict(color="#95a5a6", width=2, dash="dash"),
         opacity=0.5
     )
 
-    # 更新布局
-    fig.update_xaxes(title_text="", row=1, col=1, tickangle=-45)
-    fig.update_xaxes(title_text="金额区间", row=1, col=2)
-    fig.update_xaxes(title_text="", row=2, col=1, tickangle=-45)
-    fig.update_xaxes(title_text="月份", row=3, col=1, tickangle=-45)
+    # 添加自定义标题（带背景）
+    titles = [
+        (0.35, 0.98, f"📈 {selected_region} - 销售额与订单数趋势", 18),
+        (0.83, 0.98, "🎯 金额区间贡献", 14),
+        (0.13, 0.47, "💰 平均客单价", 14),
+        (0.43, 0.47, "📊 订单分布", 14),
+        (0.73, 0.47, "👥 活跃客户数", 14),
+        (0.43, 0.22, "📊 环比增长率", 14)
+    ]
 
-    fig.update_yaxes(title_text="销售额", row=1, col=1, secondary_y=False)
-    fig.update_yaxes(title_text="订单数", row=1, col=1, secondary_y=True)
-    fig.update_yaxes(title_text="订单数", row=1, col=2)
-    fig.update_yaxes(title_text="平均客单价", row=2, col=1, secondary_y=False)
-    fig.update_yaxes(title_text="活跃客户数", row=2, col=1, secondary_y=True)
-    fig.update_yaxes(title_text="环比增长率 (%)", row=3, col=1)
+    for x, y, text, size in titles:
+        fig.add_annotation(
+            x=x, y=y,
+            xref="paper", yref="paper",
+            text=f"<b>{text}</b>",
+            showarrow=False,
+            font=dict(size=size, color='#2d3748', family="Microsoft YaHei"),
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            bordercolor=primary_color,
+            borderwidth=1,
+            borderpad=8,
+            opacity=0.9
+        )
 
-    # 总体布局设置 - 优化样式
+    # 更新轴标签
+    fig.update_xaxes(title_text="", row=1, col=1, tickangle=-45, showgrid=False)
+    fig.update_xaxes(title_text="", row=2, col=1, tickangle=-45, showgrid=False)
+    fig.update_xaxes(title_text="", row=2, col=2, showgrid=False)
+    fig.update_xaxes(title_text="", row=2, col=3, tickangle=-45, showgrid=False)
+    fig.update_xaxes(title_text="", row=3, col=1, tickangle=-45, showgrid=False)
+
+    fig.update_yaxes(title_text="销售额", row=1, col=1, secondary_y=False, showgrid=True)
+    fig.update_yaxes(title_text="订单数", row=1, col=1, secondary_y=True, showgrid=False)
+    fig.update_yaxes(title_text="", row=2, col=1, showgrid=True)
+    fig.update_yaxes(title_text="", row=2, col=2, showgrid=True)
+    fig.update_yaxes(title_text="", row=2, col=3, secondary_y=True, showgrid=True)
+    fig.update_yaxes(title_text="增长率 (%)", row=3, col=1, showgrid=True)
+
+    # 总体布局设置 - 现代化风格
     fig.update_layout(
-        height=900,
+        height=1000,  # 增加高度
         showlegend=True,
         hovermode='x unified',
-        plot_bgcolor='white',
+        plot_bgcolor='rgba(250, 250, 255, 0.5)',  # 轻微的背景色
         paper_bgcolor='white',
         title={
-            'text': f'<b>{selected_region} - 销售综合分析仪表板</b><br>' +
-                    f'<span style="font-size:14px; color:#666;">总销售额: {format_amount(total_sales)} | ' +
-                    f'总订单数: {total_orders:,} | 平均客单价: {format_amount(avg_order_value)}</span>',
-            'font': {'size': 22, 'color': '#2d3748', 'family': 'Microsoft YaHei, Arial'},
+            'text': f'<b>{selected_region} 销售综合分析仪表板</b><br>' +
+                    f'<span style="font-size:16px; color:#666;">📊 总销售额: <b>{format_amount(total_sales)}</b> | ' +
+                    f'📦 总订单数: <b>{total_orders:,}</b> | 💰 平均客单价: <b>{format_amount(avg_order_value)}</b></span>',
+            'font': {'size': 26, 'color': primary_color, 'family': 'Microsoft YaHei'},
             'x': 0.5,
             'xanchor': 'center',
-            'y': 0.98,
-            'yanchor': 'top'
+            'y': 0.995,
+            'yanchor': 'top',
+            'pad': {'t': 10}
         },
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=-0.12,
+            yanchor="top",
+            y=-0.08,
             xanchor="center",
             x=0.5,
-            bgcolor='rgba(255, 255, 255, 0.9)',
-            bordercolor='rgba(102, 126, 234, 0.2)',
-            borderwidth=1,
-            font=dict(size=11)
+            bgcolor='rgba(255, 255, 255, 0.95)',
+            bordercolor=primary_color,
+            borderwidth=2,
+            font=dict(size=12, family="Microsoft YaHei"),
+            itemsizing='constant',
+            itemwidth=40
         ),
-        margin=dict(t=120, b=100, l=80, r=80),
-        font=dict(family="Microsoft YaHei, Arial", size=12)
+        margin=dict(t=140, b=120, l=80, r=80),
+        font=dict(family="Microsoft YaHei, Arial", size=12, color='#2d3748'),
+        # 添加圆角效果（通过shapes）
+        shapes=[
+            # 主图背景
+            dict(
+                type="rect",
+                xref="paper", yref="paper",
+                x0=0, y0=0.48, x1=0.63, y1=0.95,
+                fillcolor="rgba(255, 255, 255, 0.5)",
+                line=dict(color=primary_gradient, width=1),
+                layer="below"
+            ),
+            # 饼图背景
+            dict(
+                type="rect",
+                xref="paper", yref="paper",
+                x0=0.65, y0=0.48, x1=1, y1=0.95,
+                fillcolor="rgba(255, 255, 255, 0.5)",
+                line=dict(color=primary_gradient, width=1),
+                layer="below"
+            )
+        ]
     )
 
-    # 设置网格线
-    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
-
-    # 更新子图标题样式
-    for annotation in fig['layout']['annotations']:
-        if annotation['text']:
-            annotation['font'] = dict(size=14, color='#2d3748', family='Microsoft YaHei')
+    # 设置网格线样式
+    fig.update_xaxes(
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(102, 126, 234, 0.1)',
+        zeroline=False
+    )
+    fig.update_yaxes(
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(102, 126, 234, 0.1)',
+        zeroline=False
+    )
 
     return fig
 def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
