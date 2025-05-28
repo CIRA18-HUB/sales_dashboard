@@ -457,6 +457,12 @@ def load_and_process_data():
         df_valid['准确率'] = 1 - np.abs(df_valid['预测销量'] - df_valid['实际销量']) / df_valid['实际销量']
         df_valid['准确率'] = df_valid['准确率'].clip(0, 1)
         
+        # 添加准确率计算详情
+        df_valid['计算详情'] = df_valid.apply(lambda row: 
+            f"准确率 = 1 - |预测({row['预测销量']:.0f}) - 实际({row['实际销量']:.0f})| / 实际({row['实际销量']:.0f}) = {row['准确率']:.2%}",
+            axis=1
+        )
+        
         return df, df_valid
         
     except Exception as e:
@@ -476,15 +482,24 @@ def calculate_metrics(df_valid):
             'high_accuracy_ratio': 0,
             'recent_month': None,
             'most_used_model': 'N/A',
-            'model_count': 0
+            'model_count': 0,
+            'product_metrics': pd.DataFrame()
         }
     
     # 计算每个产品的指标
     product_metrics = df_valid.groupby('产品简称').agg({
         '准确率': 'mean',
-        '实际销量': 'mean'
+        '实际销量': 'mean',
+        '选择模型': lambda x: x.mode()[0] if len(x) > 0 else 'N/A'  # 最常用的模型
     }).reset_index()
-    product_metrics.columns = ['产品简称', '平均准确率', '平均销量']
+    product_metrics.columns = ['产品简称', '平均准确率', '平均销量', '常用模型']
+    
+    # 计算加权准确率
+    product_weighted = df_valid.groupby('产品简称').apply(
+        lambda x: np.average(x['准确率'], weights=x['实际销量'])
+    ).reset_index(name='加权准确率')
+    
+    product_metrics = product_metrics.merge(product_weighted, on='产品简称')
     
     # 整体平均准确率
     overall_avg_accuracy = product_metrics['平均准确率'].mean()
@@ -499,16 +514,20 @@ def calculate_metrics(df_valid):
     df_recent = df_valid[df_valid['月份'] == recent_month]
     
     # 最近一个月平均准确率
-    recent_metrics = df_recent.groupby('产品简称').agg({
-        '准确率': 'mean',
-        '实际销量': 'mean'
-    })
-    recent_avg_accuracy = recent_metrics['准确率'].mean()
-    
-    # 最近一个月加权准确率
-    recent_weighted = np.sum(recent_metrics['准确率'] * recent_metrics['实际销量'])
-    recent_total_sales = recent_metrics['实际销量'].sum()
-    recent_weighted_accuracy = recent_weighted / recent_total_sales if recent_total_sales > 0 else 0
+    if not df_recent.empty:
+        recent_metrics = df_recent.groupby('产品简称').agg({
+            '准确率': 'mean',
+            '实际销量': 'mean'
+        })
+        recent_avg_accuracy = recent_metrics['准确率'].mean()
+        
+        # 最近一个月加权准确率
+        recent_weighted = np.sum(recent_metrics['准确率'] * recent_metrics['实际销量'])
+        recent_total_sales = recent_metrics['实际销量'].sum()
+        recent_weighted_accuracy = recent_weighted / recent_total_sales if recent_total_sales > 0 else 0
+    else:
+        recent_avg_accuracy = 0
+        recent_weighted_accuracy = 0
     
     # 高准确率产品统计
     total_products = len(product_metrics)
@@ -540,13 +559,15 @@ def create_accuracy_trend_chart(df_valid):
         # 按月份计算准确率
         monthly_stats = df_valid.groupby('月份').agg({
             '准确率': 'mean',
-            '实际销量': 'sum'
+            '实际销量': 'sum',
+            '预测销量': 'sum'
         }).reset_index()
         
         # 计算加权准确率
         monthly_product_stats = df_valid.groupby(['月份', '产品简称']).agg({
             '准确率': 'mean',
-            '实际销量': 'mean'
+            '实际销量': 'mean',
+            '预测销量': 'mean'
         }).reset_index()
         
         monthly_weighted = monthly_product_stats.groupby('月份').apply(
@@ -566,8 +587,16 @@ def create_accuracy_trend_chart(df_valid):
             name='平均准确率',
             line=dict(color=COLOR_SCHEME['primary'], width=3),
             marker=dict(size=10),
+            customdata=np.column_stack((
+                monthly_stats['实际销量'],
+                monthly_stats['预测销量'],
+                monthly_stats['准确率'] * 100
+            )),
             hovertemplate="<b>%{x|%Y-%m}</b><br>" +
                           "平均准确率: %{y:.1f}%<br>" +
+                          "总实际销量: %{customdata[0]:.0f}箱<br>" +
+                          "总预测销量: %{customdata[1]:.0f}箱<br>" +
+                          "计算: 所有产品准确率的算术平均<br>" +
                           "<extra></extra>"
         ))
         
@@ -579,8 +608,16 @@ def create_accuracy_trend_chart(df_valid):
             name='加权准确率',
             line=dict(color=COLOR_SCHEME['secondary'], width=3, dash='dash'),
             marker=dict(size=10),
+            customdata=np.column_stack((
+                monthly_stats['实际销量'],
+                monthly_stats['预测销量'],
+                monthly_stats['加权准确率'] * 100
+            )),
             hovertemplate="<b>%{x|%Y-%m}</b><br>" +
                           "加权准确率: %{y:.1f}%<br>" +
+                          "总实际销量: %{customdata[0]:.0f}箱<br>" +
+                          "总预测销量: %{customdata[1]:.0f}箱<br>" +
+                          "计算: 基于销量加权的准确率<br>" +
                           "<extra></extra>"
         ))
         
@@ -638,51 +675,88 @@ def create_accuracy_trend_chart(df_valid):
         st.error(f"准确率趋势图表创建失败: {str(e)}")
         return go.Figure()
 
-def create_product_ranking_chart(metrics):
-    """创建产品准确率排行榜"""
+def create_product_ranking_chart(df_valid, metrics):
+    """创建产品准确率排行榜 - 显示所有产品"""
     try:
         product_metrics = metrics['product_metrics']
         
-        # 排序并取前20个产品
-        top_products = product_metrics.nlargest(20, '平均准确率')
+        # 按平均准确率排序
+        product_metrics = product_metrics.sort_values('平均准确率', ascending=True)
         
         # 创建图表
         fig = go.Figure()
         
-        # 添加条形图
+        # 添加平均准确率条形图
         fig.add_trace(go.Bar(
-            y=top_products['产品简称'],
-            x=top_products['平均准确率'] * 100,
+            y=product_metrics['产品简称'],
+            x=product_metrics['平均准确率'] * 100,
             orientation='h',
+            name='平均准确率',
             marker=dict(
-                color=top_products['平均准确率'] * 100,
+                color=product_metrics['平均准确率'] * 100,
                 colorscale='RdYlGn',
                 cmin=60,
                 cmax=100,
                 colorbar=dict(
                     title="准确率(%)",
-                    x=1.02
+                    x=1.15
                 )
             ),
-            text=top_products['平均准确率'].apply(lambda x: f"{x*100:.1f}%"),
+            text=product_metrics['平均准确率'].apply(lambda x: f"{x*100:.1f}%"),
             textposition='outside',
+            customdata=np.column_stack((
+                product_metrics['平均销量'],
+                product_metrics['加权准确率'],
+                product_metrics['常用模型']
+            )),
             hovertemplate="<b>%{y}</b><br>" +
                           "平均准确率: %{x:.1f}%<br>" +
-                          "平均销量: %{customdata:.0f}箱<br>" +
-                          "<extra></extra>",
-            customdata=top_products['平均销量']
+                          "加权准确率: %{customdata[1]:.1f}%<br>" +
+                          "平均销量: %{customdata[0]:.0f}箱<br>" +
+                          "常用模型: %{customdata[2]}<br>" +
+                          "计算方法: 历史所有月份准确率的平均值<br>" +
+                          "<extra></extra>"
+        ))
+        
+        # 添加加权准确率散点图
+        fig.add_trace(go.Scatter(
+            y=product_metrics['产品简称'],
+            x=product_metrics['加权准确率'] * 100,
+            mode='markers',
+            name='加权准确率',
+            marker=dict(
+                size=10,
+                color='#764ba2',
+                symbol='diamond'
+            ),
+            hovertemplate="<b>%{y}</b><br>" +
+                          "加权准确率: %{x:.1f}%<br>" +
+                          "计算方法: 基于销量加权的准确率<br>" +
+                          "<extra></extra>"
         ))
         
         # 添加85%参考线
         fig.add_vline(x=85, line_dash="dash", line_color="gray", annotation_text="目标: 85%")
         
+        # 计算需要的高度
+        height = max(800, len(product_metrics) * 25)
+        
         fig.update_layout(
-            title="产品预测准确率排行榜 TOP20<br><sub>基于历史平均准确率排序</sub>",
+            title=f"产品预测准确率排行榜（全部{len(product_metrics)}个产品）<br><sub>显示平均准确率和加权准确率</sub>",
             xaxis_title="预测准确率 (%)",
             yaxis_title="",
-            height=800,
-            showlegend=False,
-            margin=dict(l=200, r=100, t=100, b=50),
+            height=height,
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.02,
+                bgcolor='white',
+                bordercolor='gray',
+                borderwidth=1
+            ),
+            margin=dict(l=200, r=150, t=100, b=50),
             paper_bgcolor='white',
             plot_bgcolor='rgba(255,255,255,0.9)',
             font=dict(color='black')
@@ -696,22 +770,23 @@ def create_product_ranking_chart(metrics):
         st.error(f"产品排行榜创建失败: {str(e)}")
         return go.Figure()
 
-def create_accuracy_distribution_chart(metrics):
-    """创建准确率分布图表"""
+def create_accuracy_distribution_chart(df_valid):
+    """创建准确率分布图表 - 基于原始数据计算"""
     try:
-        product_metrics = metrics['product_metrics']
-        
         # 定义准确率区间
         bins = [0, 0.6, 0.8, 0.85, 0.9, 0.95, 1.0]
         labels = ['<60%', '60-80%', '80-85%', '85-90%', '90-95%', '>95%']
         
-        # 统计各区间产品数量
-        product_metrics['区间'] = pd.cut(product_metrics['平均准确率'], bins=bins, labels=labels, include_lowest=True)
-        dist_counts = product_metrics['区间'].value_counts().sort_index()
+        # 基于所有记录计算分布（不是按产品平均）
+        df_valid['区间'] = pd.cut(df_valid['准确率'], bins=bins, labels=labels, include_lowest=True)
+        dist_counts = df_valid['区间'].value_counts().sort_index()
+        
+        # 计算占比
+        total_records = len(df_valid)
+        dist_percentages = (dist_counts / total_records * 100).round(1)
         
         # 计算累计百分比
-        total_products = len(product_metrics)
-        cumulative_pct = (dist_counts.cumsum() / total_products * 100).round(1)
+        cumulative_pct = (dist_counts.cumsum() / total_records * 100).round(1)
         
         # 创建组合图
         fig = make_subplots(
@@ -723,19 +798,19 @@ def create_accuracy_distribution_chart(metrics):
             go.Bar(
                 x=dist_counts.index,
                 y=dist_counts.values,
-                name='产品数量',
+                name='记录数量',
                 marker=dict(
                     color=['#FF0000', '#FF6347', '#FFA500', '#90EE90', '#00FF00', '#006400'],
                     opacity=0.8,
                     line=dict(color='white', width=2)
                 ),
-                text=dist_counts.values,
+                text=[f"{v}<br>({p:.1f}%)" for v, p in zip(dist_counts.values, dist_percentages.values)],
                 textposition='outside',
                 hovertemplate="<b>%{x}</b><br>" +
-                              "产品数量: %{y}个<br>" +
+                              "记录数量: %{y}条<br>" +
                               "占比: %{customdata:.1f}%<br>" +
                               "<extra></extra>",
-                customdata=dist_counts.values / total_products * 100
+                customdata=dist_percentages.values
             ),
             secondary_y=False
         )
@@ -760,15 +835,21 @@ def create_accuracy_distribution_chart(metrics):
         
         # 添加统计信息 - 确保背景不透明
         high_accuracy_count = dist_counts[['85-90%', '90-95%', '>95%']].sum()
-        high_accuracy_pct = high_accuracy_count / total_products * 100
+        high_accuracy_pct = high_accuracy_count / total_records * 100
+        
+        # 按产品统计
+        product_stats = df_valid.groupby('产品简称')['准确率'].mean()
+        products_above_85 = (product_stats > 0.85).sum()
+        total_products = len(product_stats)
         
         fig.add_annotation(
             x=0.98, y=0.98,
             xref='paper', yref='paper',
             text=f"""<b>📊 统计汇总</b><br>
+总记录数: {total_records}条<br>
 总产品数: {total_products}个<br>
-准确率>85%: {high_accuracy_count}个<br>
-占比: <b style="color: {'green' if high_accuracy_pct > 50 else 'orange'};">{high_accuracy_pct:.1f}%</b>""",
+准确率>85%的记录: {high_accuracy_count}条({high_accuracy_pct:.1f}%)<br>
+准确率>85%的产品: {products_above_85}个({products_above_85/total_products*100:.1f}%)""",
             showarrow=False,
             align='right',
             bgcolor='white',
@@ -778,11 +859,11 @@ def create_accuracy_distribution_chart(metrics):
         )
         
         fig.update_xaxes(title_text="准确率区间")
-        fig.update_yaxes(title_text="产品数量", secondary_y=False, showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+        fig.update_yaxes(title_text="记录数量", secondary_y=False, showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
         fig.update_yaxes(title_text="累计占比 (%)", secondary_y=True)
         
         fig.update_layout(
-            title="产品预测准确率分布<br><sub>各准确率区间的产品数量统计</sub>",
+            title="预测准确率分布<br><sub>基于所有预测记录的分布统计</sub>",
             height=600,
             hovermode='x unified',
             paper_bgcolor='white',
@@ -846,9 +927,11 @@ def create_model_analysis_charts(df_valid):
             ),
             text=model_accuracy['模型'],
             textposition="top center",
-            hovertemplate="<b>%{text}</b><br>" +
+            customdata=model_accuracy['模型'],
+            hovertemplate="<b>%{customdata}</b><br>" +
                           "使用次数: %{x}<br>" +
                           "平均准确率: %{y:.1f}%<br>" +
+                          "说明: 该模型在所有使用记录中的平均表现<br>" +
                           "<extra></extra>"
         ), row=1, col=2)
         
@@ -897,16 +980,20 @@ def create_product_trend_chart(df_valid):
                 name=product,
                 line=dict(width=2),
                 marker=dict(size=8),
+                customdata=np.column_stack((
+                    product_data['实际销量'],
+                    product_data['预测销量'],
+                    product_data['选择模型'],
+                    product_data['计算详情']
+                )),
                 hovertemplate="<b>%{fullData.name}</b><br>" +
                               "月份: %{x|%Y-%m}<br>" +
                               "准确率: %{y:.1f}%<br>" +
-                              "实际: %{customdata[0]}<br>" +
-                              "预测: %{customdata[1]}<br>" +
-                              "<extra></extra>",
-                customdata=np.column_stack((
-                    product_data['实际销量'],
-                    product_data['预测销量']
-                ))
+                              "实际销量: %{customdata[0]:.0f}箱<br>" +
+                              "预测销量: %{customdata[1]:.0f}箱<br>" +
+                              "使用模型: %{customdata[2]}<br>" +
+                              "%{customdata[3]}<br>" +
+                              "<extra></extra>"
             ))
         
         # 添加85%目标线
@@ -966,120 +1053,128 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔬 模型性能分析"
 ])
 
-# 标签1：核心指标总览（只有指标卡片）
+# 标签1：核心指标总览
 with tab1:
-    # 第一行：整体指标
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        accuracy_class = "accuracy-excellent" if metrics['overall_avg_accuracy'] > 0.85 else \
-                        "accuracy-good" if metrics['overall_avg_accuracy'] > 0.8 else \
-                        "accuracy-medium" if metrics['overall_avg_accuracy'] > 0.7 else "accuracy-low"
-        st.markdown(f"""
-        <div class="metric-card {accuracy_class}">
-            <div class="metric-card-inner">
-                <div class="metric-value">{metrics['overall_avg_accuracy']*100:.1f}%</div>
-                <div class="metric-label">📊 整体平均准确率</div>
-                <div class="metric-description">所有预测的算术平均</div>
+    if not df_valid.empty:
+        # 第一行：整体指标
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            accuracy_class = "accuracy-excellent" if metrics['overall_avg_accuracy'] > 0.85 else \
+                            "accuracy-good" if metrics['overall_avg_accuracy'] > 0.8 else \
+                            "accuracy-medium" if metrics['overall_avg_accuracy'] > 0.7 else "accuracy-low"
+            st.markdown(f"""
+            <div class="metric-card {accuracy_class}">
+                <div class="metric-card-inner">
+                    <div class="metric-value">{metrics['overall_avg_accuracy']*100:.1f}%</div>
+                    <div class="metric-label">📊 整体平均准确率</div>
+                    <div class="metric-description">所有预测的算术平均</div>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div class="metric-card {accuracy_class}">
-            <div class="metric-card-inner">
-                <div class="metric-value">{metrics['overall_weighted_accuracy']*100:.1f}%</div>
-                <div class="metric-label">⚖️ 整体加权准确率</div>
-                <div class="metric-description">基于销量加权</div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card {accuracy_class}">
+                <div class="metric-card-inner">
+                    <div class="metric-value">{metrics['overall_weighted_accuracy']*100:.1f}%</div>
+                    <div class="metric-label">⚖️ 整体加权准确率</div>
+                    <div class="metric-description">基于销量加权</div>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-card-inner">
-                <div class="metric-value">{metrics['total_products']}</div>
-                <div class="metric-label">📦 产品总数</div>
-                <div class="metric-description">参与预测的产品数量</div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-card-inner">
+                    <div class="metric-value">{metrics['total_products']}</div>
+                    <div class="metric-label">📦 产品总数</div>
+                    <div class="metric-description">参与预测的产品数量</div>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        ratio_class = "accuracy-excellent" if metrics['high_accuracy_ratio'] > 60 else \
-                     "accuracy-good" if metrics['high_accuracy_ratio'] > 40 else \
-                     "accuracy-medium" if metrics['high_accuracy_ratio'] > 20 else "accuracy-low"
-        st.markdown(f"""
-        <div class="metric-card {ratio_class}">
-            <div class="metric-card-inner">
-                <div class="metric-value">{metrics['high_accuracy_ratio']:.1f}%</div>
-                <div class="metric-label">🎯 高准确率产品占比</div>
-                <div class="metric-description">准确率>85%的产品</div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            ratio_class = "accuracy-excellent" if metrics['high_accuracy_ratio'] > 60 else \
+                         "accuracy-good" if metrics['high_accuracy_ratio'] > 40 else \
+                         "accuracy-medium" if metrics['high_accuracy_ratio'] > 20 else "accuracy-low"
+            st.markdown(f"""
+            <div class="metric-card {ratio_class}">
+                <div class="metric-card-inner">
+                    <div class="metric-value">{metrics['high_accuracy_ratio']:.1f}%</div>
+                    <div class="metric-label">🎯 高准确率产品占比</div>
+                    <div class="metric-description">准确率>85%的产品</div>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # 第二行：最近一个月指标
-    col5, col6, col7, col8 = st.columns(4)
-    
-    with col5:
-        recent_class = "accuracy-excellent" if metrics['recent_avg_accuracy'] > 0.85 else \
-                      "accuracy-good" if metrics['recent_avg_accuracy'] > 0.8 else \
-                      "accuracy-medium" if metrics['recent_avg_accuracy'] > 0.7 else "accuracy-low"
-        st.markdown(f"""
-        <div class="metric-card {recent_class}">
-            <div class="metric-card-inner">
-                <div class="metric-value">{metrics['recent_avg_accuracy']*100:.1f}%</div>
-                <div class="metric-label">📊 近期平均准确率</div>
-                <div class="metric-description">最近一个月表现</div>
+            """, unsafe_allow_html=True)
+        
+        # 第二行：最近一个月指标
+        col5, col6, col7, col8 = st.columns(4)
+        
+        with col5:
+            recent_class = "accuracy-excellent" if metrics['recent_avg_accuracy'] > 0.85 else \
+                          "accuracy-good" if metrics['recent_avg_accuracy'] > 0.8 else \
+                          "accuracy-medium" if metrics['recent_avg_accuracy'] > 0.7 else "accuracy-low"
+            st.markdown(f"""
+            <div class="metric-card {recent_class}">
+                <div class="metric-card-inner">
+                    <div class="metric-value">{metrics['recent_avg_accuracy']*100:.1f}%</div>
+                    <div class="metric-label">📊 近期平均准确率</div>
+                    <div class="metric-description">最近一个月表现</div>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col6:
-        st.markdown(f"""
-        <div class="metric-card {recent_class}">
-            <div class="metric-card-inner">
-                <div class="metric-value">{metrics['recent_weighted_accuracy']*100:.1f}%</div>
-                <div class="metric-label">⚖️ 近期加权准确率</div>
-                <div class="metric-description">最近一个月加权</div>
+            """, unsafe_allow_html=True)
+        
+        with col6:
+            st.markdown(f"""
+            <div class="metric-card {recent_class}">
+                <div class="metric-card-inner">
+                    <div class="metric-value">{metrics['recent_weighted_accuracy']*100:.1f}%</div>
+                    <div class="metric-label">⚖️ 近期加权准确率</div>
+                    <div class="metric-description">最近一个月加权</div>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col7:
-        # 计算准确率趋势
-        trend = (metrics['recent_avg_accuracy'] - metrics['overall_avg_accuracy']) * 100
-        trend_class = "accuracy-excellent" if trend > 5 else \
-                     "accuracy-good" if trend > 0 else \
-                     "accuracy-medium" if trend > -5 else "accuracy-low"
-        trend_icon = "📈" if trend > 0 else "📉" if trend < 0 else "➡️"
-        st.markdown(f"""
-        <div class="metric-card {trend_class}">
-            <div class="metric-card-inner">
-                <div class="metric-value">{trend:+.1f}%</div>
-                <div class="metric-label">{trend_icon} 准确率趋势</div>
-                <div class="metric-description">{'改善中' if trend > 0 else '下降中' if trend < 0 else '持平'}</div>
+            """, unsafe_allow_html=True)
+        
+        with col7:
+            # 计算准确率趋势
+            trend = (metrics['recent_avg_accuracy'] - metrics['overall_avg_accuracy']) * 100
+            trend_class = "accuracy-excellent" if trend > 5 else \
+                         "accuracy-good" if trend > 0 else \
+                         "accuracy-medium" if trend > -5 else "accuracy-low"
+            trend_icon = "📈" if trend > 0 else "📉" if trend < 0 else "➡️"
+            st.markdown(f"""
+            <div class="metric-card {trend_class}">
+                <div class="metric-card-inner">
+                    <div class="metric-value">{trend:+.1f}%</div>
+                    <div class="metric-label">{trend_icon} 准确率趋势</div>
+                    <div class="metric-description">{'改善中' if trend > 0 else '下降中' if trend < 0 else '持平'}</div>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col8:
-        # 缩短模型名称以避免溢出
-        model_name = metrics['most_used_model']
-        if len(model_name) > 15:
-            model_name = model_name[:12] + '...'
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-card-inner">
-                <div class="metric-value" style="font-size: 1.5rem !important;">{model_name}</div>
-                <div class="metric-label">🏆 最常用模型</div>
-                <div class="metric-description">使用{metrics['model_count']}次</div>
+            """, unsafe_allow_html=True)
+        
+        with col8:
+            # 缩短模型名称以避免溢出
+            model_name = metrics['most_used_model']
+            if len(model_name) > 15:
+                model_name = model_name[:12] + '...'
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-card-inner">
+                    <div class="metric-value" style="font-size: 1.5rem !important;">{model_name}</div>
+                    <div class="metric-label">🏆 最常用模型</div>
+                    <div class="metric-description">使用{metrics['model_count']}次</div>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+        
+        # 显示数据概览
+        st.markdown("### 📊 数据概览")
+        st.info(f"数据时间范围：{df_valid['月份'].min().strftime('%Y-%m')} 至 {df_valid['月份'].max().strftime('%Y-%m')}")
+        st.info(f"总记录数：{len(df_valid)} 条")
+    else:
+        st.warning("暂无有效数据可供分析")
 
 # 标签2：准确率趋势分析
 with tab2:
@@ -1117,8 +1212,8 @@ with tab2:
 # 标签3：产品准确率排行
 with tab3:
     if not df_valid.empty:
-        # 创建产品排行榜
-        ranking_fig = create_product_ranking_chart(metrics)
+        # 创建产品排行榜 - 显示所有产品
+        ranking_fig = create_product_ranking_chart(df_valid, metrics)
         st.plotly_chart(ranking_fig, use_container_width=True)
         
         # 重点产品分析
@@ -1128,7 +1223,7 @@ with tab3:
             <div class="insight-content">
                 • <b>优秀产品:</b> 共有{metrics['high_accuracy_products']}个产品准确率超过85%，占比{metrics['high_accuracy_ratio']:.1f}%<br>
                 • <b>提升空间:</b> {metrics['total_products'] - metrics['high_accuracy_products']}个产品准确率低于85%，需要重点优化<br>
-                • <b>销量权重:</b> 排行榜展示的是平均准确率，实际运营中还需考虑产品销量权重<br>
+                • <b>销量权重:</b> 排行榜同时展示了平均准确率和加权准确率，便于综合评估<br>
                 • <b>优化建议:</b> 优先改进销量大但准确率低的产品，可带来更大的整体提升
             </div>
         </div>
@@ -1140,7 +1235,7 @@ with tab3:
 with tab4:
     if not df_valid.empty:
         # 创建分布图表
-        dist_fig = create_accuracy_distribution_chart(metrics)
+        dist_fig = create_accuracy_distribution_chart(df_valid)
         st.plotly_chart(dist_fig, use_container_width=True)
         
         # 分布洞察
