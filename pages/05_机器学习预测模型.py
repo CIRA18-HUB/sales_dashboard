@@ -24,7 +24,7 @@ if 'authenticated' not in st.session_state or not st.session_state.authenticated
     st.switch_page("登陆界面haha.py")
     st.stop()
 
-# 统一的增强CSS样式 - 修复版
+# 统一的增强CSS样式 - 修复指标卡片显示问题
 st.markdown("""
 <style>
     /* 导入Google字体 */
@@ -37,40 +37,13 @@ st.markdown("""
         background-attachment: fixed;
     }
 
-    /* 添加浮动粒子背景动画 */
-    .stApp::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-image: 
-            radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 2px, transparent 2px),
-            radial-gradient(circle at 75% 75%, rgba(255,255,255,0.1) 2px, transparent 2px);
-        background-size: 100px 100px;
-        animation: float 20s linear infinite;
-        pointer-events: none;
-        z-index: -1;
-    }
-
-    @keyframes float {
-        0% { transform: translateY(0px) translateX(0px); }
-        25% { transform: translateY(-20px) translateX(10px); }
-        50% { transform: translateY(0px) translateX(-10px); }
-        75% { transform: translateY(-10px) translateX(5px); }
-        100% { transform: translateY(0px) translateX(0px); }
-    }
-
-    /* 主容器背景 - 确保不透明 */
+    /* 主容器背景 */
     .main .block-container {
         background: rgba(255,255,255,1) !important;
         border-radius: 20px;
         padding: 2rem;
         margin-top: 2rem;
         box-shadow: 0 20px 60px rgba(0,0,0,0.1);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2);
     }
 
     /* 页面标题样式 */
@@ -82,44 +55,13 @@ st.markdown("""
         padding: 3rem 2rem;
         border-radius: 25px;
         margin-bottom: 2rem;
-        animation: gradientShift 4s ease infinite, fadeInScale 1.5s ease-out;
-        box-shadow: 
-            0 20px 40px rgba(102, 126, 234, 0.4),
-            0 5px 15px rgba(0,0,0,0.1);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .page-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.15), transparent);
-        animation: shimmer 3s linear infinite;
+        animation: gradientShift 4s ease infinite;
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
     }
 
     @keyframes gradientShift {
         0%, 100% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
-    }
-
-    @keyframes shimmer {
-        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
-    }
-
-    @keyframes fadeInScale {
-        from { 
-            opacity: 0; 
-            transform: translateY(-50px) scale(0.8); 
-        }
-        to { 
-            opacity: 1; 
-            transform: translateY(0) scale(1); 
-        }
     }
 
     .page-title {
@@ -137,127 +79,42 @@ st.markdown("""
         margin-top: 0.5rem;
     }
 
-    /* 统一的卡片容器样式 - 确保背景不透明 */
-    .metric-card, .content-container, .chart-container, .insight-box {
+    /* 修复指标卡片样式 */
+    .metric-card {
         background: white !important;
         border-radius: 25px;
         padding: 2rem;
         margin-bottom: 2rem;
-        box-shadow: 
-            0 15px 35px rgba(0,0,0,0.08),
-            0 5px 15px rgba(0,0,0,0.03);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.08);
         border: 1px solid rgba(255,255,255,0.3);
-        animation: slideUpStagger 1s ease-out;
-        backdrop-filter: blur(10px);
+        height: 180px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
         transition: all 0.3s ease;
-        border-left: 4px solid #667eea;
-    }
-
-    /* 指标卡片增强样式 */
-    .metric-card {
-        text-align: center;
-        height: 100%;
-        padding: 2.5rem 2rem;
         position: relative;
-        overflow: hidden !important;
-        perspective: 1000px;
-        animation: cardEntrance 1s ease-out;
-        transform-style: preserve-3d;
+        overflow: visible !important;
     }
 
-    /* 3D翻转效果 */
-    .metric-card-inner {
-        width: 100%;
-        height: 100%;
-        transition: transform 0.6s;
-        transform-style: preserve-3d;
-    }
-
-    .metric-card:hover .metric-card-inner {
-        transform: rotateY(5deg) rotateX(-5deg);
-    }
-
-    /* 波纹效果 */
-    .metric-card::after {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(102, 126, 234, 0.2) 0%, transparent 70%);
-        transform: translate(-50%, -50%) scale(0);
-        animation: ripple 3s infinite;
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    @keyframes ripple {
-        0% {
-            transform: translate(-50%, -50%) scale(0);
-            opacity: 1;
-        }
-        100% {
-            transform: translate(-50%, -50%) scale(1);
-            opacity: 0;
-        }
-    }
-
-    @keyframes cardEntrance {
-        0% {
-            opacity: 0;
-            transform: translateY(50px) rotateX(-30deg);
-        }
-        50% {
-            opacity: 0.5;
-            transform: translateY(25px) rotateX(-15deg);
-        }
-        100% {
-            opacity: 1;
-            transform: translateY(0) rotateX(0);
-        }
-    }
-
-    .metric-card:hover, .content-container:hover, .chart-container:hover {
+    .metric-card:hover {
         transform: translateY(-8px);
         box-shadow: 0 25px 50px rgba(0,0,0,0.12);
     }
 
-    /* 数值样式 - 调整字体大小避免溢出 */
+    /* 数值样式 - 确保显示 */
     .metric-value {
-        font-size: 2.2rem !important;
+        font-size: 2.5rem !important;
         font-weight: 800;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 1rem;
+        color: #667eea !important;
+        margin-bottom: 0.5rem;
         line-height: 1.2;
-        white-space: nowrap;
-        overflow: hidden !important;
-        text-overflow: ellipsis;
-        display: inline-block;
-        max-width: 100%;
-        padding: 0 0.5rem;
-        animation: numberCount 2s ease-out;
-    }
-
-    /* 数字滚动动画 */
-    @keyframes numberCount {
-        0% {
-            opacity: 0;
-            transform: translateY(50px) scale(0.5);
-            filter: blur(10px);
-        }
-        50% {
-            opacity: 0.5;
-            filter: blur(5px);
-        }
-        100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-            filter: blur(0);
-        }
+        text-align: center;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 10 !important;
     }
 
     .metric-label {
@@ -267,27 +124,36 @@ st.markdown("""
         margin-bottom: 0.5rem;
         letter-spacing: 0.5px;
         text-transform: uppercase;
-        animation: labelFade 1.5s ease-out 0.5s both;
-    }
-
-    @keyframes labelFade {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        text-align: center;
+        display: block !important;
     }
 
     .metric-description {
         color: #6b7280 !important;
         font-size: 0.9rem;
-        margin-top: 0.8rem;
+        margin-top: 0.5rem;
         font-weight: 500;
         font-style: italic;
-        animation: labelFade 1.5s ease-out 0.7s both;
+        text-align: center;
+        display: block !important;
+    }
+
+    /* 准确率等级颜色 */
+    .accuracy-excellent { border-left: 5px solid #00FF00 !important; }
+    .accuracy-good { border-left: 5px solid #90EE90 !important; }
+    .accuracy-medium { border-left: 5px solid #FFA500 !important; }
+    .accuracy-low { border-left: 5px solid #FF6347 !important; }
+    .accuracy-poor { border-left: 5px solid #FF0000 !important; }
+
+    /* 统一的卡片容器样式 */
+    .content-container, .chart-container, .insight-box {
+        background: white !important;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+        border: 1px solid rgba(255,255,255,0.3);
+        transition: all 0.3s ease;
     }
 
     /* 图表标题样式 */
@@ -297,12 +163,9 @@ st.markdown("""
         color: #333 !important;
         margin-bottom: 1.5rem;
         text-align: center;
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
     }
 
-    /* 洞察框样式 - 确保背景不透明 */
+    /* 洞察框样式 */
     .insight-box {
         background: white !important;
         border-left: 4px solid #667eea;
@@ -324,16 +187,13 @@ st.markdown("""
         font-size: 1rem;
     }
 
-    /* 标签页样式增强 - 修复布局问题 */
+    /* 标签页样式 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         background: rgba(248, 250, 252, 1) !important;
         padding: 0.8rem;
         border-radius: 20px;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-start;
     }
 
     .stTabs [data-baseweb="tab"] {
@@ -346,9 +206,6 @@ st.markdown("""
         font-size: 0.95rem;
         transition: all 0.3s ease;
         color: #333 !important;
-        white-space: nowrap;
-        flex: 0 1 auto;
-        margin-bottom: 0.5rem;
     }
 
     .stTabs [data-baseweb="tab"]:hover {
@@ -364,68 +221,7 @@ st.markdown("""
         box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
     }
 
-    /* Plotly 图表圆角样式 */
-    .js-plotly-plot {
-        border-radius: 20px !important;
-        overflow: hidden !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.08) !important;
-        background: white !important;
-    }
-
-    /* 准确率等级颜色 */
-    .accuracy-excellent { border-left-color: #00FF00 !important; }
-    .accuracy-good { border-left-color: #90EE90 !important; }
-    .accuracy-medium { border-left-color: #FFA500 !important; }
-    .accuracy-low { border-left-color: #FF6347 !important; }
-    .accuracy-poor { border-left-color: #FF0000 !important; }
-
-    /* 响应式设计 */
-    @media (max-width: 768px) {
-        .metric-value { font-size: 1.8rem !important; }
-        .metric-card { padding: 1.5rem 1rem; }
-        .page-header { padding: 2rem 1rem; }
-        .page-title { font-size: 2.2rem; }
-        .stTabs [data-baseweb="tab"] { 
-            padding: 0 15px; 
-            font-size: 0.85rem;
-            height: 45px;
-        }
-    }
-
-    /* 加载动画初始状态 */
-    .metric-card {
-        opacity: 0;
-        animation: cardLoadIn 0.8s ease-out forwards;
-    }
-
-    @keyframes cardLoadIn {
-        0% {
-            opacity: 0;
-            transform: translateY(50px) scale(0.8);
-        }
-        100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-    }
-
-    /* 渐进式加载动画 */
-    .metric-card:nth-child(1) { animation-delay: 0.1s; }
-    .metric-card:nth-child(2) { animation-delay: 0.2s; }
-    .metric-card:nth-child(3) { animation-delay: 0.3s; }
-    .metric-card:nth-child(4) { animation-delay: 0.4s; }
-
-    /* 确保所有文字在白色背景上清晰可见 */
-    div[class*="metric"] {
-        background: white !important;
-    }
-    
-    /* 修复注释框背景 */
-    div[class*="annotation"] {
-        background: rgba(255,255,255,0.98) !important;
-    }
-    
-    /* 新增：阈值说明样式 */
+    /* 阈值说明样式 */
     .threshold-notice {
         background: rgba(102, 126, 234, 0.1) !important;
         border: 1px solid rgba(102, 126, 234, 0.3);
@@ -434,6 +230,14 @@ st.markdown("""
         margin: 1rem 0;
         font-size: 0.9rem;
         color: #333;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .metric-value { font-size: 2rem !important; }
+        .metric-card { padding: 1.5rem 1rem; height: 150px; }
+        .page-header { padding: 2rem 1rem; }
+        .page-title { font-size: 2.2rem; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -522,9 +326,8 @@ def load_and_process_data():
         return pd.DataFrame(), pd.DataFrame()
 
 def calculate_metrics(df_valid):
-    """计算所有关键指标 - 使用与0509模型一致的方法"""
+    """计算所有关键指标 - 统一统计口径"""
     if df_valid.empty:
-        st.sidebar.error("数据为空，返回默认值")
         return {
             'overall_avg_accuracy': 0,
             'overall_weighted_accuracy': 0,
@@ -540,7 +343,9 @@ def calculate_metrics(df_valid):
             'high_accuracy_count': 0,
             'medium_accuracy_count': 0,
             'low_accuracy_count': 0,
-            'trend': 0
+            'trend': 0,
+            'products_above_85': 0,
+            'products_above_90': 0
         }
     
     try:
@@ -567,9 +372,10 @@ def calculate_metrics(df_valid):
         medium_accuracy_count = ((product_avg_accuracy >= 0.6) & (product_avg_accuracy <= 0.8)).sum()
         low_accuracy_count = (product_avg_accuracy < 0.6).sum()
         
-        # 6. 高准确率产品占比 (>85%)
-        high_accuracy_products = (product_avg_accuracy > 0.85).sum()
-        high_accuracy_ratio = high_accuracy_products / total_products * 100 if total_products > 0 else 0
+        # 6. 不同阈值的产品统计
+        products_above_85 = (product_avg_accuracy > 0.85).sum()
+        products_above_90 = (product_avg_accuracy > 0.9).sum()
+        high_accuracy_ratio = products_above_85 / total_products * 100 if total_products > 0 else 0
         
         # 7. 最常用模型
         model_counts = df_valid['选择模型'].value_counts()
@@ -594,32 +400,13 @@ def calculate_metrics(df_valid):
         ).reset_index(name='加权准确率')
         product_metrics = product_metrics.merge(product_weighted, on='产品简称')
         
-        # 在侧边栏显示调试信息
-        with st.sidebar:
-            st.write("### 📊 计算结果调试")
-            st.write(f"**准确率计算方法**: 20箱容错阈值")
-            st.write(f"总产品数: {total_products}")
-            st.write(f"整体平均准确率: {overall_avg_accuracy:.4f} ({overall_avg_accuracy*100:.2f}%)")
-            st.write(f"加权准确率: {overall_weighted_accuracy:.4f} ({overall_weighted_accuracy*100:.2f}%)")
-            st.write(f"最近准确率: {recent_accuracy:.4f} ({recent_accuracy*100:.2f}%)")
-            st.write(f"高准确率(>80%): {high_accuracy_count}个 ({high_accuracy_count/total_products*100:.2f}%)")
-            st.write(f"中等(60-80%): {medium_accuracy_count}个 ({medium_accuracy_count/total_products*100:.2f}%)")
-            st.write(f"低准确率(<60%): {low_accuracy_count}个 ({low_accuracy_count/total_products*100:.2f}%)")
-            
-            # 显示前5个产品的准确率
-            st.write("---")
-            st.write("前5个产品准确率:")
-            for i, (prod, acc) in enumerate(product_avg_accuracy.head().items()):
-                avg_error = df_valid[df_valid['产品简称']==prod]['误差箱数'].mean()
-                st.write(f"{prod}: {acc:.4f} ({acc*100:.2f}%) 平均误差{avg_error:.1f}箱")
-        
         return {
             'overall_avg_accuracy': overall_avg_accuracy,
             'overall_weighted_accuracy': overall_weighted_accuracy,
             'recent_accuracy': recent_accuracy,
             'recent_month': recent_month,
             'total_products': total_products,
-            'high_accuracy_products': high_accuracy_products,
+            'high_accuracy_products': products_above_85,
             'high_accuracy_ratio': high_accuracy_ratio,
             'most_used_model': most_used_model,
             'model_count': model_count,
@@ -628,12 +415,12 @@ def calculate_metrics(df_valid):
             'high_accuracy_count': high_accuracy_count,
             'medium_accuracy_count': medium_accuracy_count,
             'low_accuracy_count': low_accuracy_count,
-            'trend': trend
+            'trend': trend,
+            'products_above_85': products_above_85,
+            'products_above_90': products_above_90
         }
     except Exception as e:
         st.sidebar.error(f"指标计算失败: {str(e)}")
-        import traceback
-        st.sidebar.error(f"详细错误: {traceback.format_exc()}")
         return {
             'overall_avg_accuracy': 0,
             'overall_weighted_accuracy': 0,
@@ -649,11 +436,13 @@ def calculate_metrics(df_valid):
             'high_accuracy_count': 0,
             'medium_accuracy_count': 0,
             'low_accuracy_count': 0,
-            'trend': 0
+            'trend': 0,
+            'products_above_85': 0,
+            'products_above_90': 0
         }
 
 def create_accuracy_trend_chart(df_valid):
-    """创建准确率趋势图表 - 显示20箱阈值说明"""
+    """创建准确率趋势图表"""
     try:
         # 按月份计算准确率
         monthly_stats = df_valid.groupby('月份').agg({
@@ -712,7 +501,6 @@ def create_accuracy_trend_chart(df_valid):
                           "加权准确率: %{y:.1f}%<br>" +
                           "总实际销量: %{customdata[0]:.0f}箱<br>" +
                           "总预测销量: %{customdata[1]:.0f}箱<br>" +
-                          "计算: 基于销量加权的准确率<br>" +
                           "<extra></extra>"
         ))
         
@@ -725,24 +513,8 @@ def create_accuracy_trend_chart(df_valid):
             annotation_position="right"
         )
         
-        # 添加说明 - 包含20箱阈值说明
-        fig.add_annotation(
-            x=0.02, y=0.98,
-            xref='paper', yref='paper',
-            text="""<b>📊 准确率计算说明</b><br>
-<b>计算方法</b>: 误差≤20箱时准确率100%，超出后使用相对误差<br>
-<b>平均准确率</b>: 所有产品的简单平均<br>
-<b>加权准确率</b>: 基于销量加权，销量大的产品影响更大""",
-            showarrow=False,
-            align='left',
-            bgcolor='white',
-            bordercolor='rgba(102, 126, 234, 0.3)',
-            borderwidth=2,
-            font=dict(size=11, color='black')
-        )
-        
         fig.update_layout(
-            title="预测准确率趋势分析（20箱容错阈值）",
+            title="预测准确率趋势分析",
             xaxis_title="月份",
             yaxis_title="准确率 (%)",
             height=600,
@@ -772,7 +544,7 @@ def create_accuracy_trend_chart(df_valid):
         return go.Figure()
 
 def create_all_products_trend_chart(df_valid):
-    """创建全部产品准确率趋势图 - 显示误差信息"""
+    """创建全部产品准确率趋势图"""
     try:
         # 获取所有产品列表
         all_products = df_valid['产品简称'].unique()
@@ -807,7 +579,6 @@ def create_all_products_trend_chart(df_valid):
                                   "实际销量: %{customdata[0]:.0f}箱<br>" +
                                   "预测销量: %{customdata[1]:.0f}箱<br>" +
                                   "使用模型: %{customdata[2]}<br>" +
-                                  "%{customdata[3]}<br>" +
                                   "<extra></extra>",
                     visible='legendonly' if i >= 10 else True  # 默认只显示前10个产品
                 )
@@ -822,7 +593,7 @@ def create_all_products_trend_chart(df_valid):
         )
         
         fig.update_layout(
-            title=f"全部产品准确率趋势分析（共{len(all_products)}个产品，20箱容错阈值）<br><sub>点击图例可显示/隐藏产品，默认显示前10个产品</sub>",
+            title=f"全部产品准确率趋势分析（共{len(all_products)}个产品）<br><sub>点击图例可显示/隐藏产品，默认显示前10个产品</sub>",
             xaxis_title="月份",
             yaxis_title="准确率 (%)",
             height=800,
@@ -854,12 +625,12 @@ def create_all_products_trend_chart(df_valid):
         return go.Figure()
 
 def create_product_ranking_chart(df_valid, metrics):
-    """创建产品准确率排行榜 - 显示误差箱数"""
+    """创建产品准确率排行榜 - 改进字体大小"""
     try:
         product_metrics = metrics['product_metrics']
         
-        # 按平均准确率排序
-        product_metrics = product_metrics.sort_values('平均准确率', ascending=True)
+        # 按平均准确率排序，只显示前30个产品
+        product_metrics = product_metrics.sort_values('平均准确率', ascending=False).head(30)
         
         # 创建图表
         fig = go.Figure()
@@ -877,11 +648,12 @@ def create_product_ranking_chart(df_valid, metrics):
                 cmax=100,
                 colorbar=dict(
                     title="准确率(%)",
-                    x=1.15
+                    x=1.1
                 )
             ),
-            text=product_metrics.apply(lambda x: f"{x['平均准确率']*100:.1f}%<br>误差{x['平均误差箱数']:.1f}箱", axis=1),
+            text=product_metrics.apply(lambda x: f"{x['平均准确率']*100:.1f}%", axis=1),
             textposition='outside',
+            textfont=dict(size=12),  # 增大字体
             customdata=np.column_stack((
                 product_metrics['平均销量'],
                 product_metrics['加权准确率'],
@@ -897,50 +669,26 @@ def create_product_ranking_chart(df_valid, metrics):
                           "<extra></extra>"
         ))
         
-        # 添加加权准确率散点图
-        fig.add_trace(go.Scatter(
-            y=product_metrics['产品简称'],
-            x=product_metrics['加权准确率'] * 100,
-            mode='markers',
-            name='加权准确率',
-            marker=dict(
-                size=10,
-                color='#764ba2',
-                symbol='diamond'
-            ),
-            hovertemplate="<b>%{y}</b><br>" +
-                          "加权准确率: %{x:.1f}%<br>" +
-                          "计算方法: 基于销量加权的准确率<br>" +
-                          "<extra></extra>"
-        ))
-        
         # 添加85%参考线
         fig.add_vline(x=85, line_dash="dash", line_color="gray", annotation_text="目标: 85%")
         
         # 计算需要的高度
-        height = max(800, len(product_metrics) * 25)
+        height = max(800, len(product_metrics) * 30)
         
         fig.update_layout(
-            title=f"产品预测准确率排行榜（全部{len(product_metrics)}个产品，20箱容错阈值）<br><sub>显示平均准确率、加权准确率和平均误差箱数</sub>",
+            title=f"产品预测准确率排行榜（TOP 30）<br><sub>显示平均准确率和平均误差箱数</sub>",
             xaxis_title="预测准确率 (%)",
             yaxis_title="",
             height=height,
-            showlegend=True,
-            legend=dict(
-                yanchor="top",
-                y=0.99,
-                xanchor="left",
-                x=0.02,
-                bgcolor='white',
-                bordercolor='gray',
-                borderwidth=1
-            ),
-            margin=dict(l=200, r=150, t=100, b=50),
+            showlegend=False,
+            margin=dict(l=250, r=150, t=100, b=50),
             paper_bgcolor='white',
             plot_bgcolor='rgba(255,255,255,0.9)',
-            font=dict(color='black')
+            font=dict(color='black', size=14)  # 增大整体字体
         )
         
+        # 更新Y轴字体大小
+        fig.update_yaxes(tickfont=dict(size=13))
         fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
         
         return fig
@@ -950,7 +698,7 @@ def create_product_ranking_chart(df_valid, metrics):
         return go.Figure()
 
 def create_accuracy_distribution_chart(df_valid):
-    """创建准确率分布图表 - 包含误差分布"""
+    """创建准确率分布图表 - 调整注释位置"""
     try:
         # 定义准确率区间
         bins = [0, 0.6, 0.8, 0.85, 0.9, 0.95, 1.0]
@@ -1033,7 +781,7 @@ def create_accuracy_distribution_chart(df_valid):
             row=1, col=2
         )
         
-        # 添加统计信息
+        # 添加统计信息 - 调整位置
         high_accuracy_count = dist_counts[['85-90%', '90-95%', '>95%']].sum()
         high_accuracy_pct = high_accuracy_count / total_records * 100
         
@@ -1048,22 +796,15 @@ def create_accuracy_distribution_chart(df_valid):
         total_products = len(product_stats)
         
         fig.add_annotation(
-            x=0.02, y=0.38,  # 调整位置避免遮挡
+            x=0.5, y=-0.15,  # 调整到图表下方
             xref='paper', yref='paper',
-            text=f"""<b>📊 统计汇总</b><br>
-<b>准确率阈值</b>: 20箱容错<br>
-总记录数: {total_records}条<br>
-总产品数: {total_products}个<br>
-平均误差: {avg_error:.1f}箱<br>
-容错范围内: {within_threshold}条({within_threshold_pct:.1f}%)<br>
-准确率>85%的记录: {high_accuracy_count}条({high_accuracy_pct:.1f}%)<br>
-准确率>85%的产品: {products_above_85}个({products_above_85/total_products*100:.1f}%)""",
+            text=f"""<b>📊 统计汇总</b>  |  总记录数: {total_records}条  |  总产品数: {total_products}个  |  平均误差: {avg_error:.1f}箱  |  容错范围内: {within_threshold}条({within_threshold_pct:.1f}%)  |  准确率>85%的产品: {products_above_85}个({products_above_85/total_products*100:.1f}%)""",
             showarrow=False,
-            align='left',
+            align='center',
             bgcolor='white',
             bordercolor='rgba(102, 126, 234, 0.3)',
             borderwidth=2,
-            font=dict(size=11, color='black')
+            font=dict(size=12, color='black')
         )
         
         fig.update_xaxes(title_text="准确率区间", row=1, col=1)
@@ -1071,12 +812,12 @@ def create_accuracy_distribution_chart(df_valid):
         fig.update_yaxes(title_text="累计占比 (%)", secondary_y=True, row=1, col=1)
         
         fig.update_layout(
-            title="预测准确率与误差分布分析（20箱容错阈值）",
+            title="预测准确率与误差分布分析",
             height=600,
             hovermode='x unified',
             paper_bgcolor='white',
             plot_bgcolor='rgba(255,255,255,0.9)',
-            margin=dict(l=50, r=100, t=100, b=50),
+            margin=dict(l=50, r=100, t=100, b=100),
             font=dict(color='black'),
             showlegend=True
         )
@@ -1166,7 +907,7 @@ def create_model_analysis_charts(df_valid):
         fig.update_yaxes(title_text="平均准确率 (%)", row=1, col=2, showgrid=True)
         
         fig.update_layout(
-            title="机器学习模型使用与性能分析（20箱容错阈值）",
+            title="机器学习模型使用与性能分析",
             height=600,
             showlegend=False,
             paper_bgcolor='white',
@@ -1256,33 +997,27 @@ with tab1:
                             "accuracy-medium" if metrics['overall_avg_accuracy'] > 0.7 else "accuracy-low"
             st.markdown(f"""
             <div class="metric-card {accuracy_class}">
-                <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['overall_avg_accuracy']*100:.1f}%</div>
-                    <div class="metric-label">📊 整体平均准确率</div>
-                    <div class="metric-description">所有产品的算术平均</div>
-                </div>
+                <div class="metric-value">{metrics['overall_avg_accuracy']*100:.1f}%</div>
+                <div class="metric-label">📊 整体平均准确率</div>
+                <div class="metric-description">所有产品的算术平均</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
             st.markdown(f"""
             <div class="metric-card {accuracy_class}">
-                <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['overall_weighted_accuracy']*100:.1f}%</div>
-                    <div class="metric-label">⚖️ 加权整体准确率</div>
-                    <div class="metric-description">基于销量加权</div>
-                </div>
+                <div class="metric-value">{metrics['overall_weighted_accuracy']*100:.1f}%</div>
+                <div class="metric-label">⚖️ 加权整体准确率</div>
+                <div class="metric-description">基于销量加权</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col3:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['total_products']}</div>
-                    <div class="metric-label">📦 产品总数</div>
-                    <div class="metric-description">参与预测的产品数量</div>
-                </div>
+                <div class="metric-value">{metrics['total_products']}</div>
+                <div class="metric-label">📦 产品总数</div>
+                <div class="metric-description">参与预测的产品</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1292,11 +1027,9 @@ with tab1:
                          "accuracy-medium" if metrics['high_accuracy_ratio'] > 20 else "accuracy-low"
             st.markdown(f"""
             <div class="metric-card {ratio_class}">
-                <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['high_accuracy_ratio']:.1f}%</div>
-                    <div class="metric-label">🎯 高准确率产品占比</div>
-                    <div class="metric-description">准确率>85%的产品</div>
-                </div>
+                <div class="metric-value">{metrics['high_accuracy_ratio']:.1f}%</div>
+                <div class="metric-label">🎯 高准确率占比</div>
+                <div class="metric-description">>85%的产品</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1309,27 +1042,22 @@ with tab1:
                           "accuracy-medium" if metrics['recent_accuracy'] > 0.7 else "accuracy-low"
             st.markdown(f"""
             <div class="metric-card {recent_class}">
-                <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['recent_accuracy']*100:.1f}%</div>
-                    <div class="metric-label">📊 最近准确率</div>
-                    <div class="metric-description">每个产品最近一次</div>
-                </div>
+                <div class="metric-value">{metrics['recent_accuracy']*100:.1f}%</div>
+                <div class="metric-label">📊 最近准确率</div>
+                <div class="metric-description">各产品最新值</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col6:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['recent_month'].strftime('%Y-%m') if metrics['recent_month'] else 'N/A'}</div>
-                    <div class="metric-label">📅 最新数据月份</div>
-                    <div class="metric-description">数据更新时间</div>
-                </div>
+                <div class="metric-value" style="font-size: 2rem !important;">{metrics['recent_month'].strftime('%Y-%m') if metrics['recent_month'] else 'N/A'}</div>
+                <div class="metric-label">📅 最新数据月份</div>
+                <div class="metric-description">数据更新时间</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col7:
-            # 计算准确率趋势
             trend = metrics['trend']
             trend_class = "accuracy-excellent" if trend > 5 else \
                          "accuracy-good" if trend > 0 else \
@@ -1337,85 +1065,70 @@ with tab1:
             trend_icon = "📈" if trend > 0 else "📉" if trend < 0 else "➡️"
             st.markdown(f"""
             <div class="metric-card {trend_class}">
-                <div class="metric-card-inner">
-                    <div class="metric-value">{trend:+.1f}%</div>
-                    <div class="metric-label">{trend_icon} 准确率趋势</div>
-                    <div class="metric-description">{'改善中' if trend > 0 else '下降中' if trend < 0 else '持平'}</div>
-                </div>
+                <div class="metric-value">{trend:+.1f}%</div>
+                <div class="metric-label">{trend_icon} 准确率趋势</div>
+                <div class="metric-description">{'改善中' if trend > 0 else '下降中' if trend < 0 else '持平'}</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col8:
-            # 缩短模型名称以避免溢出
             model_name = metrics['most_used_model']
-            if len(model_name) > 15:
-                model_name = model_name[:12] + '...'
+            if len(model_name) > 12:
+                model_name = model_name[:10] + '..'
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-card-inner">
-                    <div class="metric-value" style="font-size: 1.5rem !important;">{model_name}</div>
-                    <div class="metric-label">🏆 最常用模型</div>
-                    <div class="metric-description">使用{metrics['model_count']}次</div>
-                </div>
+                <div class="metric-value" style="font-size: 1.8rem !important;">{model_name}</div>
+                <div class="metric-label">🏆 最常用模型</div>
+                <div class="metric-description">使用{metrics['model_count']}次</div>
             </div>
             """, unsafe_allow_html=True)
         
         # 第三部分：准确率分布统计
-        st.markdown("### 📊 准确率分布统计（20箱容错阈值）")
+        st.markdown("### 📊 准确率分布统计")
         col9, col10, col11, col12, col13 = st.columns(5)
         
         with col9:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['total_products']}</div>
-                    <div class="metric-label">📊 总产品数</div>
-                    <div class="metric-description">系统中的产品总数</div>
-                </div>
+                <div class="metric-value">{metrics['total_products']}</div>
+                <div class="metric-label">📊 总产品数</div>
+                <div class="metric-description">系统中的产品</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col10:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['products_with_records']}</div>
-                    <div class="metric-label">📝 有记录产品数</div>
-                    <div class="metric-description">有准确率记录的产品</div>
-                </div>
+                <div class="metric-value">{metrics['products_with_records']}</div>
+                <div class="metric-label">📝 有记录产品</div>
+                <div class="metric-description">有预测记录</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col11:
             st.markdown(f"""
             <div class="metric-card accuracy-excellent">
-                <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['high_accuracy_count']}</div>
-                    <div class="metric-label">🟢 高准确率产品</div>
-                    <div class="metric-description">>80%</div>
-                </div>
+                <div class="metric-value">{metrics['high_accuracy_count']}</div>
+                <div class="metric-label">🟢 高准确率</div>
+                <div class="metric-description">>80%</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col12:
             st.markdown(f"""
             <div class="metric-card accuracy-medium">
-                <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['medium_accuracy_count']}</div>
-                    <div class="metric-label">🟡 中等准确率产品</div>
-                    <div class="metric-description">60%-80%</div>
-                </div>
+                <div class="metric-value">{metrics['medium_accuracy_count']}</div>
+                <div class="metric-label">🟡 中等准确率</div>
+                <div class="metric-description">60-80%</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col13:
             st.markdown(f"""
             <div class="metric-card accuracy-low">
-                <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['low_accuracy_count']}</div>
-                    <div class="metric-label">🔴 低准确率产品</div>
-                    <div class="metric-description"><60%</div>
-                </div>
+                <div class="metric-value">{metrics['low_accuracy_count']}</div>
+                <div class="metric-label">🔴 低准确率</div>
+                <div class="metric-description"><60%</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1423,7 +1136,6 @@ with tab1:
         st.markdown("### 📊 数据概览")
         st.info(f"数据时间范围：{df_valid['月份'].min().strftime('%Y-%m')} 至 {df_valid['月份'].max().strftime('%Y-%m')}")
         st.info(f"总记录数：{len(df_valid)} 条")
-        st.success(f"准确率计算方法：20箱容错阈值（误差≤20箱时准确率100%）")
     else:
         st.warning("暂无有效数据可供分析")
 
@@ -1486,8 +1198,8 @@ with tab3:
         <div class="insight-box">
             <div class="insight-title">🏆 重点产品分析</div>
             <div class="insight-content">
-                • <b>优秀产品:</b> 共有{metrics['high_accuracy_products']}个产品准确率超过85%，占比{metrics['high_accuracy_ratio']:.1f}%<br>
-                • <b>20箱阈值效果:</b> 容错阈值让小销量产品的准确率评价更加公平<br>
+                • <b>优秀产品:</b> 共有{metrics['products_above_85']}个产品准确率超过85%，占比{metrics['high_accuracy_ratio']:.1f}%<br>
+                • <b>表现最佳:</b> {metrics['products_above_90']}个产品准确率超过90%<br>
                 • <b>重点关注:</b> {len(low_accuracy_high_error) if 'low_accuracy_high_error' in locals() else 0}个产品准确率低于85%且平均误差超过20箱，需要重点优化<br>
                 • <b>优化建议:</b> 优先改进误差大且销量大的产品，可带来更大的整体提升
             </div>
@@ -1523,7 +1235,7 @@ with tab4:
             <div class="insight-content">
                 • <b>优秀表现(>90%):</b> {excellent_count}个产品，占比{excellent_count/metrics['total_products']*100:.1f}%<br>
                 • <b>需要改进(<60%):</b> {poor_count}个产品，占比{poor_count/metrics['total_products']*100:.1f}%<br>
-                • <b>20箱阈值影响:</b> {len(small_volume_high_acc) if not small_volume_high_acc.empty else 0}个小销量产品因容错阈值获得高准确率<br>
+                • <b>容错阈值影响:</b> {len(small_volume_high_acc) if not small_volume_high_acc.empty else 0}个小销量产品因容错阈值获得高准确率<br>
                 • <b>分布特征:</b> {'大部分产品表现优秀' if metrics['high_accuracy_ratio'] > 50 else 
                                 '准确率分布较为分散' if metrics['high_accuracy_ratio'] > 20 else
                                 '多数产品需要优化'}<br>
@@ -1553,7 +1265,7 @@ with tab5:
                 • <b>最常用模型:</b> {metrics['most_used_model']}，使用{metrics['model_count']}次<br>
                 • <b>低误差模型:</b> {len(low_error_models)}个模型平均误差在20箱以内<br>
                 • <b>模型多样性:</b> 系统使用了多种模型进行预测，体现了智能选择策略<br>
-                • <b>20箱阈值适配:</b> 容错阈值让各模型在不同产品上的表现更加均衡<br>
+                • <b>性能表现:</b> 大部分模型的平均准确率都在80%以上<br>
                 • <b>优化方向:</b> 扩大低误差模型的应用范围，继续优化高误差模型
             </div>
         </div>
@@ -1566,7 +1278,7 @@ st.markdown("---")
 st.markdown(
     f"""
     <div style="text-align: center; color: rgba(102, 126, 234, 0.8); font-family: 'Inter', sans-serif; font-size: 0.9rem; margin-top: 2rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 10px;">
-        🤖 Powered by Machine Learning & Streamlit | 智能预测分析平台 | 准确率计算：20箱容错阈值 | 最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+        🤖 Powered by Machine Learning & Streamlit | 智能预测分析平台 | 最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}
     </div>
     """,
     unsafe_allow_html=True
