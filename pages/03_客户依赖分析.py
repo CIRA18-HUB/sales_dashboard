@@ -1869,7 +1869,7 @@ def main():
         # 价值分层关键指标
         if not metrics['rfm_df'].empty:
             st.markdown("### 💎 价值分层关键指标")
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3 = st.columns(3)
 
             total_revenue = metrics['rfm_df']['M'].sum()
             top_revenue = metrics['rfm_df'][metrics['rfm_df']['类型'].isin(['钻石客户', '黄金客户'])]['M'].sum()
@@ -1877,14 +1877,6 @@ def main():
             avg_customer_value = total_revenue / len(metrics['rfm_df']) if len(metrics['rfm_df']) > 0 else 0
 
             with col1:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="big-value">{format_amount(total_revenue)}</div>
-                    <div class="metric-label">总客户价值</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-            with col2:
                 top_percentage = (top_revenue / total_revenue * 100) if total_revenue > 0 else 0
                 st.markdown(f"""
                 <div class="metric-card">
@@ -1894,7 +1886,7 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
 
-            with col3:
+            with col2:
                 risk_percentage = (risk_revenue / total_revenue * 100) if total_revenue > 0 else 0
                 st.markdown(f"""
                 <div class="metric-card">
@@ -1904,7 +1896,7 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
 
-            with col4:
+            with col3:
                 st.markdown(f"""
                 <div class="metric-card">
                     <div class="metric-value">{format_amount(avg_customer_value)}</div>
