@@ -7,8 +7,6 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from datetime import datetime
 import warnings
-import time
-import json
 
 warnings.filterwarnings('ignore')
 
@@ -19,7 +17,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 增强的CSS样式 - 特别强化圆角和动画效果
+# 增强的CSS样式 - 添加更多动画效果
 st.markdown("""
 <style>
     /* 导入Google字体 */
@@ -60,7 +58,7 @@ st.markdown("""
     /* 主容器背景 */
     .main .block-container {
         background: rgba(255,255,255,0.95);
-        border-radius: 30px;
+        border-radius: 20px;
         padding: 2rem;
         margin-top: 2rem;
         box-shadow: 0 20px 60px rgba(0,0,0,0.1);
@@ -75,7 +73,7 @@ st.markdown("""
         background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
         background-size: 200% 200%;
         color: white;
-        border-radius: 30px;
+        border-radius: 25px;
         margin-bottom: 2rem;
         animation: gradientShift 4s ease infinite, fadeInScale 1.5s ease-out, glow 2s ease-in-out infinite alternate;
         box-shadow: 
@@ -146,11 +144,11 @@ st.markdown("""
         }
     }
 
-    /* 增强的指标卡片样式 - 更圆润 */
+    /* 增强的指标卡片样式 */
     .metric-card {
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
         padding: 2.5rem 2rem;
-        border-radius: 30px;
+        border-radius: 25px;
         box-shadow: 
             0 15px 35px rgba(0,0,0,0.08),
             0 5px 15px rgba(0,0,0,0.03),
@@ -184,7 +182,7 @@ st.markdown("""
         right: -2px;
         bottom: -2px;
         background: linear-gradient(45deg, #667eea, #764ba2, #667eea);
-        border-radius: 30px;
+        border-radius: 25px;
         z-index: -1;
         opacity: 0;
         transition: opacity 0.3s ease;
@@ -259,12 +257,12 @@ st.markdown("""
         font-style: italic;
     }
 
-    /* 标签页样式增强 - 更圆润 */
+    /* 标签页样式增强 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 15px;
         background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
         padding: 1rem;
-        border-radius: 25px;
+        border-radius: 20px;
         box-shadow: 
             inset 0 2px 4px rgba(0,0,0,0.06),
             0 4px 8px rgba(0,0,0,0.04);
@@ -275,7 +273,7 @@ st.markdown("""
         height: 65px;
         padding: 0 35px;
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        border-radius: 20px;
+        border-radius: 15px;
         border: 1px solid rgba(102, 126, 234, 0.15);
         font-weight: 700;
         font-size: 1rem;
@@ -335,11 +333,11 @@ st.markdown("""
     .metric-card:nth-child(5) { animation-delay: 0.5s; }
     .metric-card:nth-child(6) { animation-delay: 0.6s; }
 
-    /* 图表容器样式 - 增强圆角 */
+    /* 图表容器样式 */
     .chart-container {
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        border-radius: 30px;
-        padding: 2rem;
+        border-radius: 25px;
+        padding: 1.5rem;
         box-shadow: 
             0 15px 35px rgba(0,0,0,0.08),
             inset 0 1px 0 rgba(255,255,255,0.9);
@@ -348,7 +346,6 @@ st.markdown("""
         backdrop-filter: blur(10px);
         position: relative;
         overflow: hidden;
-        margin: 1.5rem 0;
     }
 
     .chart-container::before {
@@ -378,53 +375,6 @@ st.markdown("""
         }
     }
 
-    /* 专门为Plotly图表添加圆角 */
-    .js-plotly-plot .plotly {
-        border-radius: 25px !important;
-        overflow: hidden !important;
-    }
-
-    .js-plotly-plot .main-svg {
-        border-radius: 25px !important;
-    }
-
-    .js-plotly-plot {
-        border-radius: 25px !important;
-        overflow: hidden !important;
-    }
-
-    /* Streamlit plotly 容器圆角 */
-    .stPlotlyChart {
-        border-radius: 25px !important;
-        overflow: hidden !important;
-        box-shadow: 
-            0 10px 30px rgba(0,0,0,0.08),
-            0 5px 15px rgba(0,0,0,0.03);
-        animation: chartSlideIn 0.8s ease-out;
-        background: white;
-        border: 1px solid rgba(0,0,0,0.05);
-    }
-
-    @keyframes chartSlideIn {
-        from {
-            opacity: 0;
-            transform: translateY(20px) scale(0.98);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-    }
-
-    /* 图表hover效果 */
-    .stPlotlyChart:hover {
-        transform: translateY(-2px);
-        box-shadow: 
-            0 15px 40px rgba(102, 126, 234, 0.15),
-            0 8px 20px rgba(0,0,0,0.08);
-        transition: all 0.3s ease;
-    }
-
     /* 添加脉动效果 */
     @keyframes pulse {
         0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
@@ -436,7 +386,20 @@ st.markdown("""
         animation: pulse 1.5s infinite;
     }
 
-    /* 加载动画 */
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .metric-value {
+            font-size: 2.5rem;
+        }
+        .metric-card {
+            padding: 2rem 1.5rem;
+        }
+        .main-header {
+            padding: 2rem 0;
+        }
+    }
+
+    /* 添加加载动画 */
     @keyframes loading {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
@@ -456,61 +419,8 @@ st.markdown("""
     .success {
         animation: success 0.6s ease-in-out;
     }
-
-    /* 数据加载动画 */
-    .loading-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 200px;
-    }
-
-    .loading-spinner {
-        width: 50px;
-        height: 50px;
-        border: 5px solid rgba(102, 126, 234, 0.1);
-        border-radius: 50%;
-        border-top-color: #667eea;
-        animation: spin 1s ease-in-out infinite;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
-    /* 响应式设计 */
-    @media (max-width: 768px) {
-        .metric-value {
-            font-size: 2.5rem;
-        }
-        .metric-card {
-            padding: 2rem 1.5rem;
-            border-radius: 20px;
-        }
-        .main-header {
-            padding: 2rem 0;
-            border-radius: 20px;
-        }
-        .chart-container {
-            border-radius: 20px;
-            padding: 1.5rem;
-        }
-        .stPlotlyChart {
-            border-radius: 20px !important;
-        }
-    }
 </style>
 """, unsafe_allow_html=True)
-
-
-# 创建加载动画组件
-def show_loading_animation():
-    """显示加载动画"""
-    st.markdown("""
-    <div class="loading-container">
-        <div class="loading-spinner"></div>
-    </div>
-    """, unsafe_allow_html=True)
 
 
 # 缓存数据加载函数
@@ -518,9 +428,6 @@ def show_loading_animation():
 def load_data():
     """加载所有数据文件"""
     try:
-        # 模拟加载延迟以展示动画
-        time.sleep(0.5)
-        
         # 从GitHub根目录加载文件
         tt_city_data = pd.read_excel("TT渠道-城市月度指标.xlsx")
         sales_data = pd.read_excel("TT与MT销售数据.xlsx")
@@ -624,29 +531,10 @@ def calculate_overview_metrics(data):
     }
 
 
-# 创建增强动画的图表函数
-def create_animated_chart(fig, animation_duration=800):
-    """为图表添加动画效果"""
-    fig.update_layout(
-        transition={
-            'duration': animation_duration,
-            'easing': 'cubic-in-out'
-        },
-        hovermode='x unified',
-        hoverlabel=dict(
-            bgcolor="rgba(255,255,255,0.95)",
-            font_size=13,
-            font_family="Inter, sans-serif",
-            bordercolor="rgba(0,0,0,0.1)"
-        )
-    )
-    return fig
-
-
-# 创建综合分析图 - MT渠道（增强版）
+# 创建综合分析图 - MT渠道
 @st.cache_data
 def create_mt_comprehensive_analysis(data):
-    """创建MT渠道综合分析图 - 增强动画版"""
+    """创建MT渠道综合分析图"""
     sales_data = data['sales_data']
     mt_data = data['mt_data']
 
@@ -688,7 +576,7 @@ def create_mt_comprehensive_analysis(data):
 
         mt_achievement = (mt_month_sales / mt_month_target * 100) if mt_month_target > 0 else 0
 
-        # 去年同期数据
+        # 去年同期数据 - 修复计算逻辑
         last_year_start = pd.Timestamp(f'{current_year - 1}-{month:02d}-01')
         last_year_end = last_year_start + pd.offsets.MonthEnd(0)
         last_year_sales = sales_data[
@@ -715,7 +603,7 @@ def create_mt_comprehensive_analysis(data):
 
     df_monthly = pd.DataFrame(monthly_data)
 
-    # 添加月度销售额柱状图 - 带动画
+    # 添加月度销售额柱状图
     fig.add_trace(
         go.Bar(
             x=df_monthly['月份'],
@@ -723,8 +611,7 @@ def create_mt_comprehensive_analysis(data):
             name='MT销售额',
             marker=dict(
                 color='#764ba2',
-                line=dict(color='rgba(118, 75, 162, 0.8)', width=1),
-                pattern=dict(shape=".", size=3, solidity=0.3)  # 添加纹理
+                line=dict(color='rgba(118, 75, 162, 0.8)', width=1)
             ),
             text=[f'{v / 10000:.0f}万' for v in df_monthly['MT销售额']],
             textposition='inside',
@@ -749,19 +636,18 @@ def create_mt_comprehensive_analysis(data):
         row=1, col=1, secondary_y=False
     )
 
-    # 添加达成率线图 - 带动画标记
+    # 添加达成率线图
     fig.add_trace(
         go.Scatter(
             x=df_monthly['月份'],
             y=df_monthly['MT达成率'],
             name='MT达成率',
             mode='lines+markers+text',
-            line=dict(color='#f59e0b', width=4, dash='dot', shape='spline'),
+            line=dict(color='#f59e0b', width=4, dash='dot'),
             marker=dict(
-                size=12,
+                size=10,
                 color='#f59e0b',
-                line=dict(color='white', width=2),
-                symbol='circle-open-dot'
+                line=dict(color='white', width=2)
             ),
             text=[f'{v:.0f}%' for v in df_monthly['MT达成率']],
             textposition='top center',
@@ -784,16 +670,13 @@ def create_mt_comprehensive_analysis(data):
         y=100,
         line=dict(color="red", width=2, dash="dash"),
         row=1, col=1, secondary_y=True,
-        annotation_text="目标线 100%",
-        annotation_position="right"
+        annotation_text="目标线 100%"
     )
 
-    # 2. 区域销售分布 - 渐变色
+    # 2. 区域销售分布
     regional_data = sales_data[sales_data['渠道类型'] == 'MT'].groupby('所属区域')['销售额'].sum().sort_values(
         ascending=True)
 
-    colors = px.colors.sequential.Purples_r[:len(regional_data)]
-    
     fig.add_trace(
         go.Bar(
             y=regional_data.index,
@@ -801,7 +684,7 @@ def create_mt_comprehensive_analysis(data):
             name='区域销售额',
             orientation='h',
             marker=dict(
-                color=colors,
+                color='#764ba2',
                 line=dict(color='rgba(118, 75, 162, 0.8)', width=1)
             ),
             text=[f'¥{v / 10000:.0f}万' for v in regional_data.values],
@@ -823,7 +706,7 @@ def create_mt_comprehensive_analysis(data):
         row=1, col=2
     )
 
-    # 3. 季度对比分析 - 3D效果
+    # 3. 季度对比分析
     quarterly_data = df_monthly.groupby('季度').agg({
         'MT销售额': 'sum',
         'MT目标额': 'sum',
@@ -840,8 +723,7 @@ def create_mt_comprehensive_analysis(data):
             name='季度销售额',
             marker=dict(
                 color=['#667eea', '#764ba2', '#f59e0b', '#10b981'],
-                line=dict(color='rgba(0,0,0,0.2)', width=2),
-                pattern=dict(shape="/", size=4, solidity=0.2)  # 添加斜线纹理
+                line=dict(color='rgba(0,0,0,0.2)', width=1)
             ),
             text=[f'{v / 10000:.0f}万' for v in quarterly_data['MT销售额']],
             textposition='inside',
@@ -864,7 +746,7 @@ def create_mt_comprehensive_analysis(data):
         row=2, col=1
     )
 
-    # 4. 同比增长趋势 - 瀑布图效果
+    # 4. 同比增长趋势 - 修复空白问题
     positive_growth = [max(0, v) for v in df_monthly['同比增长']]
     negative_growth = [min(0, v) for v in df_monthly['同比增长']]
 
@@ -875,8 +757,7 @@ def create_mt_comprehensive_analysis(data):
             name='正增长',
             marker=dict(
                 color='#10b981',
-                line=dict(color='rgba(16, 185, 129, 0.8)', width=1),
-                opacity=0.8
+                line=dict(color='rgba(16, 185, 129, 0.8)', width=1)
             ),
             text=[f'+{v:.0f}%' if v > 0 else '' for v in positive_growth],
             textposition='outside',
@@ -901,8 +782,7 @@ def create_mt_comprehensive_analysis(data):
             name='负增长',
             marker=dict(
                 color='#ef4444',
-                line=dict(color='rgba(239, 68, 68, 0.8)', width=1),
-                opacity=0.8
+                line=dict(color='rgba(239, 68, 68, 0.8)', width=1)
             ),
             text=[f'{v:.0f}%' if v < 0 else '' for v in negative_growth],
             textposition='outside',
@@ -927,7 +807,7 @@ def create_mt_comprehensive_analysis(data):
         row=2, col=2
     )
 
-    # 更新布局 - 增强圆角和动画
+    # 更新布局
     fig.update_layout(
         height=750,
         showlegend=True,
@@ -948,70 +828,38 @@ def create_mt_comprehensive_analysis(data):
             bgcolor="rgba(255,255,255,0.95)",
             bordercolor="rgba(0,0,0,0.1)",
             borderwidth=1,
-            font=dict(size=11, color='#374151'),
-            itemsizing='constant'
+            font=dict(size=11, color='#374151')
         ),
         font=dict(family="Inter, sans-serif", color='#374151'),
-        margin=dict(t=80, l=60, r=60, b=80),
-        updatemenus=[
-            dict(
-                type="buttons",
-                direction="left",
-                buttons=list([
-                    dict(
-                        args=[{"visible": [True] * 10}],
-                        label="显示全部",
-                        method="update"
-                    ),
-                    dict(
-                        args=[{"visible": [True, True, True, True, False, False, False, False, False, False]}],
-                        label="仅销售额",
-                        method="update"
-                    )
-                ]),
-                pad={"r": 10, "t": 10},
-                showactive=True,
-                x=0.11,
-                xanchor="left",
-                y=1.15,
-                yanchor="top"
-            )
-        ]
+        margin=dict(t=80, l=60, r=60, b=80)
     )
 
     # 更新坐标轴
     fig.update_xaxes(
         tickangle=-45,
         row=1, col=1,
-        gridcolor='rgba(0,0,0,0.05)',
+        gridcolor='rgba(0,0,0,0.1)',
         gridwidth=1,
-        title_font=dict(size=12, color='#6b7280'),
-        showspikes=True,
-        spikecolor="rgba(0,0,0,0.1)",
-        spikethickness=1
+        title_font=dict(size=12, color='#6b7280')
     )
-    
     fig.update_yaxes(
         title_text="<b>销售额 (元)</b>",
         row=1, col=1,
         secondary_y=False,
-        gridcolor='rgba(0,0,0,0.05)',
+        gridcolor='rgba(0,0,0,0.1)',
         gridwidth=1,
         title_font=dict(size=12, color='#6b7280')
     )
-    
     fig.update_yaxes(
         title_text="<b>达成率 (%)</b>",
         row=1, col=1,
         secondary_y=True,
-        title_font=dict(size=12, color='#6b7280'),
-        showgrid=False
+        title_font=dict(size=12, color='#6b7280')
     )
-    
     fig.update_yaxes(
         title_text="<b>增长率 (%)</b>",
         row=2, col=2,
-        gridcolor='rgba(0,0,0,0.05)',
+        gridcolor='rgba(0,0,0,0.1)',
         gridwidth=1,
         title_font=dict(size=12, color='#6b7280')
     )
@@ -1020,16 +868,13 @@ def create_mt_comprehensive_analysis(data):
     fig.update_xaxes(tickfont=dict(size=10, color='#6b7280'))
     fig.update_yaxes(tickfont=dict(size=10, color='#6b7280'))
 
-    # 添加动画
-    fig = create_animated_chart(fig)
-
     return fig
 
 
-# 创建综合分析图 - TT渠道 (增强版)
+# 创建综合分析图 - TT渠道 (修复版本)
 @st.cache_data
 def create_tt_comprehensive_analysis(data):
-    """创建TT渠道综合分析图 - 增强动画版"""
+    """创建TT渠道综合分析图"""
     sales_data = data['sales_data']
     tt_city_data = data['tt_city_data']
 
@@ -1098,7 +943,7 @@ def create_tt_comprehensive_analysis(data):
 
     df_monthly = pd.DataFrame(monthly_data)
 
-    # 添加月度销售额柱状图 - 渐变效果
+    # 添加月度销售额柱状图
     fig.add_trace(
         go.Bar(
             x=df_monthly['月份'],
@@ -1106,8 +951,7 @@ def create_tt_comprehensive_analysis(data):
             name='TT销售额',
             marker=dict(
                 color='#667eea',
-                line=dict(color='rgba(102, 126, 234, 0.8)', width=1),
-                pattern=dict(shape=".", size=3, solidity=0.3)
+                line=dict(color='rgba(102, 126, 234, 0.8)', width=1)
             ),
             text=[f'{v / 10000:.0f}万' for v in df_monthly['TT销售额']],
             textposition='inside',
@@ -1132,19 +976,18 @@ def create_tt_comprehensive_analysis(data):
         row=1, col=1, secondary_y=False
     )
 
-    # 添加达成率线图 - 曲线平滑
+    # 添加达成率线图
     fig.add_trace(
         go.Scatter(
             x=df_monthly['月份'],
             y=df_monthly['TT达成率'],
             name='TT达成率',
             mode='lines+markers+text',
-            line=dict(color='#f59e0b', width=4, dash='dot', shape='spline'),
+            line=dict(color='#f59e0b', width=4, dash='dot'),
             marker=dict(
-                size=12,
+                size=10,
                 color='#f59e0b',
-                line=dict(color='white', width=2),
-                symbol='circle-open-dot'
+                line=dict(color='white', width=2)
             ),
             text=[f'{v:.0f}%' for v in df_monthly['TT达成率']],
             textposition='top center',
@@ -1167,16 +1010,13 @@ def create_tt_comprehensive_analysis(data):
         y=100,
         line=dict(color="red", width=2, dash="dash"),
         row=1, col=1, secondary_y=True,
-        annotation_text="目标线 100%",
-        annotation_position="right"
+        annotation_text="目标线 100%"
     )
 
-    # 2. 区域销售分布 - 渐变色
+    # 2. 区域销售分布 - 修复customdata2错误
     regional_data = sales_data[sales_data['渠道类型'] == 'TT'].groupby('所属区域')['销售额'].sum().sort_values(
         ascending=True)
 
-    colors = px.colors.sequential.Blues_r[:len(regional_data)]
-    
     fig.add_trace(
         go.Bar(
             y=regional_data.index,
@@ -1184,7 +1024,7 @@ def create_tt_comprehensive_analysis(data):
             name='区域销售额',
             orientation='h',
             marker=dict(
-                color=colors,
+                color='#667eea',
                 line=dict(color='rgba(102, 126, 234, 0.8)', width=1)
             ),
             text=[f'¥{v / 10000:.0f}万' for v in regional_data.values],
@@ -1206,7 +1046,7 @@ def create_tt_comprehensive_analysis(data):
         row=1, col=2
     )
 
-    # 3. 季度对比分析 - 3D效果
+    # 3. 季度对比分析
     quarterly_data = df_monthly.groupby('季度').agg({
         'TT销售额': 'sum',
         'TT目标额': 'sum',
@@ -1223,8 +1063,7 @@ def create_tt_comprehensive_analysis(data):
             name='季度销售额',
             marker=dict(
                 color=['#667eea', '#764ba2', '#f59e0b', '#10b981'],
-                line=dict(color='rgba(0,0,0,0.2)', width=2),
-                pattern=dict(shape="/", size=4, solidity=0.2)
+                line=dict(color='rgba(0,0,0,0.2)', width=1)
             ),
             text=[f'{v / 10000:.0f}万' for v in quarterly_data['TT销售额']],
             textposition='inside',
@@ -1247,7 +1086,7 @@ def create_tt_comprehensive_analysis(data):
         row=2, col=1
     )
 
-    # 4. 同比增长趋势 - 瀑布图效果
+    # 4. 同比增长趋势
     positive_growth = [max(0, v) for v in df_monthly['同比增长']]
     negative_growth = [min(0, v) for v in df_monthly['同比增长']]
 
@@ -1258,8 +1097,7 @@ def create_tt_comprehensive_analysis(data):
             name='正增长',
             marker=dict(
                 color='#10b981',
-                line=dict(color='rgba(16, 185, 129, 0.8)', width=1),
-                opacity=0.8
+                line=dict(color='rgba(16, 185, 129, 0.8)', width=1)
             ),
             text=[f'+{v:.0f}%' if v > 0 else '' for v in positive_growth],
             textposition='outside',
@@ -1284,8 +1122,7 @@ def create_tt_comprehensive_analysis(data):
             name='负增长',
             marker=dict(
                 color='#ef4444',
-                line=dict(color='rgba(239, 68, 68, 0.8)', width=1),
-                opacity=0.8
+                line=dict(color='rgba(239, 68, 68, 0.8)', width=1)
             ),
             text=[f'{v:.0f}%' if v < 0 else '' for v in negative_growth],
             textposition='outside',
@@ -1310,7 +1147,7 @@ def create_tt_comprehensive_analysis(data):
         row=2, col=2
     )
 
-    # 更新布局 - 增强圆角和动画
+    # 更新布局
     fig.update_layout(
         height=750,
         showlegend=True,
@@ -1331,70 +1168,38 @@ def create_tt_comprehensive_analysis(data):
             bgcolor="rgba(255,255,255,0.95)",
             bordercolor="rgba(0,0,0,0.1)",
             borderwidth=1,
-            font=dict(size=11, color='#374151'),
-            itemsizing='constant'
+            font=dict(size=11, color='#374151')
         ),
         font=dict(family="Inter, sans-serif", color='#374151'),
-        margin=dict(t=80, l=60, r=60, b=80),
-        updatemenus=[
-            dict(
-                type="buttons",
-                direction="left",
-                buttons=list([
-                    dict(
-                        args=[{"visible": [True] * 10}],
-                        label="显示全部",
-                        method="update"
-                    ),
-                    dict(
-                        args=[{"visible": [True, True, True, True, False, False, False, False, False, False]}],
-                        label="仅销售额",
-                        method="update"
-                    )
-                ]),
-                pad={"r": 10, "t": 10},
-                showactive=True,
-                x=0.11,
-                xanchor="left",
-                y=1.15,
-                yanchor="top"
-            )
-        ]
+        margin=dict(t=80, l=60, r=60, b=80)
     )
 
     # 更新坐标轴
     fig.update_xaxes(
         tickangle=-45,
         row=1, col=1,
-        gridcolor='rgba(0,0,0,0.05)',
+        gridcolor='rgba(0,0,0,0.1)',
         gridwidth=1,
-        title_font=dict(size=12, color='#6b7280'),
-        showspikes=True,
-        spikecolor="rgba(0,0,0,0.1)",
-        spikethickness=1
+        title_font=dict(size=12, color='#6b7280')
     )
-    
     fig.update_yaxes(
         title_text="<b>销售额 (元)</b>",
         row=1, col=1,
         secondary_y=False,
-        gridcolor='rgba(0,0,0,0.05)',
+        gridcolor='rgba(0,0,0,0.1)',
         gridwidth=1,
         title_font=dict(size=12, color='#6b7280')
     )
-    
     fig.update_yaxes(
         title_text="<b>达成率 (%)</b>",
         row=1, col=1,
         secondary_y=True,
-        title_font=dict(size=12, color='#6b7280'),
-        showgrid=False
+        title_font=dict(size=12, color='#6b7280')
     )
-    
     fig.update_yaxes(
         title_text="<b>增长率 (%)</b>",
         row=2, col=2,
-        gridcolor='rgba(0,0,0,0.05)',
+        gridcolor='rgba(0,0,0,0.1)',
         gridwidth=1,
         title_font=dict(size=12, color='#6b7280')
     )
@@ -1403,16 +1208,13 @@ def create_tt_comprehensive_analysis(data):
     fig.update_xaxes(tickfont=dict(size=10, color='#6b7280'))
     fig.update_yaxes(tickfont=dict(size=10, color='#6b7280'))
 
-    # 添加动画
-    fig = create_animated_chart(fig)
-
     return fig
 
 
-# 创建全渠道综合分析图（增强版）
+# 创建全渠道综合分析图
 @st.cache_data
 def create_all_channel_comprehensive_analysis(data):
-    """创建全渠道综合分析图 - 增强动画版"""
+    """创建全渠道综合分析图"""
     sales_data = data['sales_data']
     tt_city_data = data['tt_city_data']
     mt_data = data['mt_data']
@@ -1436,7 +1238,7 @@ def create_all_channel_comprehensive_analysis(data):
         horizontal_spacing=0.12
     )
 
-    # 1. 月度销售额与达成率 - 堆叠效果
+    # 1. 月度销售额与达成率
     monthly_data = []
     for month in range(1, 13):
         month_start = pd.Timestamp(f'{current_year}-{month:02d}-01')
@@ -1484,7 +1286,7 @@ def create_all_channel_comprehensive_analysis(data):
 
     df_monthly = pd.DataFrame(monthly_data)
 
-    # 添加TT和MT销售额 - 堆叠条形图
+    # 添加TT和MT销售额
     fig.add_trace(
         go.Bar(
             x=df_monthly['月份'],
@@ -1492,8 +1294,7 @@ def create_all_channel_comprehensive_analysis(data):
             name='TT销售额',
             marker=dict(
                 color='#667eea',
-                line=dict(color='rgba(102, 126, 234, 0.8)', width=1),
-                pattern=dict(shape=".", size=3, solidity=0.2)
+                line=dict(color='rgba(102, 126, 234, 0.8)', width=1)
             ),
             hovertemplate=(
                     '<b>TT渠道</b><br>' +
@@ -1518,8 +1319,7 @@ def create_all_channel_comprehensive_analysis(data):
             name='MT销售额',
             marker=dict(
                 color='#764ba2',
-                line=dict(color='rgba(118, 75, 162, 0.8)', width=1),
-                pattern=dict(shape="/", size=3, solidity=0.2)
+                line=dict(color='rgba(118, 75, 162, 0.8)', width=1)
             ),
             hovertemplate=(
                     '<b>MT渠道</b><br>' +
@@ -1537,22 +1337,19 @@ def create_all_channel_comprehensive_analysis(data):
         row=1, col=1, secondary_y=False
     )
 
-    # 添加总达成率线图 - 带阴影
+    # 添加总达成率线图
     fig.add_trace(
         go.Scatter(
             x=df_monthly['月份'],
             y=df_monthly['总达成率'],
             name='总达成率',
             mode='lines+markers+text',
-            line=dict(color='#f59e0b', width=4, shape='spline'),
+            line=dict(color='#f59e0b', width=4),
             marker=dict(
-                size=14,
+                size=12,
                 color='#f59e0b',
-                line=dict(color='white', width=2),
-                symbol='diamond'
+                line=dict(color='white', width=2)
             ),
-            fill='tonexty',
-            fillcolor='rgba(245, 158, 11, 0.1)',
             text=[f'{v:.0f}%' for v in df_monthly['总达成率']],
             textposition='top center',
             textfont=dict(color='#1f2937', size=11, family="Arial Black"),
@@ -1574,41 +1371,36 @@ def create_all_channel_comprehensive_analysis(data):
         y=100,
         line=dict(color="red", width=2, dash="dash"),
         row=1, col=1, secondary_y=True,
-        annotation_text="目标线 100%",
-        annotation_position="right"
+        annotation_text="目标线 100%"
     )
 
-    # 2. 季度对比 - 分组柱状图
+    # 2. 季度对比
     quarterly_tt = df_monthly.groupby('季度')['TT销售额'].sum()
     quarterly_mt = df_monthly.groupby('季度')['MT销售额'].sum()
     quarterly_tt_target = df_monthly.groupby('季度')['TT目标额'].sum()
     quarterly_mt_target = df_monthly.groupby('季度')['MT目标额'].sum()
 
-    quarters = quarterly_tt.index
-
     fig.add_trace(
         go.Bar(
-            x=[q + ' TT' for q in quarters],
+            x=quarterly_tt.index,
             y=quarterly_tt.values,
             name='TT季度销售',
             marker=dict(
                 color='#667eea',
-                line=dict(color='rgba(102, 126, 234, 0.8)', width=1),
-                pattern=dict(shape="\\", size=4, solidity=0.2)
+                line=dict(color='rgba(102, 126, 234, 0.8)', width=1)
             ),
             text=[f'{v / 10000:.0f}万' for v in quarterly_tt.values],
             textposition='inside',
             textfont=dict(color='white', size=12, family="Arial Black"),
             hovertemplate=(
                     '<b>TT季度销售</b><br>' +
-                    '季度: %{customdata[0]}<br>' +
+                    '季度: %{x}<br>' +
                     '销售额: ¥%{y:,.0f}<br>' +
-                    '目标额: ¥%{customdata[1]:,.0f}<br>' +
-                    '达成率: %{customdata[2]:.1f}%' +
+                    '目标额: ¥%{customdata[0]:,.0f}<br>' +
+                    '达成率: %{customdata[1]:.1f}%' +
                     '<extra></extra>'
             ),
             customdata=list(zip(
-                quarters,
                 quarterly_tt_target.values,
                 quarterly_tt.values / quarterly_tt_target.values * 100
             ))
@@ -1618,27 +1410,25 @@ def create_all_channel_comprehensive_analysis(data):
 
     fig.add_trace(
         go.Bar(
-            x=[q + ' MT' for q in quarters],
+            x=quarterly_mt.index,
             y=quarterly_mt.values,
             name='MT季度销售',
             marker=dict(
                 color='#764ba2',
-                line=dict(color='rgba(118, 75, 162, 0.8)', width=1),
-                pattern=dict(shape="+", size=4, solidity=0.2)
+                line=dict(color='rgba(118, 75, 162, 0.8)', width=1)
             ),
             text=[f'{v / 10000:.0f}万' for v in quarterly_mt.values],
             textposition='inside',
             textfont=dict(color='white', size=12, family="Arial Black"),
             hovertemplate=(
                     '<b>MT季度销售</b><br>' +
-                    '季度: %{customdata[0]}<br>' +
+                    '季度: %{x}<br>' +
                     '销售额: ¥%{y:,.0f}<br>' +
-                    '目标额: ¥%{customdata[1]:,.0f}<br>' +
-                    '达成率: %{customdata[2]:.1f}%' +
+                    '目标额: ¥%{customdata[0]:,.0f}<br>' +
+                    '达成率: %{customdata[1]:.1f}%' +
                     '<extra></extra>'
             ),
             customdata=list(zip(
-                quarters,
                 quarterly_mt_target.values,
                 quarterly_mt.values / quarterly_mt_target.values * 100
             ))
@@ -1646,9 +1436,8 @@ def create_all_channel_comprehensive_analysis(data):
         row=1, col=2
     )
 
-    # 3. 区域渠道分布 - 分组水平条形图
+    # 3. 区域渠道分布
     regional_channel = sales_data.groupby(['所属区域', '渠道类型'])['销售额'].sum().unstack(fill_value=0)
-    
     if 'TT' in regional_channel.columns:
         fig.add_trace(
             go.Bar(
@@ -1658,8 +1447,7 @@ def create_all_channel_comprehensive_analysis(data):
                 orientation='h',
                 marker=dict(
                     color='#667eea',
-                    line=dict(color='rgba(102, 126, 234, 0.8)', width=1),
-                    opacity=0.8
+                    line=dict(color='rgba(102, 126, 234, 0.8)', width=1)
                 ),
                 hovertemplate=(
                         '<b>TT区域销售</b><br>' +
@@ -1682,8 +1470,7 @@ def create_all_channel_comprehensive_analysis(data):
                 orientation='h',
                 marker=dict(
                     color='#764ba2',
-                    line=dict(color='rgba(118, 75, 162, 0.8)', width=1),
-                    opacity=0.8
+                    line=dict(color='rgba(118, 75, 162, 0.8)', width=1)
                 ),
                 hovertemplate=(
                         '<b>MT区域销售</b><br>' +
@@ -1697,7 +1484,7 @@ def create_all_channel_comprehensive_analysis(data):
             row=2, col=1
         )
 
-    # 4. 累计销售趋势 - 带预测
+    # 4. 累计销售趋势
     cumulative_sales = df_monthly['总销售额'].cumsum()
     cumulative_target = df_monthly['总目标额'].cumsum()
 
@@ -1707,10 +1494,9 @@ def create_all_channel_comprehensive_analysis(data):
             y=cumulative_sales,
             name='累计销售额',
             mode='lines+markers',
-            line=dict(color='#10b981', width=4, shape='spline'),
+            line=dict(color='#10b981', width=4),
             marker=dict(size=10, color='#10b981'),
             fill='tonexty',
-            fillcolor='rgba(16, 185, 129, 0.1)',
             hovertemplate=(
                     '<b>累计销售趋势</b><br>' +
                     '月份: %{x}<br>' +
@@ -1734,7 +1520,7 @@ def create_all_channel_comprehensive_analysis(data):
             name='累计目标额',
             mode='lines+markers',
             line=dict(color='#ef4444', width=3, dash='dash'),
-            marker=dict(size=8, color='#ef4444', symbol='square'),
+            marker=dict(size=8, color='#ef4444'),
             hovertemplate=(
                     '<b>累计目标</b><br>' +
                     '月份: %{x}<br>' +
@@ -1745,7 +1531,7 @@ def create_all_channel_comprehensive_analysis(data):
         row=2, col=2, secondary_y=False
     )
 
-    # 更新布局 - 增强圆角和动画
+    # 更新布局
     fig.update_layout(
         height=750,
         showlegend=True,
@@ -1767,8 +1553,7 @@ def create_all_channel_comprehensive_analysis(data):
             bgcolor="rgba(255,255,255,0.95)",
             bordercolor="rgba(0,0,0,0.1)",
             borderwidth=1,
-            font=dict(size=11, color='#374151'),
-            itemsizing='constant'
+            font=dict(size=11, color='#374151')
         ),
         font=dict(family="Inter, sans-serif", color='#374151'),
         margin=dict(t=80, l=60, r=60, b=80)
@@ -1778,35 +1563,28 @@ def create_all_channel_comprehensive_analysis(data):
     fig.update_xaxes(
         tickangle=-45,
         row=1, col=1,
-        gridcolor='rgba(0,0,0,0.05)',
+        gridcolor='rgba(0,0,0,0.1)',
         gridwidth=1,
-        title_font=dict(size=12, color='#6b7280'),
-        showspikes=True,
-        spikecolor="rgba(0,0,0,0.1)",
-        spikethickness=1
+        title_font=dict(size=12, color='#6b7280')
     )
-    
     fig.update_yaxes(
         title_text="<b>销售额 (元)</b>",
         row=1, col=1,
         secondary_y=False,
-        gridcolor='rgba(0,0,0,0.05)',
+        gridcolor='rgba(0,0,0,0.1)',
         gridwidth=1,
         title_font=dict(size=12, color='#6b7280')
     )
-    
     fig.update_yaxes(
         title_text="<b>达成率 (%)</b>",
         row=1, col=1,
         secondary_y=True,
-        title_font=dict(size=12, color='#6b7280'),
-        showgrid=False
+        title_font=dict(size=12, color='#6b7280')
     )
-    
     fig.update_yaxes(
         title_text="<b>累计销售额 (元)</b>",
         row=2, col=2,
-        gridcolor='rgba(0,0,0,0.05)',
+        gridcolor='rgba(0,0,0,0.1)',
         gridwidth=1,
         title_font=dict(size=12, color='#6b7280')
     )
@@ -1815,33 +1593,7 @@ def create_all_channel_comprehensive_analysis(data):
     fig.update_xaxes(tickfont=dict(size=10, color='#6b7280'))
     fig.update_yaxes(tickfont=dict(size=10, color='#6b7280'))
 
-    # 添加动画
-    fig = create_animated_chart(fig)
-
     return fig
-
-
-# 创建动画指标卡片
-def create_animated_metric_card(value, label, sublabel="", color_style="default"):
-    """创建带动画的指标卡片"""
-    if color_style == "gradient":
-        value_style = "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"
-    elif color_style == "success":
-        value_style = "background: linear-gradient(135deg, #10b981 0%, #059669 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"
-    elif color_style == "warning":
-        value_style = "background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"
-    elif color_style == "danger":
-        value_style = "background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"
-    else:
-        value_style = ""
-
-    return f"""
-    <div class="metric-card">
-        <div class="metric-value" style="{value_style}">{value}</div>
-        <div class="metric-label">{label}</div>
-        {f'<div class="metric-sublabel">{sublabel}</div>' if sublabel else ''}
-    </div>
-    """
 
 
 # 主页面
@@ -1860,11 +1612,8 @@ def main():
     """, unsafe_allow_html=True)
 
     # 加载数据
-    loading_placeholder = st.empty()
-    with loading_placeholder.container():
-        show_loading_animation()
+    with st.spinner('正在加载数据...'):
         data = load_data()
-    loading_placeholder.empty()
 
     if data is None:
         return
@@ -1888,35 +1637,35 @@ def main():
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.markdown(create_animated_metric_card(
-                f"¥{metrics['total_sales'] / 10000:.0f}万",
-                "💰 2025年总销售额",
-                f"目标: ¥{metrics['total_target'] / 10000:.0f}万",
-                "gradient"
-            ), unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">¥{metrics['total_sales'] / 10000:.0f}万</div>
+                <div class="metric-label">💰 2025年总销售额</div>
+                <div class="metric-sublabel">目标: ¥{metrics['total_target'] / 10000:.0f}万</div>
+            </div>
+            """, unsafe_allow_html=True)
 
         with col2:
-            achievement_style = "success" if metrics['total_achievement'] >= 100 else "warning" if metrics[
-                                                                                                       'total_achievement'] >= 80 else "danger"
-            achievement_icon = '✅' if metrics['total_achievement'] >= 100 else '⚠️' if metrics[
-                                                                                             'total_achievement'] >= 80 else '🚨'
-            st.markdown(create_animated_metric_card(
-                f"{metrics['total_achievement']:.1f}%",
-                "🎯 总体达成率",
-                f"{achievement_icon} {'超额完成' if metrics['total_achievement'] >= 100 else '需要努力' if metrics['total_achievement'] >= 80 else '严重不足'}",
-                achievement_style
-            ), unsafe_allow_html=True)
+            achievement_color = "#10b981" if metrics['total_achievement'] >= 100 else "#f59e0b" if metrics[
+                                                                                                       'total_achievement'] >= 80 else "#ef4444"
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value" style="background: linear-gradient(135deg, {achievement_color} 0%, {achievement_color} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{metrics['total_achievement']:.1f}%</div>
+                <div class="metric-label">🎯 总体达成率</div>
+                <div class="metric-sublabel">{'✅ 超额完成' if metrics['total_achievement'] >= 100 else '⚠️ 需要努力' if metrics['total_achievement'] >= 80 else '🚨 严重不足'}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
         with col3:
             gap = metrics['total_target'] - metrics['total_sales']
-            gap_style = "success" if gap <= 0 else "danger"
-            gap_icon = '🎉' if gap <= 0 else '💪'
-            st.markdown(create_animated_metric_card(
-                f"¥{abs(gap) / 10000:.0f}万",
-                f"📈 {'超额完成' if gap <= 0 else '目标缺口'}",
-                f"{gap_icon} {'恭喜达标' if gap <= 0 else '继续加油'}",
-                gap_style
-            ), unsafe_allow_html=True)
+            gap_color = "#10b981" if gap <= 0 else "#ef4444"
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value" style="background: linear-gradient(135deg, {gap_color} 0%, {gap_color} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">¥{abs(gap) / 10000:.0f}万</div>
+                <div class="metric-label">📈 {'超额完成' if gap <= 0 else '目标缺口'}</div>
+                <div class="metric-sublabel">{'🎉 恭喜达标' if gap <= 0 else '💪 继续加油'}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1924,131 +1673,48 @@ def main():
         col4, col5, col6 = st.columns(3)
 
         with col4:
-            tt_style = "gradient" if metrics['tt_achievement'] >= 100 else "warning"
-            st.markdown(create_animated_metric_card(
-                f"¥{metrics['tt_sales'] / 10000:.0f}万",
-                "🏢 TT渠道销售额",
-                f"达成率: {metrics['tt_achievement']:.1f}% | 占比: {metrics['tt_ratio']:.1f}%",
-                tt_style
-            ), unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">¥{metrics['tt_sales'] / 10000:.0f}万</div>
+                <div class="metric-label">🏢 TT渠道销售额</div>
+                <div class="metric-sublabel">达成率: {metrics['tt_achievement']:.1f}% | 占比: {metrics['tt_ratio']:.1f}%</div>
+            </div>
+            """, unsafe_allow_html=True)
 
         with col5:
-            mt_style = "gradient" if metrics['mt_achievement'] >= 100 else "warning"
-            st.markdown(create_animated_metric_card(
-                f"¥{metrics['mt_sales'] / 10000:.0f}万",
-                "🏪 MT渠道销售额",
-                f"达成率: {metrics['mt_achievement']:.1f}% | 占比: {metrics['mt_ratio']:.1f}%",
-                mt_style
-            ), unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">¥{metrics['mt_sales'] / 10000:.0f}万</div>
+                <div class="metric-label">🏪 MT渠道销售额</div>
+                <div class="metric-sublabel">达成率: {metrics['mt_achievement']:.1f}% | 占比: {metrics['mt_ratio']:.1f}%</div>
+            </div>
+            """, unsafe_allow_html=True)
 
         with col6:
             better_channel = "TT" if metrics['tt_achievement'] > metrics['mt_achievement'] else "MT"
-            better_style = "gradient"
-            st.markdown(create_animated_metric_card(
-                better_channel,
-                "🏆 表现更优渠道",
-                f"{better_channel}渠道达成率更高",
-                better_style
-            ), unsafe_allow_html=True)
-
-        # 添加渠道对比图表
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("""
-        <div class="chart-container">
-            <h3 style="text-align: center; color: #1f2937; margin-bottom: 1rem;">📊 渠道业绩快速对比</h3>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # 创建简单的对比图
-        comparison_fig = go.Figure()
-        
-        categories = ['销售额', '达成率', '占比']
-        tt_values = [
-            metrics['tt_sales'] / 10000,  # 转换为万元
-            metrics['tt_achievement'],
-            metrics['tt_ratio']
-        ]
-        mt_values = [
-            metrics['mt_sales'] / 10000,
-            metrics['mt_achievement'],
-            metrics['mt_ratio']
-        ]
-
-        comparison_fig.add_trace(go.Bar(
-            name='TT渠道',
-            x=categories,
-            y=tt_values,
-            marker_color='#667eea',
-            text=[f'{v:.0f}万' if i == 0 else f'{v:.1f}%' for i, v in enumerate(tt_values)],
-            textposition='auto',
-        ))
-
-        comparison_fig.add_trace(go.Bar(
-            name='MT渠道',
-            x=categories,
-            y=mt_values,
-            marker_color='#764ba2',
-            text=[f'{v:.0f}万' if i == 0 else f'{v:.1f}%' for i, v in enumerate(mt_values)],
-            textposition='auto',
-        ))
-
-        comparison_fig.update_layout(
-            barmode='group',
-            height=350,
-            plot_bgcolor='rgba(248, 250, 252, 0.8)',
-            paper_bgcolor='white',
-            showlegend=True,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="center",
-                x=0.5
-            ),
-            margin=dict(t=50, b=50, l=50, r=50)
-        )
-
-        comparison_fig = create_animated_chart(comparison_fig, 600)
-        st.plotly_chart(comparison_fig, use_container_width=True)
+            better_color = "#667eea" if better_channel == "TT" else "#764ba2"
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value" style="background: linear-gradient(135deg, {better_color} 0%, {better_color} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{better_channel}</div>
+                <div class="metric-label">🏆 表现更优渠道</div>
+                <div class="metric-sublabel">{better_channel}渠道达成率更高</div>
+            </div>
+            """, unsafe_allow_html=True)
 
     # Tab 2: MT渠道分析
     with tabs[1]:
-        mt_loading = st.empty()
-        with mt_loading.container():
-            st.info("正在生成MT渠道分析图表...")
         fig = create_mt_comprehensive_analysis(data)
-        mt_loading.empty()
-        
-        # 包装在chart-container中以应用圆角
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
         st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # Tab 3: TT渠道分析
     with tabs[2]:
-        tt_loading = st.empty()
-        with tt_loading.container():
-            st.info("正在生成TT渠道分析图表...")
         fig = create_tt_comprehensive_analysis(data)
-        tt_loading.empty()
-        
-        # 包装在chart-container中以应用圆角
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
         st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # Tab 4: 全渠道对比
     with tabs[3]:
-        all_loading = st.empty()
-        with all_loading.container():
-            st.info("正在生成全渠道对比分析图表...")
         fig = create_all_channel_comprehensive_analysis(data)
-        all_loading.empty()
-        
-        # 包装在chart-container中以应用圆角
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
         st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
