@@ -1001,6 +1001,7 @@ def get_strategy_suggestion(category):
 
 
 # 修改促销活动有效性分析函数
+# 修改促销活动有效性分析函数
 def analyze_promotion_effectiveness_enhanced(data):
     """增强的促销活动有效性分析（新品需要有效增长幅度）"""
     promotion_df = data['promotion_df']
@@ -1036,12 +1037,13 @@ def analyze_promotion_effectiveness_enhanced(data):
         yoy_growth = ((april_2025 - april_2024) / april_2024 * 100) if april_2024 > 0 else 0
         avg_growth = ((april_2025 - avg_2024) / avg_2024 * 100) if avg_2024 > 0 else 0
 
-        # 判断是否为新品（去年没有销售额）
-        is_new_product = april_2024 == 0 and avg_2024 == 0
+        # 判断是否为新品（去年同期没有销售额）
+        is_new_product = april_2024 == 0  # 修改：只要去年4月没有销售额就算新品
 
         # 判断有效性（新品特殊处理）
         if is_new_product:
-            # 新品需要环比增长超过10%才算有效（有效增长幅度）
+            # 新品需要环比增长在有效范围内才算有效
+            # 定义有效范围：环比增长超过10%
             is_effective = mom_growth >= 10
             effectiveness_reason = f"{'✅ 有效' if is_effective else '❌ 无效'}（新品，环比增长{mom_growth:.1f}%{'≥10%' if mom_growth >= 10 else '<10%'}）"
             positive_count = None  # 新品不计算positive_count
@@ -1087,7 +1089,7 @@ def create_regional_coverage_analysis(data):
 
         # 找出漏铺的产品
         missing_products = [p for p in dashboard_products if p not in products_sold]
-        
+
         # 分析漏铺产品在其他区域的表现
         missing_product_analysis = []
         for product_code in missing_products[:10]:  # 只分析前10个漏铺产品
@@ -1097,7 +1099,7 @@ def create_regional_coverage_analysis(data):
                 product_name = product_info['产品简称'].iloc[0]
             else:
                 product_name = f"产品{product_code}"
-            
+
             # 计算在其他区域的平均销售额
             other_regions_data = sales_df[(sales_df['产品代码'] == product_code) & (sales_df['区域'] != region)]
             if len(other_regions_data) > 0:
@@ -1106,23 +1108,23 @@ def create_regional_coverage_analysis(data):
             else:
                 avg_sales_other = 0
                 regions_count = 0
-            
+
             missing_product_analysis.append({
                 'name': product_name,
                 'avg_sales': avg_sales_other,
                 'regions': regions_count
             })
-        
+
         # 按其他区域平均销售额排序
         missing_product_analysis.sort(key=lambda x: x['avg_sales'], reverse=True)
-        
+
         # 创建漏铺产品详细文本
         missing_products_detail = ""
         if len(missing_product_analysis) > 0:
             missing_products_detail = "<b>漏铺产品潜力分析（TOP 10）：</b><br>"
             for i, prod in enumerate(missing_product_analysis):
-                missing_products_detail += f"{i+1}. {prod['name']}: 其他{prod['regions']}个区域平均¥{prod['avg_sales']:,.0f}<br>"
-            
+                missing_products_detail += f"{i + 1}. {prod['name']}: 其他{prod['regions']}个区域平均¥{prod['avg_sales']:,.0f}<br>"
+
             if len(missing_products) > 10:
                 missing_products_detail += f"<br>...等共{len(missing_products)}个漏铺产品"
 
@@ -1309,8 +1311,9 @@ def create_real_product_network(data, product_filter='all'):
     if len(nodes) == 0:
         fig = go.Figure()
         fig.update_layout(
-            title=dict(text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>暂无满足条件的产品</i>",
-                       font=dict(size=20)),
+            title=dict(
+                text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>暂无满足条件的产品</i>",
+                font=dict(size=20)),
             xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
             yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
             height=700,
@@ -1421,12 +1424,12 @@ def create_real_product_network(data, product_filter='all'):
 - 客户数: {customer_count}<br>
 <br><b>产品定位:</b><br>
 {'• 核心产品，适合作为引流主打' if connections >= 5 else
- '• 重要连接点，适合交叉销售' if connections >= 3 else
- '• 特色产品，可独立推广'}<br>
+        '• 重要连接点，适合交叉销售' if connections >= 3 else
+        '• 特色产品，可独立推广'}<br>
 <br><b>策略建议:</b><br>
 {'• 作为促销活动的核心产品<br>• 与多个产品组合销售<br>• 重点培养忠实客户' if connections >= 5 else
- '• 选择2-3个关联产品捆绑<br>• 开发组合套装<br>• 提升客户粘性' if connections >= 3 else
- '• 挖掘独特卖点<br>• 寻找目标客户群<br>• 差异化营销'}"""
+        '• 选择2-3个关联产品捆绑<br>• 开发组合套装<br>• 提升客户粘性' if connections >= 3 else
+        '• 挖掘独特卖点<br>• 寻找目标客户群<br>• 差异化营销'}"""
 
         node_details.append(detail)
 
@@ -1489,6 +1492,7 @@ def create_real_product_network(data, product_filter='all'):
 
 
 # 促销活动柱状图
+# 促销活动柱状图
 def create_optimized_promotion_chart(promo_results):
     """创建优化的促销活动有效性柱状图"""
     if len(promo_results) == 0:
@@ -1512,7 +1516,8 @@ def create_optimized_promotion_chart(promo_results):
 <br><b>详细分析:</b><br>
 - 3月销售额: ¥{row['march_sales']:,.0f}<br>
 - 环比: {arrow_up if row['mom_growth'] > 0 else arrow_down}{abs(row['mom_growth']):.1f}%<br>
-- 去年无销售数据（新品）<br>
+- 去年4月无销售数据（新品）<br>
+- 去年月均: ¥{row['avg_2024_sales']:,.0f}<br>
 <br><b>营销建议:</b><br>
 {'继续加大推广力度，建立市场认知' if row['is_effective'] else '调整新品推广策略，需要更大的增长幅度'}"""
         else:
@@ -1674,7 +1679,7 @@ def create_regional_penetration_analysis(data):
         title=dict(text="<b>区域新品渗透率分析</b>", font=dict(size=20)),
         xaxis=dict(title="销售区域"),
         yaxis=dict(
-            title="新品渗透率 (%)", 
+            title="新品渗透率 (%)",
             side='left',
             range=[0, max(df['penetration_rate'].max() * 1.2, national_avg_penetration * 1.3)]  # 确保标注不被遮挡
         ),
@@ -1682,8 +1687,8 @@ def create_regional_penetration_analysis(data):
         height=600,
         hovermode='x unified',
         legend=dict(
-            x=0.02, 
-            y=0.98, 
+            x=0.02,
+            y=0.98,
             bgcolor='rgba(255,255,255,0.8)',
             bordercolor='rgba(0,0,0,0.2)',
             borderwidth=1
