@@ -1267,126 +1267,50 @@ def create_real_product_network(data, product_filter='all'):
 
                     product_pairs.append((name1, name2, correlation, len(common_customers), prod1, prod2))
 
-    # 使用filtered_products作为节点，确保只显示仪表盘产品
+    # 使用产品代码作为节点（确保唯一性），但显示产品名称
     nodes = filtered_products
 
     # 如果没有节点，返回空图
     if len(nodes) == 0:
         fig = go.Figure()
         fig.update_layout(
-            title=dict(
-                text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>暂无满足条件的产品</i>",
-                font=dict(size=20)),
+            title=dict(text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>暂无满足条件的产品</i>",
+                       font=dict(size=20)),
             xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
             yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
             height=700,
             plot_bgcolor='rgba(248,249,250,0.5)'
         )
         return fig
-    product_pairs = []
 
-    # 创建产品代码到产品名称的映射（确保唯一性）
-    product_name_map = {}
-    # 创建产品代码到客户集合的映射，优化性能
-    product_customers_map = {}
+    # 使用圆形布局，适应更多节点
+    pos = {}
+    angle_step = 2 * np.pi / len(nodes)
+    for i, node in enumerate(nodes):
+        angle = i * angle_step
+        # 增大圆的半径以容纳更多节点
+        radius = min(1.5, 0.8 + len(nodes) * 0.02)
+        pos[node] = (radius * np.cos(angle), radius * np.sin(angle))
 
-    # 确保每个filtered_products中的产品都有映射
-    for product in filtered_products:
-        product_data = sales_df_filtered[sales_df_filtered['产品代码'] == product]
-        if len(product_data) > 0:
-            # 使用第一个出现的产品简称
-            product_name = product_data['产品简称'].iloc[0]
-            # 缓存客户集合
-            product_customers_map[product] = set(product_data['客户名称'].unique())
-        else:
-            # 如果在过滤后的销售数据中找不到，尝试在所有销售数据中查找
-            all_product_data = sales_df[sales_df['产品代码'] == product]
-            if len(all_product_data) > 0:
-                product_name = all_product_data['产品简称'].iloc[0]
-            else:
-                product_name = f"产品{product}"  # 使用产品代码作为名称
-            product_customers_map[product] = set()
-        product_name_map[product] = product_name
-
-    # 降低关联度门槛以显示更多连接，使用filtered_products确保只处理仪表盘产品
-    for i, prod1 in enumerate(filtered_products):
-        for j in range(i + 1, len(filtered_products)):
-            prod2 = filtered_products[j]
-
-            customers_prod1 = product_customers_map.get(prod1, set())
-            customers_prod2 = product_customers_map.get(prod2, set())
-
-            common_customers = customers_prod1.intersection(customers_prod2)
-            total_customers = customers_prod1.union(customers_prod2)
-
-            if len(total_customers) > 0:
-                correlation = len(common_customers) / len(total_customers)
-
-                # 降低门槛到0.2以显示更多关联
-                if correlation > 0.2:
-                    name1 = product_name_map[prod1]
-                    name2 = product_name_map[prod2]
-
-                    product_pairs.append((name1, name2, correlation, len(common_customers), prod1, prod2))
-
-    # 使用filtered_products作为节点，确保只显示仪表盘产品
-    nodes = filtered_products
-
-    if len(total_customers) > 0:
-        correlation = len(common_customers) / len(total_customers)
-
-        # 降低门槛到0.2以显示更多关联
-        if correlation > 0.2:
-            name1 = product_name_map[prod1]
-            name2 = product_name_map[prod2]
-
-            product_pairs.append((name1, name2, correlation, len(common_customers), prod1, prod2))
-
-
-# 使用产品代码作为节点（确保唯一性），但显示产品名称
-nodes = filtered_products
-
-# 如果没有节点，返回空图
-if len(nodes) == 0:
     fig = go.Figure()
-    fig.update_layout(
-        title=dict(text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>暂无满足条件的产品</i>",
-                   font=dict(size=20)),
-        xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
-        yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
-        height=700,
-        plot_bgcolor='rgba(248,249,250,0.5)'
-    )
-    return fig
 
-# 使用圆形布局，适应更多节点
-pos = {}
-angle_step = 2 * np.pi / len(nodes)
-for i, node in enumerate(nodes):
-    angle = i * angle_step
-    # 增大圆的半径以容纳更多节点
-    radius = min(1.5, 0.8 + len(nodes) * 0.02)
-    pos[node] = (radius * np.cos(angle), radius * np.sin(angle))
+    # 添加边（降低线条粗细）
+    for pair in product_pairs:
+        prod1_code = pair[4]
+        prod2_code = pair[5]
+        x0, y0 = pos[prod1_code]
+        x1, y1 = pos[prod2_code]
 
-fig = go.Figure()
+        color_intensity = int(255 * pair[2])
+        color = f'rgba({color_intensity}, {100}, {255 - color_intensity}, {pair[2] * 0.7})'
 
-# 添加边（降低线条粗细）
-for pair in product_pairs:
-    prod1_code = pair[4]
-    prod2_code = pair[5]
-    x0, y0 = pos[prod1_code]
-    x1, y1 = pos[prod2_code]
-
-    color_intensity = int(255 * pair[2])
-    color = f'rgba({color_intensity}, {100}, {255 - color_intensity}, {pair[2] * 0.7})'
-
-    fig.add_trace(go.Scatter(
-        x=[x0, x1],
-        y=[y0, y1],
-        mode='lines',
-        line=dict(width=pair[2] * 10, color=color),  # 降低线条粗细
-        hoverinfo='text',
-        text=f"""<b>产品关联分析</b><br>
+        fig.add_trace(go.Scatter(
+            x=[x0, x1],
+            y=[y0, y1],
+            mode='lines',
+            line=dict(width=pair[2] * 10, color=color),  # 降低线条粗细
+            hoverinfo='text',
+            text=f"""<b>产品关联分析</b><br>
 产品1: {pair[0]}<br>
 产品2: {pair[1]}<br>
 关联度: {pair[2]:.1%}<br>
@@ -1396,64 +1320,64 @@ for pair in product_pairs:
 - 适合捆绑销售，预计可提升{pair[2] * 30:.0f}%销量<br>
 - 建议在促销时同时推广<br>
 - 可设计组合套装，提高客单价""",
-        showlegend=False
-    ))
+            showlegend=False
+        ))
 
-# 添加节点
-node_x = [pos[node][0] for node in nodes]
-node_y = [pos[node][1] for node in nodes]
+    # 添加节点
+    node_x = [pos[node][0] for node in nodes]
+    node_y = [pos[node][1] for node in nodes]
 
-node_sizes = []
-node_details = []
-node_colors = []
-node_texts = []  # 显示的文本
+    node_sizes = []
+    node_details = []
+    node_colors = []
+    node_texts = []  # 显示的文本
 
-for node in nodes:
-    # node 是产品代码
-    product_code = node
-    product_name = product_name_map[product_code]
+    for node in nodes:
+        # node 是产品代码
+        product_code = node
+        product_name = product_name_map[product_code]
 
-    # 计算连接数
-    connections = sum(1 for pair in product_pairs if product_code in [pair[4], pair[5]])
-    total_correlation = sum(pair[2] for pair in product_pairs if product_code in [pair[4], pair[5]])
-    # 调整节点大小
-    node_sizes.append(15 + min(connections * 5, 30))  # 限制最大节点尺寸
+        # 计算连接数
+        connections = sum(1 for pair in product_pairs if product_code in [pair[4], pair[5]])
+        total_correlation = sum(pair[2] for pair in product_pairs if product_code in [pair[4], pair[5]])
+        # 调整节点大小
+        node_sizes.append(15 + min(connections * 5, 30))  # 限制最大节点尺寸
 
-    product_data = sales_df_filtered[sales_df_filtered['产品代码'] == product_code]
-    if len(product_data) > 0:
-        total_sales = product_data['销售额'].sum()
-        customer_count = product_data['客户名称'].nunique()
-    else:
-        total_sales = 0
-        customer_count = 0
+        product_data = sales_df_filtered[sales_df_filtered['产品代码'] == product_code]
+        if len(product_data) > 0:
+            total_sales = product_data['销售额'].sum()
+            customer_count = product_data['客户名称'].nunique()
+        else:
+            total_sales = 0
+            customer_count = 0
 
-    # 判断产品类型并设置颜色
-    product_types = []
-    if product_code in star_products:
-        product_types.append("星品")
-    if product_code in new_products:
-        product_types.append("新品")
-    if product_code in promo_products:
-        product_types.append("促销品")
+        # 判断产品类型并设置颜色
+        product_types = []
+        if product_code in star_products:
+            product_types.append("星品")
+        if product_code in new_products:
+            product_types.append("新品")
+        if product_code in promo_products:
+            product_types.append("促销品")
 
-    # 设置颜色优先级：促销品 > 新品 > 星品 > 常规品
-    if product_code in promo_products:
-        node_color = '#FF5722'  # 橙红色
-    elif product_code in new_products:
-        node_color = '#4CAF50'  # 绿色
-    elif product_code in star_products:
-        node_color = '#FFC107'  # 金色
-    else:
-        node_color = '#667eea'  # 默认紫色
+        # 设置颜色优先级：促销品 > 新品 > 星品 > 常规品
+        if product_code in promo_products:
+            node_color = '#FF5722'  # 橙红色
+        elif product_code in new_products:
+            node_color = '#4CAF50'  # 绿色
+        elif product_code in star_products:
+            node_color = '#FFC107'  # 金色
+        else:
+            node_color = '#667eea'  # 默认紫色
 
-    if not product_types:
-        product_types.append("常规品")
+        if not product_types:
+            product_types.append("常规品")
 
-    node_colors.append(node_color)
-    node_texts.append(product_name)  # 显示产品名称
-    product_type_text = "、".join(product_types) if product_types else "常规品"
+        node_colors.append(node_color)
+        node_texts.append(product_name)  # 显示产品名称
+        product_type_text = "、".join(product_types) if product_types else "常规品"
 
-    detail = f"""<b>{product_name} ({product_code})</b><br>
+        detail = f"""<b>{product_name} ({product_code})</b><br>
 <b>产品类型:</b> {product_type_text}<br>
 <br><b>网络分析:</b><br>
 - 关联产品数: {connections}<br>
@@ -1462,71 +1386,71 @@ for node in nodes:
 - 客户数: {customer_count}<br>
 <br><b>产品定位:</b><br>
 {'• 核心产品，适合作为引流主打' if connections >= 5 else
-    '• 重要连接点，适合交叉销售' if connections >= 3 else
-    '• 特色产品，可独立推广'}<br>
+ '• 重要连接点，适合交叉销售' if connections >= 3 else
+ '• 特色产品，可独立推广'}<br>
 <br><b>策略建议:</b><br>
 {'• 作为促销活动的核心产品<br>• 与多个产品组合销售<br>• 重点培养忠实客户' if connections >= 5 else
-    '• 选择2-3个关联产品捆绑<br>• 开发组合套装<br>• 提升客户粘性' if connections >= 3 else
-    '• 挖掘独特卖点<br>• 寻找目标客户群<br>• 差异化营销'}"""
+ '• 选择2-3个关联产品捆绑<br>• 开发组合套装<br>• 提升客户粘性' if connections >= 3 else
+ '• 挖掘独特卖点<br>• 寻找目标客户群<br>• 差异化营销'}"""
 
-    node_details.append(detail)
+        node_details.append(detail)
 
-fig.add_trace(go.Scatter(
-    x=node_x,
-    y=node_y,
-    mode='markers+text',
-    marker=dict(
-        size=node_sizes,
-        color=node_colors,
-        line=dict(width=2, color='white')
-    ),
-    text=node_texts,  # 使用产品名称
-    textposition='top center',
-    textfont=dict(size=8, weight='bold'),
-    hoverinfo='text',
-    hovertext=node_details,
-    showlegend=False
-))
+    fig.add_trace(go.Scatter(
+        x=node_x,
+        y=node_y,
+        mode='markers+text',
+        marker=dict(
+            size=node_sizes,
+            color=node_colors,
+            line=dict(width=2, color='white')
+        ),
+        text=node_texts,  # 使用产品名称
+        textposition='top center',
+        textfont=dict(size=8, weight='bold'),
+        hoverinfo='text',
+        hovertext=node_details,
+        showlegend=False
+    ))
 
-# 添加图例
-if product_filter == 'all':
-    legend_items = [
-        ('星品', '#FFC107'),
-        ('新品', '#4CAF50'),
-        ('促销品', '#FF5722'),
-        ('常规品', '#667eea')
-    ]
-    for i, (label, color) in enumerate(legend_items):
-        fig.add_trace(go.Scatter(
-            x=[None],
-            y=[None],
-            mode='markers',
-            marker=dict(size=12, color=color),
-            name=label,
-            showlegend=True
-        ))
+    # 添加图例
+    if product_filter == 'all':
+        legend_items = [
+            ('星品', '#FFC107'),
+            ('新品', '#4CAF50'),
+            ('促销品', '#FF5722'),
+            ('常规品', '#667eea')
+        ]
+        for i, (label, color) in enumerate(legend_items):
+            fig.add_trace(go.Scatter(
+                x=[None],
+                y=[None],
+                mode='markers',
+                marker=dict(size=12, color=color),
+                name=label,
+                showlegend=True
+            ))
 
-# 调整布局以适应更多节点
-fig.update_layout(
-    title=dict(
-        text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>共{len(nodes)}个产品（仪表盘产品）</i>",
-        font=dict(size=20)),
-    xaxis=dict(showgrid=False, showticklabels=False, zeroline=False, range=[-2, 2]),
-    yaxis=dict(showgrid=False, showticklabels=False, zeroline=False, range=[-2, 2]),
-    height=800,  # 增加高度
-    plot_bgcolor='rgba(248,249,250,0.5)',
-    hovermode='closest',
-    showlegend=product_filter == 'all',
-    legend=dict(
-        x=1.05,
-        y=1,
-        bgcolor='rgba(255,255,255,0.9)',
-        bordercolor='rgba(0,0,0,0.2)',
-        borderwidth=1
+    # 调整布局以适应更多节点
+    fig.update_layout(
+        title=dict(
+            text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>共{len(nodes)}个产品（仪表盘产品）</i>",
+            font=dict(size=20)),
+        xaxis=dict(showgrid=False, showticklabels=False, zeroline=False, range=[-2, 2]),
+        yaxis=dict(showgrid=False, showticklabels=False, zeroline=False, range=[-2, 2]),
+        height=800,  # 增加高度
+        plot_bgcolor='rgba(248,249,250,0.5)',
+        hovermode='closest',
+        showlegend=product_filter == 'all',
+        legend=dict(
+            x=1.05,
+            y=1,
+            bgcolor='rgba(255,255,255,0.9)',
+            bordercolor='rgba(0,0,0,0.2)',
+            borderwidth=1
+        )
     )
-)
 
-return fig
+    return fig
 
 
 # 促销活动柱状图
