@@ -249,6 +249,9 @@ st.markdown("""
     .metric-card:nth-child(3) { animation-delay: 0.3s; }
     .metric-card:nth-child(4) { animation-delay: 0.4s; }
     .metric-card:nth-child(5) { animation-delay: 0.5s; }
+    .metric-card:nth-child(6) { animation-delay: 0.6s; }
+    .metric-card:nth-child(7) { animation-delay: 0.7s; }
+    .metric-card:nth-child(8) { animation-delay: 0.8s; }
     
     /* 响应式 */
     @media (max-width: 768px) {
@@ -1333,10 +1336,9 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
         )
         charts['risk_matrix'] = fig_risk
     
-    # 4. 价值分层桑基图
+    # 4. 价值分层桑基图（增强悬停信息）
     if not metrics['rfm_df'].empty:
         try:
-            source, target, value, labels, colors = [], [], [], [f'全部客户\n{total_count}家'], ['#9b59b6']  # 紫色作为起点
             # 使用更鲜明的配色方案
             customer_types = [
                 ('💎 钻石客户', '#e74c3c'),  # 鲜红色 - 最高价值
@@ -1346,16 +1348,20 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                 ('⚠️ 流失风险', '#95a5a6')   # 灰色 - 风险客户
             ]
             
-            node_idx = 1
-            link_colors = []  # 添加连接线颜色
-            
             # 统计总客户数
             total_count = len(metrics['rfm_df'])
+            
+            source, target, value, labels, colors = [], [], [], [f'全部客户\n{total_count}家'], ['#9b59b6']  # 紫色作为起点
+            node_idx = 1
+            link_colors = []  # 添加连接线颜色
+            link_labels = []  # 存储每个连接的客户名列表
             
             for ct, color in customer_types:
                 # 去掉emoji来匹配原始数据
                 ct_clean = ct.split(' ')[-1] if ' ' in ct else ct
-                count = len(metrics['rfm_df'][metrics['rfm_df']['类型'] == ct_clean])
+                type_customers = metrics['rfm_df'][metrics['rfm_df']['类型'] == ct_clean]
+                count = len(type_customers)
+                
                 if count > 0:
                     # 显示客户数和占比
                     percentage = count / total_count * 100
@@ -1364,11 +1370,31 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                     source.append(0)
                     target.append(node_idx)
                     value.append(count)
+                    
                     # 为连接线添加半透明的渐变颜色
                     link_colors.append(f'rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.5)')
+                    
+                    # 获取该类型的客户名列表（用于悬停显示）
+                    customer_names = type_customers.nlargest(10, 'M')['客户'].tolist()
+                    if len(type_customers) > 10:
+                        customer_names_str = '<br>'.join([f'• {name}' for name in customer_names[:10]]) + f'<br>... 还有{len(type_customers)-10}个客户'
+                    else:
+                        customer_names_str = '<br>'.join([f'• {name}' for name in customer_names])
+                    link_labels.append(customer_names_str)
+                    
                     node_idx += 1
             
             if source:
+                # 构建悬停文本
+                hover_texts = []
+                for i in range(len(source)):
+                    hover_text = f'<b>{labels[0]} → {labels[target[i]]}</b><br><br>'
+                    hover_text += f'客户数: {value[i]}<br>'
+                    hover_text += f'占比: {value[i]/total_count*100:.1f}%<br><br>'
+                    hover_text += '<b>客户名单：</b><br>'
+                    hover_text += link_labels[i]
+                    hover_texts.append(hover_text)
+                
                 fig_sankey = go.Figure(data=[go.Sankey(
                     textfont=dict(
                         size=16,  # 增大字体
@@ -1381,7 +1407,7 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                         line=dict(color="white", width=3),  # 白色边框更明显
                         label=labels,
                         color=colors,
-                        # 悬停信息
+                        # 节点悬停信息
                         hovertemplate='<b>%{label}</b><extra></extra>'
                     ),
                     link=dict(
@@ -1389,9 +1415,9 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                         target=target,
                         value=value,
                         color=link_colors,  # 使用渐变颜色
-                        # 增加悬停信息
-                        customdata=[f"{v/total_count*100:.1f}%" for v in value],
-                        hovertemplate='%{source.label} → %{target.label}<br>客户数: %{value}<br>占比: %{customdata}<extra></extra>'
+                        # 增强的悬停信息
+                        hovertemplate='%{hovertext}<extra></extra>',
+                        hovertext=hover_texts
                     ),
                     # 优化方向
                     orientation='h',
@@ -1410,10 +1436,15 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                     paper_bgcolor='#f8f9fa',  # 浅灰背景
                     plot_bgcolor='white',
                     font=dict(size=16, family="Microsoft YaHei, Arial, sans-serif"),
+                    hoverlabel=dict(
+                        bgcolor="white",
+                        font_size=12,
+                        font_family="Microsoft YaHei, Arial"
+                    ),
                     # 添加注释说明
                     annotations=[
                         dict(
-                            text="客户价值从左到右分层展示，颜色深浅代表价值高低",
+                            text="客户价值从左到右分层展示，悬停查看具体客户名单",
                             xref="paper", yref="paper",
                             x=0.5, y=-0.1,
                             xanchor='center',
@@ -1429,7 +1460,7 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                 
         except Exception as e:
             print(f"桑基图创建失败: {e}")
-            # 如果失败，创建一个饼图作为备选
+            # 如果失败，创建一个堆叠条形图作为备选
             try:
                 customer_type_counts = metrics['rfm_df']['类型'].value_counts()
                 
@@ -1442,59 +1473,89 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                     '流失风险': ('#95a5a6', '⚠️')
                 }
                 
-                # 准备数据
-                labels_pie = []
-                values_pie = []
-                colors_pie = []
+                # 创建分层条形图
+                fig_bar = go.Figure()
                 
-                for customer_type, (color, emoji) in color_map.items():
+                # 按价值从高到低排序
+                ordered_types = ['钻石客户', '黄金客户', '白银客户', '潜力客户', '流失风险']
+                y_pos = 0
+                
+                for customer_type in ordered_types:
                     if customer_type in customer_type_counts.index:
                         count = customer_type_counts[customer_type]
                         percentage = count / len(metrics['rfm_df']) * 100
-                        labels_pie.append(f"{emoji} {customer_type}<br>{count}家 ({percentage:.1f}%)")
-                        values_pie.append(count)
-                        colors_pie.append(color)
+                        color, emoji = color_map[customer_type]
+                        
+                        # 获取该类型的客户列表
+                        type_customers = metrics['rfm_df'][metrics['rfm_df']['类型'] == customer_type]
+                        top_customers = type_customers.nlargest(10, 'M')
+                        
+                        # 构建悬停文本
+                        hover_text = f"<b>{emoji} {customer_type}</b><br>"
+                        hover_text += f"客户数: {count}家<br>"
+                        hover_text += f"占比: {percentage:.1f}%<br><br>"
+                        hover_text += "<b>Top 10客户：</b><br>"
+                        for _, cust in top_customers.iterrows():
+                            hover_text += f"• {cust['客户']} ({format_amount(cust['M'])})<br>"
+                        if len(type_customers) > 10:
+                            hover_text += f"... 还有{len(type_customers)-10}个客户"
+                        
+                        fig_bar.add_trace(go.Bar(
+                            y=[customer_type],
+                            x=[count],
+                            name=f"{emoji} {customer_type}",
+                            orientation='h',
+                            marker=dict(
+                                color=color,
+                                line=dict(color='white', width=2)
+                            ),
+                            text=f"{count}家 ({percentage:.1f}%)",
+                            textposition='inside',
+                            textfont=dict(size=14, color='white', family='Microsoft YaHei'),
+                            hovertemplate=hover_text + '<extra></extra>',
+                            showlegend=True
+                        ))
                 
-                # 创建饼图
-                fig_pie = go.Figure(data=[go.Pie(
-                    labels=labels_pie,
-                    values=values_pie,
-                    hole=0.4,  # 环形图
-                    marker=dict(
-                        colors=colors_pie,
-                        line=dict(color='white', width=2)
-                    ),
-                    textfont=dict(size=14, family="Microsoft YaHei, Arial, sans-serif"),
-                    textposition='outside',
-                    textinfo='label',
-                    hovertemplate='<b>%{label}</b><br>客户数: %{value}<br>占比: %{percent}<extra></extra>'
-                )])
-                
-                fig_pie.update_layout(
+                fig_bar.update_layout(
                     title=dict(
                         text="客户价值分层分布",
                         font=dict(size=20, color='#2d3748', family="Microsoft YaHei, Arial, sans-serif"),
                         x=0.5,
                         xanchor='center'
                     ),
+                    xaxis=dict(
+                        title="客户数量",
+                        showgrid=True,
+                        gridwidth=1,
+                        gridcolor='rgba(0,0,0,0.05)'
+                    ),
+                    yaxis=dict(
+                        title="",
+                        showgrid=False,
+                        categoryorder='array',
+                        categoryarray=['流失风险', '潜力客户', '白银客户', '黄金客户', '钻石客户']
+                    ),
                     height=500,
-                    showlegend=True,
                     plot_bgcolor='white',
                     paper_bgcolor='#f8f9fa',
-                    margin=dict(t=100, b=80, l=80, r=80),
-                    # 在中心添加总数
-                    annotations=[
-                        dict(
-                            text=f'<b>总客户数</b><br>{len(metrics["rfm_df"])}家',
-                            x=0.5, y=0.5,
-                            font=dict(size=18, family="Microsoft YaHei", color='#2d3748'),
-                            showarrow=False
-                        )
-                    ]
+                    margin=dict(t=100, b=80, l=150, r=80),
+                    barmode='relative',
+                    hoverlabel=dict(
+                        bgcolor="white",
+                        font_size=12,
+                        font_family="Microsoft YaHei"
+                    ),
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=-0.2,
+                        xanchor="center",
+                        x=0.5
+                    )
                 )
                 
-                charts['sankey'] = fig_pie
-                print("✅ 使用饼图替代桑基图显示客户价值分层")
+                charts['sankey'] = fig_bar
+                print("✅ 使用分层条形图替代桑基图显示客户价值分层")
                 
             except Exception as e2:
                 print(f"备选图表也创建失败: {e2}")
@@ -1693,6 +1754,53 @@ def main():
                     <div class="metric-label">{label}</div>
                 </div>
                 """, unsafe_allow_html=True)
+        
+        # 价值分层关键指标
+        if not metrics['rfm_df'].empty:
+            st.markdown("### 💎 价值分层关键指标")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            total_revenue = metrics['rfm_df']['M'].sum()
+            top_revenue = metrics['rfm_df'][metrics['rfm_df']['类型'].isin(['钻石客户', '黄金客户'])]['M'].sum()
+            risk_revenue = metrics['rfm_df'][metrics['rfm_df']['类型'] == '流失风险']['M'].sum()
+            avg_customer_value = total_revenue / len(metrics['rfm_df']) if len(metrics['rfm_df']) > 0 else 0
+            
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="big-value">{format_amount(total_revenue)}</div>
+                    <div class="metric-label">总客户价值</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                top_percentage = (top_revenue / total_revenue * 100) if total_revenue > 0 else 0
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{top_percentage:.1f}%</div>
+                    <div class="metric-label">高价值客户贡献度</div>
+                    <div class="metric-sublabel">钻石+黄金客户</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                risk_percentage = (risk_revenue / total_revenue * 100) if total_revenue > 0 else 0
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value" style="color: #e74c3c !important;">{risk_percentage:.1f}%</div>
+                    <div class="metric-label">风险客户价值占比</div>
+                    <div class="metric-sublabel">需要立即关注</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col4:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{format_amount(avg_customer_value)}</div>
+                    <div class="metric-label">平均客户价值</div>
+                    <div class="metric-sublabel">年度平均</div>
+                </div>
+                """, unsafe_allow_html=True)
     
     # Tab 2: 健康诊断
     with tabs[1]:
@@ -1704,18 +1812,6 @@ def main():
             </div>
             ''', unsafe_allow_html=True)
             st.plotly_chart(charts['health_radar'], use_container_width=True, key="health_radar")
-        
-        # 健康度评分
-        health_score = (metrics['normal_rate'] * 0.4 + metrics['target_achievement_rate'] * 0.3 + metrics['high_value_rate'] * 0.3)
-        
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown(f"""
-            <div class="metric-card" style='background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 2rem;'>
-                <h1 style='font-size: 3rem; margin: 0; color: white !important;'>{health_score:.1f}</h1>
-                <p style='font-size: 1.2rem; margin: 0.5rem 0 0 0; color: white !important;'>综合健康度评分</p>
-            </div>
-            """, unsafe_allow_html=True)
     
     # Tab 3: 风险评估
     with tabs[2]:
@@ -1765,46 +1861,6 @@ def main():
                     
                     # 添加提示信息
                     st.info("💡 提示：可以拖动图表查看更多细节，鼠标悬停查看详细信息")
-                    
-                    # 显示统计信息
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    normal_count = len(cycles_df[cycles_df['异常状态'] == '正常'])
-                    mild_count = len(cycles_df[cycles_df['异常状态'] == '轻度异常'])
-                    severe_count = len(cycles_df[cycles_df['异常状态'] == '严重异常'])
-                    
-                    with col1:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div class="metric-value" style="color: #27ae60 !important;">{normal_count}</div>
-                            <div class="metric-label">正常客户</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with col2:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div class="metric-value" style="color: #f39c12 !important;">{mild_count}</div>
-                            <div class="metric-label">轻度异常</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with col3:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div class="metric-value" style="color: #e74c3c !important;">{severe_count}</div>
-                            <div class="metric-label">严重异常</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with col4:
-                        avg_cycle = cycles_df['平均间隔'].mean()
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div class="metric-value">{avg_cycle:.0f}天</div>
-                            <div class="metric-label">平均下单周期</div>
-                        </div>
-                        """, unsafe_allow_html=True)
                 else:
                     st.info("暂无足够的订单数据进行周期分析")
             else:
@@ -1824,50 +1880,6 @@ def main():
                 risk_df = calculate_risk_prediction(sales_data)
                 
                 if not risk_df.empty:
-                    # 显示风险统计
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    high_risk = len(risk_df[risk_df['风险等级'] == '高风险'])
-                    medium_risk = len(risk_df[risk_df['风险等级'] == '中风险'])
-                    low_risk = len(risk_df[risk_df['风险等级'] == '低风险'])
-                    safe = len(risk_df[risk_df['风险等级'] == '安全'])
-                    
-                    with col1:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div class="metric-value" style="color: #e74c3c !important;">{high_risk}</div>
-                            <div class="metric-label">高风险客户</div>
-                            <div class="metric-sublabel">需立即行动</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with col2:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div class="metric-value" style="color: #f39c12 !important;">{medium_risk}</div>
-                            <div class="metric-label">中风险客户</div>
-                            <div class="metric-sublabel">密切关注</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with col3:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div class="metric-value" style="color: #f1c40f !important;">{low_risk}</div>
-                            <div class="metric-label">低风险客户</div>
-                            <div class="metric-sublabel">常规监控</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with col4:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div class="metric-value" style="color: #27ae60 !important;">{safe}</div>
-                            <div class="metric-label">安全客户</div>
-                            <div class="metric-sublabel">状态正常</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
                     # 创建风险仪表盘
                     fig_dist, fig_hist, fig_matrix = create_risk_dashboard(risk_df)
                     
@@ -1952,55 +1964,6 @@ def main():
         ''', unsafe_allow_html=True)
         
         if 'sankey' in charts:
-            # 先显示汇总指标
-            if not metrics['rfm_df'].empty:
-                st.markdown("#### 📊 价值分层关键指标")
-                col1, col2, col3, col4 = st.columns(4)
-                
-                total_revenue = metrics['rfm_df']['M'].sum()
-                top_revenue = metrics['rfm_df'][metrics['rfm_df']['类型'].isin(['钻石客户', '黄金客户'])]['M'].sum()
-                risk_revenue = metrics['rfm_df'][metrics['rfm_df']['类型'] == '流失风险']['M'].sum()
-                avg_customer_value = total_revenue / len(metrics['rfm_df']) if len(metrics['rfm_df']) > 0 else 0
-                
-                with col1:
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="metric-value">{format_amount(total_revenue)}</div>
-                        <div class="metric-label">总客户价值</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col2:
-                    top_percentage = (top_revenue / total_revenue * 100) if total_revenue > 0 else 0
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="metric-value">{top_percentage:.1f}%</div>
-                        <div class="metric-label">高价值客户贡献度</div>
-                        <div class="metric-sublabel">钻石+黄金客户</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col3:
-                    risk_percentage = (risk_revenue / total_revenue * 100) if total_revenue > 0 else 0
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="metric-value" style="color: #e74c3c !important;">{risk_percentage:.1f}%</div>
-                        <div class="metric-label">风险客户价值占比</div>
-                        <div class="metric-sublabel">需要立即关注</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col4:
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="metric-value">{format_amount(avg_customer_value)}</div>
-                        <div class="metric-label">平均客户价值</div>
-                        <div class="metric-sublabel">年度平均</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                st.markdown("")  # 添加空行
-            
             # 显示桑基图
             st.plotly_chart(charts['sankey'], use_container_width=True, key="sankey_chart")
             
