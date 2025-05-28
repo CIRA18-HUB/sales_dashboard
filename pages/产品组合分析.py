@@ -1135,14 +1135,76 @@ def create_real_product_network(data, product_filter='all'):
         filtered_products = [p for p in dashboard_products if p in promo_products]
         filter_title = "促销品"
     else:
-        filtered_products = dashboard_products  # 显示全部仪表盘产品
+        # 确保使用dashboard_products列表
+        filtered_products = list(dashboard_products)  # 创建副本避免修改原列表
         filter_title = "全部仪表盘产品"
     
-    # 严格过滤销售数据，确保只包含仪表盘产品
-    sales_df_filtered = sales_df[sales_df['产品代码'].isin(filtered_products)]
+    # 如果没有产品，返回空图
+    if len(filtered_products) == 0:
+        fig = go.Figure()
+        fig.update_layout(
+            title=dict(text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>暂无满足条件的产品</i>", font=dict(size=20)),
+            xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            height=700,
+            plot_bgcolor='rgba(248,249,250,0.5)'
+        )
+        return fig
     
-    # 如果没有数据，返回空图
-    if len(filtered_products) == 0 or len(sales_df_filtered) == 0:
+    # 严格过滤销售数据，确保只包含筛选后的产品
+    sales_df_filtered = sales_df[sales_df['产品代码'].isin(filtered_products)].copy()
+    
+    # 创建产品代码到产品名称的映射（确保唯一性）
+    product_name_map = {}
+    # 创建产品代码到客户集合的映射，优化性能
+    product_customers_map = {}
+    
+    # 确保每个filtered_products中的产品都有映射
+    for product in filtered_products:
+        product_data = sales_df_filtered[sales_df_filtered['产品代码'] == product]
+        if len(product_data) > 0:
+            # 使用第一个出现的产品简称
+            product_name = product_data['产品简称'].iloc[0]
+            # 缓存客户集合
+            product_customers_map[product] = set(product_data['客户名称'].unique())
+        else:
+            # 如果在过滤后的销售数据中找不到，尝试在所有销售数据中查找
+            all_product_data = sales_df[sales_df['产品代码'] == product]
+            if len(all_product_data) > 0:
+                product_name = all_product_data['产品简称'].iloc[0]
+            else:
+                product_name = f"产品{product}"  # 使用产品代码作为名称
+            product_customers_map[product] = set()
+        product_name_map[product] = product_name
+    
+    product_pairs = []
+    
+    # 降低关联度门槛以显示更多连接，使用filtered_products确保只处理仪表盘产品
+    for i, prod1 in enumerate(filtered_products):
+        for j in range(i+1, len(filtered_products)):
+            prod2 = filtered_products[j]
+            
+            customers_prod1 = product_customers_map.get(prod1, set())
+            customers_prod2 = product_customers_map.get(prod2, set())
+            
+            common_customers = customers_prod1.intersection(customers_prod2)
+            total_customers = customers_prod1.union(customers_prod2)
+            
+            if len(total_customers) > 0:
+                correlation = len(common_customers) / len(total_customers)
+                
+                # 降低门槛到0.2以显示更多关联
+                if correlation > 0.2:
+                    name1 = product_name_map[prod1]
+                    name2 = product_name_map[prod2]
+                    
+                    product_pairs.append((name1, name2, correlation, len(common_customers), prod1, prod2))
+    
+    # 使用filtered_products作为节点，确保只显示仪表盘产品
+    nodes = filtered_products
+    
+    # 如果没有节点，返回空图
+    if len(nodes) == 0:
         fig = go.Figure()
         fig.update_layout(
             title=dict(text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>暂无满足条件的产品</i>", font=dict(size=20)),
