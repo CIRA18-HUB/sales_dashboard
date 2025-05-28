@@ -444,8 +444,8 @@ COLOR_SCHEME = {
 def load_and_process_data():
     """加载和处理预测数据"""
     try:
-        # 读取数据文件
-        df = pd.read_excel('预测与销量记录数据仪表盘.xlsx')
+        # 读取数据文件 - 注意文件在pages文件夹下
+        df = pd.read_excel('pages/预测与销量记录数据仪表盘.xlsx')
         
         # 转换月份为日期格式
         df['月份'] = pd.to_datetime(df['月份'])
@@ -470,104 +470,125 @@ def load_and_process_data():
         return pd.DataFrame(), pd.DataFrame()
 
 def calculate_metrics(df_valid):
-    """计算所有关键指标"""
+    """计算所有关键指标 - 修正版"""
     if df_valid.empty:
         return {
             'overall_avg_accuracy': 0,
             'overall_weighted_accuracy': 0,
-            'recent_avg_accuracy': 0,
-            'recent_weighted_accuracy': 0,
+            'recent_accuracy': 0,
+            'recent_month': None,
             'total_products': 0,
             'high_accuracy_products': 0,
             'high_accuracy_ratio': 0,
-            'recent_month': None,
             'most_used_model': 'N/A',
             'model_count': 0,
             'product_metrics': pd.DataFrame(),
             'products_with_records': 0,
             'high_accuracy_count': 0,
             'medium_accuracy_count': 0,
-            'low_accuracy_count': 0
+            'low_accuracy_count': 0,
+            'trend': 0
         }
     
-    # 计算每个产品的指标
-    product_metrics = df_valid.groupby('产品简称').agg({
-        '准确率': 'mean',
-        '实际销量': 'mean',
-        '选择模型': lambda x: x.mode()[0] if len(x) > 0 else 'N/A'  # 最常用的模型
-    }).reset_index()
-    product_metrics.columns = ['产品简称', '平均准确率', '平均销量', '常用模型']
-    
-    # 计算加权准确率
-    product_weighted = df_valid.groupby('产品简称').apply(
-        lambda x: np.average(x['准确率'], weights=x['实际销量'])
-    ).reset_index(name='加权准确率')
-    
-    product_metrics = product_metrics.merge(product_weighted, on='产品简称')
-    
-    # 整体平均准确率
-    overall_avg_accuracy = product_metrics['平均准确率'].mean()
-    
-    # 整体加权准确率（基于销量）
-    total_weighted_accuracy = np.sum(product_metrics['平均准确率'] * product_metrics['平均销量'])
-    total_sales = product_metrics['平均销量'].sum()
-    overall_weighted_accuracy = total_weighted_accuracy / total_sales if total_sales > 0 else 0
-    
-    # 最近一个月数据
-    recent_month = df_valid['月份'].max()
-    df_recent = df_valid[df_valid['月份'] == recent_month]
-    
-    # 最近一个月平均准确率
-    if not df_recent.empty:
-        recent_metrics = df_recent.groupby('产品简称').agg({
-            '准确率': 'mean',
-            '实际销量': 'mean'
-        })
-        recent_avg_accuracy = recent_metrics['准确率'].mean()
+    try:
+        # 1. 整体平均准确率：每个产品的历史平均，再求平均
+        product_avg_accuracy = df_valid.groupby('产品简称')['准确率'].mean()
+        overall_avg_accuracy = product_avg_accuracy.mean()
         
-        # 最近一个月加权准确率
-        recent_weighted = np.sum(recent_metrics['准确率'] * recent_metrics['实际销量'])
-        recent_total_sales = recent_metrics['实际销量'].sum()
-        recent_weighted_accuracy = recent_weighted / recent_total_sales if recent_total_sales > 0 else 0
-    else:
-        recent_avg_accuracy = 0
-        recent_weighted_accuracy = 0
-    
-    # 产品统计
-    total_products = len(product_metrics)
-    products_with_records = total_products  # 有记录的产品数等于product_metrics的长度
-    
-    # 准确率分布统计
-    high_accuracy_count = (product_metrics['平均准确率'] > 0.8).sum()
-    medium_accuracy_count = ((product_metrics['平均准确率'] >= 0.6) & (product_metrics['平均准确率'] <= 0.8)).sum()
-    low_accuracy_count = (product_metrics['平均准确率'] < 0.6).sum()
-    
-    # 高准确率产品统计 (>85%)
-    high_accuracy_products = (product_metrics['平均准确率'] > 0.85).sum()
-    high_accuracy_ratio = high_accuracy_products / total_products * 100 if total_products > 0 else 0
-    
-    # 最常用模型
-    model_counts = df_valid['选择模型'].value_counts()
-    most_used_model = model_counts.index[0] if len(model_counts) > 0 else 'N/A'
-    model_count = model_counts.iloc[0] if len(model_counts) > 0 else 0
-    
-    return {
-        'overall_avg_accuracy': overall_avg_accuracy,
-        'overall_weighted_accuracy': overall_weighted_accuracy,
-        'recent_avg_accuracy': recent_avg_accuracy,
-        'recent_weighted_accuracy': recent_weighted_accuracy,
-        'total_products': total_products,
-        'high_accuracy_products': high_accuracy_products,
-        'high_accuracy_ratio': high_accuracy_ratio,
-        'recent_month': recent_month,
-        'most_used_model': most_used_model,
-        'model_count': model_count,
-        'product_metrics': product_metrics,
-        'products_with_records': products_with_records,
-        'high_accuracy_count': high_accuracy_count,
-        'medium_accuracy_count': medium_accuracy_count,
-        'low_accuracy_count': low_accuracy_count
-    }
+        # 2. 加权整体准确率：只考虑最近3个月，基于销量加权
+        recent_3months = df_valid['月份'].max() - pd.DateOffset(months=2)
+        df_recent_3months = df_valid[df_valid['月份'] >= recent_3months]
+        
+        if not df_recent_3months.empty:
+            # 先计算每个产品在最近3个月的平均准确率和平均销量
+            product_recent = df_recent_3months.groupby('产品简称').agg({
+                '准确率': 'mean',
+                '实际销量': 'mean'
+            }).reset_index()
+            
+            # 计算加权平均
+            total_weighted = np.sum(product_recent['准确率'] * product_recent['实际销量'])
+            total_sales = product_recent['实际销量'].sum()
+            overall_weighted_accuracy = total_weighted / total_sales if total_sales > 0 else 0
+        else:
+            overall_weighted_accuracy = 0
+        
+        # 3. 最近准确率：每个产品最近一次的预测
+        latest_records = df_valid.sort_values('月份').groupby('产品简称').last()
+        recent_accuracy = latest_records['准确率'].mean()
+        recent_month = df_valid['月份'].max()
+        
+        # 4. 产品统计
+        total_products = len(product_avg_accuracy)
+        products_with_records = total_products
+        
+        # 5. 准确率分布统计（基于产品的历史平均）
+        high_accuracy_count = (product_avg_accuracy > 0.8).sum()
+        medium_accuracy_count = ((product_avg_accuracy >= 0.6) & (product_avg_accuracy <= 0.8)).sum()
+        low_accuracy_count = (product_avg_accuracy < 0.6).sum()
+        
+        # 6. 高准确率产品占比 (>85%)
+        high_accuracy_products = (product_avg_accuracy > 0.85).sum()
+        high_accuracy_ratio = high_accuracy_products / total_products * 100 if total_products > 0 else 0
+        
+        # 7. 最常用模型
+        model_counts = df_valid['选择模型'].value_counts()
+        most_used_model = model_counts.index[0] if len(model_counts) > 0 else 'N/A'
+        model_count = model_counts.iloc[0] if len(model_counts) > 0 else 0
+        
+        # 8. 准确率趋势
+        trend = (recent_accuracy - overall_avg_accuracy) * 100
+        
+        # 9. 创建产品指标汇总
+        product_metrics = pd.DataFrame({
+            '产品简称': product_avg_accuracy.index,
+            '平均准确率': product_avg_accuracy.values,
+            '平均销量': df_valid.groupby('产品简称')['实际销量'].mean().values,
+            '常用模型': df_valid.groupby('产品简称')['选择模型'].agg(lambda x: x.mode()[0] if len(x) > 0 else 'N/A').values
+        })
+        
+        # 添加加权准确率
+        product_weighted = df_valid.groupby('产品简称').apply(
+            lambda x: np.average(x['准确率'], weights=x['实际销量'])
+        ).reset_index(name='加权准确率')
+        product_metrics = product_metrics.merge(product_weighted, on='产品简称')
+        
+        return {
+            'overall_avg_accuracy': overall_avg_accuracy,
+            'overall_weighted_accuracy': overall_weighted_accuracy,
+            'recent_accuracy': recent_accuracy,
+            'recent_month': recent_month,
+            'total_products': total_products,
+            'high_accuracy_products': high_accuracy_products,
+            'high_accuracy_ratio': high_accuracy_ratio,
+            'most_used_model': most_used_model,
+            'model_count': model_count,
+            'product_metrics': product_metrics,
+            'products_with_records': products_with_records,
+            'high_accuracy_count': high_accuracy_count,
+            'medium_accuracy_count': medium_accuracy_count,
+            'low_accuracy_count': low_accuracy_count,
+            'trend': trend
+        }
+    except Exception as e:
+        st.error(f"指标计算失败: {str(e)}")
+        return {
+            'overall_avg_accuracy': 0,
+            'overall_weighted_accuracy': 0,
+            'recent_accuracy': 0,
+            'recent_month': None,
+            'total_products': 0,
+            'high_accuracy_products': 0,
+            'high_accuracy_ratio': 0,
+            'most_used_model': 'N/A',
+            'model_count': 0,
+            'product_metrics': pd.DataFrame(),
+            'products_with_records': 0,
+            'high_accuracy_count': 0,
+            'medium_accuracy_count': 0,
+            'low_accuracy_count': 0,
+            'trend': 0
+        }
 
 def create_accuracy_trend_chart(df_valid):
     """创建准确率趋势图表"""
@@ -692,29 +713,16 @@ def create_accuracy_trend_chart(df_valid):
         return go.Figure()
 
 def create_all_products_trend_chart(df_valid):
-    """创建全部产品准确率趋势图"""
+    """创建全部产品准确率趋势图 - 可滚动版本"""
     try:
         # 获取所有产品列表
         all_products = df_valid['产品简称'].unique()
         
-        # 创建子图布局
-        n_products = len(all_products)
-        n_cols = 3
-        n_rows = (n_products + n_cols - 1) // n_cols
-        
-        fig = make_subplots(
-            rows=n_rows, 
-            cols=n_cols,
-            subplot_titles=[f"{product}" for product in all_products],
-            vertical_spacing=0.08,
-            horizontal_spacing=0.05
-        )
+        # 创建图表
+        fig = go.Figure()
         
         # 为每个产品添加趋势线
-        for idx, product in enumerate(all_products):
-            row = idx // n_cols + 1
-            col = idx % n_cols + 1
-            
+        for i, product in enumerate(all_products):
             product_data = df_valid[df_valid['产品简称'] == product].sort_values('月份')
             
             fig.add_trace(
@@ -723,7 +731,7 @@ def create_all_products_trend_chart(df_valid):
                     y=product_data['准确率'] * 100,
                     mode='lines+markers',
                     name=product,
-                    line=dict(width=2),
+                    line=dict(width=2, color=COLOR_SCHEME['chart_colors'][i % len(COLOR_SCHEME['chart_colors'])]),
                     marker=dict(size=6),
                     customdata=np.column_stack((
                         product_data['实际销量'],
@@ -739,38 +747,43 @@ def create_all_products_trend_chart(df_valid):
                                   "使用模型: %{customdata[2]}<br>" +
                                   "%{customdata[3]}<br>" +
                                   "<extra></extra>",
-                    showlegend=False
-                ),
-                row=row, col=col
+                    visible='legendonly' if i >= 10 else True  # 默认只显示前10个产品
+                )
             )
-            
-            # 添加85%参考线
-            fig.add_hline(
-                y=85, 
-                line_dash="dot", 
-                line_color="gray",
-                row=row, col=col
-            )
-            
-            # 设置y轴范围
-            fig.update_yaxes(range=[0, 105], row=row, col=col)
         
-        # 计算需要的高度
-        height = max(1200, n_rows * 300)
+        # 添加85%参考线
+        fig.add_hline(
+            y=85, 
+            line_dash="dot", 
+            line_color="gray",
+            annotation_text="目标: 85%"
+        )
         
         fig.update_layout(
-            title="全部产品准确率趋势分析<br><sub>每个产品的准确率变化趋势</sub>",
-            height=height,
-            showlegend=False,
+            title=f"全部产品准确率趋势分析（共{len(all_products)}个产品）<br><sub>点击图例可显示/隐藏产品，默认显示前10个产品</sub>",
+            xaxis_title="月份",
+            yaxis_title="准确率 (%)",
+            height=800,
+            hovermode='x unified',
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=1.02,
+                bgcolor='white',
+                bordercolor='gray',
+                borderwidth=1,
+                itemsizing='constant'
+            ),
             paper_bgcolor='white',
             plot_bgcolor='rgba(255,255,255,0.9)',
-            margin=dict(l=50, r=50, t=100, b=50),
+            margin=dict(l=50, r=250, t=100, b=50),
             font=dict(color='black')
         )
         
-        # 更新所有子图的网格
         fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
-        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+        fig.update_yaxes(range=[0, 105], showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
         
         return fig
         
@@ -936,7 +949,7 @@ def create_accuracy_distribution_chart(df_valid):
             secondary_y=True
         )
         
-        # 添加统计信息 - 确保背景不透明
+        # 添加统计信息 - 调整位置避免遮挡
         high_accuracy_count = dist_counts[['85-90%', '90-95%', '>95%']].sum()
         high_accuracy_pct = high_accuracy_count / total_records * 100
         
@@ -946,7 +959,7 @@ def create_accuracy_distribution_chart(df_valid):
         total_products = len(product_stats)
         
         fig.add_annotation(
-            x=0.98, y=0.98,
+            x=0.02, y=0.98,  # 改为左上角
             xref='paper', yref='paper',
             text=f"""<b>📊 统计汇总</b><br>
 总记录数: {total_records}条<br>
@@ -954,7 +967,7 @@ def create_accuracy_distribution_chart(df_valid):
 准确率>85%的记录: {high_accuracy_count}条({high_accuracy_pct:.1f}%)<br>
 准确率>85%的产品: {products_above_85}个({products_above_85/total_products*100:.1f}%)""",
             showarrow=False,
-            align='right',
+            align='left',  # 改为左对齐
             bgcolor='white',
             bordercolor='gray',
             borderwidth=1,
@@ -982,7 +995,7 @@ def create_accuracy_distribution_chart(df_valid):
         return go.Figure()
 
 def create_model_analysis_charts(df_valid):
-    """创建模型分析图表 - 修复版（不给饼图设置坐标轴）"""
+    """创建模型分析图表 - 将饼图改为条形图"""
     try:
         # 模型使用频率统计
         model_counts = df_valid['选择模型'].value_counts()
@@ -996,20 +1009,20 @@ def create_model_analysis_charts(df_valid):
         fig = make_subplots(
             rows=1, cols=2,
             subplot_titles=("模型使用频率", "模型准确率vs使用频率"),
-            specs=[[{"type": "pie"}, {"type": "scatter"}]],
+            specs=[[{"type": "bar"}, {"type": "scatter"}]],
             horizontal_spacing=0.15
         )
         
-        # 1. 饼图 - 模型使用频率
-        fig.add_trace(go.Pie(
-            labels=model_counts.index[:8],  # 只显示前8个
-            values=model_counts.values[:8],
-            hole=.4,
-            marker_colors=COLOR_SCHEME['chart_colors'][:8],
-            textinfo='label+percent',
-            hovertemplate="<b>%{label}</b><br>" +
-                          "使用次数: %{value}<br>" +
-                          "占比: %{percent}<br>" +
+        # 1. 条形图 - 模型使用频率（替换饼图）
+        fig.add_trace(go.Bar(
+            x=model_counts.index[:8],  # 只显示前8个
+            y=model_counts.values[:8],
+            marker_color=COLOR_SCHEME['chart_colors'][:8],
+            text=model_counts.values[:8],
+            textposition='outside',
+            hovertemplate="<b>%{x}</b><br>" +
+                          "使用次数: %{y}<br>" +
+                          "占比: %{text}<br>" +
                           "<extra></extra>"
         ), row=1, col=1)
         
@@ -1042,7 +1055,9 @@ def create_model_analysis_charts(df_valid):
         fig.add_hline(y=85, line_dash="dash", line_color="gray", 
                       annotation_text="目标: 85%", row=1, col=2)
         
-        # 只对散点图设置坐标轴（row=1, col=2）
+        # 设置坐标轴
+        fig.update_xaxes(title_text="模型名称", row=1, col=1)
+        fig.update_yaxes(title_text="使用次数", row=1, col=1)
         fig.update_xaxes(title_text="使用次数", row=1, col=2, showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
         fig.update_yaxes(title_text="平均准确率 (%)", row=1, col=2, showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
         
@@ -1086,7 +1101,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
 # 标签1：核心指标总览
 with tab1:
-    if not df_valid.empty:
+    if not df_valid.empty and metrics['total_products'] > 0:
         # 第一行：整体指标
         col1, col2, col3, col4 = st.columns(4)
         
@@ -1099,7 +1114,7 @@ with tab1:
                 <div class="metric-card-inner">
                     <div class="metric-value">{metrics['overall_avg_accuracy']*100:.1f}%</div>
                     <div class="metric-label">📊 整体平均准确率</div>
-                    <div class="metric-description">所有预测的算术平均</div>
+                    <div class="metric-description">所有产品的算术平均</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -1109,8 +1124,8 @@ with tab1:
             <div class="metric-card {accuracy_class}">
                 <div class="metric-card-inner">
                     <div class="metric-value">{metrics['overall_weighted_accuracy']*100:.1f}%</div>
-                    <div class="metric-label">⚖️ 整体加权准确率</div>
-                    <div class="metric-description">基于销量加权</div>
+                    <div class="metric-label">⚖️ 加权整体准确率</div>
+                    <div class="metric-description">最近3个月销量加权</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -1144,33 +1159,33 @@ with tab1:
         col5, col6, col7, col8 = st.columns(4)
         
         with col5:
-            recent_class = "accuracy-excellent" if metrics['recent_avg_accuracy'] > 0.85 else \
-                          "accuracy-good" if metrics['recent_avg_accuracy'] > 0.8 else \
-                          "accuracy-medium" if metrics['recent_avg_accuracy'] > 0.7 else "accuracy-low"
+            recent_class = "accuracy-excellent" if metrics['recent_accuracy'] > 0.85 else \
+                          "accuracy-good" if metrics['recent_accuracy'] > 0.8 else \
+                          "accuracy-medium" if metrics['recent_accuracy'] > 0.7 else "accuracy-low"
             st.markdown(f"""
             <div class="metric-card {recent_class}">
                 <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['recent_avg_accuracy']*100:.1f}%</div>
-                    <div class="metric-label">📊 近期平均准确率</div>
-                    <div class="metric-description">最近一个月表现</div>
+                    <div class="metric-value">{metrics['recent_accuracy']*100:.1f}%</div>
+                    <div class="metric-label">📊 最近准确率</div>
+                    <div class="metric-description">每个产品最近一次</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
         
         with col6:
             st.markdown(f"""
-            <div class="metric-card {recent_class}">
+            <div class="metric-card">
                 <div class="metric-card-inner">
-                    <div class="metric-value">{metrics['recent_weighted_accuracy']*100:.1f}%</div>
-                    <div class="metric-label">⚖️ 近期加权准确率</div>
-                    <div class="metric-description">最近一个月加权</div>
+                    <div class="metric-value">{metrics['recent_month'].strftime('%Y-%m') if metrics['recent_month'] else 'N/A'}</div>
+                    <div class="metric-label">📅 最新数据月份</div>
+                    <div class="metric-description">数据更新时间</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
         
         with col7:
             # 计算准确率趋势
-            trend = (metrics['recent_avg_accuracy'] - metrics['overall_avg_accuracy']) * 100
+            trend = metrics['trend']
             trend_class = "accuracy-excellent" if trend > 5 else \
                          "accuracy-good" if trend > 0 else \
                          "accuracy-medium" if trend > -5 else "accuracy-low"
@@ -1271,12 +1286,12 @@ with tab2:
     if not df_valid.empty:
         # 创建准确率趋势图表
         trend_fig = create_accuracy_trend_chart(df_valid)
-        st.plotly_chart(trend_fig, use_container_width=True)
+        st.plotly_chart(trend_fig, use_container_width=True, key="trend_chart")
         
         # 全部产品准确率趋势
         st.markdown("### 📈 全部产品准确率趋势")
         all_products_fig = create_all_products_trend_chart(df_valid)
-        st.plotly_chart(all_products_fig, use_container_width=True)
+        st.plotly_chart(all_products_fig, use_container_width=True, key="all_products_chart")
         
         # 洞察分析
         st.markdown(f"""
@@ -1287,13 +1302,12 @@ with tab2:
                 {'已达到优秀水平(>85%)' if metrics['overall_avg_accuracy'] > 0.85 else 
                  '达到良好水平(>80%)' if metrics['overall_avg_accuracy'] > 0.8 else
                  '有待提升'}<br>
-                • <b>加权vs平均:</b> 加权准确率
+                • <b>加权vs平均:</b> 加权准确率（最近3个月）
                 {'高于' if metrics['overall_weighted_accuracy'] > metrics['overall_avg_accuracy'] else '低于'}
-                平均准确率{abs(metrics['overall_weighted_accuracy'] - metrics['overall_avg_accuracy'])*100:.1f}%，
-                说明{'销量大的产品预测更准确' if metrics['overall_weighted_accuracy'] > metrics['overall_avg_accuracy'] else '销量大的产品预测有待改进'}<br>
-                • <b>最新表现:</b> 最近一个月({metrics['recent_month'].strftime('%Y-%m') if metrics['recent_month'] else 'N/A'})
-                准确率为{metrics['recent_avg_accuracy']*100:.1f}%，
-                {'持续改善' if metrics['recent_avg_accuracy'] > metrics['overall_avg_accuracy'] else '需要关注'}<br>
+                整体平均{abs(metrics['overall_weighted_accuracy'] - metrics['overall_avg_accuracy'])*100:.1f}%，
+                说明{'最近销量大的产品预测更准确' if metrics['overall_weighted_accuracy'] > metrics['overall_avg_accuracy'] else '最近销量大的产品预测有待改进'}<br>
+                • <b>最新表现:</b> 最近准确率为{metrics['recent_accuracy']*100:.1f}%，
+                {'持续改善' if metrics['recent_accuracy'] > metrics['overall_avg_accuracy'] else '需要关注'}<br>
                 • <b>改进建议:</b> 
                 {'保持当前预测策略，继续优化' if metrics['overall_avg_accuracy'] > 0.85 else
                  '重点关注销量大但准确率低的产品' if metrics['overall_weighted_accuracy'] < metrics['overall_avg_accuracy'] else
@@ -1309,7 +1323,7 @@ with tab3:
     if not df_valid.empty:
         # 创建产品排行榜 - 显示所有产品
         ranking_fig = create_product_ranking_chart(df_valid, metrics)
-        st.plotly_chart(ranking_fig, use_container_width=True)
+        st.plotly_chart(ranking_fig, use_container_width=True, key="ranking_chart")
         
         # 重点产品分析
         st.markdown(f"""
@@ -1331,12 +1345,16 @@ with tab4:
     if not df_valid.empty:
         # 创建分布图表
         dist_fig = create_accuracy_distribution_chart(df_valid)
-        st.plotly_chart(dist_fig, use_container_width=True)
+        st.plotly_chart(dist_fig, use_container_width=True, key="distribution_chart")
         
         # 分布洞察
         product_metrics = metrics['product_metrics']
-        excellent_count = (product_metrics['平均准确率'] > 0.9).sum()
-        poor_count = (product_metrics['平均准确率'] < 0.6).sum()
+        if not product_metrics.empty:
+            excellent_count = (product_metrics['平均准确率'] > 0.9).sum()
+            poor_count = (product_metrics['平均准确率'] < 0.6).sum()
+        else:
+            excellent_count = 0
+            poor_count = 0
         
         st.markdown(f"""
         <div class="insight-box">
@@ -1360,7 +1378,7 @@ with tab5:
     if not df_valid.empty:
         # 创建模型分析图表
         model_fig = create_model_analysis_charts(df_valid)
-        st.plotly_chart(model_fig, use_container_width=True)
+        st.plotly_chart(model_fig, use_container_width=True, key="model_chart")
         
         # 模型洞察
         st.markdown(f"""
