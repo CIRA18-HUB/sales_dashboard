@@ -1369,14 +1369,14 @@ def process_forecast_analysis(shipment_df, forecast_df, product_name_map):
         forecast_current_year['产品名称'] = forecast_current_year['产品代码'].map(product_name_map).fillna(
             forecast_current_year['产品代码'])
 
-        # 按月份和产品汇总实际销量
+        # 按月份和产品汇总实际销量 - 修正列名
         shipment_monthly = shipment_current_year.groupby([
             shipment_current_year['订单日期'].dt.to_period('M'),
             '产品代码',
             '产品名称',
             '所属区域'
         ]).agg({
-            '求和项:数量（箱）': 'sum'
+            '数量': 'sum'  # 修正：从 '求和项:数量（箱）' 改为 '数量'
         }).reset_index()
         shipment_monthly['年月'] = shipment_monthly['订单日期'].dt.to_timestamp()
 
@@ -1402,8 +1402,8 @@ def process_forecast_analysis(shipment_df, forecast_df, product_name_map):
             how='outer'
         ).fillna(0)
 
-        # 计算准确率和差异
-        merged_data['实际销量'] = merged_data['求和项:数量（箱）']
+        # 计算准确率和差异 - 修正列名
+        merged_data['实际销量'] = merged_data['数量']  # 修正：从 '求和项:数量（箱）' 改为 '数量'
         merged_data['预测销量'] = merged_data['预计销售量']
         merged_data['差异量'] = merged_data['实际销量'] - merged_data['预测销量']
 
@@ -2288,10 +2288,11 @@ with tab1:
         """, unsafe_allow_html=True)
 
 # 标签2：风险分布分析
+# 标签2：风险分布分析
 with tab2:
     st.markdown("### 🎯 库存风险分布全景分析")
 
-    # 直接显示图表，不使用容器
+    # 原有的风险分析图表
     integrated_fig = create_integrated_risk_analysis(processed_inventory)
     st.plotly_chart(integrated_fig, use_container_width=True)
 
@@ -2307,6 +2308,240 @@ with tab2:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # 新增：统计分析部分（从原tab4的子标签2移动过来）
+    st.markdown("---")
+    st.markdown("### 📊 库存积压统计分析")
+
+    # 按产品统计
+    product_stats = processed_inventory.groupby('产品名称').agg({
+        '批次库存': 'sum',
+        '批次价值': 'sum',
+        '库龄': 'mean',
+        '风险得分': 'mean',
+        '日均出货': 'mean'
+    }).round(2)
+
+    product_stats['预计清库天数'] = product_stats['批次库存'] / product_stats['日均出货'].replace(0, 0.1)
+    product_stats = product_stats.sort_values('批次价值', ascending=False)
+
+    # 创建产品分析图表 - 增强悬停信息
+    fig_product = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=("产品库存价值TOP10", "产品平均库龄分布",
+                        "产品风险得分分布", "产品预计清库天数"),
+        specs=[[{"type": "bar"}, {"type": "bar"}],
+               [{"type": "scatter"}, {"type": "bar"}]]
+    )
+
+    # TOP10产品价值 - 增强悬停
+    top10_products = product_stats.head(10)
+    fig_product.add_trace(
+        go.Bar(
+            x=top10_products.index,
+            y=top10_products['批次价值'],
+            marker_color='#667eea',
+            text=top10_products['批次价值'].apply(lambda x: f"¥{x / 10000:.1f}万"),
+            textposition='auto',
+            hovertemplate="<b>产品: %{x}</b><br>" +
+                          "库存价值: ¥%{y:,.0f}<br>" +
+                          "占总价值比例: %{customdata[0]:.1f}%<br>" +
+                          "库存量: %{customdata[1]:,.0f}箱<br>" +
+                          "平均库龄: %{customdata[2]:.0f}天<br>" +
+                          "<extra></extra>",
+            customdata=np.column_stack((
+                top10_products['批次价值'] / product_stats['批次价值'].sum() * 100,
+                top10_products['批次库存'],
+                top10_products['库龄']
+            ))
+        ),
+        row=1, col=1
+    )
+
+    # 产品平均库龄 - 增强悬停
+    fig_product.add_trace(
+        go.Bar(
+            x=top10_products.index,
+            y=top10_products['库龄'],
+            marker_color=top10_products['库龄'].apply(
+                lambda x: '#FF0000' if x > 90 else '#FFA500' if x > 60 else '#90EE90'
+            ),
+            text=top10_products['库龄'].apply(lambda x: f"{x:.0f}天"),
+            textposition='auto',
+            hovertemplate="<b>产品: %{x}</b><br>" +
+                          "平均库龄: %{y:.0f}天<br>" +
+                          "风险判断: %{customdata[0]}<br>" +
+                          "建议措施: %{customdata[1]}<br>" +
+                          "日均出货: %{customdata[2]:.2f}箱<br>" +
+                          "<extra></extra>",
+            customdata=np.column_stack((
+                top10_products['库龄'].apply(
+                    lambda x: '极高风险' if x > 90 else '高风险' if x > 60 else '正常'
+                ),
+                top10_products['库龄'].apply(
+                    lambda x: '立即7折清库' if x > 90 else '建议8折促销' if x > 60 else '正常销售'
+                ),
+                top10_products['日均出货']
+            ))
+        ),
+        row=1, col=2
+    )
+
+    # 风险得分散点图 - 增强悬停
+    fig_product.add_trace(
+        go.Scatter(
+            x=product_stats['批次价值'],
+            y=product_stats['风险得分'],
+            mode='markers',
+            marker=dict(
+                size=product_stats['批次库存'] / product_stats['批次库存'].max() * 50,
+                color=product_stats['风险得分'],
+                colorscale='RdYlGn_r',
+                showscale=True,
+                colorbar=dict(
+                    title="风险得分",
+                    x=1.02
+                )
+            ),
+            text=product_stats.index,
+            hovertemplate="<b>产品: %{text}</b><br>" +
+                          "库存价值: ¥%{x:,.0f}<br>" +
+                          "风险得分: %{y:.0f}<br>" +
+                          "风险等级: %{customdata[0]}<br>" +
+                          "库存量: %{customdata[1]:,.0f}箱<br>" +
+                          "预计清库天数: %{customdata[2]}<br>" +
+                          "处理建议: %{customdata[3]}<br>" +
+                          "<extra></extra>",
+            customdata=np.column_stack((
+                product_stats['风险得分'].apply(
+                    lambda x: '极高风险' if x >= 80 else '高风险' if x >= 60 else '中风险' if x >= 40 else '低风险'
+                ),
+                product_stats['批次库存'],
+                product_stats['预计清库天数'].apply(
+                    lambda x: '∞' if x > 365 else f'{x:.0f}天'
+                ),
+                product_stats['风险得分'].apply(
+                    lambda x: '紧急清理' if x >= 80 else '优先处理' if x >= 60 else '密切监控' if x >= 40 else '常规管理'
+                )
+            ))
+        ),
+        row=2, col=1
+    )
+
+    # 预计清库天数 - 增强悬停
+    clearance_data = top10_products['预计清库天数'].replace([np.inf, -np.inf], 365)
+    fig_product.add_trace(
+        go.Bar(
+            x=top10_products.index,
+            y=clearance_data,
+            marker_color=clearance_data.apply(
+                lambda x: '#8B0000' if x > 180 else '#FF0000' if x > 90 else '#FFA500' if x > 60 else '#90EE90'
+            ),
+            text=clearance_data.apply(lambda x: "∞" if x >= 365 else f"{x:.0f}天"),
+            textposition='auto',
+            hovertemplate="<b>产品: %{x}</b><br>" +
+                          "预计清库天数: %{text}<br>" +
+                          "计算依据: 库存量÷日均出货<br>" +
+                          "库存量: %{customdata[0]:,.0f}箱<br>" +
+                          "日均出货: %{customdata[1]:.2f}箱<br>" +
+                          "风险判断: %{customdata[2]}<br>" +
+                          "<extra></extra>",
+            customdata=np.column_stack((
+                top10_products['批次库存'],
+                top10_products['日均出货'],
+                clearance_data.apply(
+                    lambda x: '极度积压' if x > 180 else '严重积压' if x > 90 else '中度积压' if x > 60 else '轻度积压'
+                )
+            ))
+        ),
+        row=2, col=2
+    )
+
+    fig_product.update_layout(
+        height=800,
+        showlegend=False,
+        title_text="产品维度库存风险深度分析",
+        hoverlabel=dict(
+            bgcolor="white",
+            font_size=14,
+            font_family="Inter"
+        )
+    )
+    fig_product.update_xaxes(tickangle=-45)
+
+    st.plotly_chart(fig_product, use_container_width=True)
+
+    # 区域统计
+    st.markdown("#### 🌍 区域库存分析")
+
+    region_stats = processed_inventory.groupby('责任区域').agg({
+        '批次库存': 'sum',
+        '批次价值': 'sum',
+        '库龄': 'mean',
+        '风险得分': 'mean'
+    }).round(2)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        # 区域价值分布饼图 - 增强悬停
+        fig_region_pie = go.Figure(data=[go.Pie(
+            labels=region_stats.index,
+            values=region_stats['批次价值'],
+            hole=.4,
+            marker_colors=COLOR_SCHEME['chart_colors'][:len(region_stats)],
+            hovertemplate="<b>区域: %{label}</b><br>" +
+                          "库存价值: ¥%{value:,.0f}<br>" +
+                          "占比: %{percent}<br>" +
+                          "库存量: %{customdata[0]:,.0f}箱<br>" +
+                          "平均库龄: %{customdata[1]:.0f}天<br>" +
+                          "平均风险得分: %{customdata[2]:.0f}<br>" +
+                          "<extra></extra>",
+            customdata=np.column_stack((
+                region_stats['批次库存'],
+                region_stats['库龄'],
+                region_stats['风险得分']
+            ))
+        )])
+        fig_region_pie.update_layout(
+            title="区域库存价值分布",
+            height=400
+        )
+        st.plotly_chart(fig_region_pie, use_container_width=True)
+
+    with col2:
+        # 区域风险得分对比 - 增强悬停
+        fig_region_risk = go.Figure(data=[go.Bar(
+            x=region_stats.index,
+            y=region_stats['风险得分'],
+            marker_color=region_stats['风险得分'].apply(
+                lambda x: '#FF0000' if x > 60 else '#FFA500' if x > 40 else '#90EE90'
+            ),
+            text=region_stats['风险得分'].apply(lambda x: f"{x:.0f}"),
+            textposition='auto',
+            hovertemplate="<b>区域: %{x}</b><br>" +
+                          "平均风险得分: %{y:.0f}<br>" +
+                          "风险等级: %{customdata[0]}<br>" +
+                          "库存价值: ¥%{customdata[1]:,.0f}<br>" +
+                          "平均库龄: %{customdata[2]:.0f}天<br>" +
+                          "管理建议: %{customdata[3]}<br>" +
+                          "<extra></extra>",
+            customdata=np.column_stack((
+                region_stats['风险得分'].apply(
+                    lambda x: '高风险' if x > 60 else '中风险' if x > 40 else '低风险'
+                ),
+                region_stats['批次价值'],
+                region_stats['库龄'],
+                region_stats['风险得分'].apply(
+                    lambda x: '需要重点关注和整改' if x > 60 else '加强监控和预防' if x > 40 else '保持现有管理水平'
+                )
+            ))
+        )])
+        fig_region_risk.update_layout(
+            title="区域平均风险得分",
+            height=400
+        )
+        st.plotly_chart(fig_region_risk, use_container_width=True)
 
 # 标签3：销售预测准确性综合分析 - 纯图表版本
 with tab3:
@@ -2581,6 +2816,8 @@ with tab3:
 
 # 替换整个 with tab4 块的内容
 # 标签4：库存积压预警详情 - 完整移植附件一的报告格式
+# 标签4：库存积压预警详情 - 简化版，只保留批次分析明细
+# 标签4：库存积压预警详情 - 修改后版本
 with tab4:
     st.markdown("### 📋 库存积压预警详情分析")
 
@@ -2592,7 +2829,7 @@ with tab4:
             "💡 改进建议"
         ])
 
-        # 子标签1：批次分析明细
+        # 子标签1：批次分析明细 - 修改后版本
         with detail_tab1:
             # 筛选控件
             col1, col2, col3, col4 = st.columns(4)
@@ -2641,75 +2878,21 @@ with tab4:
                 (filtered_data['库龄'] <= max_age)
                 ]
 
-            # 风险统计信息
+            # 删除了原来的风险等级分布统计指标卡片
+
+            # 显示筛选结果统计信息
             if not filtered_data.empty:
-                st.markdown("#### 📊 风险等级分布统计")
+                st.markdown(f"#### 📋 批次分析明细表 (共{len(filtered_data)}条记录)")
 
-                col1, col2, col3, col4, col5 = st.columns(5)
-
-                risk_stats = filtered_data['风险等级'].value_counts()
-                total_count = len(filtered_data)
-
-                with col1:
-                    extreme_count = risk_stats.get('极高风险', 0)
-                    st.markdown(f"""
-                    <div class="metric-card risk-extreme">
-                        <div class="metric-value">{extreme_count}</div>
-                        <div class="metric-label">极高风险</div>
-                        <div class="metric-description">{extreme_count / total_count * 100:.1f}%</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                with col2:
-                    high_count = risk_stats.get('高风险', 0)
-                    st.markdown(f"""
-                    <div class="metric-card risk-high">
-                        <div class="metric-value">{high_count}</div>
-                        <div class="metric-label">高风险</div>
-                        <div class="metric-description">{high_count / total_count * 100:.1f}%</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                with col3:
-                    medium_count = risk_stats.get('中风险', 0)
-                    st.markdown(f"""
-                    <div class="metric-card risk-medium">
-                        <div class="metric-value">{medium_count}</div>
-                        <div class="metric-label">中风险</div>
-                        <div class="metric-description">{medium_count / total_count * 100:.1f}%</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                with col4:
-                    low_count = risk_stats.get('低风险', 0)
-                    st.markdown(f"""
-                    <div class="metric-card risk-low">
-                        <div class="metric-value">{low_count}</div>
-                        <div class="metric-label">低风险</div>
-                        <div class="metric-description">{low_count / total_count * 100:.1f}%</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                with col5:
-                    minimal_count = risk_stats.get('极低风险', 0)
-                    st.markdown(f"""
-                    <div class="metric-card risk-minimal">
-                        <div class="metric-value">{minimal_count}</div>
-                        <div class="metric-label">极低风险</div>
-                        <div class="metric-description">{minimal_count / total_count * 100:.1f}%</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                st.markdown("#### 📋 批次分析明细表")
-
-                # 准备显示的列
+                # 准备显示的列 - 风险程度字段排在第一列
                 display_columns = [
+                    '风险程度',  # 移至第一列
                     '物料', '描述', '批次日期', '批次库存', '库龄', '批次价值',
                     '日均出货', '出货波动系数', '预计清库天数',
                     '一个月积压风险', '两个月积压风险', '三个月积压风险',
                     '积压原因', '季节性指数', '预测偏差',
                     '责任区域', '责任人', '责任分析摘要',
-                    '风险程度', '风险得分', '建议措施'
+                    '风险得分', '建议措施'
                 ]
 
                 # 格式化显示数据
@@ -2722,12 +2905,291 @@ with tab4:
                 display_data['日均出货'] = display_data['日均出货'].apply(lambda x: f"{x:.2f}")
                 display_data['出货波动系数'] = display_data['出货波动系数'].apply(lambda x: f"{x:.2f}")
                 display_data['预计清库天数'] = display_data['预计清库天数'].apply(
-                    lambda x: "∞" if x == float('inf') else f"{x:.1f}"
+                    lambda x: "∞" if x == float('inf') else f"{x:.1f}天"
                 )
                 display_data['季节性指数'] = display_data['季节性指数'].apply(lambda x: f"{x:.2f}")
 
-                # 使用增强样式显示表格
+                # 美化积压风险字段 - 添加警告图标
+                display_data['一个月积压风险'] = display_data['一个月积压风险'].apply(
+                    lambda x: f"🔴 {x}" if '100.0%' in str(x) or float(str(x).replace('%', '')) > 90 else
+                    f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
+                    f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
+                    f"🟢 {x}"
+                )
+
+                display_data['两个月积压风险'] = display_data['两个月积压风险'].apply(
+                    lambda x: f"🔴 {x}" if '100.0%' in str(x) or float(str(x).replace('%', '')) > 90 else
+                    f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
+                    f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
+                    f"🟢 {x}"
+                )
+
+                display_data['三个月积压风险'] = display_data['三个月积压风险'].apply(
+                    lambda x: f"🔴 {x}" if '100.0%' in str(x) or float(str(x).replace('%', '')) > 90 else
+                    f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
+                    f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
+                    f"🟢 {x}"
+                )
+
+                # 使用增强样式显示表格，添加专门的风险等级样式
                 with st.container():
+                    st.markdown("""
+                    <style>
+                    /* 风险等级第一列特殊样式 - 极高风险动画 */
+                    [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("极高风险")) {
+                        background: linear-gradient(90deg, 
+                            rgba(139, 0, 0, 0.25) 0%,
+                            rgba(139, 0, 0, 0.15) 50%,
+                            rgba(139, 0, 0, 0.25) 100%) !important;
+                        border-left: 8px solid #8B0000 !important;
+                        animation: 
+                            extremeRiskRowPulse 1.5s ease-in-out infinite,
+                            extremeRiskRowShake 5s ease-in-out infinite !important;
+                        position: relative !important;
+                        overflow: hidden !important;
+                    }
+
+                    [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("极高风险"))::before {
+                        content: '🚨';
+                        position: absolute;
+                        left: -35px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        font-size: 1.5rem;
+                        animation: warningIconBlink 1s ease-in-out infinite;
+                        z-index: 10;
+                    }
+
+                    [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("极高风险"))::after {
+                        content: '';
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: linear-gradient(90deg, transparent, rgba(139, 0, 0, 0.1), transparent);
+                        animation: riskRowScanline 2s linear infinite;
+                        pointer-events: none;
+                        z-index: 1;
+                    }
+
+                    /* 高风险行样式 - 动画效果 */
+                    [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("高风险")):not(:has(td:nth-child(1):contains("极高风险"))) {
+                        background: linear-gradient(90deg, 
+                            rgba(255, 0, 0, 0.18) 0%,
+                            rgba(255, 0, 0, 0.10) 50%,
+                            rgba(255, 0, 0, 0.18) 100%) !important;
+                        border-left: 6px solid #FF0000 !important;
+                        animation: 
+                            highRiskRowGlow 2s ease-in-out infinite,
+                            highRiskRowPulse 3s ease-in-out infinite !important;
+                        position: relative !important;
+                    }
+
+                    [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("高风险")):not(:has(td:nth-child(1):contains("极高风险")))::before {
+                        content: '⚡';
+                        position: absolute;
+                        left: -30px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        font-size: 1.3rem;
+                        animation: warningIconFloat 2s ease-in-out infinite;
+                        z-index: 10;
+                    }
+
+                    /* 中风险行样式 */
+                    [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("中风险")) {
+                        background: linear-gradient(90deg, rgba(255, 165, 0, 0.12), rgba(255, 165, 0, 0.06)) !important;
+                        border-left: 4px solid #FFA500 !important;
+                        animation: mediumRiskRowPulse 4s ease-in-out infinite !important;
+                    }
+
+                    /* 低风险行样式 */
+                    [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("低风险")) {
+                        background: linear-gradient(90deg, rgba(144, 238, 144, 0.08), rgba(144, 238, 144, 0.04)) !important;
+                        border-left: 3px solid #90EE90 !important;
+                    }
+
+                    /* 极低风险行样式 */
+                    [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("极低风险")) {
+                        background: linear-gradient(90deg, rgba(0, 100, 0, 0.08), rgba(0, 100, 0, 0.04)) !important;
+                        border-left: 3px solid #006400 !important;
+                    }
+
+                    /* 风险等级第一列单元格样式 - 超级增强版 */
+                    [data-testid="stDataFrame"] tbody td:nth-child(1):contains("极高风险") {
+                        background: linear-gradient(135deg, #8B0000 0%, #660000 50%, #4B0000 100%) !important;
+                        color: white !important;
+                        font-weight: 900 !important;
+                        border-radius: 15px !important;
+                        padding: 1rem 1.5rem !important;
+                        text-shadow: 0 2px 4px rgba(0,0,0,0.4) !important;
+                        animation: extremeRiskCellPulse 1s ease-in-out infinite !important;
+                        box-shadow: 
+                            0 4px 15px rgba(139, 0, 0, 0.5),
+                            inset 0 2px 4px rgba(255,255,255,0.2),
+                            inset 0 -2px 4px rgba(0,0,0,0.2) !important;
+                        position: relative !important;
+                        overflow: hidden !important;
+                        text-transform: uppercase !important;
+                        letter-spacing: 1px !important;
+                        border: 2px solid rgba(255,255,255,0.3) !important;
+                    }
+
+                    [data-testid="stDataFrame"] tbody td:nth-child(1):contains("高风险"):not(:contains("极高风险")) {
+                        background: linear-gradient(135deg, #FF0000 0%, #CC0000 50%, #990000 100%) !important;
+                        color: white !important;
+                        font-weight: 800 !important;
+                        border-radius: 12px !important;
+                        padding: 0.9rem 1.4rem !important;
+                        text-shadow: 0 2px 3px rgba(0,0,0,0.3) !important;
+                        animation: highRiskCellGlow 2s ease-in-out infinite !important;
+                        box-shadow: 
+                            0 3px 10px rgba(255, 0, 0, 0.4),
+                            inset 0 1px 3px rgba(255,255,255,0.2) !important;
+                        text-transform: uppercase !important;
+                        letter-spacing: 0.5px !important;
+                    }
+
+                    [data-testid="stDataFrame"] tbody td:nth-child(1):contains("中风险") {
+                        background: linear-gradient(135deg, #FFA500 0%, #FF8C00 50%, #FF7F00 100%) !important;
+                        color: white !important;
+                        font-weight: 700 !important;
+                        border-radius: 10px !important;
+                        padding: 0.8rem 1.2rem !important;
+                        text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+                        box-shadow: 0 2px 8px rgba(255, 165, 0, 0.3) !important;
+                    }
+
+                    [data-testid="stDataFrame"] tbody td:nth-child(1):contains("低风险") {
+                        background: linear-gradient(135deg, #90EE90 0%, #98FB98 50%, #90EE90 100%) !important;
+                        color: #006400 !important;
+                        font-weight: 600 !important;
+                        border-radius: 8px !important;
+                        padding: 0.7rem 1rem !important;
+                        box-shadow: 0 2px 6px rgba(144, 238, 144, 0.3) !important;
+                    }
+
+                    [data-testid="stDataFrame"] tbody td:nth-child(1):contains("极低风险") {
+                        background: linear-gradient(135deg, #006400 0%, #228B22 50%, #006400 100%) !important;
+                        color: white !important;
+                        font-weight: 600 !important;
+                        border-radius: 8px !important;
+                        padding: 0.7rem 1rem !important;
+                        box-shadow: 0 2px 6px rgba(0, 100, 0, 0.3) !important;
+                    }
+
+                    /* 动画效果定义 */
+                    @keyframes extremeRiskRowPulse {
+                        0%, 100% {
+                            box-shadow: 
+                                0 0 0 0 rgba(139, 0, 0, 0.8),
+                                0 10px 30px rgba(139, 0, 0, 0.3),
+                                inset 0 0 20px rgba(139, 0, 0, 0.05);
+                        }
+                        50% {
+                            box-shadow: 
+                                0 0 0 20px rgba(139, 0, 0, 0),
+                                0 15px 50px rgba(139, 0, 0, 0.5),
+                                inset 0 0 40px rgba(139, 0, 0, 0.1);
+                        }
+                    }
+
+                    @keyframes extremeRiskRowShake {
+                        0%, 85%, 100% { transform: translateX(0); }
+                        86%, 88%, 90%, 92%, 94% { transform: translateX(-3px); }
+                        87%, 89%, 91%, 93%, 95% { transform: translateX(3px); }
+                    }
+
+                    @keyframes highRiskRowGlow {
+                        0%, 100% {
+                            box-shadow: 
+                                0 0 15px rgba(255, 0, 0, 0.4),
+                                0 5px 20px rgba(255, 0, 0, 0.2);
+                        }
+                        50% {
+                            box-shadow: 
+                                0 0 30px rgba(255, 0, 0, 0.6),
+                                0 10px 40px rgba(255, 0, 0, 0.3);
+                        }
+                    }
+
+                    @keyframes highRiskRowPulse {
+                        0%, 100% { transform: scale(1); }
+                        50% { transform: scale(1.008); }
+                    }
+
+                    @keyframes mediumRiskRowPulse {
+                        0%, 100% { opacity: 1; }
+                        50% { opacity: 0.95; }
+                    }
+
+                    @keyframes warningIconBlink {
+                        0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
+                        50% { opacity: 0.3; transform: translateY(-50%) scale(1.1); }
+                    }
+
+                    @keyframes warningIconFloat {
+                        0%, 100% { transform: translateY(-50%); }
+                        50% { transform: translateY(-65%); }
+                    }
+
+                    @keyframes riskRowScanline {
+                        0% { transform: translateX(-100%); }
+                        100% { transform: translateX(100%); }
+                    }
+
+                    @keyframes extremeRiskCellPulse {
+                        0%, 100% { 
+                            transform: scale(1);
+                            box-shadow: 
+                                0 4px 15px rgba(139, 0, 0, 0.5),
+                                inset 0 2px 4px rgba(255,255,255,0.2),
+                                inset 0 -2px 4px rgba(0,0,0,0.2);
+                        }
+                        50% { 
+                            transform: scale(1.05);
+                            box-shadow: 
+                                0 6px 25px rgba(139, 0, 0, 0.7),
+                                inset 0 2px 4px rgba(255,255,255,0.3),
+                                inset 0 -2px 4px rgba(0,0,0,0.3);
+                        }
+                    }
+
+                    @keyframes highRiskCellGlow {
+                        0%, 100% { 
+                            filter: brightness(1) saturate(1); 
+                            transform: scale(1);
+                        }
+                        50% { 
+                            filter: brightness(1.15) saturate(1.2); 
+                            transform: scale(1.03);
+                        }
+                    }
+
+                    /* 积压风险列样式美化 */
+                    [data-testid="stDataFrame"] tbody td:contains("🔴") {
+                        animation: riskIndicatorPulse 2s ease-in-out infinite;
+                        font-weight: 700 !important;
+                    }
+
+                    [data-testid="stDataFrame"] tbody td:contains("🟠") {
+                        animation: riskIndicatorGlow 3s ease-in-out infinite;
+                        font-weight: 600 !important;
+                    }
+
+                    @keyframes riskIndicatorPulse {
+                        0%, 100% { transform: scale(1); }
+                        50% { transform: scale(1.05); }
+                    }
+
+                    @keyframes riskIndicatorGlow {
+                        0%, 100% { opacity: 1; }
+                        50% { opacity: 0.8; }
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
+
                     st.markdown('<div class="advanced-table">', unsafe_allow_html=True)
 
                     # 显示数据表格
