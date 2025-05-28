@@ -9,6 +9,83 @@ from datetime import datetime, timedelta
 import warnings
 import time
 
+
+# 在 import 部分后面新增这个类
+class BatchLevelInventoryAnalyzer:
+    """批次级别库存分析器 - 移植自附件一的核心逻辑"""
+
+    def __init__(self):
+        # 风险参数设置
+        self.high_stock_days = 90
+        self.medium_stock_days = 60
+        self.low_stock_days = 30
+        self.high_volatility_threshold = 1.0
+        self.medium_volatility_threshold = 0.8
+        self.high_forecast_bias_threshold = 0.3
+        self.medium_forecast_bias_threshold = 0.15
+        self.high_clearance_days = 90
+        self.medium_clearance_days = 60
+        self.low_clearance_days = 30
+        self.min_daily_sales = 0.5
+        self.min_seasonal_index = 0.3
+
+        # 默认区域和责任人
+        self.default_regions = ['东', '南', '西', '北', '中']
+        self.default_region = '东'
+        self.default_person = '系统管理员'
+
+    def calculate_risk_percentage(self, days_to_clear, batch_age, target_days):
+        """计算风险百分比"""
+        import math
+
+        if batch_age >= target_days:
+            return 100.0
+
+        if days_to_clear == float('inf'):
+            return 100.0
+
+        if days_to_clear >= 3 * target_days:
+            return 100.0
+
+        # 计算基于清库天数的风险
+        clearance_ratio = days_to_clear / target_days
+        clearance_risk = 100 / (1 + math.exp(-4 * (clearance_ratio - 1)))
+
+        # 计算基于库龄的风险
+        age_risk = 100 * batch_age / target_days
+
+        # 组合风险
+        combined_risk = 0.8 * max(clearance_risk, age_risk) + 0.2 * min(clearance_risk, age_risk)
+
+        if days_to_clear > target_days:
+            combined_risk = max(combined_risk, 80)
+
+        if days_to_clear >= 2 * target_days:
+            combined_risk = max(combined_risk, 90)
+
+        if batch_age >= 0.75 * target_days:
+            combined_risk = max(combined_risk, 75)
+
+        return min(100, round(combined_risk, 1))
+
+    def calculate_forecast_bias(self, forecast_quantity, actual_sales):
+        """计算预测偏差"""
+        import math
+
+        if actual_sales == 0 and forecast_quantity == 0:
+            return 0.0
+        elif actual_sales == 0:
+            return min(math.sqrt(forecast_quantity) / max(forecast_quantity, 1), 1.0)
+        elif forecast_quantity == 0:
+            return -min(math.sqrt(actual_sales) / max(actual_sales, 1), 1.0)
+        else:
+            if forecast_quantity > actual_sales:
+                normalized_error = (forecast_quantity - actual_sales) / actual_sales
+                return min(math.tanh(normalized_error), 1.0)
+            else:
+                normalized_error = (actual_sales - forecast_quantity) / forecast_quantity
+                return -min(math.tanh(normalized_error), 1.0)
+
 warnings.filterwarnings('ignore')
 
 # 页面配置
@@ -890,9 +967,10 @@ def simplify_product_name(product_name):
 
 
 # 数据加载函数
+# 替换原有的 load_and_process_data 函数
 @st.cache_data
 def load_and_process_data():
-    """加载和处理所有数据"""
+    """加载和处理所有数据 - 增强版本包含批次分析"""
     try:
         # 读取数据文件
         shipment_df = pd.read_excel('2409~250224出货数据.xlsx')
@@ -902,7 +980,13 @@ def load_and_process_data():
 
         # 处理日期
         shipment_df['订单日期'] = pd.to_datetime(shipment_df['订单日期'])
-        forecast_df['所属年月'] = pd.to_datetime(forecast_df['所属年月'], format='%Y-%m')
+        shipment_df.columns = ['订单日期', '所属区域', '申请人', '产品代码', '数量']
+
+        forecast_df['所属年月'] = pd.to_datetime(forecast_df['所属年月'])
+        forecast_df.columns = ['所属大区', '销售员', '所属年月', '产品代码', '预计销售量']
+
+        # 创建分析器实例
+        analyzer = BatchLevelInventoryAnalyzer()
 
         # 创建产品代码到名称的映射
         product_name_map = {}
@@ -912,7 +996,92 @@ def load_and_process_data():
                 simplified_name = simplify_product_name(row['描述'])
                 product_name_map[row['物料']] = simplified_name
 
-        # 处理库存数据
+        # 计算产品销售指标
+        product_sales_metrics = {}
+        today = datetime.now().date()
+
+        for product_code in product_name_map.keys():
+            product_sales = shipment_df[shipment_df['产品代码'] == product_code]
+
+            if len(product_sales) == 0:
+                product_sales_metrics[product_code] = {
+                    'daily_avg_sales': 0,
+                    'sales_std': 0,
+                    'coefficient_of_variation': float('inf'),
+                    'total_sales': 0,
+                    'last_90_days_sales': 0
+                }
+            else:
+                total_sales = product_sales['数量'].sum()
+                ninety_days_ago = today - timedelta(days=90)
+                recent_sales = product_sales[product_sales['订单日期'].dt.date >= ninety_days_ago]
+                recent_sales_total = recent_sales['数量'].sum() if len(recent_sales) > 0 else 0
+
+                days_range = (today - product_sales['订单日期'].min().date()).days + 1
+                daily_avg_sales = total_sales / days_range if days_range > 0 else 0
+
+                daily_sales = product_sales.groupby(product_sales['订单日期'].dt.date)['数量'].sum()
+                sales_std = daily_sales.std() if len(daily_sales) > 1 else 0
+
+                coefficient_of_variation = sales_std / daily_avg_sales if daily_avg_sales > 0 else float('inf')
+
+                product_sales_metrics[product_code] = {
+                    'daily_avg_sales': daily_avg_sales,
+                    'sales_std': sales_std,
+                    'coefficient_of_variation': coefficient_of_variation,
+                    'total_sales': total_sales,
+                    'last_90_days_sales': recent_sales_total
+                }
+
+        # 计算季节性指数
+        seasonal_indices = {}
+        for product_code in product_name_map.keys():
+            product_sales = shipment_df[shipment_df['产品代码'] == product_code]
+
+            if len(product_sales) > 0:
+                product_sales['月份'] = product_sales['订单日期'].dt.month
+                monthly_sales = product_sales.groupby('月份')['数量'].sum()
+
+                if len(monthly_sales) > 1:
+                    avg_monthly_sales = monthly_sales.mean()
+                    current_month = today.month
+                    if current_month in monthly_sales.index:
+                        seasonal_index = monthly_sales[current_month] / avg_monthly_sales
+                    else:
+                        seasonal_index = 1.0
+                else:
+                    seasonal_index = 1.0
+            else:
+                seasonal_index = 1.0
+
+            seasonal_index = max(seasonal_index, analyzer.min_seasonal_index)
+            seasonal_indices[product_code] = seasonal_index
+
+        # 计算预测准确度
+        forecast_accuracy = {}
+        for product_code in product_name_map.keys():
+            product_forecast = forecast_df[forecast_df['产品代码'] == product_code]
+
+            if len(product_forecast) > 0:
+                forecast_quantity = product_forecast['预计销售量'].sum()
+
+                one_month_ago = today - timedelta(days=30)
+                product_recent_sales = shipment_df[
+                    (shipment_df['产品代码'] == product_code) &
+                    (shipment_df['订单日期'].dt.date >= one_month_ago)
+                    ]
+
+                actual_sales = product_recent_sales['数量'].sum() if not product_recent_sales.empty else 0
+
+                forecast_bias = analyzer.calculate_forecast_bias(forecast_quantity, actual_sales)
+            else:
+                forecast_bias = 0.0
+
+            forecast_accuracy[product_code] = {
+                'forecast_bias': forecast_bias
+            }
+
+        # 处理批次数据并进行完整分析
         batch_data = []
         current_material = None
         current_desc = None
@@ -922,11 +1091,9 @@ def load_and_process_data():
             if pd.notna(row['物料']) and isinstance(row['物料'], str) and row['物料'].startswith('F'):
                 current_material = row['物料']
                 current_desc = simplify_product_name(row['描述'])
-                # 获取单价
                 price_match = price_df[price_df['产品代码'] == current_material]
                 current_price = price_match['单价'].iloc[0] if len(price_match) > 0 else 100
             elif pd.notna(row['生产日期']) and current_material:
-                # 这是批次信息行
                 prod_date = pd.to_datetime(row['生产日期'])
                 quantity = row['数量'] if pd.notna(row['数量']) else 0
                 batch_no = row['生产批号'] if pd.notna(row['生产批号']) else ''
@@ -934,29 +1101,126 @@ def load_and_process_data():
                 # 计算库龄
                 age_days = (datetime.now() - prod_date).days
 
-                # 确定风险等级
-                if age_days >= 120:
-                    risk_level = '极高风险'
+                # 获取销售指标
+                sales_metrics = product_sales_metrics.get(current_material, {
+                    'daily_avg_sales': 0,
+                    'sales_std': 0,
+                    'coefficient_of_variation': float('inf'),
+                    'total_sales': 0,
+                    'last_90_days_sales': 0
+                })
+
+                # 获取季节性指数
+                seasonal_index = seasonal_indices.get(current_material, 1.0)
+
+                # 获取预测准确度
+                forecast_info = forecast_accuracy.get(current_material, {'forecast_bias': 0.0})
+
+                # 计算日均出货（考虑季节性）
+                daily_avg_sales = sales_metrics['daily_avg_sales']
+                daily_avg_sales_adjusted = max(daily_avg_sales * seasonal_index, analyzer.min_daily_sales)
+
+                # 计算预计清库天数
+                if daily_avg_sales_adjusted > 0:
+                    days_to_clear = quantity / daily_avg_sales_adjusted
+
+                    # 计算积压风险
+                    one_month_risk = analyzer.calculate_risk_percentage(days_to_clear, age_days, 30)
+                    two_month_risk = analyzer.calculate_risk_percentage(days_to_clear, age_days, 60)
+                    three_month_risk = analyzer.calculate_risk_percentage(days_to_clear, age_days, 90)
+                else:
+                    days_to_clear = float('inf')
+                    one_month_risk = 100
+                    two_month_risk = 100
+                    three_month_risk = 100
+
+                # 确定积压原因
+                stocking_reasons = []
+                if age_days > 60:
+                    stocking_reasons.append("库龄过长")
+                if sales_metrics['coefficient_of_variation'] > analyzer.high_volatility_threshold:
+                    stocking_reasons.append("销量波动大")
+                if seasonal_index < 0.8:
+                    stocking_reasons.append("季节性影响")
+                if abs(forecast_info['forecast_bias']) > analyzer.high_forecast_bias_threshold:
+                    stocking_reasons.append("预测偏差大")
+                if not stocking_reasons:
+                    stocking_reasons.append("正常库存")
+
+                # 确定风险等级和得分
+                risk_score = 0
+
+                # 库龄因素
+                if age_days > 90:
+                    risk_score += 40
+                elif age_days > 60:
+                    risk_score += 30
+                elif age_days > 30:
+                    risk_score += 20
+                else:
+                    risk_score += 10
+
+                # 清库天数因素
+                if days_to_clear == float('inf'):
+                    risk_score += 40
+                elif days_to_clear > 180:
+                    risk_score += 35
+                elif days_to_clear > 90:
+                    risk_score += 30
+                elif days_to_clear > 60:
+                    risk_score += 20
+                elif days_to_clear > 30:
+                    risk_score += 10
+
+                # 销量波动系数
+                if sales_metrics['coefficient_of_variation'] > 2.0:
+                    risk_score += 10
+                elif sales_metrics['coefficient_of_variation'] > 1.0:
+                    risk_score += 5
+
+                # 预测偏差
+                if abs(forecast_info['forecast_bias']) > 0.5:
+                    risk_score += 10
+                elif abs(forecast_info['forecast_bias']) > 0.3:
+                    risk_score += 8
+                elif abs(forecast_info['forecast_bias']) > 0.15:
+                    risk_score += 5
+
+                # 根据总分确定风险等级
+                if risk_score >= 80:
+                    risk_level = "极高风险"
                     risk_color = COLOR_SCHEME['risk_extreme']
                     risk_advice = '🚨 立即7折清库'
-                elif age_days >= 90:
-                    risk_level = '高风险'
+                elif risk_score >= 60:
+                    risk_level = "高风险"
                     risk_color = COLOR_SCHEME['risk_high']
                     risk_advice = '⚠️ 建议8折促销'
-                elif age_days >= 60:
-                    risk_level = '中风险'
+                elif risk_score >= 40:
+                    risk_level = "中风险"
                     risk_color = COLOR_SCHEME['risk_medium']
                     risk_advice = '📢 适度9折促销'
-                elif age_days >= 30:
-                    risk_level = '低风险'
+                elif risk_score >= 20:
+                    risk_level = "低风险"
                     risk_color = COLOR_SCHEME['risk_low']
                     risk_advice = '✅ 正常销售'
                 else:
-                    risk_level = '极低风险'
+                    risk_level = "极低风险"
                     risk_color = COLOR_SCHEME['risk_minimal']
                     risk_advice = '🌟 新鲜库存'
 
-                # 计算预期损失
+                # 生成建议措施
+                if risk_level == "极高风险":
+                    recommendation = "紧急清理：考虑折价促销"
+                elif risk_level == "高风险":
+                    recommendation = "优先处理：降价促销或转仓调配"
+                elif risk_level == "中风险":
+                    recommendation = "密切监控：调整采购计划"
+                elif risk_level == "低风险":
+                    recommendation = "常规管理：定期审查库存周转"
+                else:
+                    recommendation = "维持现状：正常库存水平"
+
+                # 预期损失计算
                 if age_days >= 120:
                     expected_loss = quantity * current_price * 0.3
                 elif age_days >= 90:
@@ -966,19 +1230,59 @@ def load_and_process_data():
                 else:
                     expected_loss = 0
 
+                # 简化责任分析（基于出货数据的区域和申请人）
+                responsible_region = analyzer.default_region
+                responsible_person = analyzer.default_person
+
+                # 查找该产品最近的出货记录
+                recent_shipments = shipment_df[
+                    (shipment_df['产品代码'] == current_material) &
+                    (shipment_df['订单日期'].dt.date >= (datetime.now().date() - timedelta(days=90)))
+                    ]
+
+                if not recent_shipments.empty:
+                    # 找出最频繁的区域和申请人
+                    region_counts = recent_shipments['所属区域'].value_counts()
+                    person_counts = recent_shipments['申请人'].value_counts()
+
+                    if not region_counts.empty:
+                        responsible_region = region_counts.index[0]
+                    if not person_counts.empty:
+                        responsible_person = person_counts.index[0]
+
+                # 构建批次数据
                 batch_data.append({
                     '物料': current_material,
                     '产品名称': current_desc,
+                    '描述': current_desc,
                     '生产日期': prod_date,
                     '生产批号': batch_no,
+                    '批次日期': prod_date.date(),
                     '数量': quantity,
+                    '批次库存': quantity,
                     '库龄': age_days,
                     '风险等级': risk_level,
                     '风险颜色': risk_color,
                     '处理建议': risk_advice,
                     '单价': current_price,
                     '批次价值': quantity * current_price,
-                    '预期损失': expected_loss
+                    '预期损失': expected_loss,
+                    '日均出货': round(daily_avg_sales, 2),
+                    '出货标准差': round(sales_metrics['sales_std'], 2),
+                    '出货波动系数': round(sales_metrics['coefficient_of_variation'], 2),
+                    '预计清库天数': days_to_clear if days_to_clear != float('inf') else float('inf'),
+                    '一个月积压风险': f"{round(one_month_risk, 1)}%",
+                    '两个月积压风险': f"{round(two_month_risk, 1)}%",
+                    '三个月积压风险': f"{round(three_month_risk, 1)}%",
+                    '积压原因': '，'.join(stocking_reasons),
+                    '季节性指数': round(seasonal_index, 2),
+                    '预测偏差': f"{round(forecast_info['forecast_bias'] * 100, 1)}%",
+                    '责任区域': responsible_region,
+                    '责任人': responsible_person,
+                    '责任分析摘要': f"{responsible_person}主要责任({responsible_region}区域)",
+                    '风险程度': risk_level,
+                    '风险得分': risk_score,
+                    '建议措施': recommendation
                 })
 
         processed_inventory = pd.DataFrame(batch_data)
@@ -1568,11 +1872,36 @@ def create_ultra_integrated_forecast_chart(merged_data):
         return go.Figure()
 
 
-def create_key_sku_ranking_chart(merged_data, product_name_map):
-    """创建重点SKU准确率排行图表"""
+# 替换原有的 create_key_sku_ranking_chart 函数
+def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region='全国'):
+    """创建重点SKU准确率排行图表 - 支持区域筛选"""
     try:
-        # 全国重点SKU分析
-        product_sales = merged_data.groupby(['产品代码', '产品名称']).agg({
+        # 根据选择的区域筛选数据
+        if selected_region != '全国':
+            filtered_data = merged_data[merged_data['所属区域'] == selected_region]
+            title_suffix = f" - {selected_region}区域"
+        else:
+            filtered_data = merged_data
+            title_suffix = " - 全国"
+
+        if filtered_data.empty:
+            fig = go.Figure()
+            fig.update_layout(
+                title=f"重点SKU准确率排行榜{title_suffix}<br><sub>暂无数据</sub>",
+                annotations=[
+                    dict(
+                        text="该区域暂无数据",
+                        xref="paper", yref="paper",
+                        x=0.5, y=0.5,
+                        xanchor='center', yanchor='middle',
+                        font=dict(size=20, color="gray")
+                    )
+                ]
+            )
+            return fig
+
+        # 产品级别分析
+        product_sales = filtered_data.groupby(['产品代码', '产品名称']).agg({
             '实际销量': 'sum',
             '预测销量': 'sum',
             '准确率': 'mean'
@@ -1585,6 +1914,8 @@ def create_key_sku_ranking_chart(merged_data, product_name_map):
         # 筛选出占比80%的重点SKU
         key_skus = product_sales[product_sales['累计占比'] <= 80.0].copy()
         key_skus['准确率'] = key_skus['准确率'] * 100
+        key_skus['差异量'] = key_skus['实际销量'] - key_skus['预测销量']
+        key_skus['差异率'] = (key_skus['差异量'] / key_skus['实际销量'].fillna(1)) * 100
         key_skus = key_skus.sort_values('准确率', ascending=True)
 
         # 创建水平条形图
@@ -1612,22 +1943,31 @@ def create_key_sku_ranking_chart(merged_data, product_name_map):
                           "实际销量: %{customdata[0]:,.0f}箱<br>" +
                           "预测销量: %{customdata[1]:,.0f}箱<br>" +
                           "销售占比: %{customdata[2]:.2f}%<br>" +
+                          "差异量: %{customdata[3]:+,.0f}箱<br>" +
+                          "差异率: %{customdata[4]:+.1f}%<br>" +
+                          "区域: " + selected_region + "<br>" +
                           "<extra></extra>",
             customdata=np.column_stack((
                 key_skus['实际销量'],
                 key_skus['预测销量'],
-                key_skus['销售额占比']
+                key_skus['销售额占比'],
+                key_skus['差异量'],
+                key_skus['差异率']
             ))
         ))
 
         # 添加参考线
         fig.add_vline(x=85, line_dash="dash", line_color="gray", annotation_text="目标线:85%")
 
+        # 计算关键统计信息
+        total_skus = len(key_skus)
+        avg_accuracy = key_skus['准确率'].mean()
+
         fig.update_layout(
-            title=f"重点SKU预测准确率排行榜<br><sub>销售额占比80%的核心产品</sub>",
+            title=f"重点SKU预测准确率排行榜{title_suffix}<br><sub>销售额占比80%的核心产品 (共{total_skus}个，平均准确率{avg_accuracy:.1f}%)</sub>",
             xaxis_title="预测准确率 (%)",
             yaxis_title="产品名称",
-            height=600,
+            height=max(400, len(key_skus) * 40),  # 动态调整高度
             margin=dict(l=200, r=100, t=100, b=50),
             showlegend=False
         )
@@ -2011,69 +2351,132 @@ with tab3:
             </div>
             """, unsafe_allow_html=True)
 
-        # 子标签2：重点SKU准确率排行 - 使用图表
+            # 在标签3的子标签2部分，替换整个 with sub_tab2 块的内容
+            # 子标签2：重点SKU准确率排行 - 增加区域筛选器
         with sub_tab2:
-            st.markdown("#### 🏆 销售额占比80%的重点SKU准确率排行")
+                st.markdown("#### 🏆 销售额占比80%的重点SKU准确率排行")
 
-            # 创建重点SKU排行图表
-            key_sku_fig = create_key_sku_ranking_chart(merged_data, product_name_map)
-            st.plotly_chart(key_sku_fig, use_container_width=True)
+                # 创建区域筛选器
+                col1, col2 = st.columns([2, 8])
+                with col1:
+                    all_regions = ['全国'] + list(merged_data['所属区域'].unique())
+                    selected_region_sku = st.selectbox(
+                        "选择区域",
+                        options=all_regions,
+                        index=0,
+                        key="sku_region_filter"
+                    )
 
-            # 区域对比视图
-            st.markdown("##### 🌍 各区域重点SKU对比")
+                # 创建重点SKU排行图表
+                key_sku_fig = create_key_sku_ranking_chart(merged_data, product_name_map, selected_region_sku)
+                st.plotly_chart(key_sku_fig, use_container_width=True)
 
-            # 创建区域选择器
-            regions = merged_data['所属区域'].unique()
-            selected_regions = st.multiselect("选择要对比的区域", options=regions, default=list(regions[:3]))
+                # 区域对比视图
+                st.markdown("##### 🌍 各区域重点SKU对比")
 
-            if selected_regions:
-                # 创建区域对比雷达图
-                fig_radar = go.Figure()
+                # 创建区域选择器
+                regions = merged_data['所属区域'].unique()
+                selected_regions = st.multiselect("选择要对比的区域", options=regions, default=list(regions[:3]))
 
-                for region in selected_regions:
-                    region_data = merged_data[merged_data['所属区域'] == region]
-                    region_products = region_data.groupby(['产品代码', '产品名称']).agg({
-                        '实际销量': 'sum',
-                        '预测销量': 'sum',
-                        '准确率': 'mean'
-                    }).reset_index()
+                if selected_regions:
+                    # 创建区域对比雷达图 - 增强悬停信息
+                    fig_radar = go.Figure()
 
-                    region_products['销售额占比'] = (
-                                region_products['实际销量'] / region_products['实际销量'].sum() * 100)
-                    region_products = region_products.sort_values('实际销量', ascending=False)
-                    region_products['累计占比'] = region_products['销售额占比'].cumsum()
+                    # 存储每个区域的详细数据用于悬停显示
+                    region_hover_data = {}
 
-                    # 获取该区域的重点SKU
-                    key_skus = region_products[region_products['累计占比'] <= 80.0]
+                    for region in selected_regions:
+                        region_data = merged_data[merged_data['所属区域'] == region]
+                        region_products = region_data.groupby(['产品代码', '产品名称']).agg({
+                            '实际销量': 'sum',
+                            '预测销量': 'sum',
+                            '准确率': 'mean'
+                        }).reset_index()
 
-                    # 计算各项指标
-                    metrics = {
-                        '平均准确率': key_skus['准确率'].mean() * 100,
-                        'SKU数量': len(key_skus),
-                        '销量集中度': 80 / len(key_skus) if len(key_skus) > 0 else 0,
-                        '预测稳定性': (1 - key_skus['准确率'].std()) * 100 if len(key_skus) > 1 else 100
-                    }
+                        region_products['销售额占比'] = (
+                                    region_products['实际销量'] / region_products['实际销量'].sum() * 100)
+                        region_products = region_products.sort_values('实际销量', ascending=False)
+                        region_products['累计占比'] = region_products['销售额占比'].cumsum()
 
-                    fig_radar.add_trace(go.Scatterpolar(
-                        r=[metrics['平均准确率'], metrics['SKU数量'] * 2,
-                           metrics['销量集中度'], metrics['预测稳定性']],
-                        theta=['平均准确率', 'SKU多样性', '销量集中度', '预测稳定性'],
-                        fill='toself',
-                        name=region
-                    ))
+                        # 获取该区域的重点SKU
+                        key_skus = region_products[region_products['累计占比'] <= 80.0]
 
-                fig_radar.update_layout(
-                    polar=dict(
-                        radialaxis=dict(
-                            visible=True,
-                            range=[0, 100]
-                        )),
-                    showlegend=True,
-                    title="区域重点SKU综合表现对比",
-                    height=500
-                )
+                        # 计算各项指标
+                        metrics = {
+                            '平均准确率': key_skus['准确率'].mean() * 100,
+                            'SKU数量': len(key_skus),
+                            '销量集中度': 80 / len(key_skus) if len(key_skus) > 0 else 0,
+                            '预测稳定性': (1 - key_skus['准确率'].std()) * 100 if len(key_skus) > 1 else 100
+                        }
 
-                st.plotly_chart(fig_radar, use_container_width=True)
+                        # 计算额外的统计数据
+                        total_actual = key_skus['实际销量'].sum()
+                        total_forecast = key_skus['预测销量'].sum()
+                        top3_skus = key_skus.head(3)['产品名称'].tolist()
+                        accuracy_range = f"{key_skus['准确率'].min() * 100:.1f}% - {key_skus['准确率'].max() * 100:.1f}%"
+
+                        # 存储悬停数据
+                        region_hover_data[region] = {
+                            'metrics': metrics,
+                            'total_actual': total_actual,
+                            'total_forecast': total_forecast,
+                            'top3_skus': top3_skus,
+                            'accuracy_range': accuracy_range,
+                            'sku_count': len(key_skus),
+                            'total_skus': len(region_products)
+                        }
+
+                        # 创建自定义悬停文本
+                        hover_text = [
+                            f"<b>{region} - 平均准确率</b><br>值: {metrics['平均准确率']:.1f}%<br>范围: {accuracy_range}<br>TOP3 SKU: {', '.join(top3_skus[:3])}",
+                            f"<b>{region} - SKU多样性</b><br>重点SKU数: {len(key_skus)}<br>总SKU数: {len(region_products)}<br>占比: {len(key_skus) / len(region_products) * 100:.1f}%",
+                            f"<b>{region} - 销量集中度</b><br>值: {metrics['销量集中度']:.1f}<br>说明: 平均每个SKU贡献{metrics['销量集中度']:.1f}%销售额<br>实际总销量: {total_actual:,.0f}箱",
+                            f"<b>{region} - 预测稳定性</b><br>值: {metrics['预测稳定性']:.1f}%<br>说明: 预测准确率的一致性程度<br>预测总量: {total_forecast:,.0f}箱"
+                        ]
+
+                        fig_radar.add_trace(go.Scatterpolar(
+                            r=[metrics['平均准确率'], metrics['SKU数量'] * 2,
+                               metrics['销量集中度'], metrics['预测稳定性']],
+                            theta=['平均准确率', 'SKU多样性', '销量集中度', '预测稳定性'],
+                            fill='toself',
+                            name=region,
+                            hovertext=hover_text,
+                            hoverinfo="text",
+                            customdata=[[total_actual, total_forecast, len(key_skus), accuracy_range]] * 4
+                        ))
+
+                    fig_radar.update_layout(
+                        polar=dict(
+                            radialaxis=dict(
+                                visible=True,
+                                range=[0, 100]
+                            )),
+                        showlegend=True,
+                        title="区域重点SKU综合表现对比<br><sub>悬停查看详细计算结果</sub>",
+                        height=500
+                    )
+
+                    st.plotly_chart(fig_radar, use_container_width=True)
+
+                    # 添加区域对比表格
+                    st.markdown("##### 📊 区域重点SKU关键指标对比表")
+
+                    comparison_data = []
+                    for region in selected_regions:
+                        data = region_hover_data[region]
+                        comparison_data.append({
+                            '区域': region,
+                            '重点SKU数量': data['sku_count'],
+                            '平均准确率': f"{data['metrics']['平均准确率']:.1f}%",
+                            '准确率范围': data['accuracy_range'],
+                            '实际销量': f"{data['total_actual']:,.0f}",
+                            '预测销量': f"{data['total_forecast']:,.0f}",
+                            '销量集中度': f"{data['metrics']['销量集中度']:.1f}",
+                            '预测稳定性': f"{data['metrics']['预测稳定性']:.1f}%"
+                        })
+
+                    comparison_df = pd.DataFrame(comparison_data)
+                    st.dataframe(comparison_df, use_container_width=True, hide_index=True)
 
         # 子标签3：产品预测详细分析 - 使用图表
         with sub_tab3:
@@ -2176,108 +2579,434 @@ with tab3:
     else:
         st.warning(f"暂无{datetime.now().year}年的预测数据，请检查数据文件是否包含当年数据。")
 
-# 标签4：库存积压预警详情
+# 替换整个 with tab4 块的内容
+# 标签4：库存积压预警详情 - 完整移植附件一的报告格式
 with tab4:
-    st.markdown("### 📋 库存积压预警详情")
+    st.markdown("### 📋 库存积压预警详情分析")
 
     if not processed_inventory.empty:
-        # 筛选控件
-        col1, col2, col3 = st.columns(3)
+        # 创建子标签页
+        detail_tab1, detail_tab2, detail_tab3 = st.tabs([
+            "📊 批次分析明细",
+            "📈 统计分析",
+            "💡 改进建议"
+        ])
 
-        with col1:
-            risk_filter = st.selectbox(
-                "选择风险等级",
-                options=['全部'] + list(processed_inventory['风险等级'].unique()),
-                index=0
-            )
+        # 子标签1：批次分析明细
+        with detail_tab1:
+            # 筛选控件
+            col1, col2, col3, col4 = st.columns(4)
 
-        with col2:
-            min_value = st.number_input(
-                "最小批次价值",
-                min_value=0,
-                max_value=int(processed_inventory['批次价值'].max()),
-                value=0
-            )
+            with col1:
+                risk_filter = st.selectbox(
+                    "风险等级",
+                    options=['全部'] + list(processed_inventory['风险等级'].unique()),
+                    index=0
+                )
 
-        with col3:
-            max_age = st.number_input(
-                "最大库龄(天)",
-                min_value=0,
-                max_value=int(processed_inventory['库龄'].max()),
-                value=int(processed_inventory['库龄'].max())
-            )
+            with col2:
+                product_filter = st.selectbox(
+                    "产品",
+                    options=['全部'] + list(processed_inventory['产品名称'].unique()),
+                    index=0
+                )
 
-        # 应用筛选
-        filtered_data = processed_inventory.copy()
+            with col3:
+                min_value = st.number_input(
+                    "最小批次价值",
+                    min_value=0,
+                    max_value=int(processed_inventory['批次价值'].max()),
+                    value=0
+                )
 
-        if risk_filter != '全部':
-            filtered_data = filtered_data[filtered_data['风险等级'] == risk_filter]
+            with col4:
+                max_age = st.number_input(
+                    "最大库龄(天)",
+                    min_value=0,
+                    max_value=int(processed_inventory['库龄'].max()),
+                    value=int(processed_inventory['库龄'].max())
+                )
 
-        filtered_data = filtered_data[
-            (filtered_data['批次价值'] >= min_value) &
-            (filtered_data['库龄'] <= max_age)
-            ]
+            # 应用筛选
+            filtered_data = processed_inventory.copy()
 
-        # 显示高级数据表格
-        if not filtered_data.empty:
-            # 使用容器包裹表格
-            with st.container():
-                st.markdown('<div class="advanced-table">', unsafe_allow_html=True)
+            if risk_filter != '全部':
+                filtered_data = filtered_data[filtered_data['风险等级'] == risk_filter]
 
-                # 重新排序列并格式化
-                display_columns = ['物料', '产品名称', '生产日期', '生产批号', '数量', '库龄', '风险等级', '批次价值',
-                                   '处理建议']
+            if product_filter != '全部':
+                filtered_data = filtered_data[filtered_data['产品名称'] == product_filter]
+
+            filtered_data = filtered_data[
+                (filtered_data['批次价值'] >= min_value) &
+                (filtered_data['库龄'] <= max_age)
+                ]
+
+            # 风险统计信息
+            if not filtered_data.empty:
+                st.markdown("#### 📊 风险等级分布统计")
+
+                col1, col2, col3, col4, col5 = st.columns(5)
+
+                risk_stats = filtered_data['风险等级'].value_counts()
+                total_count = len(filtered_data)
+
+                with col1:
+                    extreme_count = risk_stats.get('极高风险', 0)
+                    st.markdown(f"""
+                    <div class="metric-card risk-extreme">
+                        <div class="metric-value">{extreme_count}</div>
+                        <div class="metric-label">极高风险</div>
+                        <div class="metric-description">{extreme_count / total_count * 100:.1f}%</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                with col2:
+                    high_count = risk_stats.get('高风险', 0)
+                    st.markdown(f"""
+                    <div class="metric-card risk-high">
+                        <div class="metric-value">{high_count}</div>
+                        <div class="metric-label">高风险</div>
+                        <div class="metric-description">{high_count / total_count * 100:.1f}%</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                with col3:
+                    medium_count = risk_stats.get('中风险', 0)
+                    st.markdown(f"""
+                    <div class="metric-card risk-medium">
+                        <div class="metric-value">{medium_count}</div>
+                        <div class="metric-label">中风险</div>
+                        <div class="metric-description">{medium_count / total_count * 100:.1f}%</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                with col4:
+                    low_count = risk_stats.get('低风险', 0)
+                    st.markdown(f"""
+                    <div class="metric-card risk-low">
+                        <div class="metric-value">{low_count}</div>
+                        <div class="metric-label">低风险</div>
+                        <div class="metric-description">{low_count / total_count * 100:.1f}%</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                with col5:
+                    minimal_count = risk_stats.get('极低风险', 0)
+                    st.markdown(f"""
+                    <div class="metric-card risk-minimal">
+                        <div class="metric-value">{minimal_count}</div>
+                        <div class="metric-label">极低风险</div>
+                        <div class="metric-description">{minimal_count / total_count * 100:.1f}%</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                st.markdown("#### 📋 批次分析明细表")
+
+                # 准备显示的列
+                display_columns = [
+                    '物料', '描述', '批次日期', '批次库存', '库龄', '批次价值',
+                    '日均出货', '出货波动系数', '预计清库天数',
+                    '一个月积压风险', '两个月积压风险', '三个月积压风险',
+                    '积压原因', '季节性指数', '预测偏差',
+                    '责任区域', '责任人', '责任分析摘要',
+                    '风险程度', '风险得分', '建议措施'
+                ]
+
+                # 格式化显示数据
                 display_data = filtered_data[display_columns].copy()
 
-                # 格式化数值
+                # 格式化数值列
                 display_data['批次价值'] = display_data['批次价值'].apply(lambda x: f"¥{x:,.0f}")
-                display_data['生产日期'] = display_data['生产日期'].dt.strftime('%Y-%m-%d')
+                display_data['批次日期'] = display_data['批次日期'].astype(str)
                 display_data['库龄'] = display_data['库龄'].apply(lambda x: f"{x}天")
-
-                # 按风险等级和价值排序
-                risk_order = {'极高风险': 0, '高风险': 1, '中风险': 2, '低风险': 3, '极低风险': 4}
-                display_data['风险排序'] = display_data['风险等级'].map(risk_order)
-                display_data = display_data.sort_values(['风险排序', '库龄'], ascending=[True, False])
-                display_data = display_data.drop('风险排序', axis=1)
-
-                # 显示增强表格
-                st.dataframe(
-                    display_data,
-                    use_container_width=True,
-                    height=500,
-                    hide_index=False
+                display_data['日均出货'] = display_data['日均出货'].apply(lambda x: f"{x:.2f}")
+                display_data['出货波动系数'] = display_data['出货波动系数'].apply(lambda x: f"{x:.2f}")
+                display_data['预计清库天数'] = display_data['预计清库天数'].apply(
+                    lambda x: "∞" if x == float('inf') else f"{x:.1f}"
                 )
+                display_data['季节性指数'] = display_data['季节性指数'].apply(lambda x: f"{x:.2f}")
 
-                # 下载按钮
-                csv = display_data.to_csv(index=False, encoding='utf-8-sig')
-                st.download_button(
-                    label="📥 下载筛选结果",
-                    data=csv,
-                    file_name=f"库存积压预警_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
+                # 使用增强样式显示表格
+                with st.container():
+                    st.markdown('<div class="advanced-table">', unsafe_allow_html=True)
+
+                    # 显示数据表格
+                    st.dataframe(
+                        display_data,
+                        use_container_width=True,
+                        height=600,
+                        hide_index=False
+                    )
+
+                    # 下载按钮
+                    csv = display_data.to_csv(index=False, encoding='utf-8-sig')
+                    st.download_button(
+                        label="📥 导出完整报告",
+                        data=csv,
+                        file_name=f"批次库存积压预警报告_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+            else:
+                st.info("暂无符合筛选条件的数据")
+
+        # 子标签2：统计分析
+        with detail_tab2:
+            st.markdown("#### 📊 库存积压统计分析")
+
+            # 按产品统计
+            product_stats = processed_inventory.groupby('产品名称').agg({
+                '批次库存': 'sum',
+                '批次价值': 'sum',
+                '库龄': 'mean',
+                '风险得分': 'mean',
+                '日均出货': 'mean'
+            }).round(2)
+
+            product_stats['预计清库天数'] = product_stats['批次库存'] / product_stats['日均出货'].replace(0, 0.1)
+            product_stats = product_stats.sort_values('批次价值', ascending=False)
+
+            # 创建产品分析图表
+            fig_product = make_subplots(
+                rows=2, cols=2,
+                subplot_titles=("产品库存价值TOP10", "产品平均库龄分布",
+                                "产品风险得分分布", "产品预计清库天数"),
+                specs=[[{"type": "bar"}, {"type": "bar"}],
+                       [{"type": "scatter"}, {"type": "bar"}]]
+            )
+
+            # TOP10产品价值
+            top10_products = product_stats.head(10)
+            fig_product.add_trace(
+                go.Bar(
+                    x=top10_products.index,
+                    y=top10_products['批次价值'],
+                    marker_color='#667eea',
+                    text=top10_products['批次价值'].apply(lambda x: f"¥{x / 10000:.1f}万"),
+                    textposition='auto'
+                ),
+                row=1, col=1
+            )
+
+            # 产品平均库龄
+            fig_product.add_trace(
+                go.Bar(
+                    x=top10_products.index,
+                    y=top10_products['库龄'],
+                    marker_color=top10_products['库龄'].apply(
+                        lambda x: '#FF0000' if x > 90 else '#FFA500' if x > 60 else '#90EE90'
+                    ),
+                    text=top10_products['库龄'].apply(lambda x: f"{x:.0f}天"),
+                    textposition='auto'
+                ),
+                row=1, col=2
+            )
+
+            # 风险得分散点图
+            fig_product.add_trace(
+                go.Scatter(
+                    x=product_stats['批次价值'],
+                    y=product_stats['风险得分'],
+                    mode='markers',
+                    marker=dict(
+                        size=product_stats['批次库存'] / product_stats['批次库存'].max() * 50,
+                        color=product_stats['风险得分'],
+                        colorscale='RdYlGn_r',
+                        showscale=True
+                    ),
+                    text=product_stats.index,
+                    hovertemplate="<b>%{text}</b><br>" +
+                                  "价值: ¥%{x:,.0f}<br>" +
+                                  "风险得分: %{y:.0f}<br>" +
+                                  "<extra></extra>"
+                ),
+                row=2, col=1
+            )
+
+            # 预计清库天数
+            clearance_data = top10_products['预计清库天数'].replace([np.inf, -np.inf], 365)
+            fig_product.add_trace(
+                go.Bar(
+                    x=top10_products.index,
+                    y=clearance_data,
+                    marker_color=clearance_data.apply(
+                        lambda x: '#8B0000' if x > 180 else '#FF0000' if x > 90 else '#FFA500' if x > 60 else '#90EE90'
+                    ),
+                    text=clearance_data.apply(lambda x: "∞" if x >= 365 else f"{x:.0f}天"),
+                    textposition='auto'
+                ),
+                row=2, col=2
+            )
+
+            fig_product.update_layout(height=800, showlegend=False)
+            fig_product.update_xaxes(tickangle=-45)
+
+            st.plotly_chart(fig_product, use_container_width=True)
+
+            # 区域统计
+            st.markdown("#### 🌍 区域库存分析")
+
+            region_stats = processed_inventory.groupby('责任区域').agg({
+                '批次库存': 'sum',
+                '批次价值': 'sum',
+                '库龄': 'mean',
+                '风险得分': 'mean'
+            }).round(2)
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                # 区域价值分布饼图
+                fig_region_pie = go.Figure(data=[go.Pie(
+                    labels=region_stats.index,
+                    values=region_stats['批次价值'],
+                    hole=.4,
+                    marker_colors=COLOR_SCHEME['chart_colors'][:len(region_stats)]
+                )])
+                fig_region_pie.update_layout(
+                    title="区域库存价值分布",
+                    height=400
                 )
-                st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div style="text-align: center; padding: 3rem; 
-                        background: linear-gradient(135deg, rgba(255, 165, 0, 0.1), rgba(255, 165, 0, 0.05));
-                        border-radius: 20px; border: 2px dashed #FFA500;">
-                <div style="font-size: 3rem; color: #FFA500; margin-bottom: 1rem;">📭</div>
-                <div style="font-size: 1.5rem; font-weight: 700; color: #FFA500; margin-bottom: 0.5rem;">暂无符合条件的数据</div>
-                <div style="color: #666; font-size: 1rem;">请调整筛选条件重新查询</div>
+                st.plotly_chart(fig_region_pie, use_container_width=True)
+
+            with col2:
+                # 区域风险得分对比
+                fig_region_risk = go.Figure(data=[go.Bar(
+                    x=region_stats.index,
+                    y=region_stats['风险得分'],
+                    marker_color=region_stats['风险得分'].apply(
+                        lambda x: '#FF0000' if x > 60 else '#FFA500' if x > 40 else '#90EE90'
+                    ),
+                    text=region_stats['风险得分'].apply(lambda x: f"{x:.0f}"),
+                    textposition='auto'
+                )])
+                fig_region_risk.update_layout(
+                    title="区域平均风险得分",
+                    height=400
+                )
+                st.plotly_chart(fig_region_risk, use_container_width=True)
+
+        # 子标签3：改进建议
+        with detail_tab3:
+            st.markdown("#### 💡 库存优化改进建议")
+
+            # 计算关键洞察
+            high_risk_items = processed_inventory[processed_inventory['风险等级'].isin(['极高风险', '高风险'])]
+            total_risk_value = high_risk_items['批次价值'].sum()
+            potential_recovery = total_risk_value * 0.7  # 假设7折处理
+
+            # 重点问题产品
+            problem_products = processed_inventory.groupby('产品名称').agg({
+                '批次价值': 'sum',
+                '风险得分': 'mean'
+            }).sort_values('风险得分', ascending=False).head(5)
+
+            # 建议卡片
+            st.markdown(f"""
+            <div class="insight-box">
+                <div class="insight-title">🎯 核心改进目标</div>
+                <div class="insight-content">
+                    • 高风险库存总价值：¥{total_risk_value:,.0f}<br>
+                    • 预计可回收资金：¥{potential_recovery:,.0f} (7折清理)<br>
+                    • 需重点处理批次：{len(high_risk_items)}个<br>
+                    • 建议处理周期：30天内完成高风险批次清理
+                </div>
             </div>
             """, unsafe_allow_html=True)
+
+            # 分级改进措施
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.markdown("""
+                <div class="content-container">
+                    <h5>🚨 紧急措施（7天内）</h5>
+                    <ul>
+                        <li>立即对极高风险批次实施7折清仓</li>
+                        <li>联系各区域负责人制定清库计划</li>
+                        <li>启动跨区域库存调配机制</li>
+                        <li>开展特价促销活动</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("""
+                <div class="content-container">
+                    <h5>📊 中期优化（30天内）</h5>
+                    <ul>
+                        <li>优化销售预测模型，提高准确率</li>
+                        <li>建立库存预警自动化系统</li>
+                        <li>完善区域间协同机制</li>
+                        <li>制定分级库存管理策略</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col2:
+                st.markdown("""
+                <div class="content-container">
+                    <h5>⚡ 短期行动（14天内）</h5>
+                    <ul>
+                        <li>评估高风险批次处理进度</li>
+                        <li>调整采购计划，避免新增积压</li>
+                        <li>强化销售团队库存意识培训</li>
+                        <li>建立每周库存审查机制</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("""
+                <div class="content-container">
+                    <h5>🎯 长期战略（90天内）</h5>
+                    <ul>
+                        <li>实施S&OP流程优化</li>
+                        <li>引入AI预测系统</li>
+                        <li>建立供应链柔性机制</li>
+                        <li>完善绩效考核体系</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # 重点关注产品清单
+            st.markdown("#### 🔍 重点关注产品")
+
+            problem_display = problem_products.copy()
+            problem_display['批次价值'] = problem_display['批次价值'].apply(lambda x: f"¥{x:,.0f}")
+            problem_display['风险得分'] = problem_display['风险得分'].apply(lambda x: f"{x:.0f}")
+            problem_display['处理优先级'] = ['🔴 极高', '🟠 高', '🟡 中', '🟢 一般', '🔵 低'][:len(problem_display)]
+
+            st.dataframe(
+                problem_display[['批次价值', '风险得分', '处理优先级']],
+                use_container_width=True
+            )
+
+            # 责任人行动计划
+            st.markdown("#### 👥 责任人行动计划")
+
+            responsible_stats = processed_inventory[
+                processed_inventory['风险等级'].isin(['极高风险', '高风险'])
+            ].groupby('责任人').agg({
+                '批次库存': 'sum',
+                '批次价值': 'sum',
+                '产品名称': 'count'
+            }).sort_values('批次价值', ascending=False).head(10)
+
+            responsible_stats.columns = ['负责库存量', '负责价值', '批次数']
+            responsible_stats['行动要求'] = responsible_stats.apply(
+                lambda x: f"30天内清理{x['批次数']}个批次，价值¥{x['负责价值']:,.0f}",
+                axis=1
+            )
+
+            st.dataframe(
+                responsible_stats[['负责库存量', '负责价值', '批次数', '行动要求']],
+                use_container_width=True
+            )
+
     else:
-        st.markdown("""
-        <div style="text-align: center; padding: 3rem; 
-                    background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(139, 0, 0, 0.05));
-                    border-radius: 20px; border: 2px dashed #8B0000;">
-            <div style="font-size: 3rem; color: #8B0000; margin-bottom: 1rem;">📦</div>
-            <div style="font-size: 1.5rem; font-weight: 700; color: #8B0000; margin-bottom: 0.5rem;">暂无库存数据</div>
-            <div style="color: #666; font-size: 1rem;">请检查数据文件是否正确加载</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.info("暂无库存数据")
 
 # 页脚
 st.markdown("---")
