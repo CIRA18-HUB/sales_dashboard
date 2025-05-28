@@ -1065,10 +1065,11 @@ def create_real_product_network(data, product_filter='all'):
     new_products = data['new_products']
     promotion_df = data['promotion_df']
     
-    # 获取促销产品列表
+    # 获取促销产品列表（只保留在仪表盘产品中的促销产品）
     promo_products = promotion_df[promotion_df['所属区域'] == '全国']['产品代码'].unique().tolist()
+    promo_products = [p for p in promo_products if p in dashboard_products]
     
-    # 根据筛选条件过滤产品（移除数量限制，显示全部产品）
+    # 根据筛选条件过滤产品（确保都是仪表盘产品）
     if product_filter == 'star':
         filtered_products = [p for p in dashboard_products if p in star_products]
         filter_title = "星品"
@@ -1080,10 +1081,27 @@ def create_real_product_network(data, product_filter='all'):
         filter_title = "促销品"
     else:
         filtered_products = dashboard_products  # 显示全部仪表盘产品
-        filter_title = "全部产品"
+        filter_title = "全部仪表盘产品"
     
+    # 严格过滤销售数据，确保只包含仪表盘产品
     sales_df_filtered = sales_df[sales_df['产品代码'].isin(filtered_products)]
     product_pairs = []
+    
+    # 创建产品代码到产品名称的映射（确保唯一性）
+    product_name_map = {}
+    for product in filtered_products:
+        product_data = sales_df_filtered[sales_df_filtered['产品代码'] == product]
+        if len(product_data) > 0:
+            # 使用第一个出现的产品简称
+            product_name = product_data['产品简称'].iloc[0]
+        else:
+            # 如果在销售数据中找不到，尝试在所有销售数据中查找
+            all_product_data = sales_df[sales_df['产品代码'] == product]
+            if len(all_product_data) > 0:
+                product_name = all_product_data['产品简称'].iloc[0]
+            else:
+                product_name = product
+        product_name_map[product] = product_name
     
     # 降低关联度门槛以显示更多连接
     for prod1, prod2 in combinations(filtered_products, 2):
@@ -1098,22 +1116,13 @@ def create_real_product_network(data, product_filter='all'):
             
             # 降低门槛到0.2以显示更多关联
             if correlation > 0.2:
-                name1 = sales_df_filtered[sales_df_filtered['产品代码'] == prod1]['产品简称'].iloc[0] if len(sales_df_filtered[sales_df_filtered['产品代码'] == prod1]) > 0 else prod1
-                name2 = sales_df_filtered[sales_df_filtered['产品代码'] == prod2]['产品简称'].iloc[0] if len(sales_df_filtered[sales_df_filtered['产品代码'] == prod2]) > 0 else prod2
+                name1 = product_name_map[prod1]
+                name2 = product_name_map[prod2]
                 
-                product_pairs.append((name1, name2, correlation, len(common_customers)))
+                product_pairs.append((name1, name2, correlation, len(common_customers), prod1, prod2))
     
-    # 获取所有产品节点（包括没有关联的产品）
-    nodes = set()
-    for product in filtered_products:
-        product_data = sales_df_filtered[sales_df_filtered['产品代码'] == product]
-        if len(product_data) > 0:
-            product_name = product_data['产品简称'].iloc[0]
-        else:
-            product_name = product
-        nodes.add(product_name)
-    
-    nodes = list(nodes)
+    # 使用产品代码作为节点（确保唯一性），但显示产品名称
+    nodes = filtered_products
     
     # 如果没有节点，返回空图
     if len(nodes) == 0:
@@ -1140,8 +1149,10 @@ def create_real_product_network(data, product_filter='all'):
     
     # 添加边（降低线条粗细）
     for pair in product_pairs:
-        x0, y0 = pos[pair[0]]
-        x1, y1 = pos[pair[1]]
+        prod1_code = pair[4]
+        prod2_code = pair[5]
+        x0, y0 = pos[prod1_code]
+        x1, y1 = pos[prod2_code]
         
         color_intensity = int(255 * pair[2])
         color = f'rgba({color_intensity}, {100}, {255-color_intensity}, {pair[2]*0.7})'
@@ -1172,27 +1183,26 @@ def create_real_product_network(data, product_filter='all'):
     node_sizes = []
     node_details = []
     node_colors = []
+    node_texts = []  # 显示的文本
     
     for node in nodes:
-        connections = sum(1 for pair in product_pairs if node in pair[:2])
-        total_correlation = sum(pair[2] for pair in product_pairs if node in pair[:2])
+        # node 是产品代码
+        product_code = node
+        product_name = product_name_map[product_code]
+        
+        # 计算连接数
+        connections = sum(1 for pair in product_pairs if product_code in [pair[4], pair[5]])
+        total_correlation = sum(pair[2] for pair in product_pairs if product_code in [pair[4], pair[5]])
         # 调整节点大小
         node_sizes.append(15 + min(connections * 5, 30))  # 限制最大节点尺寸
         
-        product_data = sales_df_filtered[sales_df_filtered['产品简称'] == node]
+        product_data = sales_df_filtered[sales_df_filtered['产品代码'] == product_code]
         if len(product_data) > 0:
             total_sales = product_data['销售额'].sum()
             customer_count = product_data['客户名称'].nunique()
-            product_code = product_data['产品代码'].iloc[0]
         else:
             total_sales = 0
             customer_count = 0
-            # 尝试通过产品代码查找
-            all_product_data = sales_df[sales_df['产品简称'] == node]
-            if len(all_product_data) > 0:
-                product_code = all_product_data['产品代码'].iloc[0]
-            else:
-                product_code = ""
         
         # 判断产品类型并设置颜色
         product_types = []
@@ -1217,9 +1227,10 @@ def create_real_product_network(data, product_filter='all'):
             product_types.append("常规品")
         
         node_colors.append(node_color)
+        node_texts.append(product_name)  # 显示产品名称
         product_type_text = "、".join(product_types) if product_types else "常规品"
         
-        detail = f"""<b>{node}</b><br>
+        detail = f"""<b>{product_name} ({product_code})</b><br>
 <b>产品类型:</b> {product_type_text}<br>
 <br><b>网络分析:</b><br>
 - 关联产品数: {connections}<br>
@@ -1246,7 +1257,7 @@ def create_real_product_network(data, product_filter='all'):
             color=node_colors,
             line=dict(width=2, color='white')
         ),
-        text=nodes,
+        text=node_texts,  # 使用产品名称
         textposition='top center',
         textfont=dict(size=8, weight='bold'),
         hoverinfo='text',
@@ -1274,7 +1285,7 @@ def create_real_product_network(data, product_filter='all'):
     
     # 调整布局以适应更多节点
     fig.update_layout(
-        title=dict(text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>共{len(nodes)}个产品</i>", font=dict(size=20)),
+        title=dict(text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>共{len(nodes)}个产品（仪表盘产品）</i>", font=dict(size=20)),
         xaxis=dict(showgrid=False, showticklabels=False, zeroline=False, range=[-2, 2]),
         yaxis=dict(showgrid=False, showticklabels=False, zeroline=False, range=[-2, 2]),
         height=800,  # 增加高度
@@ -2263,7 +2274,7 @@ def main():
                     "🎯 筛选产品类型",
                     options=['all', 'star', 'new', 'promo'],
                     format_func=lambda x: {
-                        'all': '全部产品',
+                        'all': '全部仪表盘产品',
                         'star': '⭐ 星品',
                         'new': '🌟 新品',
                         'promo': '🚀 促销品'
@@ -2273,13 +2284,13 @@ def main():
             
             with col2:
                 if product_filter == 'all':
-                    st.info("💡 **节点颜色说明**: 🟡 星品 | 🟢 新品 | 🟠 促销品 | 🟣 常规品")
+                    st.info("💡 **节点颜色说明**: 🟡 星品 | 🟢 新品 | 🟠 促销品 | 🟣 常规品<br>**注**: 显示仪表盘产品代码.txt中的所有产品")
                 elif product_filter == 'star':
-                    st.info("⭐ **星品关联网络**: 展示所有星品之间的客户关联关系")
+                    st.info("⭐ **星品关联网络**: 展示仪表盘产品中所有星品之间的客户关联关系")
                 elif product_filter == 'new':
-                    st.info("🌟 **新品关联网络**: 展示所有新品之间的客户关联关系")
+                    st.info("🌟 **新品关联网络**: 展示仪表盘产品中所有新品之间的客户关联关系")
                 else:
-                    st.info("🚀 **促销品关联网络**: 展示所有促销产品之间的客户关联关系")
+                    st.info("🚀 **促销品关联网络**: 展示仪表盘产品中所有促销产品之间的客户关联关系")
             
             # 创建基于真实数据的2D网络图
             network_fig = create_real_product_network(data, product_filter)
