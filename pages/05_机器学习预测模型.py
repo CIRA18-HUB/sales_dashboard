@@ -472,6 +472,7 @@ def load_and_process_data():
 def calculate_metrics(df_valid):
     """计算所有关键指标 - 修正版"""
     if df_valid.empty:
+        st.sidebar.error("数据为空，返回默认值")
         return {
             'overall_avg_accuracy': 0,
             'overall_weighted_accuracy': 0,
@@ -524,8 +525,8 @@ def calculate_metrics(df_valid):
         
         # 5. 准确率分布统计（基于产品的历史平均）
         high_accuracy_count = (product_avg_accuracy > 0.8).sum()
-        medium_accuracy_count = ((product_avg_accuracy >= 0.6) & (product_avg_accuracy <= 0.8)).sum()
-        low_accuracy_count = (product_avg_accuracy < 0.6).sum()
+        medium_accuracy_count = ((product_avg_accuracy > 0.6) & (product_avg_accuracy <= 0.8)).sum()
+        low_accuracy_count = (product_avg_accuracy <= 0.6).sum()
         
         # 6. 高准确率产品占比 (>85%)
         high_accuracy_products = (product_avg_accuracy > 0.85).sum()
@@ -553,6 +554,28 @@ def calculate_metrics(df_valid):
         ).reset_index(name='加权准确率')
         product_metrics = product_metrics.merge(product_weighted, on='产品简称')
         
+        # 在侧边栏显示调试信息
+        with st.sidebar:
+            st.write("### 📊 计算结果调试")
+            st.write(f"总产品数: {total_products}")
+            st.write(f"整体平均准确率: {overall_avg_accuracy:.4f} ({overall_avg_accuracy*100:.2f}%)")
+            st.write(f"加权准确率(近3月): {overall_weighted_accuracy:.4f} ({overall_weighted_accuracy*100:.2f}%)")
+            st.write(f"最近准确率: {recent_accuracy:.4f} ({recent_accuracy*100:.2f}%)")
+            st.write(f"高准确率(>80%): {high_accuracy_count}个 ({high_accuracy_count/total_products*100:.2f}%)")
+            st.write(f"中等(60-80%): {medium_accuracy_count}个 ({medium_accuracy_count/total_products*100:.2f}%)")
+            st.write(f"低准确率(<=60%): {low_accuracy_count}个 ({low_accuracy_count/total_products*100:.2f}%)")
+            
+            # 验证分布
+            st.write("---")
+            st.write("分布验证:")
+            st.write(f"总计: {high_accuracy_count + medium_accuracy_count + low_accuracy_count} (应该等于{total_products})")
+            
+            # 显示前5个产品的准确率
+            st.write("---")
+            st.write("前5个产品准确率:")
+            for i, (prod, acc) in enumerate(product_avg_accuracy.head().items()):
+                st.write(f"{prod}: {acc:.4f} ({acc*100:.2f}%)")
+        
         return {
             'overall_avg_accuracy': overall_avg_accuracy,
             'overall_weighted_accuracy': overall_weighted_accuracy,
@@ -571,7 +594,9 @@ def calculate_metrics(df_valid):
             'trend': trend
         }
     except Exception as e:
-        st.error(f"指标计算失败: {str(e)}")
+        st.sidebar.error(f"指标计算失败: {str(e)}")
+        import traceback
+        st.sidebar.error(f"详细错误: {traceback.format_exc()}")
         return {
             'overall_avg_accuracy': 0,
             'overall_weighted_accuracy': 0,
@@ -1080,6 +1105,33 @@ def create_model_analysis_charts(df_valid):
 # 加载数据
 with st.spinner('🔄 正在加载数据...'):
     df_all, df_valid = load_and_process_data()
+    
+    # 在侧边栏显示数据加载信息
+    with st.sidebar:
+        st.write("### 📊 数据加载信息")
+        st.write(f"原始数据行数: {len(df_all) if not df_all.empty else 0}")
+        st.write(f"有效数据行数: {len(df_valid) if not df_valid.empty else 0}")
+        
+        if not df_valid.empty:
+            st.write(f"产品数量: {df_valid['产品简称'].nunique()}")
+            st.write(f"月份范围: {df_valid['月份'].min().strftime('%Y-%m')} 至 {df_valid['月份'].max().strftime('%Y-%m')}")
+            
+            # 显示产品准确率详情
+            if st.checkbox("显示产品准确率详情"):
+                product_accuracy = df_valid.groupby('产品简称')['准确率'].agg(['mean', 'count']).round(4)
+                product_accuracy.columns = ['平均准确率', '记录数']
+                product_accuracy['准确率百分比'] = (product_accuracy['平均准确率'] * 100).round(2)
+                st.dataframe(product_accuracy.sort_values('平均准确率', ascending=False))
+                
+                # 导出按钮
+                csv = product_accuracy.to_csv()
+                st.download_button(
+                    label="下载产品准确率数据",
+                    data=csv,
+                    file_name='产品准确率统计.csv',
+                    mime='text/csv'
+                )
+    
     metrics = calculate_metrics(df_valid)
 
 # 页面标题
@@ -1101,7 +1153,8 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
 # 标签1：核心指标总览
 with tab1:
-    if not df_valid.empty and metrics['total_products'] > 0:
+    # 始终显示内容，即使数据有问题
+    if not df_valid.empty:
         # 第一行：整体指标
         col1, col2, col3, col4 = st.columns(4)
         
