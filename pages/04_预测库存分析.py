@@ -2819,6 +2819,7 @@ with tab3:
 # 标签4：库存积压预警详情 - 简化版，只保留批次分析明细
 # 标签4：库存积压预警详情 - 修改后版本
 # 标签4：库存积压预警详情 - 修改后版本
+# 标签4：库存积压预警详情 - 修改后版本
 with tab4:
     st.markdown("### 📋 库存积压预警详情分析")
 
@@ -2879,8 +2880,6 @@ with tab4:
                 (filtered_data['库龄'] <= max_age)
                 ]
 
-            # 删除了原来的风险等级分布统计指标卡片
-
             # 显示筛选结果统计信息
             if not filtered_data.empty:
                 st.markdown(f"#### 📋 批次分析明细表 (共{len(filtered_data)}条记录)")
@@ -2928,23 +2927,23 @@ with tab4:
                 # 美化积压风险字段 - 添加警告图标
                 display_data['一个月积压风险'] = display_data['一个月积压风险'].apply(
                     lambda x: f"🔴 {x}" if '100.0%' in str(x) or float(str(x).replace('%', '')) > 90 else
-                              f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
-                              f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
-                              f"🟢 {x}"
+                    f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
+                    f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
+                    f"🟢 {x}"
                 )
 
                 display_data['两个月积压风险'] = display_data['两个月积压风险'].apply(
                     lambda x: f"🔴 {x}" if '100.0%' in str(x) or float(str(x).replace('%', '')) > 90 else
-                              f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
-                              f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
-                              f"🟢 {x}"
+                    f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
+                    f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
+                    f"🟢 {x}"
                 )
 
                 display_data['三个月积压风险'] = display_data['三个月积压风险'].apply(
                     lambda x: f"🔴 {x}" if '100.0%' in str(x) or float(str(x).replace('%', '')) > 90 else
-                              f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
-                              f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
-                              f"🟢 {x}"
+                    f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
+                    f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
+                    f"🟢 {x}"
                 )
 
                 # 使用增强样式显示表格，添加专门的风险等级样式
