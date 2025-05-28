@@ -455,17 +455,17 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
     # 合并数据
     monthly_trend = monthly_trend.merge(active_customers, on='年月', how='left')
 
-    # 创建综合图表
+    # 创建综合图表 - 优化布局
     fig = make_subplots(
         rows=3, cols=2,
         row_heights=[0.4, 0.3, 0.3],
         column_widths=[0.7, 0.3],
         subplot_titles=(
-            f'{selected_region} - 销售额与订单数趋势',
-            '订单金额分布',
-            '平均客单价与活跃客户数',
-            '各金额区间贡献占比',
-            '环比增长率',
+            f'<b>{selected_region} - 销售额与订单数趋势</b>',
+            '<b>订单金额分布</b>',
+            '<b>平均客单价与活跃客户数</b>',
+            '<b>各金额区间贡献占比</b>',
+            '<b>环比增长率</b>',
             ''
         ),
         specs=[
@@ -473,7 +473,7 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             [{"secondary_y": True}, {"type": "pie"}],
             [{"secondary_y": False, "colspan": 2}, None]
         ],
-        vertical_spacing=0.08,
+        vertical_spacing=0.1,
         horizontal_spacing=0.12
     )
 
@@ -496,8 +496,7 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             customdata=np.column_stack((
                 monthly_trend['环比增长'].fillna(0),
                 monthly_trend['平均客单价']
-            )),
-            yaxis='y1'
+            ))
         ),
         row=1, col=1, secondary_y=False
     )
@@ -515,8 +514,7 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
                           '订单数: %{y}笔<br>' +
                           '环比: %{customdata:.1f}%<br>' +
                           '<extra></extra>',
-            customdata=monthly_trend['订单环比'].fillna(0),
-            yaxis='y2'
+            customdata=monthly_trend['订单环比'].fillna(0)
         ),
         row=1, col=1, secondary_y=True
     )
@@ -554,7 +552,6 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             y=monthly_trend['平均客单价'],
             name='平均客单价',
             marker_color='rgba(52, 152, 219, 0.6)',
-            yaxis='y5',
             hovertemplate='<b>%{x}</b><br>' +
                           '平均客单价: ¥%{y:,.0f}<br>' +
                           '标准差: ¥%{customdata:,.0f}<br>' +
@@ -572,7 +569,6 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             name='活跃客户数',
             line=dict(color='#e74c3c', width=3),
             marker=dict(size=8),
-            yaxis='y6',
             hovertemplate='<b>%{x}</b><br>' +
                           '活跃客户: %{y}家<br>' +
                           '<extra></extra>'
@@ -623,7 +619,7 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
         row=3, col=1
     )
 
-    # 添加零线 - 修复方式：使用 add_shape 替代 add_hline
+    # 添加零线
     fig.add_shape(
         type="line",
         x0=0,
@@ -649,7 +645,7 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
     fig.update_yaxes(title_text="活跃客户数", row=2, col=1, secondary_y=True)
     fig.update_yaxes(title_text="环比增长率 (%)", row=3, col=1)
 
-    # 总体布局设置
+    # 总体布局设置 - 优化样式
     fig.update_layout(
         height=900,
         showlegend=True,
@@ -660,7 +656,7 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
             'text': f'<b>{selected_region} - 销售综合分析仪表板</b><br>' +
                     f'<span style="font-size:14px; color:#666;">总销售额: {format_amount(total_sales)} | ' +
                     f'总订单数: {total_orders:,} | 平均客单价: {format_amount(avg_order_value)}</span>',
-            'font': {'size': 20, 'color': '#2d3748'},
+            'font': {'size': 22, 'color': '#2d3748', 'family': 'Microsoft YaHei, Arial'},
             'x': 0.5,
             'xanchor': 'center',
             'y': 0.98,
@@ -669,20 +665,26 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
         legend=dict(
             orientation="h",
             yanchor="bottom",
-            y=-0.15,
+            y=-0.12,
             xanchor="center",
             x=0.5,
-            bgcolor='rgba(255, 255, 255, 0.8)',
-            bordercolor='rgba(0, 0, 0, 0.1)',
-            borderwidth=1
+            bgcolor='rgba(255, 255, 255, 0.9)',
+            bordercolor='rgba(102, 126, 234, 0.2)',
+            borderwidth=1,
+            font=dict(size=11)
         ),
-        margin=dict(t=100, b=100, l=60, r=60),
+        margin=dict(t=120, b=100, l=80, r=80),
         font=dict(family="Microsoft YaHei, Arial", size=12)
     )
 
     # 设置网格线
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
+
+    # 更新子图标题样式
+    for annotation in fig['layout']['annotations']:
+        if annotation['text']:
+            annotation['font'] = dict(size=14, color='#2d3748', family='Microsoft YaHei')
 
     return fig
 def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
@@ -2367,6 +2369,7 @@ def main():
             st.plotly_chart(charts['target_scatter'], use_container_width=True, key="target_scatter_chart")
 
     # Tab 6: 趋势分析（简化版，移除卡片）
+    # Tab 6: 趋势分析（简化版，移除卡片）
     with tabs[5]:
         if st.button("", key="tab5_hidden", help="", disabled=True, type="secondary"):
             st.session_state.active_tab = 5
@@ -2378,25 +2381,35 @@ def main():
         </div>
         ''', unsafe_allow_html=True)
 
-        # 区域选择器 - 使用form来避免页面刷新
+        # 区域选择器 - 移除form，直接使用selectbox
         if not monthly_data.empty and '所属大区' in monthly_data.columns:
             regions = ['全国'] + sorted(monthly_data['所属大区'].dropna().unique().tolist())
 
-            with st.form(key='region_form'):
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    selected_region = st.selectbox('选择区域', regions, key='region_selector_form')
-                with col2:
-                    submit_button = st.form_submit_button("确定", use_container_width=True)
+            # 初始化session state
+            if 'selected_region' not in st.session_state:
+                st.session_state.selected_region = '全国'
+
+            # 区域选择器
+            col1, col2, col3 = st.columns([2, 1, 3])
+            with col1:
+                selected_region = st.selectbox(
+                    '选择区域',
+                    regions,
+                    index=regions.index(
+                        st.session_state.selected_region) if st.session_state.selected_region in regions else 0,
+                    key='region_selector'
+                )
+                st.session_state.selected_region = selected_region
         else:
             selected_region = '全国'
 
         # 创建增强的趋势分析（单一综合图表）
-        trend_fig = create_integrated_trend_analysis(sales_data, monthly_data, selected_region)
+        with st.spinner(f'正在加载{selected_region}数据...'):
+            trend_fig = create_integrated_trend_analysis(sales_data, monthly_data, selected_region)
 
         if trend_fig:
             # 显示综合图表
-            st.plotly_chart(trend_fig, use_container_width=True, key="integrated_trend_chart")
+            st.plotly_chart(trend_fig, use_container_width=True, key=f"integrated_trend_chart_{selected_region}")
 
             # 趋势洞察
             st.markdown(f"""
