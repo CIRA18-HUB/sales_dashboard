@@ -239,6 +239,24 @@ st.markdown("""
         .page-header { padding: 2rem 1rem; }
         .page-title { font-size: 2.2rem; }
     }
+    
+    /* Plotly图表圆角样式 */
+    .js-plotly-plot {
+        border-radius: 25px !important;
+        overflow: hidden !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* 确保所有图表容器都有圆角 */
+    .stPlotlyChart {
+        border-radius: 25px !important;
+        overflow: hidden !important;
+    }
+    
+    .stPlotlyChart > div {
+        border-radius: 25px !important;
+        overflow: hidden !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -625,12 +643,12 @@ def create_all_products_trend_chart(df_valid):
         return go.Figure()
 
 def create_product_ranking_chart(df_valid, metrics):
-    """创建产品准确率排行榜 - 改进字体大小"""
+    """创建产品准确率排行榜 - 显示全部产品"""
     try:
         product_metrics = metrics['product_metrics']
         
-        # 按平均准确率排序，只显示前30个产品
-        product_metrics = product_metrics.sort_values('平均准确率', ascending=False).head(30)
+        # 按平均准确率排序，显示全部产品
+        product_metrics = product_metrics.sort_values('平均准确率', ascending=False)
         
         # 创建图表
         fig = go.Figure()
@@ -672,11 +690,11 @@ def create_product_ranking_chart(df_valid, metrics):
         # 添加85%参考线
         fig.add_vline(x=85, line_dash="dash", line_color="gray", annotation_text="目标: 85%")
         
-        # 计算需要的高度
-        height = max(800, len(product_metrics) * 30)
+        # 计算需要的高度 - 确保所有产品都能显示
+        height = max(800, len(product_metrics) * 25)
         
         fig.update_layout(
-            title=f"产品预测准确率排行榜（TOP 30）<br><sub>显示平均准确率和平均误差箱数</sub>",
+            title=f"产品预测准确率排行榜（全部{len(product_metrics)}个产品）",
             xaxis_title="预测准确率 (%)",
             yaxis_title="",
             height=height,
@@ -698,7 +716,7 @@ def create_product_ranking_chart(df_valid, metrics):
         return go.Figure()
 
 def create_accuracy_distribution_chart(df_valid):
-    """创建准确率分布图表 - 调整注释位置"""
+    """创建准确率分布图表 - 修复标签重叠"""
     try:
         # 定义准确率区间
         bins = [0, 0.6, 0.8, 0.85, 0.9, 0.95, 1.0]
@@ -734,7 +752,7 @@ def create_accuracy_distribution_chart(df_valid):
                     line=dict(color='white', width=2)
                 ),
                 text=[f"{v}<br>({p:.1f}%)" for v, p in zip(dist_counts.values, dist_percentages.values)],
-                textposition='outside',
+                textposition='auto',  # 改为auto避免重叠
                 hovertemplate="<b>%{x}</b><br>" +
                               "记录数量: %{y}条<br>" +
                               "占比: %{customdata:.1f}%<br>" +
@@ -756,6 +774,7 @@ def create_accuracy_distribution_chart(df_valid):
                 marker=dict(size=10),
                 text=[f"{x:.1f}%" for x in cumulative_pct.values],
                 textposition='top center',
+                textfont=dict(size=10),  # 减小字体避免重叠
                 hovertemplate="<b>%{x}</b><br>" +
                               "累计占比: %{y:.1f}%<br>" +
                               "<extra></extra>"
@@ -808,8 +827,8 @@ def create_accuracy_distribution_chart(df_valid):
         )
         
         fig.update_xaxes(title_text="准确率区间", row=1, col=1)
-        fig.update_yaxes(title_text="记录数量", secondary_y=False, row=1, col=1, showgrid=True)
-        fig.update_yaxes(title_text="累计占比 (%)", secondary_y=True, row=1, col=1)
+        fig.update_yaxes(title_text="记录数量", secondary_y=False, row=1, col=1, showgrid=True, range=[0, max(dist_counts.values)*1.3])  # 增加Y轴范围
+        fig.update_yaxes(title_text="累计占比 (%)", secondary_y=True, row=1, col=1, range=[0, 110])  # 增加Y轴范围
         
         fig.update_layout(
             title="预测准确率与误差分布分析",
@@ -819,7 +838,8 @@ def create_accuracy_distribution_chart(df_valid):
             plot_bgcolor='rgba(255,255,255,0.9)',
             margin=dict(l=50, r=100, t=100, b=100),
             font=dict(color='black'),
-            showlegend=True
+            showlegend=True,
+            bargap=0.2  # 增加柱间距
         )
         
         return fig
@@ -970,9 +990,13 @@ st.markdown("""
 <div class="threshold-notice">
     <b>📏 准确率计算方法说明</b><br>
     本系统采用<b>20箱容错阈值</b>计算准确率：<br>
-    • 当预测误差 ≤ 20箱时，准确率为 <b>100%</b><br>
-    • 当预测误差 > 20箱时，准确率 = 100% - 相对误差百分比<br>
-    • 该方法兼顾了绝对误差和相对误差，对不同销量级别的产品更加公平
+    • 如果绝对误差 ≤ 20箱，准确率为 <b>100%</b><br>
+    • 如果实际值为0，且预测值 ≤ 20箱，准确率为 <b>100%</b><br>
+    • 否则，准确率 = 100 - (绝对误差/实际值)×100<br><br>
+    <b>📊 指标说明</b><br>
+    • <b>整体平均准确率</b>：简单平均，每个产品权重相同，考虑所有历史准确率<br>
+    • <b>加权整体准确率</b>：加权平均，销量大的产品影响更大<br>
+    • <b>最近准确率</b>：只考虑最近一次预测结果的简单平均
 </div>
 """, unsafe_allow_html=True)
 
@@ -1085,7 +1109,7 @@ with tab1:
         
         # 第三部分：准确率分布统计
         st.markdown("### 📊 准确率分布统计")
-        col9, col10, col11, col12, col13 = st.columns(5)
+        col9, col10, col11, col12 = st.columns(4)
         
         with col9:
             st.markdown(f"""
@@ -1098,15 +1122,6 @@ with tab1:
         
         with col10:
             st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{metrics['products_with_records']}</div>
-                <div class="metric-label">📝 有记录产品</div>
-                <div class="metric-description">有预测记录</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col11:
-            st.markdown(f"""
             <div class="metric-card accuracy-excellent">
                 <div class="metric-value">{metrics['high_accuracy_count']}</div>
                 <div class="metric-label">🟢 高准确率</div>
@@ -1114,7 +1129,7 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
         
-        with col12:
+        with col11:
             st.markdown(f"""
             <div class="metric-card accuracy-medium">
                 <div class="metric-value">{metrics['medium_accuracy_count']}</div>
@@ -1123,7 +1138,7 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
         
-        with col13:
+        with col12:
             st.markdown(f"""
             <div class="metric-card accuracy-low">
                 <div class="metric-value">{metrics['low_accuracy_count']}</div>
@@ -1278,7 +1293,7 @@ st.markdown("---")
 st.markdown(
     f"""
     <div style="text-align: center; color: rgba(102, 126, 234, 0.8); font-family: 'Inter', sans-serif; font-size: 0.9rem; margin-top: 2rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 10px;">
-        🤖 Powered by Machine Learning & Streamlit | 智能预测分析平台 | 最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+        🤖 Powered by Machine Learning & Streamlit | 机器学习模型预测分析平台 | 最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}
     </div>
     """,
     unsafe_allow_html=True
