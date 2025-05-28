@@ -2818,6 +2818,7 @@ with tab3:
 # 标签4：库存积压预警详情 - 完整移植附件一的报告格式
 # 标签4：库存积压预警详情 - 简化版，只保留批次分析明细
 # 标签4：库存积压预警详情 - 修改后版本
+w# 标签4：库存积压预警详情 - 修改后版本
 with tab4:
     st.markdown("### 📋 库存积压预警详情分析")
 
@@ -2884,12 +2885,23 @@ with tab4:
             if not filtered_data.empty:
                 st.markdown(f"#### 📋 批次分析明细表 (共{len(filtered_data)}条记录)")
 
-                # 准备显示的列 - 风险程度字段排在第一列
+                # 风险程度排序：极高风险排第一，以此类推
+                risk_order = {
+                    '极高风险': 1,
+                    '高风险': 2,
+                    '中风险': 3,
+                    '低风险': 4,
+                    '极低风险': 5
+                }
+                filtered_data['风险排序'] = filtered_data['风险程度'].map(risk_order)
+                filtered_data = filtered_data.sort_values('风险排序')
+
+                # 准备显示的列 - 风险程度字段排在第一列，积压风险字段紧跟其后
                 display_columns = [
-                    '风险程度',  # 移至第一列
+                    '风险程度',  # 第一列
+                    '一个月积压风险', '两个月积压风险', '三个月积压风险',  # 积压风险字段紧跟其后
                     '物料', '描述', '批次日期', '批次库存', '库龄', '批次价值',
                     '日均出货', '出货波动系数', '预计清库天数',
-                    '一个月积压风险', '两个月积压风险', '三个月积压风险',
                     '积压原因', '季节性指数', '预测偏差',
                     '责任区域', '责任人', '责任分析摘要',
                     '风险得分', '建议措施'
@@ -2897,6 +2909,10 @@ with tab4:
 
                 # 格式化显示数据
                 display_data = filtered_data[display_columns].copy()
+
+                # 删除临时的风险排序列
+                if '风险排序' in display_data.columns:
+                    display_data = display_data.drop('风险排序', axis=1)
 
                 # 格式化数值列
                 display_data['批次价值'] = display_data['批次价值'].apply(lambda x: f"¥{x:,.0f}")
@@ -2912,23 +2928,23 @@ with tab4:
                 # 美化积压风险字段 - 添加警告图标
                 display_data['一个月积压风险'] = display_data['一个月积压风险'].apply(
                     lambda x: f"🔴 {x}" if '100.0%' in str(x) or float(str(x).replace('%', '')) > 90 else
-                    f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
-                    f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
-                    f"🟢 {x}"
+                              f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
+                              f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
+                              f"🟢 {x}"
                 )
-
+                
                 display_data['两个月积压风险'] = display_data['两个月积压风险'].apply(
                     lambda x: f"🔴 {x}" if '100.0%' in str(x) or float(str(x).replace('%', '')) > 90 else
-                    f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
-                    f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
-                    f"🟢 {x}"
+                              f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
+                              f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
+                              f"🟢 {x}"
                 )
-
+                
                 display_data['三个月积压风险'] = display_data['三个月积压风险'].apply(
                     lambda x: f"🔴 {x}" if '100.0%' in str(x) or float(str(x).replace('%', '')) > 90 else
-                    f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
-                    f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
-                    f"🟢 {x}"
+                              f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
+                              f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
+                              f"🟢 {x}"
                 )
 
                 # 使用增强样式显示表格，添加专门的风险等级样式
@@ -3167,15 +3183,43 @@ with tab4:
                         }
                     }
 
-                    /* 积压风险列样式美化 */
-                    [data-testid="stDataFrame"] tbody td:contains("🔴") {
+                    /* 积压风险列样式美化 - 针对第2、3、4列 */
+                    [data-testid="stDataFrame"] tbody td:nth-child(2):contains("🔴"),
+                    [data-testid="stDataFrame"] tbody td:nth-child(3):contains("🔴"),
+                    [data-testid="stDataFrame"] tbody td:nth-child(4):contains("🔴") {
                         animation: riskIndicatorPulse 2s ease-in-out infinite;
                         font-weight: 700 !important;
+                        background: rgba(220, 20, 60, 0.1) !important;
+                        border-radius: 8px;
+                        padding: 0.5rem !important;
                     }
 
-                    [data-testid="stDataFrame"] tbody td:contains("🟠") {
+                    [data-testid="stDataFrame"] tbody td:nth-child(2):contains("🟠"),
+                    [data-testid="stDataFrame"] tbody td:nth-child(3):contains("🟠"),
+                    [data-testid="stDataFrame"] tbody td:nth-child(4):contains("🟠") {
                         animation: riskIndicatorGlow 3s ease-in-out infinite;
                         font-weight: 600 !important;
+                        background: rgba(255, 165, 0, 0.1) !important;
+                        border-radius: 8px;
+                        padding: 0.5rem !important;
+                    }
+
+                    [data-testid="stDataFrame"] tbody td:nth-child(2):contains("🟡"),
+                    [data-testid="stDataFrame"] tbody td:nth-child(3):contains("🟡"),
+                    [data-testid="stDataFrame"] tbody td:nth-child(4):contains("🟡") {
+                        font-weight: 600 !important;
+                        background: rgba(255, 255, 0, 0.1) !important;
+                        border-radius: 8px;
+                        padding: 0.5rem !important;
+                    }
+
+                    [data-testid="stDataFrame"] tbody td:nth-child(2):contains("🟢"),
+                    [data-testid="stDataFrame"] tbody td:nth-child(3):contains("🟢"),
+                    [data-testid="stDataFrame"] tbody td:nth-child(4):contains("🟢") {
+                        font-weight: 500 !important;
+                        background: rgba(144, 238, 144, 0.1) !important;
+                        border-radius: 8px;
+                        padding: 0.5rem !important;
                     }
 
                     @keyframes riskIndicatorPulse {
