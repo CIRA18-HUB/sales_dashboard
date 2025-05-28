@@ -623,8 +623,18 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
         row=3, col=1
     )
 
-    # 添加零线
-    fig.add_hline(y=0, line_dash="dash", line_color="gray", row=3, col=1, opacity=0.5)
+    # 添加零线 - 修复方式：使用 add_shape 替代 add_hline
+    fig.add_shape(
+        type="line",
+        x0=0,
+        x1=1,
+        y0=0,
+        y1=0,
+        xref="x5 domain",
+        yref="y7",
+        line=dict(color="gray", width=1, dash="dash"),
+        opacity=0.5
+    )
 
     # 更新布局
     fig.update_xaxes(title_text="", row=1, col=1, tickangle=-45)
@@ -2116,7 +2126,6 @@ def main():
             total_revenue = metrics['rfm_df']['M'].sum()
             top_revenue = metrics['rfm_df'][metrics['rfm_df']['类型'].isin(['钻石客户', '黄金客户'])]['M'].sum()
             risk_revenue = metrics['rfm_df'][metrics['rfm_df']['类型'] == '流失风险']['M'].sum()
-            avg_customer_value = total_revenue / len(metrics['rfm_df']) if len(metrics['rfm_df']) > 0 else 0
 
             with col1:
                 top_percentage = (top_revenue / total_revenue * 100) if total_revenue > 0 else 0
@@ -2139,48 +2148,15 @@ def main():
                 """, unsafe_allow_html=True)
 
             with col3:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value">{format_amount(avg_customer_value)}</div>
-                    <div class="metric-label">平均客户价值</div>
-                    <div class="metric-sublabel">年度平均</div>
-                </div>
-                """, unsafe_allow_html=True)
+                # 计算订单相关指标
+                total_orders_all = len(sales_data) if not sales_data.empty else 0
+                avg_order_value_all = total_revenue / total_orders_all if total_orders_all > 0 else 0
 
-        # 新增趋势分析关键指标（从Tab 6移过来）
-        st.markdown("### 📊 趋势分析关键指标")
-
-        # 计算全国数据
-        if not sales_data.empty:
-            total_sales_all = sales_data['金额'].sum()
-            total_orders_all = len(sales_data)
-            avg_order_value_all = total_sales_all / total_orders_all if total_orders_all > 0 else 0
-
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value">{format_amount(total_sales_all)}</div>
-                    <div class="metric-label">全国总销售额</div>
-                    <div class="metric-sublabel">年度累计</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-            with col2:
                 st.markdown(f"""
                 <div class="metric-card">
                     <div class="metric-value">{total_orders_all:,}</div>
-                    <div class="metric-label">全国总订单数</div>
-                    <div class="metric-sublabel">年度累计</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-            with col3:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value">{format_amount(avg_order_value_all)}</div>
-                    <div class="metric-label">全国平均客单价</div>
-                    <div class="metric-sublabel">年度平均</div>
+                    <div class="metric-label">年度总订单数</div>
+                    <div class="metric-sublabel">平均客单价: {format_amount(avg_order_value_all)}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
