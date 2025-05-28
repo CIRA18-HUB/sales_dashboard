@@ -547,14 +547,61 @@ def load_data():
         st.error(f"数据加载错误: {str(e)}")
         return None
 
-# 计算总体指标（基于后续所有分析）
-def calculate_comprehensive_metrics(data):
+# 添加缓存函数来优化BCG矩阵计算
+@st.cache_data
+def analyze_product_bcg_cached(sales_df, dashboard_products, year, region=None):
+    """缓存BCG矩阵分析结果"""
+    if region:
+        sales_df = sales_df[sales_df['区域'] == region]
+    return analyze_product_bcg_comprehensive(sales_df, dashboard_products)
+
+# 添加缓存函数来优化促销分析
+@st.cache_data
+def analyze_promotion_cached(promotion_df, sales_df):
+    """缓存促销分析结果"""
+    data = {
+        'promotion_df': promotion_df,
+        'sales_df': sales_df
+    }
+    return analyze_promotion_effectiveness_enhanced(data)
+
+# 添加缓存函数来优化产品关联网络
+@st.cache_data
+def create_product_network_cached(sales_df, dashboard_products, star_products, new_products, promotion_df, product_filter):
+    """缓存产品关联网络计算"""
+    data = {
+        'sales_df': sales_df,
+        'dashboard_products': dashboard_products,
+        'star_products': star_products,
+        'new_products': new_products,
+        'promotion_df': promotion_df
+    }
+    return create_real_product_network(data, product_filter)
+
+# 添加缓存函数来优化有效产品分析
+@st.cache_data
+def analyze_effective_products_cached(sales_df, dashboard_products, dimension='national', selected_region=None):
+    """缓存有效产品分析结果"""
+    data = {
+        'sales_df': sales_df,
+        'dashboard_products': dashboard_products
+    }
+    return analyze_effective_products(data, dimension, selected_region)
+
+# 添加缓存函数来优化增长率分析
+@st.cache_data
+def analyze_growth_rates_cached(sales_df, dashboard_products):
+    """缓存增长率分析结果"""
+    data = {
+        'sales_df': sales_df,
+        'dashboard_products': dashboard_products
+    }
+    return analyze_product_growth_rates(data)
+
+# 计算总体指标（基于后续所有分析）- 添加缓存
+@st.cache_data
+def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashboard_products, promotion_df):
     """计算产品情况总览的各项指标（基于所有分析）"""
-    sales_df = data['sales_df']
-    star_products = data['star_products']
-    new_products = data['new_products']
-    dashboard_products = data['dashboard_products']
-    
     # 2025年数据
     sales_2025 = sales_df[sales_df['发运月份'].dt.year == 2025]
     
@@ -588,13 +635,21 @@ def calculate_comprehensive_metrics(data):
     jbp_status = 'YES' if (45 <= cow_ratio <= 50 and 40 <= star_question_ratio <= 45) else 'NO'
     
     # 促销有效性
+    data = {
+        'promotion_df': promotion_df,
+        'sales_df': sales_df
+    }
     promo_results = analyze_promotion_effectiveness_enhanced(data)
     promo_effectiveness = (promo_results['is_effective'].sum() / len(promo_results) * 100) if len(promo_results) > 0 else 0
     
     # 有效产品分析
-    effective_rate_all = calculate_effective_products_rate(sales_2025, data['dashboard_products'])
+    effective_rate_all = calculate_effective_products_rate(sales_2025, dashboard_products)
     
     # 计算有效产品详细数据
+    data = {
+        'sales_df': sales_df,
+        'dashboard_products': dashboard_products
+    }
     product_analysis_eff = analyze_effective_products(data, 'national')
     effective_products = product_analysis_eff[product_analysis_eff['is_effective'] == True]
     effective_count = len(effective_products)
@@ -1085,28 +1140,47 @@ def create_real_product_network(data, product_filter='all'):
     
     # 严格过滤销售数据，确保只包含仪表盘产品
     sales_df_filtered = sales_df[sales_df['产品代码'].isin(filtered_products)]
+    
+    # 如果没有数据，返回空图
+    if len(filtered_products) == 0 or len(sales_df_filtered) == 0:
+        fig = go.Figure()
+        fig.update_layout(
+            title=dict(text=f"<b>{filter_title}产品关联网络分析</b><br><i style='font-size:14px'>暂无满足条件的产品</i>", font=dict(size=20)),
+            xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            height=700,
+            plot_bgcolor='rgba(248,249,250,0.5)'
+        )
+        return fig
     product_pairs = []
     
     # 创建产品代码到产品名称的映射（确保唯一性）
     product_name_map = {}
+    # 创建产品代码到客户集合的映射，优化性能
+    product_customers_map = {}
+    
     for product in filtered_products:
         product_data = sales_df_filtered[sales_df_filtered['产品代码'] == product]
         if len(product_data) > 0:
             # 使用第一个出现的产品简称
             product_name = product_data['产品简称'].iloc[0]
+            # 缓存客户集合
+            product_customers_map[product] = set(product_data['客户名称'].unique())
         else:
             # 如果在销售数据中找不到，尝试在所有销售数据中查找
             all_product_data = sales_df[sales_df['产品代码'] == product]
             if len(all_product_data) > 0:
                 product_name = all_product_data['产品简称'].iloc[0]
+                product_customers_map[product] = set()
             else:
                 product_name = product
+                product_customers_map[product] = set()
         product_name_map[product] = product_name
     
     # 降低关联度门槛以显示更多连接
     for prod1, prod2 in combinations(filtered_products, 2):
-        customers_prod1 = set(sales_df_filtered[sales_df_filtered['产品代码'] == prod1]['客户名称'].unique())
-        customers_prod2 = set(sales_df_filtered[sales_df_filtered['产品代码'] == prod2]['客户名称'].unique())
+        customers_prod1 = product_customers_map.get(prod1, set())
+        customers_prod2 = product_customers_map.get(prod2, set())
         
         common_customers = customers_prod1.intersection(customers_prod2)
         total_customers = customers_prod1.union(customers_prod2)
@@ -1731,7 +1805,7 @@ def create_growth_rate_charts(growth_df):
         x=active_products['product_name'],
         y=active_products['yoy_sales_growth'],
         marker=dict(color=yoy_colors, line=dict(width=0)),
-        text=[f"{val:.1f}%" if not row['is_new_product'] else "新品" 
+        text=[f"{row['yoy_sales_growth']:.1f}%" if not row['is_new_product'] else "新品" 
               for _, row in active_products.iterrows()],
         textposition='outside',
         textfont=dict(size=10),
@@ -1820,7 +1894,13 @@ def main():
     
     # Tab 1: 产品情况总览 - 4个卡片/行布局
     with tabs[0]:
-        metrics = calculate_comprehensive_metrics(data)
+        metrics = calculate_comprehensive_metrics(
+            data['sales_df'],
+            data['star_products'],
+            data['new_products'],
+            data['dashboard_products'],
+            data['promotion_df']
+        )
         
         # 第一行：4个卡片
         col1, col2, col3, col4 = st.columns(4)
@@ -1935,20 +2015,30 @@ def main():
         # 选择维度控件
         bcg_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True, key="bcg_dimension")
         
-        # 获取分析数据
+        # 获取分析数据 - 使用缓存版本
         if bcg_dimension == "🌏 全国维度":
-            product_analysis = create_bcg_matrix(data, 'national')
+            product_analysis = analyze_product_bcg_cached(
+                data['sales_df'][data['sales_df']['产品代码'].isin(data['dashboard_products'])], 
+                data['dashboard_products'], 
+                2025
+            )
             title = "BCG产品矩阵"
             selected_region = None
         else:
             regions = data['sales_df']['区域'].unique()
             selected_region = st.selectbox("🗺️ 选择区域", regions)
-            product_analysis = create_bcg_matrix(data, 'regional', selected_region)
+            product_analysis = analyze_product_bcg_cached(
+                data['sales_df'][data['sales_df']['产品代码'].isin(data['dashboard_products'])], 
+                data['dashboard_products'], 
+                2025,
+                selected_region
+            )
             title = f"{selected_region}区域 BCG产品矩阵"
         
         # 显示BCG矩阵图表
         if len(product_analysis) > 0:
-            fig = plot_bcg_matrix(product_analysis, title=title)
+            with st.spinner('正在生成BCG矩阵图...'):
+                fig = plot_bcg_matrix(product_analysis, title=title)
             st.plotly_chart(fig, use_container_width=True)
             
             # JBP符合度分析
@@ -1988,7 +2078,7 @@ def main():
     
     # Tab 3: 全国促销活动有效性
     with tabs[2]:
-        promo_results = analyze_promotion_effectiveness_enhanced(data)
+        promo_results = analyze_promotion_cached(data['promotion_df'], data['sales_df'])
         
         if len(promo_results) > 0:
             # 计算有效率并显示在标题中
@@ -2292,8 +2382,16 @@ def main():
                 else:
                     st.info("🚀 **促销品关联网络**: 展示仪表盘产品中所有促销产品之间的客户关联关系")
             
-            # 创建基于真实数据的2D网络图
-            network_fig = create_real_product_network(data, product_filter)
+            # 创建基于真实数据的2D网络图 - 使用缓存版本
+            with st.spinner('正在生成产品关联网络图...'):
+                network_fig = create_product_network_cached(
+                    data['sales_df'],
+                    data['dashboard_products'],
+                    data['star_products'],
+                    data['new_products'],
+                    data['promotion_df'],
+                    product_filter
+                )
             st.plotly_chart(network_fig, use_container_width=True)
             
             # 关联分析洞察
@@ -2357,12 +2455,21 @@ def main():
             eff_dimension = st.radio("选择分析维度", ["🌏 全国维度", "🗺️ 分区域维度"], horizontal=True, key="eff_dimension")
             
             if eff_dimension == "🌏 全国维度":
-                product_analysis = analyze_effective_products(data, 'national')
+                product_analysis = analyze_effective_products_cached(
+                    data['sales_df'],
+                    data['dashboard_products'],
+                    'national'
+                )
                 title = "全国有效产品分析"
             else:
                 regions = data['sales_df']['区域'].unique()
                 selected_region = st.selectbox("选择区域", regions)
-                product_analysis = analyze_effective_products(data, 'regional', selected_region)
+                product_analysis = analyze_effective_products_cached(
+                    data['sales_df'],
+                    data['dashboard_products'],
+                    'regional',
+                    selected_region
+                )
                 title = f"{selected_region}区域有效产品分析"
             
             if len(product_analysis) > 0:
@@ -2387,8 +2494,11 @@ def main():
         else:  # 环比同比分析
             st.subheader("📊 仪表盘产品环比同比分析")
             
-            # 分析产品增长率
-            growth_df = analyze_product_growth_rates(data)
+            # 分析产品增长率 - 使用缓存版本
+            growth_df = analyze_growth_rates_cached(
+                data['sales_df'],
+                data['dashboard_products']
+            )
             
             if len(growth_df) > 0:
                 # 创建环比同比图表
