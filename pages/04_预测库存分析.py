@@ -1960,9 +1960,9 @@ def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region=
         # 添加参考线 - 修复重叠问题
         # 目标线:85% - 调整注释位置
         fig.add_vline(
-            x=85, 
-            line_dash="dash", 
-            line_color="red", 
+            x=85,
+            line_dash="dash",
+            line_color="red",
             line_width=2
         )
 
@@ -1985,9 +1985,9 @@ def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region=
 
         # 添加优秀线:90% - 调整注释位置
         fig.add_vline(
-            x=90, 
-            line_dash="dot", 
-            line_color="green", 
+            x=90,
+            line_dash="dot",
+            line_color="green",
             line_width=2
         )
 
@@ -3216,7 +3216,7 @@ with tab3:
 # 标签4：库存积压预警详情 - 修改后版本
 # 标签4：库存积压预警详情 - 修改后版本
 # 标签4：库存积压预警详情 - 修改后版本
-w# 标签4：库存积压预警详情分析 - 简化版，只保留批次分析明细
+# 标签4：库存积压预警详情分析 - 简化版，只保留批次分析明细
 with tab4:
     st.markdown("### 📋 库存积压预警详情分析")
 
