@@ -2274,7 +2274,7 @@ def main():
                     "🎯 筛选产品类型",
                     options=['all', 'star', 'new', 'promo'],
                     format_func=lambda x: {
-                        'all': '全部产品',
+                        'all': '全部仪表盘产品',
                         'star': '⭐ 星品',
                         'new': '🌟 新品',
                         'promo': '🚀 促销品'
@@ -2284,13 +2284,13 @@ def main():
             
             with col2:
                 if product_filter == 'all':
-                    st.info("💡 **节点颜色说明**: 🟡 星品 | 🟢 新品 | 🟠 促销品 | 🟣 常规品")
+                    st.info("💡 **节点颜色说明**: 🟡 星品 | 🟢 新品 | 🟠 促销品 | 🟣 常规品<br>**注**: 显示仪表盘产品代码.txt中的所有产品")
                 elif product_filter == 'star':
-                    st.info("⭐ **星品关联网络**: 展示所有星品之间的客户关联关系")
+                    st.info("⭐ **星品关联网络**: 展示仪表盘产品中所有星品之间的客户关联关系")
                 elif product_filter == 'new':
-                    st.info("🌟 **新品关联网络**: 展示所有新品之间的客户关联关系")
+                    st.info("🌟 **新品关联网络**: 展示仪表盘产品中所有新品之间的客户关联关系")
                 else:
-                    st.info("🚀 **促销品关联网络**: 展示所有促销产品之间的客户关联关系")
+                    st.info("🚀 **促销品关联网络**: 展示仪表盘产品中所有促销产品之间的客户关联关系")
             
             # 创建基于真实数据的2D网络图
             network_fig = create_real_product_network(data, product_filter)
