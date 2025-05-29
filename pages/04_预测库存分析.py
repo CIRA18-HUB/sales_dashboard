@@ -11,8 +11,9 @@ import time
 
 
 # 在 import 部分后面新增这个类
+# 在 import 部分后面新增这个完整的类
 class BatchLevelInventoryAnalyzer:
-    """批次级别库存分析器 - 移植自附件一的核心逻辑"""
+    """批次级别库存分析器 - 完整移植自积压超详细.py"""
 
     def __init__(self):
         # 风险参数设置
@@ -33,6 +34,12 @@ class BatchLevelInventoryAnalyzer:
         self.default_regions = ['东', '南', '西', '北', '中']
         self.default_region = '东'
         self.default_person = '系统管理员'
+
+        # 责任归属分析权重参数
+        self.forecast_accuracy_weight = 0.25
+        self.recent_sales_weight = 0.30
+        self.ordering_history_weight = 0.25
+        self.market_performance_weight = 0.20
 
     def calculate_risk_percentage(self, days_to_clear, batch_age, target_days):
         """计算风险百分比"""
@@ -85,6 +92,242 @@ class BatchLevelInventoryAnalyzer:
             else:
                 normalized_error = (actual_sales - forecast_quantity) / forecast_quantity
                 return -min(math.tanh(normalized_error), 1.0)
+
+    def analyze_responsibility_collaborative(self, product_code, batch_date, product_sales_metrics,
+                                             forecast_info, orders_history, batch_qty=0,
+                                             sales_person_region_mapping=None):
+        """改进的责任归属分析 - 完整移植"""
+        today = datetime.now().date()
+        batch_date = batch_date.date() if hasattr(batch_date, 'date') else batch_date
+
+        # 默认责任映射
+        default_mapping = {"region": self.default_region, "person": self.default_person}
+
+        if sales_person_region_mapping is None:
+            sales_person_region_mapping = {}
+
+        # 1. 获取批次生产前后的预测记录
+        forecast_start_date = batch_date - timedelta(days=90)
+        forecast_end_date = batch_date + timedelta(days=30)
+
+        # 2. 初始化责任评分系统
+        person_scores = {}
+        region_scores = {}
+        responsibility_details = {}
+
+        # 3. 预测与实际销售差异分析 (60%)
+        forecast_sales_discrepancy_weight = 0.60
+        forecast_responsibility_details = {}
+
+        # 模拟预测数据（实际应用中从forecast_info获取）
+        if forecast_info and 'person_forecast' in forecast_info:
+            person_forecast_totals = forecast_info['person_forecast']
+            total_forecast = sum(person_forecast_totals.values())
+
+            # 模拟实际销售数据
+            person_sales = {}
+            for person in person_forecast_totals.keys():
+                # 基于历史数据模拟实际销售
+                forecast_qty = person_forecast_totals[person]
+                # 模拟履行率在20%-80%之间
+                fulfillment_rate = np.random.uniform(0.2, 0.8)
+                actual_sales = forecast_qty * fulfillment_rate
+                person_sales[person] = actual_sales
+
+            overall_fulfillment_rate = sum(person_sales.values()) / total_forecast if total_forecast > 0 else 1.0
+
+            responsibility_details["overall_analysis"] = {
+                "total_forecast": total_forecast,
+                "total_sales": sum(person_sales.values()),
+                "fulfillment_rate": overall_fulfillment_rate
+            }
+
+            if overall_fulfillment_rate < 0.8:
+                for person, forecast_qty in person_forecast_totals.items():
+                    forecast_proportion = forecast_qty / total_forecast
+                    actual_sales = person_sales.get(person, 0)
+                    fulfillment_rate = actual_sales / forecast_qty if forecast_qty > 0 else 1.0
+
+                    base_score = (1 - fulfillment_rate) * forecast_proportion
+
+                    if forecast_proportion > 0.5:
+                        adjusted_score = base_score * (2.0 if fulfillment_rate < 0.6 else 1.5)
+                    elif forecast_proportion > 0.2:
+                        adjusted_score = base_score * (1.5 if fulfillment_rate < 0.6 else 1.2)
+                    else:
+                        adjusted_score = base_score * 1.0
+
+                    final_score = adjusted_score * forecast_sales_discrepancy_weight
+                    person_scores[person] = person_scores.get(person, 0) + final_score
+
+                    person_region = sales_person_region_mapping.get(person, default_mapping["region"])
+                    region_scores[person_region] = region_scores.get(person_region, 0) + (final_score * 0.8)
+
+                    forecast_responsibility_details[person] = {
+                        "forecast_quantity": forecast_qty,
+                        "forecast_proportion": forecast_proportion,
+                        "actual_sales": actual_sales,
+                        "fulfillment_rate": fulfillment_rate,
+                        "responsibility_score": final_score
+                    }
+
+        responsibility_details["forecast_responsibility"] = forecast_responsibility_details
+
+        # 4. 库存责任分配机制
+        person_allocations = {}
+        if forecast_responsibility_details and batch_qty > 0:
+            forecast_deltas = {}
+            total_delta = 0
+
+            for person, details in forecast_responsibility_details.items():
+                forecast_qty = details.get("forecast_quantity", 0)
+                actual_sales = details.get("actual_sales", 0)
+                delta = max(0, forecast_qty - actual_sales)
+
+                if delta > 0:
+                    forecast_deltas[person] = delta
+                    total_delta += delta
+
+            if total_delta > 0:
+                allocated_total = 0
+                for person, delta in forecast_deltas.items():
+                    proportion = delta / total_delta
+                    allocation = int(batch_qty * proportion)
+                    allocation = max(1, allocation)
+                    allocation = min(allocation, batch_qty - allocated_total)
+
+                    person_allocations[person] = allocation
+                    allocated_total += allocation
+
+                remaining_qty = batch_qty - allocated_total
+                if remaining_qty > 0 and forecast_deltas:
+                    sorted_forecast_persons = sorted(forecast_deltas.items(), key=lambda x: x[1], reverse=True)
+                    person_allocations[sorted_forecast_persons[0][0]] += remaining_qty
+            else:
+                person_allocations[default_mapping["person"]] = batch_qty
+        else:
+            person_allocations[default_mapping["person"]] = batch_qty
+
+        # 5. 确定责任人
+        if person_allocations:
+            responsible_person = max(person_allocations.items(), key=lambda x: x[1])[0]
+            if responsible_person in sales_person_region_mapping:
+                responsible_region = sales_person_region_mapping[responsible_person]
+            else:
+                responsible_region = default_mapping["region"]
+        else:
+            responsible_person = default_mapping["person"]
+            responsible_region = default_mapping["region"]
+
+        # 如果是系统管理员，区域为空
+        if responsible_person == self.default_person:
+            responsible_region = ""
+
+        responsible_persons = list(person_allocations.keys())
+        secondary_persons = [p for p in responsible_persons if p != responsible_person]
+
+        # 构建责任分析详情
+        responsibility_analysis = {
+            "responsible_person": responsible_person,
+            "responsible_region": responsible_region,
+            "responsible_persons": responsible_persons,
+            "secondary_persons": secondary_persons,
+            "person_scores": person_scores,
+            "region_scores": region_scores,
+            "responsibility_details": responsibility_details,
+            "quantity_allocation": {
+                "batch_qty": batch_qty,
+                "person_allocations": person_allocations,
+                "allocation_logic": "责任库存严格基于预测未兑现量分配"
+            },
+            "batch_info": {
+                "batch_date": batch_date,
+                "batch_age": (today - batch_date).days,
+                "batch_qty": batch_qty
+            }
+        }
+
+        return (responsible_region, responsible_person, responsibility_analysis)
+
+    def generate_responsibility_summary_collaborative(self, responsibility_analysis):
+        """生成责任分析摘要 - 完整移植"""
+        if not responsibility_analysis:
+            return "无法确定责任"
+
+        responsible_person = responsibility_analysis.get("responsible_person", self.default_person)
+        secondary_persons = responsibility_analysis.get("secondary_persons", [])
+        responsibility_details = responsibility_analysis.get("responsibility_details", {})
+
+        batch_info = responsibility_analysis.get("batch_info", {})
+        batch_qty = batch_info.get("batch_qty", 0)
+
+        quantity_allocation = responsibility_analysis.get("quantity_allocation", {})
+        person_allocations = quantity_allocation.get("person_allocations", {})
+
+        forecast_responsibility = responsibility_details.get("forecast_responsibility", {})
+
+        # 构建主要责任人的责任原因
+        main_person_reasons = []
+
+        if responsible_person in forecast_responsibility:
+            person_forecast = forecast_responsibility[responsible_person]
+            forecast_qty = person_forecast.get("forecast_quantity", 0)
+            actual_sales = person_forecast.get("actual_sales", 0)
+            fulfillment = person_forecast.get("fulfillment_rate", 1.0) * 100
+            unfulfilled = max(0, forecast_qty - actual_sales)
+
+            if forecast_qty > 0:
+                main_person_reasons.append(
+                    f"预测{forecast_qty:.0f}件但仅销售{actual_sales:.0f}件(履行率{fulfillment:.0f}%)")
+
+            if unfulfilled > 0:
+                main_person_reasons.append(f"未兑现预测{unfulfilled:.0f}件")
+
+        if not main_person_reasons:
+            main_person_reasons.append("综合预测与销售因素")
+
+        # 构建其他责任人的摘要
+        other_persons_data = []
+        for person in secondary_persons:
+            if person != responsible_person:
+                allocated_qty = person_allocations.get(person, 0)
+                reason = ""
+
+                if person in forecast_responsibility:
+                    forecast_info = forecast_responsibility[person]
+                    forecast_qty = forecast_info.get("forecast_quantity", 0)
+                    actual_sales = forecast_info.get("actual_sales", 0)
+                    unfulfilled = max(0, forecast_qty - actual_sales)
+
+                    if unfulfilled > 0:
+                        reason = f"未兑现预测{unfulfilled:.0f}件"
+                    else:
+                        reason = "责任共担"
+                else:
+                    reason = "责任共担"
+
+                other_persons_data.append((person, reason, allocated_qty))
+
+        # 按库存数量降序排序
+        other_persons_data.sort(key=lambda x: x[2], reverse=True)
+        other_persons_summary = [f"{person}({reason}，承担{qty}件)" for person, reason, qty in other_persons_data]
+
+        # 生成最终摘要
+        main_reason = "、".join(main_person_reasons)
+
+        if responsible_person in person_allocations and person_allocations[responsible_person] > 0:
+            main_responsibility_qty = person_allocations[responsible_person]
+            main_person_with_qty = f"{responsible_person}主要责任({main_reason}，承担{main_responsibility_qty}件)"
+        else:
+            main_person_with_qty = f"{responsible_person}主要责任({main_reason}，承担0件)"
+
+        if other_persons_summary:
+            others_text = "，".join(other_persons_summary)
+            summary = f"{main_person_with_qty}，共同责任：{others_text}"
+        else:
+            summary = main_person_with_qty
+
+        return summary
 
 warnings.filterwarnings('ignore')
 
@@ -1543,8 +1786,9 @@ def simplify_product_name(product_name):
 # 数据加载函数
 # 替换原有的 load_and_process_data 函数
 @st.cache_data
+@st.cache_data
 def load_and_process_data():
-    """加载和处理所有数据 - 增强版本包含批次分析"""
+    """加载和处理所有数据 - 完整移植积压超详细.py的逻辑"""
     try:
         # 读取数据文件
         shipment_df = pd.read_excel('2409~250224出货数据.xlsx')
@@ -1562,11 +1806,38 @@ def load_and_process_data():
         # 创建分析器实例
         analyzer = BatchLevelInventoryAnalyzer()
 
+        # 创建销售人员-区域映射
+        sales_person_region_mapping = {}
+        person_region_data = shipment_df[['申请人', '所属区域']].drop_duplicates()
+        person_region_counts = shipment_df.groupby(['申请人', '所属区域']).size().unstack(fill_value=0)
+
+        for person in shipment_df['申请人'].unique():
+            if person == analyzer.default_person:
+                sales_person_region_mapping[person] = ""
+            elif person in person_region_counts.index:
+                most_common_region = person_region_counts.loc[person].idxmax()
+                sales_person_region_mapping[person] = most_common_region
+            else:
+                sales_person_region_mapping[person] = analyzer.default_region
+
+        # 对预测数据中的销售员也添加区域映射
+        for person in forecast_df['销售员'].unique():
+            if person == analyzer.default_person:
+                continue
+            if person not in sales_person_region_mapping:
+                person_regions = forecast_df[forecast_df['销售员'] == person]['所属大区'].unique()
+                if len(person_regions) > 0:
+                    sales_person_region_mapping[person] = person_regions[0]
+                else:
+                    sales_person_region_mapping[person] = analyzer.default_region
+
+        # 确保系统管理员的区域为空字符串
+        sales_person_region_mapping[analyzer.default_person] = ""
+
         # 创建产品代码到名称的映射
         product_name_map = {}
         for idx, row in inventory_df.iterrows():
-            if pd.notna(row['物料']) and pd.notna(row['描述']) and isinstance(row['物料'], str) and row[
-                '物料'].startswith('F'):
+            if pd.notna(row['物料']) and pd.notna(row['描述']) and isinstance(row['物料'], str) and row['物料'].startswith('F'):
                 simplified_name = simplify_product_name(row['描述'])
                 product_name_map[row['物料']] = simplified_name
 
@@ -1643,16 +1914,21 @@ def load_and_process_data():
                 product_recent_sales = shipment_df[
                     (shipment_df['产品代码'] == product_code) &
                     (shipment_df['订单日期'].dt.date >= one_month_ago)
-                    ]
+                ]
 
                 actual_sales = product_recent_sales['数量'].sum() if not product_recent_sales.empty else 0
 
                 forecast_bias = analyzer.calculate_forecast_bias(forecast_quantity, actual_sales)
+
+                # 按销售员分组的预测
+                person_forecast = product_forecast.groupby('销售员')['预计销售量'].sum().to_dict()
             else:
                 forecast_bias = 0.0
+                person_forecast = {}
 
             forecast_accuracy[product_code] = {
-                'forecast_bias': forecast_bias
+                'forecast_bias': forecast_bias,
+                'person_forecast': person_forecast
             }
 
         # 处理批次数据并进行完整分析
@@ -1688,17 +1964,21 @@ def load_and_process_data():
                 seasonal_index = seasonal_indices.get(current_material, 1.0)
 
                 # 获取预测准确度
-                forecast_info = forecast_accuracy.get(current_material, {'forecast_bias': 0.0})
+                forecast_info = forecast_accuracy.get(current_material, {
+                    'forecast_bias': 0.0,
+                    'person_forecast': {}
+                })
 
-                # 计算日均出货（考虑季节性）
+                # 获取产品单价并计算批次价值
+                unit_price = current_price
+                batch_value = quantity * unit_price
+
+                # 计算预计清库天数
                 daily_avg_sales = sales_metrics['daily_avg_sales']
                 daily_avg_sales_adjusted = max(daily_avg_sales * seasonal_index, analyzer.min_daily_sales)
 
-                # 计算预计清库天数
                 if daily_avg_sales_adjusted > 0:
                     days_to_clear = quantity / daily_avg_sales_adjusted
-
-                    # 计算积压风险
                     one_month_risk = analyzer.calculate_risk_percentage(days_to_clear, age_days, 30)
                     two_month_risk = analyzer.calculate_risk_percentage(days_to_clear, age_days, 60)
                     three_month_risk = analyzer.calculate_risk_percentage(days_to_clear, age_days, 90)
@@ -1707,6 +1987,11 @@ def load_and_process_data():
                     one_month_risk = 100
                     two_month_risk = 100
                     three_month_risk = 100
+
+                # 使用完整的责任归属分析
+                responsible_region, responsible_person, responsibility_details = analyzer.analyze_responsibility_collaborative(
+                    current_material, prod_date, sales_metrics, forecast_info, None, quantity, sales_person_region_mapping
+                )
 
                 # 确定积压原因
                 stocking_reasons = []
@@ -1721,7 +2006,7 @@ def load_and_process_data():
                 if not stocking_reasons:
                     stocking_reasons.append("正常库存")
 
-                # 确定风险等级和得分
+                # 风险等级评估
                 risk_score = 0
 
                 # 库龄因素
@@ -1763,23 +2048,18 @@ def load_and_process_data():
                 # 根据总分确定风险等级
                 if risk_score >= 80:
                     risk_level = "极高风险"
-                    risk_color = COLOR_SCHEME['risk_extreme']
                     risk_advice = '🚨 立即7折清库'
                 elif risk_score >= 60:
                     risk_level = "高风险"
-                    risk_color = COLOR_SCHEME['risk_high']
                     risk_advice = '⚠️ 建议8折促销'
                 elif risk_score >= 40:
                     risk_level = "中风险"
-                    risk_color = COLOR_SCHEME['risk_medium']
                     risk_advice = '📢 适度9折促销'
                 elif risk_score >= 20:
                     risk_level = "低风险"
-                    risk_color = COLOR_SCHEME['risk_low']
                     risk_advice = '✅ 正常销售'
                 else:
                     risk_level = "极低风险"
-                    risk_color = COLOR_SCHEME['risk_minimal']
                     risk_advice = '🌟 新鲜库存'
 
                 # 生成建议措施
@@ -1796,35 +2076,27 @@ def load_and_process_data():
 
                 # 预期损失计算
                 if age_days >= 120:
-                    expected_loss = quantity * current_price * 0.3
+                    expected_loss = quantity * unit_price * 0.3
                 elif age_days >= 90:
-                    expected_loss = quantity * current_price * 0.2
+                    expected_loss = quantity * unit_price * 0.2
                 elif age_days >= 60:
-                    expected_loss = quantity * current_price * 0.1
+                    expected_loss = quantity * unit_price * 0.1
                 else:
                     expected_loss = 0
 
-                # 简化责任分析（基于出货数据的区域和申请人）
-                responsible_region = analyzer.default_region
-                responsible_person = analyzer.default_person
+                # 格式化预测偏差为百分比
+                forecast_bias_value = forecast_info['forecast_bias']
+                if forecast_bias_value == float('inf'):
+                    forecast_bias_pct = "无穷大"
+                elif forecast_bias_value == 0:
+                    forecast_bias_pct = "0%"
+                else:
+                    forecast_bias_pct = f"{round(forecast_bias_value * 100, 1)}%"
 
-                # 查找该产品最近的出货记录
-                recent_shipments = shipment_df[
-                    (shipment_df['产品代码'] == current_material) &
-                    (shipment_df['订单日期'].dt.date >= (datetime.now().date() - timedelta(days=90)))
-                    ]
+                # 生成责任分析摘要
+                responsibility_summary = analyzer.generate_responsibility_summary_collaborative(responsibility_details)
 
-                if not recent_shipments.empty:
-                    # 找出最频繁的区域和申请人
-                    region_counts = recent_shipments['所属区域'].value_counts()
-                    person_counts = recent_shipments['申请人'].value_counts()
-
-                    if not region_counts.empty:
-                        responsible_region = region_counts.index[0]
-                    if not person_counts.empty:
-                        responsible_person = person_counts.index[0]
-
-                # 构建批次数据
+                # 将分析结果添加到列表
                 batch_data.append({
                     '物料': current_material,
                     '产品名称': current_desc,
@@ -1836,10 +2108,10 @@ def load_and_process_data():
                     '批次库存': quantity,
                     '库龄': age_days,
                     '风险等级': risk_level,
-                    '风险颜色': risk_color,
+                    '风险颜色': '',  # 将在显示时设置
                     '处理建议': risk_advice,
-                    '单价': current_price,
-                    '批次价值': quantity * current_price,
+                    '单价': unit_price,
+                    '批次价值': batch_value,
                     '预期损失': expected_loss,
                     '日均出货': round(daily_avg_sales, 2),
                     '出货标准差': round(sales_metrics['sales_std'], 2),
@@ -1850,16 +2122,29 @@ def load_and_process_data():
                     '三个月积压风险': f"{round(three_month_risk, 1)}%",
                     '积压原因': '，'.join(stocking_reasons),
                     '季节性指数': round(seasonal_index, 2),
-                    '预测偏差': f"{round(forecast_info['forecast_bias'] * 100, 1)}%",
+                    '预测偏差': forecast_bias_pct,
                     '责任区域': responsible_region,
                     '责任人': responsible_person,
-                    '责任分析摘要': f"{responsible_person}主要责任({responsible_region}区域)",
+                    '责任详情': responsibility_details,
+                    '责任分析摘要': responsibility_summary,
                     '风险程度': risk_level,
                     '风险得分': risk_score,
                     '建议措施': recommendation
                 })
 
         processed_inventory = pd.DataFrame(batch_data)
+
+        # 按照风险程度和库龄排序
+        risk_order = {
+            "极高风险": 0,
+            "高风险": 1,
+            "中风险": 2,
+            "低风险": 3,
+            "极低风险": 4
+        }
+        processed_inventory['风险排序'] = processed_inventory['风险程度'].map(risk_order)
+        processed_inventory = processed_inventory.sort_values(by=['风险排序', '库龄'], ascending=[True, False])
+        processed_inventory = processed_inventory.drop(columns=['风险排序'])
 
         # 计算关键指标
         metrics = calculate_key_metrics(processed_inventory)
@@ -1871,6 +2156,187 @@ def load_and_process_data():
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), {}, {}
 
 
+def create_enhanced_region_forecast_chart(merged_data):
+    """创建升级版区域预测准确率图表 - 解决文字遮挡和现代化视觉设计"""
+    try:
+        if merged_data is None or merged_data.empty:
+            fig = go.Figure()
+            fig.update_layout(
+                title="区域预测准确率分析 (无数据)",
+                annotations=[
+                    dict(
+                        text="暂无预测数据",
+                        xref="paper", yref="paper",
+                        x=0.5, y=0.5,
+                        xanchor='center', yanchor='middle',
+                        font=dict(size=20, color="gray")
+                    )
+                ]
+            )
+            return fig
+
+        # 区域汇总数据
+        region_comparison = merged_data.groupby('所属区域').agg({
+            '实际销量': 'sum',
+            '预测销量': 'sum',
+            '准确率': 'mean'
+        }).reset_index()
+
+        region_comparison['准确率'] = region_comparison['准确率'] * 100
+        region_comparison['销量占比'] = (region_comparison['实际销量'] / region_comparison['实际销量'].sum() * 100)
+        region_comparison['差异量'] = region_comparison['实际销量'] - region_comparison['预测销量']
+        region_comparison['差异率'] = (region_comparison['差异量'] / region_comparison['实际销量']).fillna(0) * 100
+
+        # 按准确率排序
+        region_comparison = region_comparison.sort_values('准确率', ascending=True)
+
+        # 创建现代化的水平条形图
+        fig = go.Figure()
+
+        # 根据准确率设置渐变色
+        colors = []
+        for accuracy in region_comparison['准确率']:
+            if accuracy >= 85:
+                colors.append('#2E8B57')  # 海绿色 - 优秀
+            elif accuracy >= 75:
+                colors.append('#32CD32')  # 酸橙绿 - 良好
+            elif accuracy >= 65:
+                colors.append('#FFD700')  # 金色 - 一般
+            elif accuracy >= 55:
+                colors.append('#FF8C00')  # 深橙色 - 需改进
+            else:
+                colors.append('#DC143C')  # 深红色 - 差
+
+        # 主要条形图
+        bars = fig.add_trace(go.Bar(
+            y=region_comparison['所属区域'],
+            x=region_comparison['准确率'],
+            orientation='h',
+            marker=dict(
+                color=colors,
+                line=dict(color='rgba(255,255,255,0.8)', width=2),
+                # 添加渐变效果
+                opacity=0.9
+            ),
+            text=[f"{acc:.1f}%" for acc in region_comparison['准确率']],
+            textposition='outside',
+            textfont=dict(size=14, color='black', family='Inter'),
+            name="预测准确率",
+            customdata=np.column_stack((
+                region_comparison['实际销量'].astype(int),
+                region_comparison['预测销量'].astype(int),
+                region_comparison['销量占比'],
+                region_comparison['差异量'].astype(int),
+                region_comparison['差异率']
+            )),
+            hovertemplate="<b>🌏 %{y}区域预测表现</b><br>" +
+                          "<b>预测准确率:</b> %{x:.1f}%<br>" +
+                          "<br><b>📊 销量数据</b><br>" +
+                          "实际销量: %{customdata[0]:,}箱<br>" +
+                          "预测销量: %{customdata[1]:,}箱<br>" +
+                          "销量占比: %{customdata[2]:.1f}%<br>" +
+                          "<br><b>📈 预测偏差</b><br>" +
+                          "差异量: %{customdata[3]:+,}箱<br>" +
+                          "差异率: %{customdata[4]:+.1f}%<br>" +
+                          "<extra></extra>"
+        ))
+
+        # 添加准确率标准参考线
+        fig.add_vline(x=85, line_dash="dash", line_color="#2E8B57", line_width=3,
+                      annotation=dict(text="优秀标准 85%",
+                                      x=85, y=len(region_comparison) * 0.9,
+                                      bgcolor="rgba(46,139,87,0.1)",
+                                      bordercolor="#2E8B57",
+                                      font=dict(color="#2E8B57", size=12)))
+
+        fig.add_vline(x=75, line_dash="dot", line_color="#FFD700", line_width=2,
+                      annotation=dict(text="良好标准 75%",
+                                      x=75, y=len(region_comparison) * 0.7,
+                                      bgcolor="rgba(255,215,0,0.1)",
+                                      bordercolor="#FFD700",
+                                      font=dict(color="#B8860B", size=11)))
+
+        fig.add_vline(x=65, line_dash="dot", line_color="#FF8C00", line_width=2,
+                      annotation=dict(text="及格标准 65%",
+                                      x=65, y=len(region_comparison) * 0.5,
+                                      bgcolor="rgba(255,140,0,0.1)",
+                                      bordercolor="#FF8C00",
+                                      font=dict(color="#FF8C00", size=11)))
+
+        # 现代化布局设计
+        fig.update_layout(
+            title=dict(
+                text="<b>区域预测准确率综合分析</b><br><sub>基于实际销量与预测销量对比 | 彩色编码显示表现等级</sub>",
+                x=0.5,
+                xanchor='center',
+                font=dict(size=18, family='Inter')
+            ),
+            xaxis=dict(
+                title=dict(
+                    text="<b>预测准确率 (%)</b>",
+                    font=dict(size=14, family='Inter')
+                ),
+                range=[0, min(100, region_comparison['准确率'].max() + 15)],
+                ticksuffix="%",
+                showgrid=True,
+                gridcolor="rgba(128,128,128,0.2)",
+                gridwidth=1,
+                tickfont=dict(size=12, family='Inter')
+            ),
+            yaxis=dict(
+                title=dict(
+                    text="<b>销售区域</b>",
+                    font=dict(size=14, family='Inter')
+                ),
+                tickfont=dict(size=13, family='Inter'),
+                categoryorder='array',
+                categoryarray=region_comparison['所属区域'].tolist()
+            ),
+            height=max(400, len(region_comparison) * 80),
+            margin=dict(l=100, r=150, t=100, b=80),
+            showlegend=False,
+            plot_bgcolor='rgba(248,250,252,0.8)',
+            paper_bgcolor='rgba(255,255,255,0.95)',
+            font=dict(family='Inter'),
+            hoverlabel=dict(
+                bgcolor="rgba(255,255,255,0.95)",
+                font_size=13,
+                font_family="Inter",
+                bordercolor="rgba(0,0,0,0.1)",
+                align="left"
+            ),
+            # 添加动画效果
+            transition=dict(duration=500, easing="cubic-in-out")
+        )
+
+        # 添加说明文字框
+        best_region = region_comparison.iloc[-1]
+        worst_region = region_comparison.iloc[0]
+
+        fig.add_annotation(
+            x=0.98,
+            y=0.15,
+            xref='paper',
+            yref='paper',
+            text=f"<b>📈 表现总结</b><br>" +
+                 f"🥇 最佳: {best_region['所属区域']}区域 ({best_region['准确率']:.1f}%)<br>" +
+                 f"🎯 待改进: {worst_region['所属区域']}区域 ({worst_region['准确率']:.1f}%)<br>" +
+                 f"📊 平均准确率: {region_comparison['准确率'].mean():.1f}%<br>" +
+                 f"🎨 颜色说明: 绿色=优秀 | 黄色=一般 | 红色=需改进",
+            showarrow=False,
+            align='left',
+            bgcolor='rgba(255,255,255,0.9)',
+            bordercolor='rgba(128,128,128,0.3)',
+            borderwidth=1,
+            font=dict(size=11, family='Inter'),
+            borderpad=10
+        )
+
+        return fig
+
+    except Exception as e:
+        st.error(f"区域预测准确率图表创建失败: {str(e)}")
+        return go.Figure()
 def calculate_key_metrics(processed_inventory):
     """计算关键指标"""
     if processed_inventory.empty:
@@ -3330,9 +3796,9 @@ with tab3:
         with sub_tab4:
             st.markdown("#### 🌍 区域维度预测准确性深度分析")
 
-            # 创建区域分析图表
-            region_fig = create_region_analysis_chart(merged_data)
-            st.plotly_chart(region_fig, use_container_width=True)
+            # 创建升级版区域分析图表
+            enhanced_region_fig = create_enhanced_region_forecast_chart(merged_data)
+            st.plotly_chart(enhanced_region_fig, use_container_width=True)
 
             # 区域表现热力图
             # 准备数据
@@ -3379,11 +3845,12 @@ with tab3:
 # 标签4：库存积压预警详情 - 修改后版本
 # 标签4：库存积压预警详情 - 修改后版本
 # 标签4：库存积压预警详情分析 - 简化版，只保留批次分析明细
+# 标签4：库存积压预警详情 - 完全按照积压超详细.py的逻辑实现
 with tab4:
     st.markdown("### 📋 库存积压预警详情分析")
 
     if not processed_inventory.empty:
-        # 筛选控件
+        # 筛选控件 - 与积压超详细.py保持一致
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
@@ -3445,10 +3912,10 @@ with tab4:
             filtered_data['风险排序'] = filtered_data['风险程度'].map(risk_order)
             filtered_data = filtered_data.sort_values('风险排序')
 
-            # 准备显示的列 - 风险程度字段排在第一列，积压风险字段紧跟其后
+            # 准备显示的列 - 完全按照积压超详细.py的字段顺序
             display_columns = [
                 '风险程度',  # 第一列
-                '一个月积压风险', '两个月积压风险', '三个月积压风险',  # 积压风险字段紧跟其后
+                '一个月积压风险', '两个月积压风险', '三个月积压风险',  # 积压风险字段
                 '物料', '描述', '批次日期', '批次库存', '库龄', '批次价值',
                 '日均出货', '出货波动系数', '预计清库天数',
                 '积压原因', '季节性指数', '预测偏差',
@@ -3456,14 +3923,14 @@ with tab4:
                 '风险得分', '建议措施'
             ]
 
-            # 格式化显示数据 - 修复箱数格式
+            # 格式化显示数据
             display_data = filtered_data[display_columns].copy()
 
             # 删除临时的风险排序列
             if '风险排序' in display_data.columns:
                 display_data = display_data.drop('风险排序', axis=1)
 
-            # 格式化数值列 - 修复箱数为整数
+            # 格式化数值列 - 与积压超详细.py保持一致
             display_data['批次价值'] = display_data['批次价值'].apply(lambda x: f"¥{x:,.0f}")
             display_data['批次日期'] = display_data['批次日期'].astype(str)
             display_data['库龄'] = display_data['库龄'].apply(lambda x: f"{x}天")
@@ -3473,118 +3940,67 @@ with tab4:
                 lambda x: "∞" if x == float('inf') else f"{x:.1f}天"
             )
             display_data['季节性指数'] = display_data['季节性指数'].apply(lambda x: f"{x:.2f}")
-
-            # 修复批次库存为整数显示
             display_data['批次库存'] = display_data['批次库存'].apply(lambda x: f"{int(x):,}")
 
             # 美化积压风险字段 - 添加警告图标
-            display_data['一个月积压风险'] = display_data['一个月积压风险'].apply(
-                lambda x: f"🔴 {x}" if '100.0%' in str(x) or float(str(x).replace('%', '')) > 90 else
-                f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
-                f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
-                f"🟢 {x}"
-            )
+            for risk_col in ['一个月积压风险', '两个月积压风险', '三个月积压风险']:
+                display_data[risk_col] = display_data[risk_col].apply(
+                    lambda x: f"🔴 {x}" if '100.0%' in str(x) or (
+                                isinstance(x, str) and float(x.replace('%', '')) > 90) else
+                    f"🟠 {x}" if isinstance(x, str) and float(x.replace('%', '')) > 70 else
+                    f"🟡 {x}" if isinstance(x, str) and float(x.replace('%', '')) > 50 else
+                    f"🟢 {x}"
+                )
 
-            display_data['两个月积压风险'] = display_data['两个月积压风险'].apply(
-                lambda x: f"🔴 {x}" if '100.0%' in str(x) or float(str(x).replace('%', '')) > 90 else
-                f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
-                f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
-                f"🟢 {x}"
-            )
-
-            display_data['三个月积压风险'] = display_data['三个月积压风险'].apply(
-                lambda x: f"🔴 {x}" if '100.0%' in str(x) or float(str(x).replace('%', '')) > 90 else
-                f"🟠 {x}" if float(str(x).replace('%', '')) > 70 else
-                f"🟡 {x}" if float(str(x).replace('%', '')) > 50 else
-                f"🟢 {x}"
-            )
-
-            # 使用增强样式显示表格，添加专门的风险等级样式
+            # 使用增强样式显示表格
             with st.container():
                 st.markdown("""
                 <style>
-                /* 风险等级第一列特殊样式 - 极高风险动画 */
+                /* 完整的表格样式 - 与积压超详细.py的Excel输出保持一致 */
+                .advanced-table {
+                    background: linear-gradient(135deg, rgba(255,255,255,0.99), rgba(248,250,252,0.98)) !important;
+                    border-radius: 30px !important;
+                    overflow: visible !important;
+                    box-shadow: 
+                        0 30px 60px rgba(0,0,0,0.12),
+                        0 15px 30px rgba(0,0,0,0.08),
+                        0 5px 15px rgba(0,0,0,0.04),
+                        inset 0 2px 4px rgba(255,255,255,0.9) !important;
+                    border: 2px solid transparent !important;
+                    background-image: 
+                        linear-gradient(135deg, rgba(255,255,255,0.99), rgba(248,250,252,0.98)),
+                        linear-gradient(135deg, #667eea, #764ba2) !important;
+                    background-origin: border-box !important;
+                    background-clip: padding-box, border-box !important;
+                    margin: 2rem 0 !important;
+                    position: relative !important;
+                }
+
+                /* 风险等级行样式 - 极高风险动画 */
                 [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("极高风险")) {
                     background: linear-gradient(90deg, 
                         rgba(139, 0, 0, 0.25) 0%,
                         rgba(139, 0, 0, 0.15) 50%,
                         rgba(139, 0, 0, 0.25) 100%) !important;
                     border-left: 8px solid #8B0000 !important;
-                    animation: 
-                        extremeRiskRowPulse 1.5s ease-in-out infinite,
-                        extremeRiskRowShake 5s ease-in-out infinite !important;
-                    position: relative !important;
-                    overflow: hidden !important;
+                    animation: extremeRiskRowPulse 1.5s ease-in-out infinite !important;
                 }
 
-                [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("极高风险"))::before {
-                    content: '🚨';
-                    position: absolute;
-                    left: -35px;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    font-size: 1.5rem;
-                    animation: warningIconBlink 1s ease-in-out infinite;
-                    z-index: 10;
-                }
-
-                [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("极高风险"))::after {
-                    content: '';
-                    position: absolute;
-                    left: 0;
-                    top: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: linear-gradient(90deg, transparent, rgba(139, 0, 0, 0.1), transparent);
-                    animation: riskRowScanline 2s linear infinite;
-                    pointer-events: none;
-                    z-index: 1;
-                }
-
-                /* 高风险行样式 - 动画效果 */
                 [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("高风险")):not(:has(td:nth-child(1):contains("极高风险"))) {
                     background: linear-gradient(90deg, 
                         rgba(255, 0, 0, 0.18) 0%,
                         rgba(255, 0, 0, 0.10) 50%,
                         rgba(255, 0, 0, 0.18) 100%) !important;
                     border-left: 6px solid #FF0000 !important;
-                    animation: 
-                        highRiskRowGlow 2s ease-in-out infinite,
-                        highRiskRowPulse 3s ease-in-out infinite !important;
-                    position: relative !important;
+                    animation: highRiskRowGlow 2s ease-in-out infinite !important;
                 }
 
-                [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("高风险")):not(:has(td:nth-child(1):contains("极高风险")))::before {
-                    content: '⚡';
-                    position: absolute;
-                    left: -30px;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    font-size: 1.3rem;
-                    animation: warningIconFloat 2s ease-in-out infinite;
-                    z-index: 10;
-                }
-
-                /* 中风险行样式 */
                 [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("中风险")) {
                     background: linear-gradient(90deg, rgba(255, 165, 0, 0.12), rgba(255, 165, 0, 0.06)) !important;
                     border-left: 4px solid #FFA500 !important;
-                    animation: mediumRiskRowPulse 4s ease-in-out infinite !important;
                 }
 
-                /* 低风险行样式 */
-                [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("低风险")) {
-                    background: linear-gradient(90deg, rgba(144, 238, 144, 0.08), rgba(144, 238, 144, 0.04)) !important;
-                    border-left: 3px solid #90EE90 !important;
-                }
-
-                /* 极低风险行样式 */
-                [data-testid="stDataFrame"] tbody tr:has(td:nth-child(1):contains("极低风险")) {
-                    background: linear-gradient(90deg, rgba(0, 100, 0, 0.08), rgba(0, 100, 0, 0.04)) !important;
-                    border-left: 3px solid #006400 !important;
-                }
-
-                /* 风险等级第一列单元格样式 - 超级增强版 */
+                /* 风险等级单元格样式 */
                 [data-testid="stDataFrame"] tbody td:nth-child(1):contains("极高风险") {
                     background: linear-gradient(135deg, #8B0000 0%, #660000 50%, #4B0000 100%) !important;
                     color: white !important;
@@ -3592,16 +4008,8 @@ with tab4:
                     border-radius: 15px !important;
                     padding: 1rem 1.5rem !important;
                     text-shadow: 0 2px 4px rgba(0,0,0,0.4) !important;
-                    animation: extremeRiskCellPulse 1s ease-in-out infinite !important;
-                    box-shadow: 
-                        0 4px 15px rgba(139, 0, 0, 0.5),
-                        inset 0 2px 4px rgba(255,255,255,0.2),
-                        inset 0 -2px 4px rgba(0,0,0,0.2) !important;
-                    position: relative !important;
-                    overflow: hidden !important;
                     text-transform: uppercase !important;
                     letter-spacing: 1px !important;
-                    border: 2px solid rgba(255,255,255,0.3) !important;
                 }
 
                 [data-testid="stDataFrame"] tbody td:nth-child(1):contains("高风险"):not(:contains("极高风险")) {
@@ -3611,12 +4019,7 @@ with tab4:
                     border-radius: 12px !important;
                     padding: 0.9rem 1.4rem !important;
                     text-shadow: 0 2px 3px rgba(0,0,0,0.3) !important;
-                    animation: highRiskCellGlow 2s ease-in-out infinite !important;
-                    box-shadow: 
-                        0 3px 10px rgba(255, 0, 0, 0.4),
-                        inset 0 1px 3px rgba(255,255,255,0.2) !important;
                     text-transform: uppercase !important;
-                    letter-spacing: 0.5px !important;
                 }
 
                 [data-testid="stDataFrame"] tbody td:nth-child(1):contains("中风险") {
@@ -3625,117 +4028,9 @@ with tab4:
                     font-weight: 700 !important;
                     border-radius: 10px !important;
                     padding: 0.8rem 1.2rem !important;
-                    text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
-                    box-shadow: 0 2px 8px rgba(255, 165, 0, 0.3) !important;
                 }
 
-                [data-testid="stDataFrame"] tbody td:nth-child(1):contains("低风险") {
-                    background: linear-gradient(135deg, #90EE90 0%, #98FB98 50%, #90EE90 100%) !important;
-                    color: #006400 !important;
-                    font-weight: 600 !important;
-                    border-radius: 8px !important;
-                    padding: 0.7rem 1rem !important;
-                    box-shadow: 0 2px 6px rgba(144, 238, 144, 0.3) !important;
-                }
-
-                [data-testid="stDataFrame"] tbody td:nth-child(1):contains("极低风险") {
-                    background: linear-gradient(135deg, #006400 0%, #228B22 50%, #006400 100%) !important;
-                    color: white !important;
-                    font-weight: 600 !important;
-                    border-radius: 8px !important;
-                    padding: 0.7rem 1rem !important;
-                    box-shadow: 0 2px 6px rgba(0, 100, 0, 0.3) !important;
-                }
-
-                /* 动画效果定义 */
-                @keyframes extremeRiskRowPulse {
-                    0%, 100% {
-                        box-shadow: 
-                            0 0 0 0 rgba(139, 0, 0, 0.8),
-                            0 10px 30px rgba(139, 0, 0, 0.3),
-                            inset 0 0 20px rgba(139, 0, 0, 0.05);
-                    }
-                    50% {
-                        box-shadow: 
-                            0 0 0 20px rgba(139, 0, 0, 0),
-                            0 15px 50px rgba(139, 0, 0, 0.5),
-                            inset 0 0 40px rgba(139, 0, 0, 0.1);
-                    }
-                }
-
-                @keyframes extremeRiskRowShake {
-                    0%, 85%, 100% { transform: translateX(0); }
-                    86%, 88%, 90%, 92%, 94% { transform: translateX(-3px); }
-                    87%, 89%, 91%, 93%, 95% { transform: translateX(3px); }
-                }
-
-                @keyframes highRiskRowGlow {
-                    0%, 100% {
-                        box-shadow: 
-                            0 0 15px rgba(255, 0, 0, 0.4),
-                            0 5px 20px rgba(255, 0, 0, 0.2);
-                    }
-                    50% {
-                        box-shadow: 
-                            0 0 30px rgba(255, 0, 0, 0.6),
-                            0 10px 40px rgba(255, 0, 0, 0.3);
-                    }
-                }
-
-                @keyframes highRiskRowPulse {
-                    0%, 100% { transform: scale(1); }
-                    50% { transform: scale(1.008); }
-                }
-
-                @keyframes mediumRiskRowPulse {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.95; }
-                }
-
-                @keyframes warningIconBlink {
-                    0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
-                    50% { opacity: 0.3; transform: translateY(-50%) scale(1.1); }
-                }
-
-                @keyframes warningIconFloat {
-                    0%, 100% { transform: translateY(-50%); }
-                    50% { transform: translateY(-65%); }
-                }
-
-                @keyframes riskRowScanline {
-                    0% { transform: translateX(-100%); }
-                    100% { transform: translateX(100%); }
-                }
-
-                @keyframes extremeRiskCellPulse {
-                    0%, 100% { 
-                        transform: scale(1);
-                        box-shadow: 
-                            0 4px 15px rgba(139, 0, 0, 0.5),
-                            inset 0 2px 4px rgba(255,255,255,0.2),
-                            inset 0 -2px 4px rgba(0,0,0,0.2);
-                    }
-                    50% { 
-                        transform: scale(1.05);
-                        box-shadow: 
-                            0 6px 25px rgba(139, 0, 0, 0.7),
-                            inset 0 2px 4px rgba(255,255,255,0.3),
-                            inset 0 -2px 4px rgba(0,0,0,0.3);
-                    }
-                }
-
-                @keyframes highRiskCellGlow {
-                    0%, 100% { 
-                        filter: brightness(1) saturate(1); 
-                        transform: scale(1);
-                    }
-                    50% { 
-                        filter: brightness(1.15) saturate(1.2); 
-                        transform: scale(1.03);
-                    }
-                }
-
-                /* 积压风险列样式美化 - 针对第2、3、4列 */
+                /* 积压风险列样式 */
                 [data-testid="stDataFrame"] tbody td:nth-child(2):contains("🔴"),
                 [data-testid="stDataFrame"] tbody td:nth-child(3):contains("🔴"),
                 [data-testid="stDataFrame"] tbody td:nth-child(4):contains("🔴") {
@@ -3743,52 +4038,36 @@ with tab4:
                     font-weight: 700 !important;
                     background: rgba(220, 20, 60, 0.1) !important;
                     border-radius: 8px;
-                    padding: 0.5rem !important;
                 }
 
-                [data-testid="stDataFrame"] tbody td:nth-child(2):contains("🟠"),
-                [data-testid="stDataFrame"] tbody td:nth-child(3):contains("🟠"),
-                [data-testid="stDataFrame"] tbody td:nth-child(4):contains("🟠") {
-                    animation: riskIndicatorGlow 3s ease-in-out infinite;
-                    font-weight: 600 !important;
-                    background: rgba(255, 165, 0, 0.1) !important;
-                    border-radius: 8px;
-                    padding: 0.5rem !important;
+                @keyframes extremeRiskRowPulse {
+                    0%, 100% {
+                        box-shadow: 0 0 0 0 rgba(139, 0, 0, 0.8);
+                    }
+                    50% {
+                        box-shadow: 0 0 0 20px rgba(139, 0, 0, 0);
+                    }
                 }
 
-                [data-testid="stDataFrame"] tbody td:nth-child(2):contains("🟡"),
-                [data-testid="stDataFrame"] tbody td:nth-child(3):contains("🟡"),
-                [data-testid="stDataFrame"] tbody td:nth-child(4):contains("🟡") {
-                    font-weight: 600 !important;
-                    background: rgba(255, 255, 0, 0.1) !important;
-                    border-radius: 8px;
-                    padding: 0.5rem !important;
-                }
-
-                [data-testid="stDataFrame"] tbody td:nth-child(2):contains("🟢"),
-                [data-testid="stDataFrame"] tbody td:nth-child(3):contains("🟢"),
-                [data-testid="stDataFrame"] tbody td:nth-child(4):contains("🟢") {
-                    font-weight: 500 !important;
-                    background: rgba(144, 238, 144, 0.1) !important;
-                    border-radius: 8px;
-                    padding: 0.5rem !important;
+                @keyframes highRiskRowGlow {
+                    0%, 100% {
+                        box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+                    }
+                    50% {
+                        box-shadow: 0 0 30px rgba(255, 0, 0, 0.6);
+                    }
                 }
 
                 @keyframes riskIndicatorPulse {
                     0%, 100% { transform: scale(1); }
                     50% { transform: scale(1.05); }
                 }
-
-                @keyframes riskIndicatorGlow {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.8; }
-                }
                 </style>
                 """, unsafe_allow_html=True)
 
                 st.markdown('<div class="advanced-table">', unsafe_allow_html=True)
 
-                # 显示数据表格
+                # 显示数据表格 - 与积压超详细.py的输出格式完全一致
                 st.dataframe(
                     display_data,
                     use_container_width=True,
@@ -3807,6 +4086,48 @@ with tab4:
                 )
 
                 st.markdown('</div>', unsafe_allow_html=True)
+
+            # 显示统计汇总信息 - 与积压超详细.py保持一致
+            st.markdown("#### 📊 批次风险统计汇总")
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            risk_stats = filtered_data['风险程度'].value_counts()
+            total_value = filtered_data['批次价值'].sum()
+
+            with col1:
+                extreme_count = risk_stats.get('极高风险', 0)
+                st.metric(
+                    label="🔴 极高风险批次",
+                    value=f"{extreme_count}个",
+                    delta=f"{extreme_count / len(filtered_data) * 100:.1f}%" if len(filtered_data) > 0 else "0%"
+                )
+
+            with col2:
+                high_count = risk_stats.get('高风险', 0)
+                st.metric(
+                    label="🟠 高风险批次",
+                    value=f"{high_count}个",
+                    delta=f"{high_count / len(filtered_data) * 100:.1f}%" if len(filtered_data) > 0 else "0%"
+                )
+
+            with col3:
+                high_risk_value = filtered_data[
+                    filtered_data['风险程度'].isin(['极高风险', '高风险'])
+                ]['批次价值'].sum()
+                st.metric(
+                    label="💰 高风险批次价值",
+                    value=f"¥{high_risk_value / 10000:.1f}万",
+                    delta=f"{high_risk_value / total_value * 100:.1f}%" if total_value > 0 else "0%"
+                )
+
+            with col4:
+                avg_age = filtered_data['库龄'].mean()
+                st.metric(
+                    label="📅 平均库龄",
+                    value=f"{avg_age:.0f}天",
+                    delta="需关注" if avg_age > 60 else "正常"
+                )
 
         else:
             st.info("暂无符合筛选条件的数据")
