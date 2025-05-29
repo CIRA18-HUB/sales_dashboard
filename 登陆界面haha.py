@@ -1,6 +1,7 @@
-# app.py - 修复版 Streamlit 应用
+# app.py - 完全按照HTML样式重构的版本（增强版）
 import streamlit as st
 from datetime import datetime
+import os
 import time
 import random
 import math
@@ -14,161 +15,540 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 初始化会话状态
-if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
-if 'user_role' not in st.session_state:
-    st.session_state.user_role = None  # 'admin' 或 'user'
-if 'stats_initialized' not in st.session_state:
-    st.session_state.stats_initialized = False
-    st.session_state.stat1_value = 1000
-    st.session_state.stat2_value = 4
-    st.session_state.stat3_value = 24
-    st.session_state.stat4_value = 99
-    st.session_state.last_update = time.time()
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = "welcome"
-if 'show_request_form' not in st.session_state:
-    st.session_state.show_request_form = False
-
-# 隐藏Streamlit默认元素 - 修复版（不隐藏侧边栏）
-hide_streamlit_style = """
+# 超强力隐藏Streamlit默认元素
+hide_elements = """
 <style>
-    /* 隐藏Streamlit默认元素，但保留侧边栏 */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .stDeployButton {display: none;}
-    
-    /* 移除顶部空白 */
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 0rem;
-        max-width: 100%;
+    /* 隐藏所有可能的Streamlit默认元素 */
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
+    .stAppHeader {display: none !important;}
+    .stDeployButton {display: none !important;}
+    .stToolbar {display: none !important;}
+    .viewerBadge_container__1QSob {display: none !important;}
+    .stApp > header {display: none !important;}
+
+    /* 强力隐藏侧边栏中的应用名称 */
+    .stSidebar > div:first-child > div:first-child > div:first-child {
+        display: none !important;
     }
-    
-    /* 确保主内容区占满宽度 */
-    .main .block-container {
-        max-width: 100% !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
+
+    /* 隐藏侧边栏顶部的应用标题 */
+    .stSidebar .element-container:first-child {
+        display: none !important;
+    }
+
+    /* 通过多种方式隐藏应用标题 */
+    [data-testid="stSidebarNav"] {
+        display: none !important;
+    }
+
+    /* 如果以上都无效，至少让它不可见 */
+    .stSidebar > div:first-child {
+        background: transparent !important;
+        border: none !important;
+    }
+
+    .stSidebar .stSelectbox {
+        display: none !important;
     }
 </style>
 """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# 主要CSS样式 - 增强版（包含新增的需求提交和展示样式）
-main_css = """
+st.markdown(hide_elements, unsafe_allow_html=True)
+
+# 完整CSS样式（完全按照HTML文件）+ 新增数字动画 + 新增更新提醒动画
+complete_css_with_animations = """
 <style>
     /* 导入字体 */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    
+
     /* 全局样式 */
     html, body {
-        margin: 0;
-        padding: 0;
-        overflow-x: hidden;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        height: 100%;
     }
-    
+
     .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     }
-    
-    /* 主背景渐变 - 确保生效 */
-    .stApp {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+
+    /* 主容器背景 + 动画 */
+    .main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         min-height: 100vh;
+        position: relative;
     }
-    
-    /* 动态背景波纹 - 简化版确保兼容性 */
-    .stApp::after {
+
+    /* 动态背景波纹效果 */
+    .main::before {
         content: '';
         position: fixed;
         top: 0;
         left: 0;
-        width: 100vw;
-        height: 100vh;
+        width: 100%;
+        height: 100%;
         background: 
-            radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
+            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 50% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 60%);
         animation: waveMove 8s ease-in-out infinite;
         pointer-events: none;
         z-index: 0;
     }
-    
+
     @keyframes waveMove {
         0%, 100% { 
-            background-position: 0% 0%, 100% 100%;
-            opacity: 0.8;
+            background-size: 200% 200%, 150% 150%, 300% 300%;
+            background-position: 0% 0%, 100% 100%, 50% 50%; 
+        }
+        33% { 
+            background-size: 300% 300%, 200% 200%, 250% 250%;
+            background-position: 100% 0%, 0% 50%, 80% 20%; 
+        }
+        66% { 
+            background-size: 250% 250%, 300% 300%, 200% 200%;
+            background-position: 50% 100%, 50% 0%, 20% 80%; 
+        }
+    }
+
+    /* 浮动粒子效果 */
+    .main::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: 
+            radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.3), transparent),
+            radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.2), transparent),
+            radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.4), transparent),
+            radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.2), transparent),
+            radial-gradient(2px 2px at 160px 30px, rgba(255,255,255,0.3), transparent);
+        background-repeat: repeat;
+        background-size: 200px 100px;
+        animation: particleFloat 20s linear infinite;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    @keyframes particleFloat {
+        0% { transform: translateY(100vh) translateX(0); }
+        100% { transform: translateY(-100vh) translateX(100px); }
+    }
+
+    /* 主容器 */
+    .block-container {
+        position: relative;
+        z-index: 10;
+        background: rgba(255, 255, 255, 0.02);
+        backdrop-filter: blur(5px);
+        padding-top: 1rem;
+        max-width: 100%;
+    }
+
+    /* 侧边栏美化 - 完全按照原HTML文件 */
+    .stSidebar {
+        background: rgba(255, 255, 255, 0.95) !important;
+        backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(255, 255, 255, 0.2);
+        animation: slideInLeft 0.8s ease-out;
+    }
+
+    @keyframes slideInLeft {
+        from { transform: translateX(-100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    .stSidebar > div:first-child {
+        background: transparent;
+        padding-top: 1rem;
+    }
+
+    /* 侧边栏标题 - 完全按照原HTML文件 */
+    .stSidebar .stMarkdown h3 {
+        color: #2d3748;
+        font-weight: 600;
+        text-align: center;
+        padding: 1rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: titlePulse 3s ease-in-out infinite;
+    }
+
+    @keyframes titlePulse {
+        0%, 100% { transform: scale(1); filter: brightness(1); }
+        50% { transform: scale(1.05); filter: brightness(1.2); }
+    }
+
+    .stSidebar .stMarkdown h4 {
+        color: #2d3748;
+        font-weight: 600;
+        padding: 0 1rem;
+        margin: 1rem 0 0.5rem 0;
+        font-size: 1rem;
+    }
+
+    .stSidebar .stMarkdown hr {
+        border: none;
+        height: 1px;
+        background: rgba(102, 126, 234, 0.2);
+        margin: 1rem 0;
+    }
+
+    /* 侧边栏按钮 - 紫色渐变样式 */
+    .stSidebar .stButton > button {
+        width: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 15px;
+        padding: 1rem 1.2rem;
+        color: white;
+        text-align: left;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 0.95rem;
+        font-weight: 500;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        font-family: inherit;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .stSidebar .stButton > button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.6s ease;
+    }
+
+    .stSidebar .stButton > button:hover::before {
+        left: 100%;
+    }
+
+    .stSidebar .stButton > button:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
+        transform: translateX(8px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    /* 新增：有趣的按钮点击动效 */
+    .stSidebar .stButton > button:active {
+        transform: translateX(8px) scale(0.98);
+        animation: buttonBounce 0.3s ease-out;
+    }
+
+    @keyframes buttonBounce {
+        0% { transform: translateX(8px) scale(0.98); }
+        50% { transform: translateX(12px) scale(1.05); }
+        100% { transform: translateX(8px) scale(1.02); }
+    }
+
+    /* 新增：侧边栏按钮随机闪烁动效 */
+    .sidebar-btn.sparkle {
+        animation: sparkleEffect 1s ease-out;
+    }
+
+    @keyframes sparkleEffect {
+        0%, 100% { box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); }
+        25% { box-shadow: 0 0 25px #667eea, 0 0 35px #667eea; }
+        50% { box-shadow: 0 0 35px #764ba2, 0 0 45px #764ba2; }
+        75% { box-shadow: 0 0 25px #81ecec, 0 0 35px #81ecec; }
+    }
+
+    /* 🆕 新增：系统更新提醒样式 */
+    .update-notification {
+        display: inline-block;
+        background: linear-gradient(135deg, #ff416c 0%, #ff4757 100%);
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+        animation: updatePulse 2s ease-in-out infinite;
+        box-shadow: 0 2px 8px rgba(255, 65, 108, 0.4);
+    }
+
+    @keyframes updatePulse {
+        0%, 100% { 
+            transform: scale(1);
+            box-shadow: 0 2px 8px rgba(255, 65, 108, 0.4);
         }
         50% { 
-            background-position: 100% 100%, 0% 0%;
-            opacity: 1;
+            transform: scale(1.1);
+            box-shadow: 0 4px 16px rgba(255, 65, 108, 0.8);
         }
     }
-    
-    /* 确保内容在背景之上 */
-    .main .block-container {
-        position: relative;
-        z-index: 1;
-        background: transparent !important;
+
+    .update-exclamation {
+        display: inline-block;
+        color: #ff4757;
+        font-size: 1.2rem;
+        margin-left: 0.3rem;
+        animation: exclamationBounce 1.5s ease-in-out infinite;
     }
-    
-    /* 主标题 */
+
+    @keyframes exclamationBounce {
+        0%, 20%, 50%, 80%, 100% { 
+            transform: translateY(0) rotate(0deg); 
+        }
+        10% { 
+            transform: translateY(-5px) rotate(-5deg);
+        }
+        30% { 
+            transform: translateY(-3px) rotate(3deg);
+        }
+        40% { 
+            transform: translateY(-8px) rotate(-3deg);
+        }
+        60% { 
+            transform: translateY(-6px) rotate(2deg);
+        }
+    }
+
+    .update-button-special {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%, #ff416c 100%) !important;
+        animation: updateButtonGlow 3s ease-in-out infinite;
+    }
+
+    @keyframes updateButtonGlow {
+        0%, 100% { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        50% { 
+            background: linear-gradient(135deg, #ff416c 0%, #667eea 50%, #764ba2 100%);
+            box-shadow: 0 6px 20px rgba(255, 65, 108, 0.5);
+        }
+    }
+
+    /* 用户信息框 */
+    .user-info {
+        background: #e6fffa;
+        border: 1px solid #38d9a9;
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 0 1rem;
+        color: #2d3748;
+    }
+
+    .user-info strong {
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    /* 登录容器 */
+    .login-container {
+        animation: slideUpBounce 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes slideUpBounce {
+        0% {
+            opacity: 0;
+            transform: translateY(100px) scale(0.8) rotateX(30deg);
+        }
+        60% {
+            opacity: 1;
+            transform: translateY(-10px) scale(1.05) rotateX(-5deg);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1) rotateX(0deg);
+        }
+    }
+
+    /* 输入框动画 */
+    .stTextInput > div > div > input {
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid rgba(229, 232, 240, 0.8);
+        border-radius: 10px;
+        padding: 1rem 1.2rem;
+        font-size: 1rem;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .stTextInput > div > div > input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        transform: translateY(-3px) scale(1.02);
+        background: rgba(255, 255, 255, 1);
+    }
+
+    /* 登录按钮动画 */
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 1rem 2rem;
+        font-size: 1rem;
+        font-weight: 600;
+        width: 100%;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stButton > button::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transition: width 0.6s, height 0.6s, top 0.6s, left 0.6s;
+        transform: translate(-50%, -50%);
+    }
+
+    .stButton > button:active::before {
+        width: 300px;
+        height: 300px;
+    }
+
+    .stButton > button:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
+    }
+
+    /* 消息动画 */
+    .stAlert {
+        border-radius: 10px;
+        border: none;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        animation: alertSlideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes alertSlideIn {
+        0% {
+            opacity: 0;
+            transform: translateY(-30px) scale(0.8);
+        }
+        60% {
+            opacity: 1;
+            transform: translateY(5px) scale(1.05);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .stSuccess {
+        background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+        color: white;
+    }
+
+    .stError {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        color: white;
+    }
+
+    /* 主标题部分 */
     .main-title {
         text-align: center;
         margin-bottom: 3rem;
         position: relative;
         z-index: 10;
     }
-    
+
     .main-title h1 {
         font-size: 3rem;
         color: white;
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         margin-bottom: 1rem;
         font-weight: 700;
-        animation: titleGlow 3s ease-in-out infinite;
+        animation: titleGlowPulse 4s ease-in-out infinite;
     }
-    
-    @keyframes titleGlow {
-        0%, 100% { 
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 255, 255, 0.4);
-            transform: scale(1);
-        }
-        50% { 
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 25px rgba(255, 255, 255, 0.8);
-            transform: scale(1.02);
-        }
-    }
-    
+
     .main-title p {
         font-size: 1.2rem;
         color: rgba(255, 255, 255, 0.9);
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        margin-bottom: 2rem;
+        animation: subtitleFloat 6s ease-in-out infinite;
     }
-    
-    /* 统计卡片 */
+
+    @keyframes titleGlowPulse {
+        0%, 100% { 
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.5);
+            transform: scale(1);
+        }
+        50% { 
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 40px rgba(255, 255, 255, 0.9);
+            transform: scale(1.02);
+        }
+    }
+
+    @keyframes subtitleFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+    }
+
+    /* 数据统计展示 - 完全按照原HTML文件 */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2rem;
+        margin-bottom: 4rem;
+    }
+
     .stat-card {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(20px);
         border-radius: 15px;
         padding: 1.5rem;
         text-align: center;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        height: 100%;
-        position: relative;
-        overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: all 0.4s ease;
+        animation: cardSlideUpStagger 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     }
-    
+
+    .stat-card:nth-child(1) { animation-delay: 0.1s; }
+    .stat-card:nth-child(2) { animation-delay: 0.2s; }
+    .stat-card:nth-child(3) { animation-delay: 0.3s; }
+    .stat-card:nth-child(4) { animation-delay: 0.4s; }
+
+    @keyframes cardSlideUpStagger {
+        0% {
+            opacity: 0;
+            transform: translateY(60px) scale(0.8) rotateX(30deg);
+        }
+        60% {
+            opacity: 1;
+            transform: translateY(-10px) scale(1.05) rotateX(-5deg);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1) rotateX(0deg);
+        }
+    }
+
+    /* 新增：统计卡片悬停摇摆动效 */
     .stat-card:hover {
-        transform: translateY(-8px) scale(1.05);
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
-        background: rgba(255, 255, 255, 1);
+        animation: cardWiggle 0.6s ease-in-out;
+        transform: scale(1.05);
     }
-    
+
+    @keyframes cardWiggle {
+        0%, 100% { transform: rotate(0deg) scale(1.05); }
+        25% { transform: rotate(2deg) scale(1.08); }
+        75% { transform: rotate(-2deg) scale(1.08); }
+    }
+
+    /* 🎯 新增：数字滚动动画效果 */
     .counter-number {
         font-size: 2.5rem;
         font-weight: bold;
@@ -179,69 +559,193 @@ main_css = """
         margin-bottom: 0.5rem;
         display: block;
         transition: all 0.3s ease;
+        animation: numberSlideUp 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     }
-    
+
+    /* 数字滚动入场动画 */
+    @keyframes numberSlideUp {
+        0% {
+            opacity: 0;
+            transform: translateY(100%) scale(0.5) rotateX(90deg);
+        }
+        60% {
+            opacity: 1;
+            transform: translateY(-10%) scale(1.1) rotateX(-10deg);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1) rotateX(0deg);
+        }
+    }
+
+    /* 数字更新时的跳跃动画 */
     .counter-number.updating {
-        animation: numberPulse 0.6s ease-out;
+        animation: numberBounceUpdate 0.6s ease-out;
     }
-    
-    @keyframes numberPulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.15); }
-        100% { transform: scale(1); }
+
+    @keyframes numberBounceUpdate {
+        0% { 
+            transform: scale(1); 
+            filter: brightness(1); 
+        }
+        30% { 
+            transform: scale(1.2) translateY(-10px); 
+            filter: brightness(1.4) hue-rotate(30deg); 
+        }
+        60% { 
+            transform: scale(0.9) translateY(5px); 
+            filter: brightness(1.2) hue-rotate(-15deg); 
+        }
+        100% { 
+            transform: scale(1); 
+            filter: brightness(1); 
+        }
     }
-    
+
+    /* 新增：数字闪光效果 */
+    .counter-number.sparkle {
+        animation: numberSparkle 0.8s ease-out;
+    }
+
+    @keyframes numberSparkle {
+        0%, 100% { 
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            text-shadow: none;
+        }
+        25% { 
+            background: linear-gradient(45deg, #ff6b6b, #ffa500);
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.8);
+        }
+        50% { 
+            background: linear-gradient(45deg, #4ecdc4, #44e1ff);
+            text-shadow: 0 0 25px rgba(78, 205, 196, 0.9);
+        }
+        75% { 
+            background: linear-gradient(45deg, #96ceb4, #feca57);
+            text-shadow: 0 0 20px rgba(150, 206, 180, 0.8);
+        }
+    }
+
     .stat-label {
         color: #4a5568;
         font-size: 0.9rem;
-        font-weight: 500;
     }
-    
-    /* 功能卡片 */
+
+    /* 功能模块介绍 - 完全按照原HTML文件 */
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
     .feature-card {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(20px);
         border-radius: 15px;
         padding: 2rem;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        height: 100%;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        animation: featureCardFloat 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         position: relative;
         overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        transition: all 0.5s ease;
     }
-    
+
+    .feature-card:nth-child(1) { animation-delay: 0.2s; }
+    .feature-card:nth-child(2) { animation-delay: 0.4s; }
+    .feature-card:nth-child(3) { animation-delay: 0.6s; }
+    .feature-card:nth-child(4) { animation-delay: 0.8s; }
+
+    @keyframes featureCardFloat {
+        0% {
+            opacity: 0;
+            transform: translateY(80px) scale(0.8) rotateX(45deg);
+        }
+        60% {
+            opacity: 1;
+            transform: translateY(-15px) scale(1.05) rotateX(-10deg);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1) rotateX(0deg);
+        }
+    }
+
+    /* 新增：功能卡片悬停弹跳动效 */
     .feature-card:hover {
-        transform: translateY(-10px) rotate(2deg) scale(1.02);
-        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.2);
-        background: rgba(255, 255, 255, 1);
+        animation: cardBounce 0.8s ease-in-out;
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
     }
-    
+
+    @keyframes cardBounce {
+        0%, 100% { transform: translateY(-10px) scale(1.02); }
+        25% { transform: translateY(-20px) scale(1.05); }
+        50% { transform: translateY(-5px) scale(1.08); }
+        75% { transform: translateY(-15px) scale(1.03); }
+    }
+
     .feature-icon {
         font-size: 2.5rem;
         margin-bottom: 1rem;
+        background: linear-gradient(45deg, #667eea, #764ba2, #81ecec);
+        background-size: 300% 300%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: iconColorShift 4s ease-in-out infinite;
         display: block;
-        animation: iconBounce 2s ease-in-out infinite;
+        transition: all 0.3s ease;
     }
-    
-    @keyframes iconBounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-5px); }
+
+    /* 新增：图标旋转动效 */
+    .feature-card:hover .feature-icon {
+        animation: iconSpin 0.6s ease-in-out, iconColorShift 4s ease-in-out infinite;
     }
-    
+
+    @keyframes iconSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @keyframes iconColorShift {
+        0%, 100% { 
+            background-position: 0% 50%;
+            filter: hue-rotate(0deg);
+        }
+        25% { 
+            background-position: 50% 50%;
+            filter: hue-rotate(90deg);
+        }
+        50% { 
+            background-position: 100% 50%;
+            filter: hue-rotate(180deg);
+        }
+        75% { 
+            background-position: 50% 50%;
+            filter: hue-rotate(270deg);
+        }
+    }
+
     .feature-title {
         font-size: 1.4rem;
         color: #2d3748;
         margin-bottom: 1rem;
         font-weight: 600;
     }
-    
+
     .feature-description {
         color: #4a5568;
         line-height: 1.6;
     }
-    
-    /* 更新提示 */
+
+    /* 更新提示 - 完全按照原HTML文件 */
+    .update-section {
+        text-align: center;
+        margin: 3rem auto;
+        max-width: 600px;
+    }
+
     .update-badge {
         display: inline-block;
         background: linear-gradient(135deg, #81ecec 0%, #74b9ff 100%);
@@ -250,430 +754,255 @@ main_css = """
         border-radius: 30px;
         font-weight: 600;
         font-size: 1.1rem;
-        box-shadow: 0 5px 15px rgba(116, 185, 255, 0.3);
-        animation: badgeFloat 3s ease-in-out infinite;
+        animation: badgeGlowPulse 3s ease-in-out infinite, badgeFloat 5s ease-in-out infinite;
+        position: relative;
+        overflow: hidden;
     }
-    
-    @keyframes badgeFloat {
+
+    @keyframes badgeGlowPulse {
         0%, 100% { 
-            transform: translateY(0);
             box-shadow: 0 5px 15px rgba(116, 185, 255, 0.3);
         }
         50% { 
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(116, 185, 255, 0.5);
+            box-shadow: 0 10px 40px rgba(116, 185, 255, 0.8);
         }
     }
-    
+
+    @keyframes badgeFloat {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        33% { transform: translateY(-8px) rotate(1deg); }
+        66% { transform: translateY(-12px) rotate(-1deg); }
+    }
+
     .navigation-hint {
         text-align: center;
-        color: rgba(255, 255, 255, 0.9);
+        color: rgba(255, 255, 255, 0.8);
         font-size: 1.1rem;
         margin-top: 2rem;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
-        animation: hintPulse 4s ease-in-out infinite;
+        animation: bounceArrow 3s ease-in-out infinite;
     }
-    
-    @keyframes hintPulse {
-        0%, 100% { opacity: 0.8; }
-        50% { opacity: 1; }
+
+    @keyframes bounceArrow {
+        0%, 20%, 50%, 80%, 100% { transform: translateY(0) translateX(0); }
+        10% { transform: translateY(-8px) translateX(-5px); }
+        30% { transform: translateY(-5px) translateX(-8px); }
+        40% { transform: translateY(-12px) translateX(-3px); }
+        60% { transform: translateY(-8px) translateX(-6px); }
     }
-    
-    /* 页脚 */
+
+    /* 页脚 - 完全按照原HTML文件 */
     .footer {
         text-align: center;
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(255, 255, 255, 0.7);
         font-size: 0.9rem;
         margin-top: 3rem;
         padding: 2rem 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.2);
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
-    
-    /* 登录容器 */
-    .login-container {
-        max-width: 450px;
-        margin: 3rem auto;
-        padding: 3rem 2.5rem;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-        text-align: center;
-        position: relative;
-        z-index: 10;
-        animation: loginSlideIn 0.8s ease-out;
-        border: 1px solid rgba(255, 255, 255, 0.3);
+
+    .footer p {
+        margin-bottom: 0.5rem;
     }
-    
-    @keyframes loginSlideIn {
-        from {
-            opacity: 0;
-            transform: translateY(30px) scale(0.9);
+
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .main-title h1 {
+            font-size: 2rem;
         }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
+
+        .main-title p {
+            font-size: 1rem;
         }
-    }
-    
-    /* 输入框样式 */
-    .stTextInput > div > div > input {
-        background: rgba(255, 255, 255, 0.9);
-        border: 2px solid rgba(229, 232, 240, 0.8);
-        border-radius: 10px;
-        padding: 1rem 1.2rem;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-    }
-    
-    .stTextInput > div > div > input:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        background: white;
-    }
-    
-    /* 登录按钮特殊样式 */
-    .login-form .stButton > button {
-        width: 100%;
-        padding: 1rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-size: 1rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    }
-    
-    .login-form .stButton > button:hover {
-        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-    }
-    
-    /* 导航按钮特殊样式 */
-    .stButton > button[data-testid="baseButton-secondary"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 0.8rem 1.5rem !important;
-        font-size: 1rem !important;
-        font-weight: 600 !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
-        margin-top: 1rem !important;
-    }
-    
-    .stButton > button[data-testid="baseButton-secondary"]:hover {
-        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%) !important;
-        transform: translateY(-3px) scale(1.02) !important;
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
-    }
-    
-    /* 顶部按钮和导航按钮区分 */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        font-size: 0.9rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-    }
-    
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-    }
-    
-    /* 下拉选择框样式 */
-    .stSelectbox > div > div {
-        background: rgba(255, 255, 255, 0.9);
-        border: 2px solid rgba(102, 126, 234, 0.3);
-        border-radius: 8px;
-    }
-    
-    /* 成功/错误消息样式 */
-    .stSuccess, .stError {
-        border-radius: 10px;
-        padding: 1rem;
-        margin: 1rem 0;
-    }
-    
-    /* 需求提交表单容器 */
-    .request-form-container {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
-        border-radius: 15px;
-        padding: 2rem;
-        margin-top: 2rem;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        animation: formFadeIn 0.5s ease-out;
-    }
-    
-    @keyframes formFadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
+
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
         }
-        to {
-            opacity: 1;
-            transform: translateY(0);
+
+        .features-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        .counter-number {
+            font-size: 2rem;
         }
     }
-    
-    /* 需求展示区域 */
-    .request-display-area {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
-        border-radius: 15px;
-        padding: 2rem;
-        margin: 2rem 0;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-    
-    /* 需求卡片 */
-    .request-card {
-        background: rgba(248, 249, 250, 0.9);
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        border-left: 4px solid #667eea;
-        transition: all 0.3s ease;
-    }
-    
-    .request-card:hover {
-        transform: translateX(5px);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* 标签样式 */
-    .status-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 15px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin-right: 0.5rem;
-    }
-    
-    .status-pending {
-        background: #fef3c7;
-        color: #92400e;
-    }
-    
-    .status-processed {
-        background: #d1fae5;
-        color: #065f46;
-    }
-    
-    .type-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 15px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin-right: 0.5rem;
-    }
-    
-    .type-requirement {
-        background: #dbeafe;
-        color: #1e40af;
-    }
-    
-    .type-issue {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-    
-    /* Tabs样式 */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 1rem;
-        background: transparent;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        background: rgba(255, 255, 255, 0.8);
-        border-radius: 10px;
-        padding: 0.5rem 1.5rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-    }
-    
-    /* 文本域样式 */
-    .stTextArea > div > div > textarea {
-        background: rgba(255, 255, 255, 0.9);
-        border: 2px solid rgba(229, 232, 240, 0.8);
-        border-radius: 10px;
-        padding: 1rem;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-    }
-    
-    .stTextArea > div > div > textarea:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        background: white;
-    }
-    
-    /* 日期输入样式 */
-    .stDateInput > div > div > input {
-        background: rgba(255, 255, 255, 0.9);
-        border: 2px solid rgba(229, 232, 240, 0.8);
-        border-radius: 10px;
-        padding: 0.5rem 1rem;
-        transition: all 0.3s ease;
+
+    @media (max-width: 480px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 """
 
-st.markdown(main_css, unsafe_allow_html=True)
+st.markdown(complete_css_with_animations, unsafe_allow_html=True)
+
+# 初始化会话状态
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
 
 # 登录界面
 if not st.session_state.authenticated:
-    # 创建登录界面布局
     col1, col2, col3 = st.columns([1, 2, 1])
-    
+
     with col2:
         st.markdown("""
-        <div class="login-container">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+        <div class="login-container" style="max-width: 450px; margin: 3rem auto; padding: 3rem 2.5rem; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.2); text-align: center;">
+            <div style="font-size: 3rem; background: linear-gradient(45deg, #667eea, #764ba2); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 1rem; animation: titlePulse 2s infinite;">📊</div>
             <h2 style="font-size: 1.8rem; color: #2d3748; margin-bottom: 0.5rem; font-weight: 600;">Trolli SAL</h2>
             <p style="color: #718096; font-size: 0.9rem; margin-bottom: 2rem;">欢迎使用Trolli SAL，本系统提供销售数据的多维度分析，帮助您洞察业务趋势、发现增长机会</p>
         </div>
         """, unsafe_allow_html=True)
-        
+
         # 登录表单
-        with st.container():
-            st.markdown('<div class="login-form">', unsafe_allow_html=True)
-            with st.form("login_form"):
-                st.markdown("#### 🔐 请输入访问密码")
-                password = st.text_input("密码", type="password", placeholder="请输入访问密码", label_visibility="collapsed")
-                submit_button = st.form_submit_button("登 录", use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        
+        with st.form("login_form"):
+            st.markdown("#### 🔐 请输入访问密码")
+            password = st.text_input("密码", type="password", placeholder="请输入访问密码")
+            submit_button = st.form_submit_button("登 录", use_container_width=True)
+
         if submit_button:
             if password == 'SAL!2025':
                 st.session_state.authenticated = True
-                st.session_state.user_role = 'user'
                 st.success("🎉 登录成功！正在进入仪表盘...")
-                time.sleep(1)
-                st.rerun()
-            elif password == 'cira18':
-                st.session_state.authenticated = True
-                st.session_state.user_role = 'admin'
-                st.success("🎉 管理员登录成功！正在进入仪表盘...")
-                time.sleep(1)
+                time.sleep(1)  # 短暂延迟显示成功消息
                 st.rerun()
             else:
                 st.error("❌ 密码错误，请重试！")
-        
-        # 需求提交区域
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 提交需求按钮
-        if st.button("📝 我要提交需求/问题", use_container_width=True):
-            st.session_state.show_request_form = not st.session_state.show_request_form
-        
-        # 需求提交表单
-        if st.session_state.show_request_form:
-            with st.container():
-                st.markdown('<div class="request-form-container">', unsafe_allow_html=True)
-                st.markdown("### 📋 提交需求/问题")
-                
-                with st.form("request_form"):
-                    col_type, col_date = st.columns(2)
-                    with col_type:
-                        request_type = st.selectbox("类型", ["需求", "问题"])
-                    with col_date:
-                        requirement_date = st.date_input("需求时间", value=datetime.now())
-                    
-                    title = st.text_input("标题", placeholder="请简要描述您的需求或问题")
-                    content = st.text_area("详细描述", placeholder="请详细说明您的需求或遇到的问题", height=150)
-                    submitter = st.text_input("提交人（选填）", placeholder="您的姓名或部门")
-                    
-                    submit_request = st.form_submit_button("提交", use_container_width=True)
-                    
-                    if submit_request:
-                        if title and content:
-                            if storage.add_request(
-                                request_type=request_type,
-                                title=title,
-                                content=content,
-                                submitter=submitter,
-                                requirement_date=str(requirement_date)
-                            ):
-                                st.success("✅ 提交成功！我们会尽快处理您的需求。")
-                                st.session_state.show_request_form = False
-                                time.sleep(2)
-                                st.rerun()
-                        else:
-                            st.error("❌ 请填写标题和详细描述！")
-                
-                st.markdown('</div>', unsafe_allow_html=True)
-        
+
         # 更新提示
         st.markdown("""
-        <div style="text-align: center; margin: 3rem auto;">
-            <div class="update-badge">
+        <div style="text-align: center; margin: 3rem auto; max-width: 600px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #81ecec 0%, #74b9ff 100%); color: white; padding: 1.2rem 2.5rem; border-radius: 30px; font-weight: 600; font-size: 1.1rem; box-shadow: 0 5px 15px rgba(116, 185, 255, 0.3); animation: updateBadgeGlow 2s ease-in-out infinite alternate; position: relative; overflow: hidden;">
                 🔄 每周四17:00刷新数据
             </div>
         </div>
+
+        <style>
+        @keyframes updateBadgeGlow {
+            from { box-shadow: 0 5px 15px rgba(116, 185, 255, 0.3); }
+            to { box-shadow: 0 5px 30px rgba(116, 185, 255, 0.6); }
+        }
+        </style>
         """, unsafe_allow_html=True)
-    
+
+    # 在登录界面停止执行
     st.stop()
 
-# 主页面
+# ================================
+# 🎯 只有登录成功后才会执行下面的代码
+# ================================
 
-# 侧边栏
+# 🎯 初始化动态数字的session state
+if 'stats_initialized' not in st.session_state:
+    st.session_state.stats_initialized = False
+    st.session_state.stat1_value = 1000
+    st.session_state.stat2_value = 4
+    st.session_state.stat3_value = 24
+    st.session_state.stat4_value = 99
+    st.session_state.last_update = time.time()
+
+# 🔄 动态更新数字的函数
+def update_dynamic_stats():
+    current_time = time.time()
+    time_elapsed = current_time - st.session_state.last_update
+
+    # 每3秒更新一次
+    if time_elapsed >= 3:
+        # 数据分析 - 递增趋势
+        st.session_state.stat1_value = 1000 + random.randint(0, 200) + int(math.sin(current_time * 0.1) * 100)
+
+        # 分析模块 - 稳定变化
+        st.session_state.stat2_value = 4 + random.randint(-1, 1)
+
+        # 小时监控 - 周期性变化
+        st.session_state.stat3_value = 24 + int(math.sin(current_time * 0.2) * 8)
+
+        # 准确率 - 波动变化
+        st.session_state.stat4_value = 95 + random.randint(0, 4) + int(math.sin(current_time * 0.15) * 3)
+
+        st.session_state.last_update = current_time
+        return True
+    return False
+
+# 🎯 更新动态数字
+is_updated = update_dynamic_stats()
+
+# 🆕 检查是否有未读更新
+has_unread = storage.has_unread_updates("cira")
+unread_count = storage.get_unread_updates_count("cira") if has_unread else 0
+
+# 认证成功后的主页面
 with st.sidebar:
-    st.markdown(f"### 👤 当前用户")
-    if st.session_state.user_role == 'admin':
-        st.markdown("🔐 **管理员**")
-    else:
-        st.markdown("👤 **普通用户**")
-    
+    st.markdown("### 📊 Trolli SAL")
+    st.markdown("#### 🏠 主要功能")
+
+    if st.button("🏠 欢迎页面", use_container_width=True):
+        st.session_state.current_page = "welcome"
+
     st.markdown("---")
-    
-    # 管理员功能
-    if st.session_state.user_role == 'admin':
-        st.markdown("### 🛠️ 管理员功能")
+    st.markdown("#### 📈 分析模块")
+
+    if st.button("📦 产品组合分析", use_container_width=True):
+        st.switch_page("pages/产品组合分析.py")
+
+    if st.button("📊 预测库存分析", use_container_width=True):
+        st.switch_page("pages/预测库存分析.py")
+
+    if st.button("👥 客户依赖分析", use_container_width=True):
+        st.switch_page("pages/客户依赖分析.py")
+
+    if st.button("🎯 销售达成分析", use_container_width=True):
+        st.switch_page("pages/销售达成分析.py")
+
+    st.markdown("---")
+    st.markdown("#### 🔧 系统管理")
+
+    if st.button("📝 需求管理", use_container_width=True):
+        st.switch_page("pages/需求管理.py")
+
+    # 🆕 系统更新发布按钮（带动态提醒）
+    update_button_text = "🔔 系统更新发布"
+    if has_unread:
+        update_button_text += f' <span class="update-notification">(新)</span><span class="update-exclamation">!</span>'
         
-        # 发布系统更新
-        with st.expander("📢 发布系统更新"):
-            with st.form("update_form"):
-                update_title = st.text_input("更新标题", placeholder="例如：新增销售报表功能")
-                update_content = st.text_area("更新内容", placeholder="详细说明更新内容", height=100)
-                
-                if st.form_submit_button("发布更新", use_container_width=True):
-                    if update_title and update_content:
-                        if storage.add_update(update_title, update_content):
-                            st.success("✅ 更新发布成功！")
-                            time.sleep(1)
-                            st.rerun()
-                    else:
-                        st.error("❌ 请填写完整信息！")
+        # 使用特殊样式的按钮
+        st.markdown(f"""
+        <div class="stButton">
+            <button class="update-button-special" onclick="window.location.href='pages/系统更新发布.py'">{update_button_text}</button>
+        </div>
+        """, unsafe_allow_html=True)
         
-        st.markdown("---")
+        # 用常规按钮但添加点击逻辑
+        if st.button("🔔 系统更新发布", use_container_width=True, key="update_btn"):
+            st.switch_page("pages/系统更新发布.py")
+    else:
+        if st.button("🔔 系统更新发布", use_container_width=True):
+            st.switch_page("pages/系统更新发布.py")
+
+    st.markdown("---")
+    st.markdown("#### 👤 用户信息")
     
-    # 退出登录按钮
+    # 显示未读更新提醒
+    if has_unread:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #ff416c 0%, #ff4757 100%); color: white; padding: 0.8rem; border-radius: 10px; margin: 0 1rem 1rem 1rem; text-align: center; animation: updatePulse 2s ease-in-out infinite;">
+            <strong>📢 有 {unread_count} 条未读更新</strong>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="user-info">
+        <strong>管理员</strong>
+        cira
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
     if st.button("🚪 退出登录", use_container_width=True):
         st.session_state.authenticated = False
-        st.session_state.user_role = None
-        st.session_state.current_page = "welcome"
         st.rerun()
 
 # 主内容区
@@ -684,24 +1013,11 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 动态更新统计数据
-def update_stats():
-    current_time = time.time()
-    if current_time - st.session_state.last_update >= 3:
-        st.session_state.stat1_value = 1000 + random.randint(0, 200) + int(math.sin(current_time * 0.1) * 100)
-        st.session_state.stat2_value = 4
-        st.session_state.stat3_value = 24
-        st.session_state.stat4_value = 95 + random.randint(0, 4) + int(math.sin(current_time * 0.15) * 3)
-        st.session_state.last_update = current_time
-        return True
-    return False
-
-# 更新统计数据
-is_updated = update_stats()
-update_class = "updating" if is_updated else ""
-
-# 统计卡片
+# 🎯 数据统计展示 - 带动态数字更新
 col1, col2, col3, col4 = st.columns(4)
+
+# 添加CSS类来触发动画
+update_class = "updating sparkle" if is_updated else ""
 
 with col1:
     st.markdown(f"""
@@ -735,128 +1051,9 @@ with col4:
     </div>
     """, unsafe_allow_html=True)
 
-# 需求和更新展示区域
-st.markdown("<br>", unsafe_allow_html=True)
-st.markdown('<div class="request-display-area">', unsafe_allow_html=True)
-
-# 使用标签页展示
-tab1, tab2, tab3 = st.tabs(["📋 待处理需求", "📢 系统更新", "✅ 处理记录"])
-
-with tab1:
-    pending_requests = storage.get_pending_requests()
-    if pending_requests:
-        st.markdown(f"### 共有 {len(pending_requests)} 个待处理项目")
-        
-        # 倒序显示，最新的在前
-        for request in reversed(pending_requests):
-            with st.container():
-                col1, col2 = st.columns([10, 2])
-                
-                with col1:
-                    # 类型和状态标签
-                    type_class = "type-requirement" if request['type'] == "需求" else "type-issue"
-                    st.markdown(f"""
-                    <div class="request-card">
-                        <div style="margin-bottom: 0.5rem;">
-                            <span class="type-badge {type_class}">{request['type']}</span>
-                            <span class="status-badge status-pending">待处理</span>
-                            <span style="color: #6b7280; font-size: 0.85rem;">
-                                {request['submit_time']} | {request['submitter']}
-                            </span>
-                        </div>
-                        <h4 style="margin: 0.5rem 0; color: #1f2937;">{request['title']}</h4>
-                        <p style="color: #4b5563; margin: 0.5rem 0;">{request['content']}</p>
-                        <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 0.5rem;">
-                            需求时间：{request['requirement_date']}
-                        </p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col2:
-                    if st.session_state.user_role == 'admin':
-                        if st.button("标记已处理", key=f"process_{request['id']}"):
-                            if storage.process_request(request['id']):
-                                st.success("✅ 已标记为处理完成")
-                                time.sleep(1)
-                                st.rerun()
-    else:
-        st.info("👍 当前没有待处理的需求")
-
-with tab2:
-    updates = storage.get_all_updates()
-    if updates:
-        st.markdown(f"### 系统更新通知")
-        
-        # 倒序显示，最新的在前
-        for update in reversed(updates):
-            with st.container():
-                col1, col2 = st.columns([10, 2])
-                
-                with col1:
-                    st.markdown(f"""
-                    <div class="request-card" style="border-left-color: #10b981;">
-                        <div style="margin-bottom: 0.5rem;">
-                            <span style="color: #6b7280; font-size: 0.85rem;">
-                                {update['publish_time']} | {update['publisher']}
-                            </span>
-                        </div>
-                        <h4 style="margin: 0.5rem 0; color: #1f2937;">📢 {update['title']}</h4>
-                        <p style="color: #4b5563; margin: 0.5rem 0;">{update['content']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col2:
-                    if st.session_state.user_role == 'admin':
-                        if st.button("删除", key=f"delete_{update['id']}"):
-                            if storage.delete_update(update['id']):
-                                st.success("✅ 已删除")
-                                time.sleep(1)
-                                st.rerun()
-    else:
-        st.info("📭 暂无系统更新")
-
-with tab3:
-    processed_requests = storage.get_processed_requests()
-    if processed_requests:
-        st.markdown(f"### 已处理 {len(processed_requests)} 个项目")
-        
-        # 倒序显示，最新处理的在前
-        for request in reversed(processed_requests):
-            type_class = "type-requirement" if request['type'] == "需求" else "type-issue"
-            st.markdown(f"""
-            <div class="request-card" style="opacity: 0.8;">
-                <div style="margin-bottom: 0.5rem;">
-                    <span class="type-badge {type_class}">{request['type']}</span>
-                    <span class="status-badge status-processed">已处理</span>
-                    <span style="color: #6b7280; font-size: 0.85rem;">
-                        提交：{request['submit_time']} | {request['submitter']}
-                    </span>
-                </div>
-                <h4 style="margin: 0.5rem 0; color: #1f2937;">{request['title']}</h4>
-                <p style="color: #4b5563; margin: 0.5rem 0;">{request['content']}</p>
-                <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 0.5rem;">
-                    处理时间：{request['process_time']} | 处理人：{request['processor']}
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.info("📭 暂无处理记录")
-
-st.markdown('</div>', unsafe_allow_html=True)
-
 # 功能模块介绍
 st.markdown("<br><br>", unsafe_allow_html=True)
 
-# 添加导航提示
-st.markdown("""
-<div style="text-align: center; margin-bottom: 2rem;">
-    <h3 style="color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); font-size: 1.5rem;">
-        💡 点击下方按钮进入对应分析页面
-    </h3>
-</div>
-""", unsafe_allow_html=True)
-
-# 第一行：产品组合分析 和 预测库存分析
 col1, col2 = st.columns(2)
 
 with col1:
@@ -869,12 +1066,16 @@ with col1:
         </p>
     </div>
     """, unsafe_allow_html=True)
-    
-    if st.button("🚀 进入产品组合分析", key="product_nav", use_container_width=True):
-        try:
-            st.switch_page("pages/产品组合分析.py")
-        except:
-            st.info("📦 正在跳转到产品组合分析页面...")
+
+    st.markdown("""
+    <div class="feature-card">
+        <span class="feature-icon">👥</span>
+        <h3 class="feature-title">客户依赖分析</h3>
+        <p class="feature-description">
+            深入分析客户依赖度、风险评估、客户价值分布，识别关键客户群体，制定客户维护和风险控制策略。
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 with col2:
     st.markdown("""
@@ -886,36 +1087,7 @@ with col2:
         </p>
     </div>
     """, unsafe_allow_html=True)
-    
-    if st.button("🚀 进入预测库存分析", key="inventory_nav", use_container_width=True):
-        try:
-            st.switch_page("pages/预测库存分析.py")
-        except:
-            st.info("📊 正在跳转到预测库存分析页面...")
 
-st.markdown("<br>", unsafe_allow_html=True)
-
-# 第二行：客户依赖分析 和 销售达成分析  
-col3, col4 = st.columns(2)
-
-with col3:
-    st.markdown("""
-    <div class="feature-card">
-        <span class="feature-icon">👥</span>
-        <h3 class="feature-title">客户依赖分析</h3>
-        <p class="feature-description">
-            深入分析客户依赖度、风险评估、客户价值分布，识别关键客户群体，制定客户维护和风险控制策略。
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if st.button("🚀 进入客户依赖分析", key="customer_nav", use_container_width=True):
-        try:
-            st.switch_page("pages/客户依赖分析.py")
-        except:
-            st.info("👥 正在跳转到客户依赖分析页面...")
-
-with col4:
     st.markdown("""
     <div class="feature-card">
         <span class="feature-icon">🎯</span>
@@ -925,23 +1097,17 @@ with col4:
         </p>
     </div>
     """, unsafe_allow_html=True)
-    
-    if st.button("🚀 进入销售达成分析", key="sales_nav", use_container_width=True):
-        try:
-            st.switch_page("pages/销售达成分析.py")
-        except:
-            st.info("🎯 正在跳转到销售达成分析页面...")
 
-# 更新提示和导航
+# 更新提示和导航指引
 st.markdown("""
-<div style="text-align: center; margin: 3rem auto;">
+<div class="update-section">
     <div class="update-badge">
         🔄 每周四17:00刷新数据
     </div>
 </div>
 
 <div class="navigation-hint">
-    ✨ 享受简洁优雅的数据分析体验
+    👈 请使用左侧导航栏访问各分析页面
 </div>
 
 <div class="footer">
@@ -950,8 +1116,12 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 自动刷新机制
-if st.session_state.authenticated:
-    time.sleep(0.1)
-    if is_updated:
-        st.rerun()
+# 🔄 自动刷新页面来实现动态效果（只在登录成功后执行）
+if not st.session_state.stats_initialized:
+    st.session_state.stats_initialized = True
+    time.sleep(0.1)  # 短暂延迟确保初始化完成
+    st.rerun()
+
+# 每3秒自动刷新页面
+time.sleep(3)
+st.rerun()
