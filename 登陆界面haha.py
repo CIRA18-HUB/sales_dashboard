@@ -1,11 +1,10 @@
-# app.py - 完全按照HTML样式重构的版本（增强版）
+# app.py - 完全按照HTML样式重构的版本
 import streamlit as st
 from datetime import datetime
 import os
 import time
 import random
 import math
-from data_storage import storage
 
 # 设置页面配置
 st.set_page_config(
@@ -57,7 +56,7 @@ hide_elements = """
 
 st.markdown(hide_elements, unsafe_allow_html=True)
 
-# 完整CSS样式（完全按照HTML文件）+ 新增数字动画 + 新增更新提醒动画
+# 完整CSS样式（完全按照HTML文件）+ 新增数字动画
 complete_css_with_animations = """
 <style>
     /* 导入字体 */
@@ -263,73 +262,6 @@ complete_css_with_animations = """
         25% { box-shadow: 0 0 25px #667eea, 0 0 35px #667eea; }
         50% { box-shadow: 0 0 35px #764ba2, 0 0 45px #764ba2; }
         75% { box-shadow: 0 0 25px #81ecec, 0 0 35px #81ecec; }
-    }
-
-    /* 🆕 新增：系统更新提醒样式 */
-    .update-notification {
-        display: inline-block;
-        background: linear-gradient(135deg, #ff416c 0%, #ff4757 100%);
-        color: white;
-        padding: 0.2rem 0.5rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        margin-left: 0.5rem;
-        animation: updatePulse 2s ease-in-out infinite;
-        box-shadow: 0 2px 8px rgba(255, 65, 108, 0.4);
-    }
-
-    @keyframes updatePulse {
-        0%, 100% { 
-            transform: scale(1);
-            box-shadow: 0 2px 8px rgba(255, 65, 108, 0.4);
-        }
-        50% { 
-            transform: scale(1.1);
-            box-shadow: 0 4px 16px rgba(255, 65, 108, 0.8);
-        }
-    }
-
-    .update-exclamation {
-        display: inline-block;
-        color: #ff4757;
-        font-size: 1.2rem;
-        margin-left: 0.3rem;
-        animation: exclamationBounce 1.5s ease-in-out infinite;
-    }
-
-    @keyframes exclamationBounce {
-        0%, 20%, 50%, 80%, 100% { 
-            transform: translateY(0) rotate(0deg); 
-        }
-        10% { 
-            transform: translateY(-5px) rotate(-5deg);
-        }
-        30% { 
-            transform: translateY(-3px) rotate(3deg);
-        }
-        40% { 
-            transform: translateY(-8px) rotate(-3deg);
-        }
-        60% { 
-            transform: translateY(-6px) rotate(2deg);
-        }
-    }
-
-    .update-button-special {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%, #ff416c 100%) !important;
-        animation: updateButtonGlow 3s ease-in-out infinite;
-    }
-
-    @keyframes updateButtonGlow {
-        0%, 100% { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }
-        50% { 
-            background: linear-gradient(135deg, #ff416c 0%, #667eea 50%, #764ba2 100%);
-            box-shadow: 0 6px 20px rgba(255, 65, 108, 0.5);
-        }
     }
 
     /* 用户信息框 */
@@ -903,6 +835,7 @@ if 'stats_initialized' not in st.session_state:
     st.session_state.stat4_value = 99
     st.session_state.last_update = time.time()
 
+
 # 🔄 动态更新数字的函数
 def update_dynamic_stats():
     current_time = time.time()
@@ -926,12 +859,9 @@ def update_dynamic_stats():
         return True
     return False
 
+
 # 🎯 更新动态数字
 is_updated = update_dynamic_stats()
-
-# 🆕 检查是否有未读更新
-has_unread = storage.has_unread_updates("cira")
-unread_count = storage.get_unread_updates_count("cira") if has_unread else 0
 
 # 认证成功后的主页面
 with st.sidebar:
@@ -957,41 +887,7 @@ with st.sidebar:
         st.switch_page("pages/销售达成分析.py")
 
     st.markdown("---")
-    st.markdown("#### 🔧 系统管理")
-
-    if st.button("📝 需求管理", use_container_width=True):
-        st.switch_page("pages/需求管理.py")
-
-    # 🆕 系统更新发布按钮（带动态提醒）
-    update_button_text = "🔔 系统更新发布"
-    if has_unread:
-        update_button_text += f' <span class="update-notification">(新)</span><span class="update-exclamation">!</span>'
-        
-        # 使用特殊样式的按钮
-        st.markdown(f"""
-        <div class="stButton">
-            <button class="update-button-special" onclick="window.location.href='pages/系统更新发布.py'">{update_button_text}</button>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 用常规按钮但添加点击逻辑
-        if st.button("🔔 系统更新发布", use_container_width=True, key="update_btn"):
-            st.switch_page("pages/系统更新发布.py")
-    else:
-        if st.button("🔔 系统更新发布", use_container_width=True):
-            st.switch_page("pages/系统更新发布.py")
-
-    st.markdown("---")
     st.markdown("#### 👤 用户信息")
-    
-    # 显示未读更新提醒
-    if has_unread:
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #ff416c 0%, #ff4757 100%); color: white; padding: 0.8rem; border-radius: 10px; margin: 0 1rem 1rem 1rem; text-align: center; animation: updatePulse 2s ease-in-out infinite;">
-            <strong>📢 有 {unread_count} 条未读更新</strong>
-        </div>
-        """, unsafe_allow_html=True)
-    
     st.markdown("""
     <div class="user-info">
         <strong>管理员</strong>
