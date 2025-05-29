@@ -3847,8 +3847,7 @@ with tab3:
                     'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d']
                 })
 
-                # 全宽显示图表（移除了右侧总结框）
-                st.plotly_chart(enhanced_region_fig, use_container_width=True)
+               
 
                 # 区域表现热力图
                 if not merged_data.empty:
