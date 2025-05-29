@@ -2257,7 +2257,10 @@ def create_enhanced_region_forecast_chart(merged_data):
             hovertemplate="%{customdata}<extra></extra>"
         ))
 
-        # 添加全国平均线（垂直虚线）- 使用简单的annotation
+        # 计算图表顶部位置（用于所有标注的统一y坐标）
+        top_position = len(region_comparison) + 0.8
+
+        # 添加全国平均线（垂直虚线）
         fig.add_vline(
             x=national_average, 
             line_dash="dash", 
@@ -2265,64 +2268,70 @@ def create_enhanced_region_forecast_chart(merged_data):
             line_width=3
         )
 
-        # 添加全国平均线标注 - 单独添加annotation
+        # 添加全国平均线标注 - 精简样式，放在线的正上方
         fig.add_annotation(
             x=national_average,
-            y=len(region_comparison),  # 放在最上方
-            text=f"全国平均: {national_average:.1f}%",
+            y=top_position,
+            text=f"全国平均<br>{national_average:.1f}%",
             showarrow=False,
-            bgcolor="rgba(65,105,225,0.9)",
+            bgcolor="rgba(65,105,225,0.85)",
             bordercolor="#4169E1",
-            borderwidth=2,
-            font=dict(color="white", size=12, family="Inter", weight="bold"),
+            borderwidth=1,
+            font=dict(color="white", size=10, family="Inter"),
             xanchor="center",
-            yanchor="bottom"
+            yanchor="bottom",
+            borderpad=3
         )
 
-        # 添加准确率标准参考线 - 修改为清晰的标注
+        # 添加优秀标准参考线
         fig.add_vline(x=85, line_dash="dash", line_color="#2E8B57", line_width=2)
         fig.add_annotation(
             x=85,
-            y=len(region_comparison) * 0.85,
-            text="优秀标准: 85%",
+            y=top_position,
+            text="优秀标准<br>85%",
             showarrow=False,
-            bgcolor="rgba(46,139,87,0.9)",
+            bgcolor="rgba(46,139,87,0.85)",
             bordercolor="#2E8B57",
             borderwidth=1,
-            font=dict(color="white", size=11, family="Inter", weight="bold"),
+            font=dict(color="white", size=10, family="Inter"),
             xanchor="center",
-            yanchor="middle"
+            yanchor="bottom",
+            borderpad=3
         )
 
+        # 添加良好标准参考线
         fig.add_vline(x=75, line_dash="dot", line_color="#FFD700", line_width=2)
         fig.add_annotation(
             x=75,
-            y=len(region_comparison) * 0.65,
-            text="良好标准: 75%",
+            y=top_position,
+            text="良好标准<br>75%",
             showarrow=False,
             bgcolor="rgba(255,215,0,0.9)",
             bordercolor="#FFD700",
             borderwidth=1,
-            font=dict(color="black", size=11, family="Inter", weight="bold"),
+            font=dict(color="black", size=10, family="Inter"),
             xanchor="center",
-            yanchor="middle"
+            yanchor="bottom",
+            borderpad=3
         )
 
+        # 添加及格标准参考线
         fig.add_vline(x=65, line_dash="dot", line_color="#FF8C00", line_width=2)
         fig.add_annotation(
             x=65,
-            y=len(region_comparison) * 0.45,
-            text="及格标准: 65%",
+            y=top_position,
+            text="及格标准<br>65%",
             showarrow=False,
-            bgcolor="rgba(255,140,0,0.9)",
+            bgcolor="rgba(255,140,0,0.85)",
             bordercolor="#FF8C00",
             borderwidth=1,
-            font=dict(color="white", size=11, family="Inter", weight="bold"),
+            font=dict(color="white", size=10, family="Inter"),
             xanchor="center",
-            yanchor="middle"
+            yanchor="bottom",
+            borderpad=3
         )
 
-        # 现代化布局设计 - 调整为全宽布局
+        # 现代化布局设计 - 优化比例和空间利用
         fig.update_layout(
             title=dict(
                 text="<b>区域预测准确率综合分析</b><br><sub>基于实际销量与预测销量对比 | 彩色编码显示表现等级 | 悬停查看详细分析</sub>",
@@ -2335,7 +2344,7 @@ def create_enhanced_region_forecast_chart(merged_data):
                     text="<b>预测准确率 (%)</b>",
                     font=dict(size=14, family='Inter')
                 ),
-                range=[0, min(100, max(region_comparison['准确率'].max() + 15, 95))],
+                range=[0, max(region_comparison['准确率'].max() + 5, 90)],
                 ticksuffix="%",
                 showgrid=True,
                 gridcolor="rgba(128,128,128,0.2)",
@@ -2349,10 +2358,11 @@ def create_enhanced_region_forecast_chart(merged_data):
                 ),
                 tickfont=dict(size=13, family='Inter'),
                 categoryorder='array',
-                categoryarray=region_comparison['所属区域'].tolist()
+                categoryarray=region_comparison['所属区域'].tolist(),
+                range=[-0.5, len(region_comparison) + 1.2]  # 为顶部标注预留空间
             ),
-            height=max(500, len(region_comparison) * 80 + 100),  # 增加高度为标注留空间
-            margin=dict(l=100, r=80, t=120, b=80),
+            height=max(450, len(region_comparison) * 70 + 120),  # 优化高度，为标注预留空间
+            margin=dict(l=80, r=40, t=120, b=80),  # 优化边距，减少右侧空白
             showlegend=False,
             plot_bgcolor='rgba(248,250,252,0.8)',
             paper_bgcolor='rgba(255,255,255,0.95)',
