@@ -1,4 +1,4 @@
-# 登陆界面haha.py - 增强版登录界面（完整版）
+# 登陆界面haha.py - 增强版登录界面（完整版 - 修复版）
 import streamlit as st
 from datetime import datetime
 import time
@@ -26,8 +26,8 @@ hide_elements = """
 """
 st.markdown(hide_elements, unsafe_allow_html=True)
 
-# 【替换类别】complete_css → enhanced_complete_css（替换原有的complete_css）
-enhanced_complete_css = """
+# 【替换类别】enhanced_complete_css → fixed_enhanced_complete_css（修复版本）
+fixed_enhanced_complete_css = """
 <style>
     /* 导入字体 */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -131,6 +131,7 @@ enhanced_complete_css = """
     .login-container {
         animation: enhancedSlideUpBounce 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         position: relative;
+        z-index: 20;
     }
 
     @keyframes enhancedSlideUpBounce {
@@ -513,7 +514,7 @@ enhanced_complete_css = """
         }
     }
 
-    /* 数字统计卡片样式保持不变 */
+    /* 数字统计卡片样式 */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -803,9 +804,9 @@ enhanced_complete_css = """
 </style>
 """
 
-st.markdown(enhanced_complete_css, unsafe_allow_html=True)
+st.markdown(fixed_enhanced_complete_css, unsafe_allow_html=True)
 
-# 【新增类别】互动小游戏JavaScript - 新增
+# 【保持类别】interactive_js（保持不变）
 interactive_js = """
 <script>
 // 互动点击效果
@@ -855,24 +856,50 @@ setInterval(showRandomEncouragement, 30000);
 
 st.markdown(interactive_js, unsafe_allow_html=True)
 
-# 初始化会话状态
-if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
-if 'username' not in st.session_state:
-    st.session_state.username = ""
-if 'user_role' not in st.session_state:
-    st.session_state.user_role = ""
-if 'display_name' not in st.session_state:
-    st.session_state.display_name = ""
+# 【替换类别】会话状态初始化 → fixed_session_state_init（修复版本）
+def fixed_session_state_init():
+    """修复版本的会话状态初始化函数"""
+    # 强制初始化所有必要的状态
+    required_states = {
+        'authenticated': False,
+        'username': "",
+        'user_role': "",
+        'display_name': "",
+        'login_attempts': 0,
+        'page_loaded': False
+    }
+    
+    for key, default_value in required_states.items():
+        if key not in st.session_state:
+            st.session_state[key] = default_value
+    
+    # 调试信息（可选，用于排查问题）
+    # st.write(f"调试信息: authenticated={st.session_state.authenticated}")
 
-# 检查是否已登录，如果已登录则显示欢迎页面
-if st.session_state.authenticated:
-    # ================================
-    # 🎯 登录成功后的欢迎页面（删除指定的3个部分）
-    # ================================
+# 调用修复版本的初始化函数
+fixed_session_state_init()
 
-    # 🎯 初始化动态数字的session state
-    if 'stats_initialized' not in st.session_state:
+# 【替换类别】认证状态检查 → fixed_authentication_check（修复版本）
+def fixed_authentication_check():
+    """修复版本的认证状态检查函数"""
+    # 严格检查认证状态
+    is_authenticated = (
+        hasattr(st.session_state, 'authenticated') and 
+        st.session_state.authenticated is True and
+        hasattr(st.session_state, 'username') and 
+        st.session_state.username != ""
+    )
+    return is_authenticated
+
+# 【替换类别】动态统计数字初始化 → fixed_stats_initialization（修复版本）
+def fixed_stats_initialization():
+    """修复版本的动态统计数字初始化函数"""
+    stats_keys = [
+        'stats_initialized', 'stat1_value', 'stat2_value', 
+        'stat3_value', 'stat4_value', 'last_update'
+    ]
+    
+    if not all(key in st.session_state for key in stats_keys):
         st.session_state.stats_initialized = False
         st.session_state.stat1_value = 1000
         st.session_state.stat2_value = 4
@@ -880,33 +907,73 @@ if st.session_state.authenticated:
         st.session_state.stat4_value = 99
         st.session_state.last_update = time.time()
 
+# 【替换类别】动态数字更新函数 → fixed_update_dynamic_stats（修复版本）
+def fixed_update_dynamic_stats():
+    """修复版本的动态数字更新函数"""
+    current_time = time.time()
+    time_elapsed = current_time - st.session_state.last_update
 
-    # 🔄 动态更新数字的函数（保持不变）
-    def update_dynamic_stats():
-        current_time = time.time()
-        time_elapsed = current_time - st.session_state.last_update
+    # 每3秒更新一次
+    if time_elapsed >= 3:
+        # 数据分析 - 递增趋势
+        st.session_state.stat1_value = 1000 + random.randint(0, 200) + int(math.sin(current_time * 0.1) * 100)
 
-        # 每3秒更新一次
-        if time_elapsed >= 3:
-            # 数据分析 - 递增趋势
-            st.session_state.stat1_value = 1000 + random.randint(0, 200) + int(math.sin(current_time * 0.1) * 100)
+        # 分析模块 - 稳定变化
+        st.session_state.stat2_value = 4 + random.randint(-1, 1)
 
-            # 分析模块 - 稳定变化
-            st.session_state.stat2_value = 4 + random.randint(-1, 1)
+        # 小时监控 - 周期性变化
+        st.session_state.stat3_value = 24 + int(math.sin(current_time * 0.2) * 8)
 
-            # 小时监控 - 周期性变化
-            st.session_state.stat3_value = 24 + int(math.sin(current_time * 0.2) * 8)
+        # 准确率 - 波动变化
+        st.session_state.stat4_value = 95 + random.randint(0, 4) + int(math.sin(current_time * 0.15) * 3)
 
-            # 准确率 - 波动变化
-            st.session_state.stat4_value = 95 + random.randint(0, 4) + int(math.sin(current_time * 0.15) * 3)
+        st.session_state.last_update = current_time
+        return True
+    return False
 
-            st.session_state.last_update = current_time
-            return True
-        return False
+# 【替换类别】登录处理函数 → fixed_login_handler（修复版本）
+def fixed_login_handler(password):
+    """修复版本的登录处理函数"""
+    try:
+        # 使用storage进行用户认证
+        auth_result = storage.authenticate_user(password)
+        
+        if auth_result and auth_result.get('authenticated', False):
+            # 成功登录，设置会话状态
+            st.session_state.authenticated = True
+            st.session_state.username = auth_result.get('username', '')
+            st.session_state.user_role = auth_result.get('role', '')
+            st.session_state.display_name = auth_result.get('display_name', '')
+            st.session_state.login_attempts = 0
+            
+            # 显示成功消息
+            st.success(f"🎉 登录成功！欢迎 {auth_result.get('display_name', '用户')}，正在进入仪表盘...")
+            time.sleep(1)
+            st.rerun()
+            
+        else:
+            # 登录失败
+            st.session_state.login_attempts = st.session_state.get('login_attempts', 0) + 1
+            st.error("❌ 密码错误，请重试！")
+            
+    except Exception as e:
+        st.error(f"❌ 登录过程中出现错误：{str(e)}")
 
+# ================================
+# 【替换类别】主要页面逻辑 → fixed_main_page_logic（修复版本）
+# ================================
 
-    # 🎯 更新动态数字
-    is_updated = update_dynamic_stats()
+# 使用修复版本的认证检查
+if fixed_authentication_check():
+    # ================================
+    # 🎯 登录成功后的欢迎页面
+    # ================================
+
+    # 初始化动态数字
+    fixed_stats_initialization()
+
+    # 更新动态数字
+    is_updated = fixed_update_dynamic_stats()
 
     # 主标题
     st.markdown("""
@@ -916,11 +983,7 @@ if st.session_state.authenticated:
     </div>
     """, unsafe_allow_html=True)
 
-    # 【删除部分1】"每周四17:00刷新数据" 提示 - 删除
-    # 【删除部分2】"请使用左侧导航栏访问各分析页面" 指引 - 删除
-    # 【删除部分3】"退出登录" 按钮 - 删除
-
-    # 🎯 数据统计展示 - 带动态数字更新（保持不变）
+    # 数据统计展示 - 带动态数字更新
     col1, col2, col3, col4 = st.columns(4)
 
     # 添加CSS类来触发动画
@@ -958,7 +1021,7 @@ if st.session_state.authenticated:
         </div>
         """, unsafe_allow_html=True)
 
-    # 功能模块介绍（保持不变）
+    # 功能模块介绍
     st.markdown("<br><br>", unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
@@ -1005,7 +1068,7 @@ if st.session_state.authenticated:
         </div>
         """, unsafe_allow_html=True)
 
-    # 页脚（保持不变）
+    # 页脚
     st.markdown("""
     <div class="footer">
         <p>Trolli SAL | 版本 1.0.0 | 最后更新: 2025年5月</p>
@@ -1013,10 +1076,10 @@ if st.session_state.authenticated:
     </div>
     """, unsafe_allow_html=True)
 
-    # 🔄 自动刷新页面来实现动态效果（保持不变）
+    # 自动刷新页面来实现动态效果
     if not st.session_state.stats_initialized:
         st.session_state.stats_initialized = True
-        time.sleep(0.1)  # 短暂延迟确保初始化完成
+        time.sleep(0.1)
         st.rerun()
 
     # 每3秒自动刷新页面
@@ -1025,10 +1088,10 @@ if st.session_state.authenticated:
 
 else:
     # ================================
-    # 🔐 增强版登录界面
+    # 🔐 修复版登录界面
     # ================================
 
-    # 【新增类别】飘浮可爱图标 - 新增
+    # 飘浮可爱图标
     st.markdown("""
     <div class="floating-icons">
         <div class="floating-icon">🌟</div>
@@ -1051,27 +1114,19 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
-        # 【替换类别】增强版登录表单 - 替换原有的登录表单按钮文案
+        # 修复版登录表单
         with st.form("login_form"):
             st.markdown("#### 🔐 请输入访问密码")
             password = st.text_input("密码", type="password", placeholder="请输入访问密码")
             submit_button = st.form_submit_button("🚀 开始分析之旅", use_container_width=True)
 
         if submit_button:
-            # 使用storage进行用户认证（保持不变）
-            auth_result = storage.authenticate_user(password)
-            if auth_result['authenticated']:
-                st.session_state.authenticated = True
-                st.session_state.username = auth_result['username']
-                st.session_state.user_role = auth_result['role']
-                st.session_state.display_name = auth_result['display_name']
-                st.success(f"🎉 登录成功！欢迎 {auth_result['display_name']}，正在进入仪表盘...")
-                time.sleep(1)
-                st.rerun()
+            if password:
+                fixed_login_handler(password)
             else:
-                st.error("❌ 密码错误，请重试！")
+                st.error("❌ 请输入密码！")
 
-        # 【新增类别】小贴士和互动提示 - 新增
+        # 小贴士和互动提示
         st.markdown("""
         <div style="text-align: center; margin: 2rem auto; padding: 1.5rem; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border-radius: 15px; color: rgba(255, 255, 255, 0.9);">
             <p style="margin-bottom: 0.5rem;">💡 <strong>小贴士：</strong></p>
