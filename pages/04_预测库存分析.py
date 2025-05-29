@@ -329,6 +329,7 @@ class BatchLevelInventoryAnalyzer:
 
         return summary
 
+
 warnings.filterwarnings('ignore')
 
 # 页面配置
@@ -1200,6 +1201,7 @@ def create_integrated_risk_analysis_optimized(processed_inventory):
             fig = go.Figure()
             fig.update_layout(
                 title="风险分析 (无数据)",
+                autosize=True,  # 确保使用正确的属性
                 annotations=[
                     dict(
                         text="暂无库存数据",
@@ -1378,7 +1380,8 @@ def create_integrated_risk_analysis_optimized(processed_inventory):
             hovermode='closest',
             paper_bgcolor='rgba(255,255,255,0.98)',
             plot_bgcolor='rgba(255,255,255,0.98)',
-            margin=dict(l=20, r=20, t=80, b=20)
+            margin=dict(l=20, r=20, t=80, b=20),
+            autosize=True  # 确保使用正确的属性
         )
 
         # 更新子图标题样式
@@ -1505,6 +1508,7 @@ def create_region_analysis_fixed_final(region_stats, region_risk_details):
     except Exception as e:
         st.error(f"区域分析失败: {str(e)}")
         return False
+
 
 def create_product_analysis_fixed_final(product_stats):
     """创建最终修复版的产品分析图表 - 修复箱数格式"""
@@ -1767,6 +1771,8 @@ def create_region_analysis_optimized(region_stats, region_risk_details):
     except Exception as e:
         st.error(f"区域分析失败: {str(e)}")
         return False
+
+
 def simplify_product_name(product_name):
     """简化产品名称：去掉'口力'和'-中国'"""
     if pd.isna(product_name):
@@ -1837,7 +1843,8 @@ def load_and_process_data():
         # 创建产品代码到名称的映射
         product_name_map = {}
         for idx, row in inventory_df.iterrows():
-            if pd.notna(row['物料']) and pd.notna(row['描述']) and isinstance(row['物料'], str) and row['物料'].startswith('F'):
+            if pd.notna(row['物料']) and pd.notna(row['描述']) and isinstance(row['物料'], str) and row[
+                '物料'].startswith('F'):
                 simplified_name = simplify_product_name(row['描述'])
                 product_name_map[row['物料']] = simplified_name
 
@@ -1914,7 +1921,7 @@ def load_and_process_data():
                 product_recent_sales = shipment_df[
                     (shipment_df['产品代码'] == product_code) &
                     (shipment_df['订单日期'].dt.date >= one_month_ago)
-                ]
+                    ]
 
                 actual_sales = product_recent_sales['数量'].sum() if not product_recent_sales.empty else 0
 
@@ -1990,7 +1997,8 @@ def load_and_process_data():
 
                 # 使用完整的责任归属分析
                 responsible_region, responsible_person, responsibility_details = analyzer.analyze_responsibility_collaborative(
-                    current_material, prod_date, sales_metrics, forecast_info, None, quantity, sales_person_region_mapping
+                    current_material, prod_date, sales_metrics, forecast_info, None, quantity,
+                    sales_person_region_mapping
                 )
 
                 # 确定积压原因
@@ -2157,7 +2165,7 @@ def load_and_process_data():
 
 
 def create_enhanced_region_forecast_chart(merged_data):
-    """创建优化版区域预测准确率图表 - 完全重写布局逻辑，解决容器宽度利用问题"""
+    """创建优化版区域预测准确率图表 - 修复responsive属性错误"""
     try:
         if merged_data is None or merged_data.empty:
             fig = go.Figure()
@@ -2285,7 +2293,7 @@ def create_enhanced_region_forecast_chart(merged_data):
             fig.add_vline(x=75, line_dash="dot", line_color="#FFD700", line_width=1.5, opacity=0.6)
             reference_lines.append("良好线 75%")
 
-        # 完全重写布局配置
+        # 完全重写布局配置 - 修复responsive错误
         fig.update_layout(
             # 标题优化
             title=dict(
@@ -2323,10 +2331,10 @@ def create_enhanced_region_forecast_chart(merged_data):
                 automargin=True
             ),
 
-            # 整体布局优化 - 关键修复
+            # 整体布局优化 - 关键修复：使用autosize替代responsive
             height=max(400, len(region_comparison) * 60 + 120),
             width=None,  # 不设置固定宽度，让它响应容器
-            autosize=True,  # 开启自动调整大小
+            autosize=True,  # 修复：使用autosize替代responsive
             margin=dict(
                 l=100,  # 左边距给Y轴标签留空间
                 r=30,  # 最小右边距
@@ -2350,29 +2358,21 @@ def create_enhanced_region_forecast_chart(merged_data):
                 borderwidth=1
             ),
 
-            # 响应式配置
-            responsive=True
+            # 悬停模式
+            hovermode='closest'
         )
 
-        # 添加配置以优化显示
-        config = {
-            'displayModeBar': True,
-            'displaylogo': False,
-            'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d'],
-            'toImageButtonOptions': {
-                'format': 'png',
-                'filename': '区域预测准确率分析',
-                'height': fig.layout.height,
-                'width': None,
-                'scale': 2
-            }
-        }
+        # 更新子图标题样式
+        for i in fig['layout']['annotations']:
+            i['font'] = dict(size=16, family='Inter', weight=700)
 
         return fig, region_comparison
 
     except Exception as e:
         st.error(f"区域预测准确率图表创建失败: {str(e)}")
         return go.Figure(), pd.DataFrame()
+
+
 def calculate_key_metrics(processed_inventory):
     """计算关键指标"""
     if processed_inventory.empty:
@@ -2725,6 +2725,7 @@ def create_ultra_integrated_forecast_chart(merged_data):
             fig = go.Figure()
             fig.update_layout(
                 title="预测分析 (无数据)",
+                autosize=True,  # 确保使用正确的属性
                 annotations=[
                     dict(
                         text="暂无预测数据",
@@ -2929,7 +2930,8 @@ def create_ultra_integrated_forecast_chart(merged_data):
             ),
             paper_bgcolor='rgba(255,255,255,0.98)',
             plot_bgcolor='rgba(255,255,255,0.98)',
-            margin=dict(l=20, r=20, t=100, b=20)
+            margin=dict(l=20, r=20, t=100, b=20),
+            autosize=True  # 确保使用正确的属性
         )
 
         return fig
@@ -2956,6 +2958,7 @@ def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region=
             fig = go.Figure()
             fig.update_layout(
                 title=f"重点SKU预测准确率排行榜{title_suffix}<br><sub>暂无数据</sub>",
+                autosize=True,  # 确保使用正确的属性
                 annotations=[
                     dict(
                         text="该区域暂无数据",
@@ -3068,7 +3071,8 @@ def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region=
                 bgcolor="white",
                 font_size=12,
                 font_family="Inter"
-            )
+            ),
+            autosize=True  # 确保使用正确的属性
         )
 
         # 在图的右侧外部添加区间标记 - 红色文字+线条
@@ -3219,7 +3223,8 @@ def create_product_analysis_chart(merged_data):
                 bgcolor="rgba(255,255,255,0.95)",
                 font_size=12,
                 font_family="Inter"
-            )
+            ),
+            autosize=True  # 确保使用正确的属性
         )
 
         return fig
@@ -3314,7 +3319,8 @@ def create_region_analysis_chart(merged_data):
                 bgcolor="rgba(255,255,255,0.95)",
                 font_size=12,
                 font_family="Inter"
-            )
+            ),
+            autosize=True  # 确保使用正确的属性
         )
 
         return fig
@@ -3828,26 +3834,34 @@ with tab3:
 
             st.plotly_chart(fig_hist, use_container_width=True)
 
-        # 子标签4：区域维度深度分析 - 使用图表
             # 子标签4：区域维度深度分析 - 使用图表
             # 子标签4：区域维度深度分析 - 使用图表
             # 子标签4：区域维度深度分析 - 使用图表
             # 子标签4：区域维度深度分析 - 使用图表
+            # 子标签4：区域维度深度分析 - 使用图表
+            # 在with sub_tab4中找到并替换以下代码段：
+
+            # 完整替换with sub_tab4中的所有代码：
+
             with sub_tab4:
                 st.markdown("#### 🌍 区域维度预测准确性深度分析")
 
-                # 在 sub_tab4 中找到这行代码并替换：
+                # 修复后的图表显示代码
                 enhanced_region_fig, region_comparison_data = create_enhanced_region_forecast_chart(merged_data)
 
-                # 显示图表时使用新的配置
+                # 修复图表显示配置 - 移除responsive
                 st.plotly_chart(enhanced_region_fig, use_container_width=True, config={
                     'displayModeBar': True,
                     'displaylogo': False,
-                    'responsive': True,
+                    'toImageButtonOptions': {
+                        'format': 'png',
+                        'filename': '区域预测准确率分析',
+                        'height': None,
+                        'width': None,
+                        'scale': 2
+                    },
                     'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d']
                 })
-
-               
 
                 # 区域表现热力图
                 if not merged_data.empty:
@@ -3863,7 +3877,7 @@ with tab3:
                     top_products = merged_data.groupby('产品名称')['实际销量'].sum().nlargest(10).index
                     region_product_matrix = region_product_matrix[top_products]
 
-                    # 创建热力图
+                    # 创建热力图 - 确保使用正确的属性
                     fig_heatmap = go.Figure(data=go.Heatmap(
                         z=region_product_matrix.values,
                         x=region_product_matrix.columns,
@@ -3880,11 +3894,18 @@ with tab3:
                         title="区域-产品预测准确率热力图<br><sub>显示销量前10产品</sub>",
                         xaxis_title="产品名称",
                         yaxis_title="区域",
-                        height=500
+                        height=500,
+                        autosize=True,  # 修复：使用autosize而不是responsive
+                        hoverlabel=dict(
+                            bgcolor="rgba(255,255,255,0.95)",
+                            font_size=12,
+                            font_family="Inter"
+                        ),
+                        paper_bgcolor='rgba(255,255,255,0.98)',
+                        plot_bgcolor='rgba(255,255,255,0.98)'
                     )
 
                     st.plotly_chart(fig_heatmap, use_container_width=True)
-
 
 with tab4:
     st.markdown("### 📋 库存积压预警详情分析")
@@ -3986,7 +4007,7 @@ with tab4:
             for risk_col in ['一个月积压风险', '两个月积压风险', '三个月积压风险']:
                 display_data[risk_col] = display_data[risk_col].apply(
                     lambda x: f"🔴 {x}" if '100.0%' in str(x) or (
-                                isinstance(x, str) and float(x.replace('%', '')) > 90) else
+                            isinstance(x, str) and float(x.replace('%', '')) > 90) else
                     f"🟠 {x}" if isinstance(x, str) and float(x.replace('%', '')) > 70 else
                     f"🟡 {x}" if isinstance(x, str) and float(x.replace('%', '')) > 50 else
                     f"🟢 {x}"
