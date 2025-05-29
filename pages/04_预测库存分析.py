@@ -2157,7 +2157,7 @@ def load_and_process_data():
 
 
 def create_enhanced_region_forecast_chart(merged_data):
-    """创建升级版区域预测准确率图表 - 修复标签遮挡问题，移动到图表外部"""
+    """创建升级版区域预测准确率图表 - 添加全国平均线并将总结移到悬停中"""
     try:
         if merged_data is None or merged_data.empty:
             fig = go.Figure()
@@ -2173,7 +2173,7 @@ def create_enhanced_region_forecast_chart(merged_data):
                     )
                 ]
             )
-            return fig
+            return fig, pd.DataFrame()
 
         # 区域汇总数据
         region_comparison = merged_data.groupby('所属区域').agg({
@@ -2189,6 +2189,9 @@ def create_enhanced_region_forecast_chart(merged_data):
 
         # 按准确率排序
         region_comparison = region_comparison.sort_values('准确率', ascending=True)
+
+        # 计算全国平均准确率
+        national_average = region_comparison['准确率'].mean()
 
         # 创建现代化的水平条形图
         fig = go.Figure()
@@ -2207,66 +2210,100 @@ def create_enhanced_region_forecast_chart(merged_data):
             else:
                 colors.append('#DC143C')  # 深红色 - 差
 
+        # 获取最佳和最差区域信息
+        best_region = region_comparison.iloc[-1]
+        worst_region = region_comparison.iloc[0]
+
+        # 准备悬停信息
+        hover_data = []
+        for idx, row in region_comparison.iterrows():
+            hover_info = f"""
+<b>🌏 {row['所属区域']}区域预测表现</b><br>
+<b>预测准确率:</b> {row['准确率']:.1f}%<br>
+<br><b>📊 销量数据</b><br>
+实际销量: {int(row['实际销量']):,}箱<br>
+预测销量: {int(row['预测销量']):,}箱<br>
+销量占比: {row['销量占比']:.1f}%<br>
+<br><b>📈 预测偏差</b><br>
+差异量: {int(row['差异量']):+,}箱<br>
+差异率: {row['差异率']:+.1f}%<br>
+<br><b>📋 全国对比</b><br>
+🥇 最佳区域: {best_region['所属区域']} ({best_region['准确率']:.1f}%)<br>
+🎯 待改进区域: {worst_region['所属区域']} ({worst_region['准确率']:.1f}%)<br>
+📊 全国平均: {national_average:.1f}%<br>
+<br><b>🎨 颜色说明</b><br>
+🟢 绿色 = 优秀 (≥85%)<br>
+🟡 黄色 = 一般 (65-85%)<br>
+🔴 红色 = 需改进 (<65%)<br>
+            """
+            hover_data.append(hover_info.strip())
+
         # 主要条形图
-        bars = fig.add_trace(go.Bar(
+        fig.add_trace(go.Bar(
             y=region_comparison['所属区域'],
             x=region_comparison['准确率'],
             orientation='h',
             marker=dict(
                 color=colors,
                 line=dict(color='rgba(255,255,255,0.8)', width=2),
-                # 添加渐变效果
                 opacity=0.9
             ),
             text=[f"{acc:.1f}%" for acc in region_comparison['准确率']],
             textposition='outside',
             textfont=dict(size=14, color='black', family='Inter'),
             name="预测准确率",
-            customdata=np.column_stack((
-                region_comparison['实际销量'].astype(int),
-                region_comparison['预测销量'].astype(int),
-                region_comparison['销量占比'],
-                region_comparison['差异量'].astype(int),
-                region_comparison['差异率']
-            )),
-            hovertemplate="<b>🌏 %{y}区域预测表现</b><br>" +
-                          "<b>预测准确率:</b> %{x:.1f}%<br>" +
-                          "<br><b>📊 销量数据</b><br>" +
-                          "实际销量: %{customdata[0]:,}箱<br>" +
-                          "预测销量: %{customdata[1]:,}箱<br>" +
-                          "销量占比: %{customdata[2]:.1f}%<br>" +
-                          "<br><b>📈 预测偏差</b><br>" +
-                          "差异量: %{customdata[3]:+,}箱<br>" +
-                          "差异率: %{customdata[4]:+.1f}%<br>" +
-                          "<extra></extra>"
+            customdata=hover_data,
+            hovertemplate="%{customdata}<extra></extra>"
         ))
+
+        # 添加全国平均线（垂直虚线）
+        fig.add_vline(
+            x=national_average,
+            line_dash="dash",
+            line_color="#4169E1",
+            line_width=3,
+            annotation=dict(
+                text=f"全国平均: {national_average:.1f}%",
+                x=national_average,
+                y=len(region_comparison) * 0.95,
+                bgcolor="rgba(65,105,225,0.15)",
+                bordercolor="#4169E1",
+                font=dict(color="#4169E1", size=13, weight="bold"),
+                showarrow=True,
+                arrowhead=2,
+                arrowcolor="#4169E1",
+                arrowwidth=2,
+                ax=50,
+                ay=0
+            )
+        )
 
         # 添加准确率标准参考线
         fig.add_vline(x=85, line_dash="dash", line_color="#2E8B57", line_width=3,
                       annotation=dict(text="优秀标准 85%",
-                                      x=85, y=len(region_comparison) * 0.9,
+                                      x=85, y=len(region_comparison) * 0.8,
                                       bgcolor="rgba(46,139,87,0.1)",
                                       bordercolor="#2E8B57",
                                       font=dict(color="#2E8B57", size=12)))
 
         fig.add_vline(x=75, line_dash="dot", line_color="#FFD700", line_width=2,
                       annotation=dict(text="良好标准 75%",
-                                      x=75, y=len(region_comparison) * 0.7,
+                                      x=75, y=len(region_comparison) * 0.6,
                                       bgcolor="rgba(255,215,0,0.1)",
                                       bordercolor="#FFD700",
                                       font=dict(color="#B8860B", size=11)))
 
         fig.add_vline(x=65, line_dash="dot", line_color="#FF8C00", line_width=2,
                       annotation=dict(text="及格标准 65%",
-                                      x=65, y=len(region_comparison) * 0.5,
+                                      x=65, y=len(region_comparison) * 0.4,
                                       bgcolor="rgba(255,140,0,0.1)",
                                       bordercolor="#FF8C00",
                                       font=dict(color="#FF8C00", size=11)))
 
-        # 现代化布局设计 - 调整右边距为图表外说明留出空间
+        # 现代化布局设计 - 调整为全宽布局
         fig.update_layout(
             title=dict(
-                text="<b>区域预测准确率综合分析</b><br><sub>基于实际销量与预测销量对比 | 彩色编码显示表现等级</sub>",
+                text="<b>区域预测准确率综合分析</b><br><sub>基于实际销量与预测销量对比 | 彩色编码显示表现等级 | 悬停查看详细分析</sub>",
                 x=0.5,
                 xanchor='center',
                 font=dict(size=18, family='Inter')
@@ -2276,7 +2313,7 @@ def create_enhanced_region_forecast_chart(merged_data):
                     text="<b>预测准确率 (%)</b>",
                     font=dict(size=14, family='Inter')
                 ),
-                range=[0, min(100, region_comparison['准确率'].max() + 15)],
+                range=[0, min(100, region_comparison['准确率'].max() + 20)],
                 ticksuffix="%",
                 showgrid=True,
                 gridcolor="rgba(128,128,128,0.2)",
@@ -2292,15 +2329,15 @@ def create_enhanced_region_forecast_chart(merged_data):
                 categoryorder='array',
                 categoryarray=region_comparison['所属区域'].tolist()
             ),
-            height=max(400, len(region_comparison) * 80),
-            margin=dict(l=100, r=50, t=100, b=80),  # 减小右边距，为外部说明留空间
+            height=max(500, len(region_comparison) * 80),
+            margin=dict(l=100, r=80, t=100, b=80),  # 调整为全宽布局的边距
             showlegend=False,
             plot_bgcolor='rgba(248,250,252,0.8)',
             paper_bgcolor='rgba(255,255,255,0.95)',
             font=dict(family='Inter'),
             hoverlabel=dict(
-                bgcolor="rgba(255,255,255,0.95)",
-                font_size=13,
+                bgcolor="rgba(255,255,255,0.98)",
+                font_size=12,
                 font_family="Inter",
                 bordercolor="rgba(0,0,0,0.1)",
                 align="left"
@@ -2309,7 +2346,6 @@ def create_enhanced_region_forecast_chart(merged_data):
             transition=dict(duration=500, easing="cubic-in-out")
         )
 
-        # 不再在图表内部添加说明文字框，而是返回数据供外部使用
         return fig, region_comparison
 
     except Exception as e:
@@ -3772,94 +3808,52 @@ with tab3:
 
         # 子标签4：区域维度深度分析 - 使用图表
             # 子标签4：区域维度深度分析 - 使用图表
+            # 子标签4：区域维度深度分析 - 使用图表
+            # 子标签4：区域维度深度分析 - 使用图表
             with sub_tab4:
                 st.markdown("#### 🌍 区域维度预测准确性深度分析")
 
-                # 创建升级版区域分析图表 - 修复后的函数调用
+                # 创建升级版区域分析图表 - 总结信息已移至悬停中
                 enhanced_region_fig, region_comparison_data = create_enhanced_region_forecast_chart(merged_data)
 
-                # 创建两列布局，左侧显示图表，右侧显示说明
-                col_chart, col_summary = st.columns([3, 1])
-
-                with col_chart:
-                    st.plotly_chart(enhanced_region_fig, use_container_width=True)
-
-                with col_summary:
-                    # 在图表右侧外部显示表现总结
-                    if not region_comparison_data.empty:
-                        best_region = region_comparison_data.iloc[-1]
-                        worst_region = region_comparison_data.iloc[0]
-
-                        st.markdown(f"""
-                            <div style="
-                                background: rgba(255,255,255,0.95);
-                                border: 1px solid rgba(128,128,128,0.3);
-                                border-radius: 15px;
-                                padding: 20px;
-                                margin-top: 50px;
-                                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                            ">
-                                <h4 style="color: #333; margin-bottom: 15px; font-size: 16px;">📈 表现总结</h4>
-                                <div style="font-size: 13px; line-height: 1.8;">
-                                    <div style="margin-bottom: 12px;">
-                                        <strong style="color: #2E8B57;">🥇 最佳区域</strong><br>
-                                        <span style="color: #2E8B57; font-weight: 600;">{best_region['所属区域']}区域</span><br>
-                                        <span style="color: #666;">准确率: {best_region['准确率']:.1f}%</span>
-                                    </div>
-                                    <div style="margin-bottom: 12px;">
-                                        <strong style="color: #DC143C;">🎯 待改进区域</strong><br>
-                                        <span style="color: #DC143C; font-weight: 600;">{worst_region['所属区域']}区域</span><br>
-                                        <span style="color: #666;">准确率: {worst_region['准确率']:.1f}%</span>
-                                    </div>
-                                    <div style="margin-bottom: 12px;">
-                                        <strong style="color: #666;">📊 全国平均</strong><br>
-                                        <span style="font-weight: 600;">{region_comparison_data['准确率'].mean():.1f}%</span>
-                                    </div>
-                                    <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;">
-                                    <div style="font-size: 12px; color: #888;">
-                                        <strong>🎨 颜色说明</strong><br>
-                                        <span style="color: #2E8B57;">● 绿色 = 优秀 (≥85%)</span><br>
-                                        <span style="color: #FFD700;">● 黄色 = 一般 (65-85%)</span><br>
-                                        <span style="color: #DC143C;">● 红色 = 需改进 (<65%)</span>
-                                    </div>
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
+                # 全宽显示图表（移除了右侧总结框）
+                st.plotly_chart(enhanced_region_fig, use_container_width=True)
 
                 # 区域表现热力图
-                # 准备数据
-                region_product_matrix = merged_data.pivot_table(
-                    values='准确率',
-                    index='所属区域',
-                    columns='产品名称',
-                    aggfunc='mean'
-                ) * 100
+                if not merged_data.empty:
+                    # 准备数据
+                    region_product_matrix = merged_data.pivot_table(
+                        values='准确率',
+                        index='所属区域',
+                        columns='产品名称',
+                        aggfunc='mean'
+                    ) * 100
 
-                # 选择前10个产品显示
-                top_products = merged_data.groupby('产品名称')['实际销量'].sum().nlargest(10).index
-                region_product_matrix = region_product_matrix[top_products]
+                    # 选择前10个产品显示
+                    top_products = merged_data.groupby('产品名称')['实际销量'].sum().nlargest(10).index
+                    region_product_matrix = region_product_matrix[top_products]
 
-                # 创建热力图
-                fig_heatmap = go.Figure(data=go.Heatmap(
-                    z=region_product_matrix.values,
-                    x=region_product_matrix.columns,
-                    y=region_product_matrix.index,
-                    colorscale='RdYlGn',
-                    zmid=85,
-                    text=region_product_matrix.values.round(1),
-                    texttemplate='%{text}%',
-                    textfont={"size": 10},
-                    hovertemplate="<b>%{y} - %{x}</b><br>准确率: %{z:.1f}%<br><extra></extra>"
-                ))
+                    # 创建热力图
+                    fig_heatmap = go.Figure(data=go.Heatmap(
+                        z=region_product_matrix.values,
+                        x=region_product_matrix.columns,
+                        y=region_product_matrix.index,
+                        colorscale='RdYlGn',
+                        zmid=85,
+                        text=region_product_matrix.values.round(1),
+                        texttemplate='%{text}%',
+                        textfont={"size": 10},
+                        hovertemplate="<b>%{y} - %{x}</b><br>准确率: %{z:.1f}%<br><extra></extra>"
+                    ))
 
-                fig_heatmap.update_layout(
-                    title="区域-产品预测准确率热力图<br><sub>显示销量前10产品</sub>",
-                    xaxis_title="产品名称",
-                    yaxis_title="区域",
-                    height=500
-                )
+                    fig_heatmap.update_layout(
+                        title="区域-产品预测准确率热力图<br><sub>显示销量前10产品</sub>",
+                        xaxis_title="产品名称",
+                        yaxis_title="区域",
+                        height=500
+                    )
 
-                st.plotly_chart(fig_heatmap, use_container_width=True)
+                    st.plotly_chart(fig_heatmap, use_container_width=True)
 
 # 替换整个 with tab4 块的内容
 # 标签4：库存积压预警详情 - 完整移植附件一的报告格式
