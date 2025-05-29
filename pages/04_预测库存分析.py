@@ -2157,7 +2157,7 @@ def load_and_process_data():
 
 
 def create_enhanced_region_forecast_chart(merged_data):
-    """创建优化版区域预测准确率图表 - 修复布局问题，充分利用容器宽度"""
+    """创建优化版区域预测准确率图表 - 完全重写布局逻辑，解决容器宽度利用问题"""
     try:
         if merged_data is None or merged_data.empty:
             fig = go.Figure()
@@ -2193,171 +2193,180 @@ def create_enhanced_region_forecast_chart(merged_data):
         # 计算全国平均准确率
         national_average = region_comparison['准确率'].mean()
 
-        # 创建现代化的水平条形图
+        # 创建图表 - 使用不同的配置策略
         fig = go.Figure()
 
-        # 根据准确率设置渐变色
+        # 重新设计颜色方案
         colors = []
         for accuracy in region_comparison['准确率']:
             if accuracy >= 85:
-                colors.append('#2E8B57')  # 海绿色 - 优秀
+                colors.append('#006400')  # 深绿色
             elif accuracy >= 75:
-                colors.append('#32CD32')  # 酸橙绿 - 良好
+                colors.append('#32CD32')  # 酸橙绿
             elif accuracy >= 65:
-                colors.append('#FFD700')  # 金色 - 一般
+                colors.append('#FFD700')  # 金色
             elif accuracy >= 55:
-                colors.append('#FF8C00')  # 深橙色 - 需改进
+                colors.append('#FF8C00')  # 深橙色
             else:
-                colors.append('#DC143C')  # 深红色 - 差
+                colors.append('#DC143C')  # 深红色
 
         # 获取最佳和最差区域信息
         best_region = region_comparison.iloc[-1]
         worst_region = region_comparison.iloc[0]
 
-        # 准备悬停信息
+        # 简化悬停信息，避免过长
         hover_data = []
         for idx, row in region_comparison.iterrows():
+            performance = "🟢 优秀" if row['准确率'] >= 85 else "🟡 良好" if row['准确率'] >= 75 else "🟠 一般" if row[
+                                                                                                                    '准确率'] >= 65 else "🔴 需改进"
+
             hover_info = (
-                f"<b>🌏 {row['所属区域']}区域预测表现</b><br>"
-                f"<b>预测准确率:</b> {row['准确率']:.1f}%<br>"
-                f"<br><b>📊 销量数据</b><br>"
+                f"<b>{row['所属区域']}区域</b><br>"
+                f"准确率: <b>{row['准确率']:.1f}%</b><br>"
+                f"表现: {performance}<br>"
                 f"实际销量: {int(row['实际销量']):,}箱<br>"
                 f"预测销量: {int(row['预测销量']):,}箱<br>"
-                f"销量占比: {row['销量占比']:.1f}%<br>"
-                f"<br><b>📈 预测偏差</b><br>"
-                f"差异量: {int(row['差异量']):+,}箱<br>"
-                f"差异率: {row['差异率']:+.1f}%<br>"
-                f"<br><b>📋 全国对比</b><br>"
-                f"🥇 最佳区域: {best_region['所属区域']} ({best_region['准确率']:.1f}%)<br>"
-                f"🎯 待改进区域: {worst_region['所属区域']} ({worst_region['准确率']:.1f}%)<br>"
-                f"📊 全国平均: {national_average:.1f}%<br>"
-                f"<br><b>🎨 颜色说明</b><br>"
-                f"🟢 绿色 = 优秀 (≥85%)<br>"
-                f"🟡 黄色 = 一般 (65-85%)<br>"
-                f"🔴 红色 = 需改进 (<65%)"
+                f"差异: {int(row['差异量']):+,}箱 ({row['差异率']:+.1f}%)<br>"
+                f"销量占比: {row['销量占比']:.1f}%"
             )
             hover_data.append(hover_info)
 
-        # 主要条形图
+        # 主要条形图 - 关键布局优化
         fig.add_trace(go.Bar(
             y=region_comparison['所属区域'],
             x=region_comparison['准确率'],
             orientation='h',
             marker=dict(
                 color=colors,
-                line=dict(color='rgba(255,255,255,0.8)', width=2),
-                opacity=0.9
+                line=dict(color='rgba(255,255,255,0.6)', width=1),
+                opacity=0.85
             ),
             text=[f"{acc:.1f}%" for acc in region_comparison['准确率']],
             textposition='outside',
-            textfont=dict(size=14, color='black', family='Inter'),
+            textfont=dict(size=13, color='black', family='Inter', weight='bold'),
             name="预测准确率",
             customdata=hover_data,
             hovertemplate="%{customdata}<extra></extra>"
         ))
 
-        # 优化x轴范围，减少右边空白
+        # 重新计算x轴范围 - 关键修复
+        min_accuracy = region_comparison['准确率'].min()
         max_accuracy = region_comparison['准确率'].max()
-        x_range_max = min(max_accuracy + 8, 100)  # 减少右边缓冲区到8%，最大不超过100%
 
-        # 添加参考线 - 只添加在有意义的范围内
+        # 智能计算范围，确保充分利用空间
+        range_padding = (max_accuracy - min_accuracy) * 0.15  # 15%的缓冲
+        x_min = max(0, min_accuracy - range_padding)
+        x_max = min(100, max_accuracy + range_padding)
+
+        # 如果范围太小，至少保证20%的跨度
+        if x_max - x_min < 20:
+            center = (x_max + x_min) / 2
+            x_min = max(0, center - 10)
+            x_max = min(100, center + 10)
+
+        # 添加参考线 - 只在合理范围内
         reference_lines = []
 
-        # 全国平均线
-        if national_average <= x_range_max:
+        if x_min <= national_average <= x_max:
             fig.add_vline(
                 x=national_average,
                 line_dash="dash",
                 line_color="#4169E1",
-                line_width=3
+                line_width=2,
+                opacity=0.7
             )
-            reference_lines.append(("全国平均", national_average, "#4169E1"))
+            reference_lines.append(f"全国平均 {national_average:.1f}%")
 
-        # 优秀标准线
-        if 85 <= x_range_max:
-            fig.add_vline(x=85, line_dash="dash", line_color="#2E8B57", line_width=2)
-            reference_lines.append(("优秀标准", 85, "#2E8B57"))
+        if x_min <= 85 <= x_max:
+            fig.add_vline(x=85, line_dash="dot", line_color="#006400", line_width=2, opacity=0.6)
+            reference_lines.append("优秀线 85%")
 
-        # 良好标准线  
-        if 75 <= x_range_max:
-            fig.add_vline(x=75, line_dash="dot", line_color="#FFD700", line_width=2)
-            reference_lines.append(("良好标准", 75, "#FFD700"))
+        if x_min <= 75 <= x_max:
+            fig.add_vline(x=75, line_dash="dot", line_color="#FFD700", line_width=1.5, opacity=0.6)
+            reference_lines.append("良好线 75%")
 
-        # 及格标准线
-        if 65 <= x_range_max:
-            fig.add_vline(x=65, line_dash="dot", line_color="#FF8C00", line_width=2)
-            reference_lines.append(("及格标准", 65, "#FF8C00"))
-
-        # 优化布局 - 充分利用容器宽度
+        # 完全重写布局配置
         fig.update_layout(
+            # 标题优化
             title=dict(
-                text="<b>区域预测准确率综合分析</b><br><sub>基于实际销量与预测销量对比 | 彩色编码显示表现等级 | 悬停查看详细分析</sub>",
+                text=f"<b>区域预测准确率分析</b><br><span style='font-size:14px;color:#666;'>范围: {min_accuracy:.1f}% - {max_accuracy:.1f}% | 平均: {national_average:.1f}% | 标准: {', '.join(reference_lines)}</span>",
                 x=0.5,
                 xanchor='center',
-                font=dict(size=18, family='Inter')
+                font=dict(size=16, family='Inter')
             ),
+
+            # X轴优化 - 关键配置
             xaxis=dict(
                 title=dict(
-                    text="<b>预测准确率 (%)</b>",
-                    font=dict(size=14, family='Inter')
+                    text="预测准确率 (%)",
+                    font=dict(size=13, family='Inter')
                 ),
-                range=[0, x_range_max],  # 优化范围，减少右边空白
+                range=[x_min, x_max],  # 使用计算的智能范围
                 ticksuffix="%",
                 showgrid=True,
-                gridcolor="rgba(128,128,128,0.2)",
+                gridcolor="rgba(200,200,200,0.3)",
                 gridwidth=1,
-                tickfont=dict(size=12, family='Inter')
+                tickfont=dict(size=11, family='Inter'),
+                fixedrange=False,  # 允许用户缩放
+                autorange=False  # 禁用自动范围
             ),
+
+            # Y轴优化
             yaxis=dict(
                 title=dict(
-                    text="<b>销售区域</b>",
-                    font=dict(size=14, family='Inter')
+                    text="销售区域",
+                    font=dict(size=13, family='Inter')
                 ),
-                tickfont=dict(size=13, family='Inter'),
+                tickfont=dict(size=12, family='Inter'),
                 categoryorder='array',
                 categoryarray=region_comparison['所属区域'].tolist(),
+                automargin=True
             ),
-            height=max(450, len(region_comparison) * 70 + 80),  # 优化高度
-            margin=dict(l=80, r=50, t=120, b=80),  # 大幅减少右边距，从120改为50
+
+            # 整体布局优化 - 关键修复
+            height=max(400, len(region_comparison) * 60 + 120),
+            width=None,  # 不设置固定宽度，让它响应容器
+            autosize=True,  # 开启自动调整大小
+            margin=dict(
+                l=100,  # 左边距给Y轴标签留空间
+                r=30,  # 最小右边距
+                t=80,  # 顶部边距给标题留空间
+                b=60,  # 底部边距
+                pad=5  # 内边距
+            ),
+
+            # 其他配置
             showlegend=False,
-            plot_bgcolor='rgba(248,250,252,0.8)',
+            plot_bgcolor='rgba(250,250,250,0.8)',
             paper_bgcolor='rgba(255,255,255,0.95)',
-            font=dict(family='Inter'),
+            font=dict(family='Inter', size=11),
+
+            # 悬停配置
             hoverlabel=dict(
-                bgcolor="rgba(255,255,255,0.98)",
-                font_size=13,
+                bgcolor="rgba(255,255,255,0.95)",
+                font_size=12,
                 font_family="Inter",
-                bordercolor="rgba(0,0,0,0.1)",
-                align="left"
+                bordercolor="rgba(100,100,100,0.3)",
+                borderwidth=1
             ),
-            transition=dict(duration=500, easing="cubic-in-out")
+
+            # 响应式配置
+            responsive=True
         )
 
-        # 在图表内部添加标准线说明 - 使用更紧凑的布局
-        annotation_y_start = len(region_comparison) * 0.85
-        y_step = len(region_comparison) * 0.15
-
-        for i, (line_name, line_value, line_color) in enumerate(reference_lines):
-            if line_value <= x_range_max:  # 只显示在可见范围内的标准线
-                annotation_y = annotation_y_start - (i * y_step)
-
-                fig.add_annotation(
-                    x=line_value,
-                    y=annotation_y,
-                    text=f"<b>{line_name}</b><br>{line_value}%",
-                    showarrow=True,
-                    arrowhead=2,
-                    arrowcolor=line_color,
-                    arrowwidth=2,
-                    ax=20 if line_value < x_range_max * 0.7 else -20,  # 根据位置调整箭头方向
-                    ay=0,
-                    bgcolor="rgba(255,255,255,0.95)",
-                    bordercolor=line_color,
-                    borderwidth=1,
-                    font=dict(size=10, family="Inter", color=line_color),
-                    xanchor="center",
-                    yanchor="middle"
-                )
+        # 添加配置以优化显示
+        config = {
+            'displayModeBar': True,
+            'displaylogo': False,
+            'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d'],
+            'toImageButtonOptions': {
+                'format': 'png',
+                'filename': '区域预测准确率分析',
+                'height': fig.layout.height,
+                'width': None,
+                'scale': 2
+            }
+        }
 
         return fig, region_comparison
 
@@ -3827,8 +3836,16 @@ with tab3:
             with sub_tab4:
                 st.markdown("#### 🌍 区域维度预测准确性深度分析")
 
-                # 创建升级版区域分析图表 - 总结信息已移至悬停中
+                # 在 sub_tab4 中找到这行代码并替换：
                 enhanced_region_fig, region_comparison_data = create_enhanced_region_forecast_chart(merged_data)
+
+                # 显示图表时使用新的配置
+                st.plotly_chart(enhanced_region_fig, use_container_width=True, config={
+                    'displayModeBar': True,
+                    'displaylogo': False,
+                    'responsive': True,
+                    'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d']
+                })
 
                 # 全宽显示图表（移除了右侧总结框）
                 st.plotly_chart(enhanced_region_fig, use_container_width=True)
