@@ -1,8 +1,9 @@
-# pages/需求管理.py - 需求管理页面
+# pages/需求管理.py - 需求管理页面（移除自定义导航版本）
 import streamlit as st
 from datetime import datetime, date
 import sys
 import os
+import time
 
 # 添加主目录到路径
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -15,7 +16,18 @@ st.set_page_config(
     layout="wide"
 )
 
-# 应用主要CSS样式
+# 🔐 登录状态检查
+if not st.session_state.get('authenticated', False):
+    st.error("❌ 请先登录系统")
+    st.markdown("""
+    <div style="text-align: center; margin: 2rem;">
+        <p>您需要先登录才能访问此页面</p>
+        <a href="/" style="color: #667eea; text-decoration: none; font-weight: 500;">👈 返回登录页面</a>
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
+# 应用完整CSS样式（包含紫色背景）
 st.markdown("""
 <style>
     /* 导入字体 */
@@ -34,8 +46,49 @@ st.markdown("""
         min-height: 100vh;
     }
 
+    /* 主容器背景 */
+    .main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        position: relative;
+    }
+
+    /* 动态背景波纹效果 */
+    .main::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+            radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
+            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 50% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 60%);
+        animation: waveMove 8s ease-in-out infinite;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    @keyframes waveMove {
+        0%, 100% { 
+            background-size: 200% 200%, 150% 150%, 300% 300%;
+            background-position: 0% 0%, 100% 100%, 50% 50%; 
+        }
+        33% { 
+            background-size: 300% 300%, 200% 200%, 250% 250%;
+            background-position: 100% 0%, 0% 50%, 80% 20%; 
+        }
+        66% { 
+            background-size: 250% 250%, 300% 300%, 200% 200%;
+            background-position: 50% 100%, 50% 0%, 20% 80%; 
+        }
+    }
+
     /* 主容器 */
     .main .block-container {
+        position: relative;
+        z-index: 10;
         background: rgba(255, 255, 255, 0.02);
         backdrop-filter: blur(10px);
         border-radius: 20px;
@@ -218,6 +271,17 @@ st.markdown("""
         opacity: 0.5;
     }
 
+    /* 用户信息样式 */
+    .user-info {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        color: white;
+        text-align: center;
+    }
+
     /* 响应式设计 */
     @media (max-width: 768px) {
         .page-title {
@@ -239,12 +303,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 检查认证状态
-if not st.session_state.get('authenticated', False):
-    st.error("❌ 请先登录系统")
-    if st.button("返回登录页面"):
-        st.switch_page("登陆界面haha.py")
-    st.stop()
+# 显示用户信息
+st.markdown(f"""
+<div class="user-info">
+    👤 欢迎，{st.session_state.display_name} ({st.session_state.user_role})
+</div>
+""", unsafe_allow_html=True)
 
 # 页面标题
 st.markdown('<h1 class="page-title">📋 需求管理</h1>', unsafe_allow_html=True)
@@ -423,9 +487,22 @@ with tab3:
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# 返回按钮
-st.markdown("<br>", unsafe_allow_html=True)
-col1, col2, col3 = st.columns([1, 1, 1])
+# 统计信息
+st.markdown('<div class="content-card">', unsafe_allow_html=True)
+st.markdown("### 📊 需求统计")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    total_requests = len(storage.get_all_requests())
+    st.metric("总需求数", total_requests, help="系统中的需求总数")
+
 with col2:
-    if st.button("🏠 返回主页", use_container_width=True):
-        st.switch_page("登陆界面haha.py")
+    pending_count = len(storage.get_pending_requests())
+    st.metric("待处理", pending_count, help="等待处理的需求数量")
+
+with col3:
+    processed_count = len(storage.get_processed_requests())
+    st.metric("已处理", processed_count, help="已完成处理的需求数量")
+
+st.markdown('</div>', unsafe_allow_html=True)
