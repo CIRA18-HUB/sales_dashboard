@@ -1092,20 +1092,21 @@ def create_integrated_risk_analysis_optimized(processed_inventory):
         return go.Figure()
 
 
-def create_product_analysis_optimized(product_stats):
-    """创建优化的产品分析图表 - 解决悬停遮挡问题"""
+def create_product_analysis_optimized_fixed(product_stats):
+    """创建修复版的产品分析图表 - 解决悬停遮挡和布局问题"""
     try:
-        # 创建增强的产品分析图表 - 4个子图整合
+        # 创建新的布局：2行，第一行2列，第二行1列占满
         fig_product = make_subplots(
             rows=2, cols=2,
-            subplot_titles=("产品库存价值TOP15", "产品库龄vs风险得分", "产品价值vs清库天数", "产品库存周转率"),
+            subplot_titles=("产品库存价值TOP15 (含周转率)", "产品库龄vs风险得分矩阵"),
             specs=[[{"type": "bar"}, {"type": "scatter"}],
-                   [{"type": "scatter"}, {"type": "bar"}]],
+                   [{"type": "scatter", "colspan": 2}, None]],  # 第二行占满整行
+            row_heights=[0.4, 0.6],  # 第二行更高
             horizontal_spacing=0.12,
             vertical_spacing=0.15
         )
 
-        # 1. TOP15产品价值 - 优化悬停
+        # 1. TOP15产品价值 + 周转率信息 - 修复悬停问题
         top15_products = product_stats.head(15)
 
         # 为不同风险等级设置颜色
@@ -1119,18 +1120,47 @@ def create_product_analysis_optimized(product_stats):
         }
 
         if '批次价值' in top15_products.columns:
+            # 构建完整的悬停数据
+            hover_data = []
+            for idx, row in top15_products.iterrows():
+                risk_level = row.get('风险等级', '未知')
+                turnover_rate = row.get('库存周转率', 0)
+                batch_stock = row.get('批次库存', 0)
+                avg_age = row.get('库龄', 0)
+                risk_score = row.get('风险得分', 0)
+
+                # 周转率评级
+                turnover_rating = (
+                    '优秀(>6次/年)' if turnover_rate > 6 else
+                    '良好(4-6次/年)' if turnover_rate > 4 else
+                    '一般(2-4次/年)' if turnover_rate > 2 else
+                    '需改进(<2次/年)'
+                )
+
+                hover_data.append([
+                    risk_level, turnover_rate, turnover_rating,
+                    batch_stock, avg_age, risk_score
+                ])
+
             fig_product.add_trace(
                 go.Bar(
                     x=top15_products.index,
                     y=top15_products['批次价值'],
-                    marker_color=[risk_colors.get(risk, '#808080') for risk in
-                                  top15_products.get('风险等级', ['未知'] * len(top15_products))],
+                    marker_color=[risk_colors.get(data[0], '#808080') for data in hover_data],
                     text=top15_products['批次价值'].apply(lambda x: f"¥{x / 10000:.1f}万"),
                     textposition='auto',
                     textfont=dict(size=10),
+                    customdata=hover_data,
                     hovertemplate="<b>%{x}</b><br>" +
-                                  "价值: ¥%{y:,.0f}<br>" +
-                                  "风险: %{marker.color}<br>" +
+                                  "库存价值: ¥%{y:,.0f}<br>" +
+                                  "风险等级: <b>%{customdata[0]}</b><br>" +
+                                  "风险得分: %{customdata[5]:.0f}分<br>" +
+                                  "<br><b>📈 周转分析</b><br>" +
+                                  "年周转率: %{customdata[1]:.1f}次<br>" +
+                                  "周转评级: %{customdata[2]}<br>" +
+                                  "<br><b>📊 基础数据</b><br>" +
+                                  "库存量: %{customdata[3]:,.0f}箱<br>" +
+                                  "平均库龄: %{customdata[4]:.0f}天<br>" +
                                   "<extra></extra>",
                     name="产品价值分析"
                 ),
@@ -1145,82 +1175,91 @@ def create_product_analysis_optimized(product_stats):
                     y=product_stats['风险得分'],
                     mode='markers',
                     marker=dict(
-                        size=np.log1p(product_stats['批次价值']) * 3,
-                        color=product_stats.get('预计清库天数', [30] * len(product_stats)).replace([np.inf, -np.inf], 365),
+                        size=np.log1p(product_stats['批次价值']) * 2.5,
+                        color=product_stats.get('预计清库天数', [30] * len(product_stats)).replace([np.inf, -np.inf],
+                                                                                                   365),
                         colorscale='RdYlGn_r',
                         cmin=0,
                         cmax=180,
                         showscale=True,
                         colorbar=dict(
                             title="清库天数",
-                            x=0.48,
-                            len=0.4
+                            x=1.02,
+                            len=0.35
                         ),
                         opacity=0.8,
-                        line=dict(width=2, color='white')
+                        line=dict(width=1, color='white')
                     ),
                     text=product_stats.index,
                     hovertemplate="<b>%{text}</b><br>" +
                                   "库龄: %{x:.0f}天<br>" +
                                   "风险得分: %{y:.0f}分<br>" +
+                                  "清库天数: %{marker.color:.0f}天<br>" +
                                   "<extra></extra>",
-                    name="风险矩阵分析"
+                    name="风险矩阵"
                 ),
                 row=1, col=2
             )
 
-        # 3. 产品价值vs清库天数风险象限 - 优化悬停
+        # 3. 产品价值vs清库天数风险象限 - 放大占一行
         if all(col in product_stats.columns for col in ['批次价值', '预计清库天数']):
             clearance_data = product_stats['预计清库天数'].replace([np.inf, -np.inf], 365)
+
+            # 计算象限分析
+            value_median = product_stats['批次价值'].median()
+            象限分类 = np.where((product_stats['批次价值'] > value_median) &
+                                (clearance_data > 90), '🔴高价值高风险',
+                                np.where((product_stats['批次价值'] > value_median) &
+                                         (clearance_data <= 90), '🟢高价值低风险',
+                                         np.where((product_stats['批次价值'] <= value_median) &
+                                                  (clearance_data > 90), '🟠低价值高风险', '🟡低价值低风险')))
 
             fig_product.add_trace(
                 go.Scatter(
                     x=product_stats['批次价值'],
                     y=clearance_data,
-                    mode='markers',
+                    mode='markers+text',
                     marker=dict(
-                        size=product_stats.get('库龄', [30] * len(product_stats)) / 3,
+                        size=product_stats.get('库龄', [30] * len(product_stats)) / 2.5,
                         color=[risk_colors.get(risk, '#808080') for risk in
                                product_stats.get('风险等级', ['未知'] * len(product_stats))],
-                        opacity=0.7,
+                        opacity=0.8,
                         line=dict(width=2, color='white')
                     ),
                     text=product_stats.index,
+                    textposition="top center",
+                    textfont=dict(size=8),
+                    customdata=象限分类,
                     hovertemplate="<b>%{text}</b><br>" +
-                                  "价值: ¥%{x:,.0f}<br>" +
-                                  "清库: %{y:.0f}天<br>" +
+                                  "库存价值: ¥%{x:,.0f}<br>" +
+                                  "预计清库: %{y:.0f}天<br>" +
+                                  "象限分类: <b>%{customdata}</b><br>" +
                                   "<extra></extra>",
                     name="价值风险象限"
                 ),
                 row=2, col=1
             )
 
-        # 4. 产品库存周转率分析 - 优化悬停
-        if '库存周转率' in product_stats.columns:
-            top15_turnover = product_stats.head(15)
-            turnover_colors = top15_turnover['库存周转率'].apply(
-                lambda x: '#006400' if x > 6 else '#90EE90' if x > 4 else '#FFA500' if x > 2 else '#FF0000'
-            )
+            # 添加象限参考线
+            fig_product.add_hline(y=90, line_dash="dash", line_color="red",
+                                  annotation=dict(text="⚠️ 90天清库风险线",
+                                                  xref="x3", yref="y3",
+                                                  x=product_stats['批次价值'].max() * 0.8,
+                                                  bgcolor="rgba(255,255,255,0.9)",
+                                                  bordercolor="red"),
+                                  row=2, col=1)
 
-            fig_product.add_trace(
-                go.Bar(
-                    x=top15_turnover.index,
-                    y=top15_turnover['库存周转率'],
-                    marker_color=turnover_colors,
-                    text=top15_turnover['库存周转率'].apply(lambda x: f"{x:.1f}"),
-                    textposition='auto',
-                    textfont=dict(size=10),
-                    hovertemplate="<b>%{x}</b><br>" +
-                                  "周转率: %{y:.1f}次/年<br>" +
-                                  "<extra></extra>",
-                    name="库存周转分析"
-                ),
-                row=2, col=2
-            )
+            fig_product.add_vline(x=value_median, line_dash="dash", line_color="blue",
+                                  annotation=dict(text="💰 价值中位线",
+                                                  xref="x3", yref="paper",
+                                                  y=0.65, yanchor="bottom",
+                                                  bgcolor="rgba(255,255,255,0.9)",
+                                                  bordercolor="blue"),
+                                  row=2, col=1)
 
-        # 优化布局 - 解决悬停遮挡问题
+        # 优化布局
         fig_product.update_layout(
-            height=900,
+            height=1000,  # 增加高度
             showlegend=False,
             title_text="产品维度库存风险深度分析",
             hoverlabel=dict(
@@ -1233,12 +1272,13 @@ def create_product_analysis_optimized(product_stats):
             hovermode='closest',
             paper_bgcolor='rgba(255,255,255,0.98)',
             plot_bgcolor='rgba(255,255,255,0.98)',
-            margin=dict(l=20, r=20, t=100, b=20)
+            margin=dict(l=20, r=100, t=100, b=20)  # 增加右边距为颜色条留空间
         )
 
-        # 调整x轴标签角度
+        # 调整x轴标签角度，避免重叠
         fig_product.update_xaxes(tickangle=-45, row=1, col=1)
-        fig_product.update_xaxes(tickangle=-45, row=2, col=2)
+        fig_product.update_xaxes(title_text="库存价值 (元)", row=2, col=1)
+        fig_product.update_yaxes(title_text="预计清库天数 (天)", row=2, col=1)
 
         return fig_product
 
@@ -2005,7 +2045,7 @@ def create_integrated_risk_analysis(processed_inventory):
 
 
 def create_ultra_integrated_forecast_chart(merged_data):
-    """创建超级整合的预测分析图表 - 增强版本带高级悬停和交互"""
+    """创建超级整合的预测分析图表 - 修复重复标签问题"""
     try:
         if merged_data is None or merged_data.empty:
             fig = go.Figure()
@@ -2060,7 +2100,7 @@ def create_ultra_integrated_forecast_chart(merged_data):
             '准确率': 'mean'
         }).reset_index().sort_values('准确率', ascending=False)
 
-        # 创建超级整合图表 - 使用1个大图显示所有信息
+        # 创建超级整合图表
         fig = go.Figure()
 
         # 重点SKU
@@ -2071,7 +2111,7 @@ def create_ultra_integrated_forecast_chart(merged_data):
                 y=key_products_data['预测销量'],
                 mode='markers',
                 marker=dict(
-                    size=key_products_data['销售占比'] * 2,  # 按销售占比调整大小
+                    size=key_products_data['销售占比'] * 2,
                     sizemin=15,
                     color=key_products_data['准确率'],
                     colorscale='RdYlGn',
@@ -2100,30 +2140,24 @@ def create_ultra_integrated_forecast_chart(merged_data):
                     key_products_data['改进建议'],
                     key_products_data['产品代码']
                 )),
-                hovertemplate="""
-                <b>🎯 重点SKU: %{customdata[0]}</b><br>
-                <b>产品代码: %{customdata[8]}</b><br>
-                <br>
-                <b>📊 销量对比</b><br>
-                实际销量: <b>%{customdata[1]:,.0f}</b>箱<br>
-                预测销量: <b>%{customdata[2]:,.0f}</b>箱<br>
-                差异量: <span style="color: %{customdata[3]:+.0f < 0 ? 'red' : 'green'};">%{customdata[3]:+,.0f}箱</span><br>
-                <br>
-                <b>📈 准确性分析</b><br>
-                预测准确率: <b style="color: %{customdata[6]:.1f > 85 ? 'green' : customdata[6]:.1f > 75 ? 'orange' : 'red'};">%{customdata[6]:.1f}%</b><br>
-                预测差异率: %{customdata[4]:+.1f}%<br>
-                销售占比: <b>%{customdata[5]:.1f}%</b><br>
-                <br>
-                <b>💡 改进建议</b><br>
-                %{customdata[7]}<br>
-                <extra></extra>
-                """,
+                hovertemplate="<b>🎯 重点SKU: %{customdata[0]}</b><br>" +
+                              "<b>代码: %{customdata[8]}</b><br>" +
+                              "<br><b>📊 销量对比</b><br>" +
+                              "实际销量: <b>%{customdata[1]:,.0f}</b>箱<br>" +
+                              "预测销量: <b>%{customdata[2]:,.0f}</b>箱<br>" +
+                              "差异量: %{customdata[3]:+,.0f}箱<br>" +
+                              "<br><b>📈 准确性分析</b><br>" +
+                              "预测准确率: <b>%{customdata[6]:.1f}%</b><br>" +
+                              "销售占比: <b>%{customdata[5]:.1f}%</b><br>" +
+                              "<br><b>💡 改进建议</b><br>" +
+                              "%{customdata[7]}<br>" +
+                              "<extra></extra>",
                 name="重点SKU (占销售额80%)",
                 legendgroup="key"
             ))
 
         # 其他产品
-        other_products_data = product_analysis[~product_analysis['是否重点SKU']].head(20)  # 只显示前20个其他产品
+        other_products_data = product_analysis[~product_analysis['是否重点SKU']].head(20)
         if not other_products_data.empty:
             fig.add_trace(go.Scatter(
                 x=other_products_data['实际销量'],
@@ -2151,23 +2185,11 @@ def create_ultra_integrated_forecast_chart(merged_data):
                     other_products_data['准确率'] * 100,
                     other_products_data['改进建议']
                 )),
-                hovertemplate="""
-                <b>📦 产品: %{customdata[0]}</b><br>
-                <br>
-                <b>📊 销量对比</b><br>
-                实际销量: %{customdata[1]:,.0f}箱<br>
-                预测销量: %{customdata[2]:,.0f}箱<br>
-                差异量: %{customdata[3]:+,.0f}箱<br>
-                <br>
-                <b>📈 准确性分析</b><br>
-                预测准确率: <b>%{customdata[6]:.1f}%</b><br>
-                预测差异率: %{customdata[4]:+.1f}%<br>
-                销售占比: %{customdata[5]:.1f}%<br>
-                <br>
-                <b>💡 建议</b><br>
-                %{customdata[7]}<br>
-                <extra></extra>
-                """,
+                hovertemplate="<b>📦 %{customdata[0]}</b><br>" +
+                              "实际: %{customdata[1]:,.0f}箱<br>" +
+                              "预测: %{customdata[2]:,.0f}箱<br>" +
+                              "准确率: %{customdata[6]:.1f}%<br>" +
+                              "<extra></extra>",
                 name="其他产品",
                 legendgroup="other"
             ))
@@ -2184,8 +2206,8 @@ def create_ultra_integrated_forecast_chart(merged_data):
             showlegend=True
         ))
 
-        # 在图表右侧添加区域准确率排名的注释
-        region_text = "🌍 <b>区域准确率排行</b><br>"
+        # 在图表右侧添加区域准确率排名的注释 - 避免与目标线重叠
+        region_text = "<b>🌍 区域准确率排行</b><br>"
         for i, row in region_analysis.iterrows():
             color = "🟢" if row['准确率'] > 0.85 else "🟡" if row['准确率'] > 0.75 else "🔴"
             region_text += f"{color} {row['所属区域']}: {row['准确率']:.1%}<br>"
@@ -2204,23 +2226,7 @@ def create_ultra_integrated_forecast_chart(merged_data):
             font=dict(size=11)
         )
 
-        # 在左上角添加重点SKU统计 - 调整位置避免遮挡
-        key_sku_text = f"🎯 <b>重点SKU统计</b><br>数量: {len(key_products_data)}个<br>占销售额: 80%<br>平均准确率: {key_products_data['准确率'].mean():.1%}"
-        fig.add_annotation(
-            x=0.02,
-            y=0.95,  # 从0.98调整到0.95，稍微往下移
-            xref='paper',
-            yref='paper',
-            text=key_sku_text,
-            showarrow=False,
-            align='left',
-            bgcolor='rgba(102, 126, 234, 0.1)',
-            bordercolor=COLOR_SCHEME['primary'],
-            borderwidth=2,
-            font=dict(size=11, color=COLOR_SCHEME['primary'])
-        )
-
-        # 更新布局 - 调整图例位置避免遮挡
+        # 更新布局 - 删除重复的重点SKU统计注释
         fig.update_layout(
             title=dict(
                 text=f"销售预测准确性全景分析 - {datetime.now().year}年数据<br><sub>气泡大小=销售占比 | 颜色=准确率 | 重点SKU(占销售额80%)突出显示</sub>",
@@ -2234,7 +2240,7 @@ def create_ultra_integrated_forecast_chart(merged_data):
             showlegend=True,
             legend=dict(
                 x=0.02,
-                y=0.15,  # 从0.02调整到0.15，往上移避免遮挡坐标轴
+                y=0.15,
                 bgcolor='rgba(255,255,255,0.8)',
                 bordercolor='gray',
                 borderwidth=1
@@ -2341,8 +2347,8 @@ def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region=
             ))
         ))
 
-        # 添加参考线 - 修复重叠问题
-        # 目标线:85% - 调整注释位置
+        # 添加参考线 - 修复重叠问题，调整注释位置
+        # 目标线:85% - 移到右上角
         fig.add_vline(
             x=85,
             line_dash="dash",
@@ -2350,24 +2356,23 @@ def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region=
             line_width=2
         )
 
-        # 添加目标线注释 - 避免与数字重叠
         fig.add_annotation(
-            x=85,
-            y=len(key_skus) - 1,  # 调整到顶部
+            x=87,  # 稍微向右偏移
+            y=len(key_skus) * 0.9,  # 调整到上部但不是最顶部
             text="目标线:85%",
             showarrow=True,
             arrowhead=2,
             arrowcolor="red",
             arrowwidth=2,
-            ax=20,  # 箭头偏移
-            ay=0,
+            ax=15,
+            ay=-10,
             bgcolor="rgba(255,255,255,0.9)",
             bordercolor="red",
             borderwidth=1,
             font=dict(size=12, color="red", family="Arial Black")
         )
 
-        # 添加优秀线:90% - 调整注释位置
+        # 添加优秀线:90% - 移到右中部，避免与80%重叠
         fig.add_vline(
             x=90,
             line_dash="dot",
@@ -2376,15 +2381,15 @@ def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region=
         )
 
         fig.add_annotation(
-            x=90,
-            y=len(key_skus) * 0.8,  # 调整到中上部
+            x=92,  # 稍微向右偏移
+            y=len(key_skus) * 0.6,  # 调整到中部
             text="优秀线:90%",
             showarrow=True,
             arrowhead=2,
             arrowcolor="green",
             arrowwidth=2,
-            ax=20,
-            ay=0,
+            ax=15,
+            ay=-10,
             bgcolor="rgba(255,255,255,0.9)",
             bordercolor="green",
             borderwidth=1,
@@ -2398,8 +2403,8 @@ def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region=
         good_count = len(key_skus[key_skus['准确率'] >= 85])
         poor_count = len(key_skus[key_skus['准确率'] < 75])
 
-        # 创建详细的标题和副标题
-        subtitle_text = (f"销售额占比80%的核心产品 (共{total_skus}个) | "
+        # 创建详细的标题和副标题 - 修复80%重叠问题
+        subtitle_text = (f"核心产品占销售额80% (共{total_skus}个) | "
                         f"平均准确率{avg_accuracy:.1f}% | "
                         f"优秀({excellent_count}个) 良好({good_count}个) 待改进({poor_count}个)")
 
@@ -2412,7 +2417,7 @@ def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region=
             ),
             xaxis=dict(
                 title="预测准确率 (%)",
-                range=[0, max(100, key_skus['准确率'].max() + 5)],  # 动态调整x轴范围
+                range=[0, max(100, key_skus['准确率'].max() + 10)],  # 增加右边距
                 ticksuffix="%",
                 showgrid=True,
                 gridcolor="rgba(128,128,128,0.2)"
@@ -2422,8 +2427,8 @@ def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region=
                 automargin=True,
                 tickfont=dict(size=10)
             ),
-            height=max(500, len(key_skus) * 35),  # 动态调整高度
-            margin=dict(l=250, r=150, t=120, b=60),  # 增加右边距为注释留空间
+            height=max(500, len(key_skus) * 35),
+            margin=dict(l=250, r=180, t=120, b=60),  # 增加右边距为注释留更多空间
             showlegend=False,
             plot_bgcolor='rgba(248,249,250,0.8)',
             paper_bgcolor='rgba(255,255,255,0.95)',
@@ -2458,7 +2463,7 @@ def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region=
             fillcolor="rgba(255,165,0,0.1)",
             layer="below",
             line_width=0,
-            annotation_text="需改进区间",
+            annotation_text="需改进",
             annotation_position="top left"
         )
 
@@ -2467,7 +2472,7 @@ def create_key_sku_ranking_chart(merged_data, product_name_map, selected_region=
             fillcolor="rgba(255,0,0,0.1)",
             layer="below",
             line_width=0,
-            annotation_text="待优化区间",
+            annotation_text="待优化",
             annotation_position="top left"
         )
 
@@ -2791,15 +2796,15 @@ with tab1:
 # 标签2：风险分布分析 - 整合统计分析
 # 标签2：风险分布分析 - 修复版本
 # 标签2：风险分布分析 - 重构版本使用子标签
+# 标签2：风险分布分析 - 修复版本，删除深度统计洞察子标签
 with tab2:
     st.markdown("### 🎯 库存风险分布综合分析")
 
-    # 创建子标签页进行分类展示
-    risk_tab1, risk_tab2, risk_tab3, risk_tab4 = st.tabs([
+    # 创建子标签页进行分类展示 - 只保留3个子标签
+    risk_tab1, risk_tab2, risk_tab3 = st.tabs([
         "📊 风险分布全景",
         "📦 产品维度分析",
-        "🌍 区域维度分析",
-        "📈 深度统计洞察"
+        "🌍 区域维度分析"
     ])
 
     # 子标签1：风险分布全景
@@ -2885,7 +2890,7 @@ with tab2:
                     product_stats = product_stats.sort_values('批次价值', ascending=False)
 
                 # 创建优化的产品分析图表
-                fig_product = create_product_analysis_optimized(product_stats)
+                fig_product = create_product_analysis_optimized_fixed(product_stats)
                 st.plotly_chart(fig_product, use_container_width=True)
 
             except Exception as e:
@@ -2938,114 +2943,14 @@ with tab2:
                         risk_counts = {}
                     region_risk_details[region] = risk_counts
 
-                # 创建优化的区域分析图表
-                fig_region = create_region_analysis_optimized(region_stats, region_risk_details)
-                st.plotly_chart(fig_region, use_container_width=True)
+                # 创建优化的区域分析图表 - 修复返回值问题
+                create_region_analysis_optimized_fixed(region_stats, region_risk_details)
 
             except Exception as e:
                 st.error(f"区域分析失败: {str(e)}")
 
         else:
             st.info("暂无区域数据或责任区域列不存在")
-
-    # 子标签4：深度统计洞察
-    with risk_tab4:
-        st.markdown("#### 📈 库存风险深度统计洞察")
-
-        if not processed_inventory.empty:
-            # 创建统计概览
-            col1, col2, col3, col4 = st.columns(4)
-
-            with col1:
-                st.metric(
-                    "总批次数",
-                    f"{len(processed_inventory):,}",
-                    help="当前系统中的库存批次总数"
-                )
-
-            with col2:
-                high_risk_count = len(processed_inventory[processed_inventory['风险等级'].isin(['极高风险', '高风险'])])
-                high_risk_ratio = (high_risk_count / len(processed_inventory) * 100) if len(
-                    processed_inventory) > 0 else 0
-                st.metric(
-                    "高风险批次",
-                    f"{high_risk_count:,}",
-                    delta=f"{high_risk_ratio:.1f}%",
-                    help="极高风险和高风险批次数量及占比"
-                )
-
-            with col3:
-                avg_age = processed_inventory['库龄'].mean()
-                st.metric(
-                    "平均库龄",
-                    f"{avg_age:.0f}天",
-                    help="所有批次的平均库存天数"
-                )
-
-            with col4:
-                total_value = processed_inventory['批次价值'].sum() / 1000000
-                st.metric(
-                    "库存总价值",
-                    f"¥{total_value:.1f}M",
-                    help="所有库存批次的总价值"
-                )
-
-            # 风险分布饼图
-            st.markdown("##### 📊 风险等级分布详情")
-            risk_distribution = processed_inventory['风险等级'].value_counts()
-
-            fig_pie = go.Figure(data=[go.Pie(
-                labels=risk_distribution.index,
-                values=risk_distribution.values,
-                hole=.4,
-                textinfo='label+percent+value',
-                texttemplate='%{label}<br>%{value}批次<br>(%{percent})',
-                hovertemplate="<b>%{label}</b><br>" +
-                              "批次数量: %{value}<br>" +
-                              "占比: %{percent}<br>" +
-                              "<extra></extra>",
-                marker=dict(
-                    colors=['#8B0000', '#FF0000', '#FFA500', '#90EE90', '#006400'],
-                    line=dict(color='white', width=2)
-                )
-            )])
-
-            fig_pie.update_layout(
-                title="风险等级分布统计",
-                height=400,
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
-            )
-
-            st.plotly_chart(fig_pie, use_container_width=True)
-
-            # 统计表格
-            st.markdown("##### 📋 详细统计信息")
-
-            stats_data = []
-            for risk_level in ['极高风险', '高风险', '中风险', '低风险', '极低风险']:
-                if risk_level in risk_distribution.index:
-                    count = risk_distribution[risk_level]
-                    ratio = count / len(processed_inventory) * 100
-                    risk_data = processed_inventory[processed_inventory['风险等级'] == risk_level]
-                    avg_value = risk_data['批次价值'].mean()
-                    total_value = risk_data['批次价值'].sum()
-                    avg_age = risk_data['库龄'].mean()
-
-                    stats_data.append({
-                        '风险等级': risk_level,
-                        '批次数量': f"{count:,}",
-                        '占比': f"{ratio:.1f}%",
-                        '平均价值': f"¥{avg_value:,.0f}",
-                        '总价值': f"¥{total_value:,.0f}",
-                        '平均库龄': f"{avg_age:.0f}天"
-                    })
-
-            stats_df = pd.DataFrame(stats_data)
-            st.dataframe(stats_df, use_container_width=True, hide_index=True)
-
-        else:
-            st.info("暂无数据进行统计分析")
 
 # 标签3：销售预测准确性综合分析 - 纯图表版本
 with tab3:
