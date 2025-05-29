@@ -949,7 +949,369 @@ COLOR_SCHEME = {
     'chart_colors': ['#667eea', '#ff6b9d', '#c44569', '#ffc75f', '#f8b500', '#845ec2', '#4e8397', '#00c9a7']
 }
 
+def create_integrated_risk_analysis_optimized(processed_inventory):
+    """创建优化的整合风险分析图表 - 解决悬停遮挡问题"""
+    try:
+        if processed_inventory.empty:
+            fig = go.Figure()
+            fig.update_layout(
+                title="风险分析 (无数据)",
+                annotations=[
+                    dict(
+                        text="暂无库存数据",
+                        xref="paper", yref="paper",
+                        x=0.5, y=0.5,
+                        xanchor='center', yanchor='middle',
+                        font=dict(size=20, color="gray")
+                    )
+                ]
+            )
+            return fig
 
+        # 风险分布数据
+        risk_counts = processed_inventory['风险等级'].value_counts()
+        risk_value = processed_inventory.groupby('风险等级')['批次价值'].sum() / 1000000
+
+        # 创建颜色映射字典
+        risk_color_map = {
+            '极高风险': '#8B0000',
+            '高风险': '#FF0000',
+            '中风险': '#FFA500',
+            '低风险': '#90EE90',
+            '极低风险': '#006400'
+        }
+
+        # 按风险等级顺序排列
+        risk_order = ['极高风险', '高风险', '中风险', '低风险', '极低风险']
+        ordered_risks = [risk for risk in risk_order if risk in risk_counts.index]
+        colors = [risk_color_map[risk] for risk in ordered_risks]
+
+        # 创建子图布局
+        fig = make_subplots(
+            rows=2, cols=2,
+            subplot_titles=("风险等级分布", "各风险等级价值分布", "库存批次库龄分布", "高风险批次优先级分析"),
+            specs=[[{"type": "pie"}, {"type": "bar"}],
+                   [{"type": "histogram"}, {"type": "scatter"}]]
+        )
+
+        # 1. 风险等级分布饼图 - 优化悬停
+        fig.add_trace(go.Pie(
+            labels=ordered_risks,
+            values=[risk_counts[risk] for risk in ordered_risks],
+            hole=.4,
+            marker_colors=colors,
+            textinfo='label+percent',
+            name="风险分布",
+            hovertemplate="<b>%{label}</b><br>" +
+                          "批次数: %{value}个<br>" +
+                          "占比: %{percent}<br>" +
+                          "<extra></extra>"
+        ), row=1, col=1)
+
+        # 2. 风险等级价值分布 - 优化悬停
+        fig.add_trace(go.Bar(
+            x=ordered_risks,
+            y=[risk_value.get(risk, 0) for risk in ordered_risks],
+            marker_color=colors,
+            name="价值分布",
+            text=[f'¥{risk_value.get(risk, 0):.1f}M' for risk in ordered_risks],
+            textposition='auto',
+            hovertemplate="<b>%{x}</b><br>" +
+                          "总价值: ¥%{y:.1f}M<br>" +
+                          "批次数: %{text}<br>" +
+                          "<extra></extra>"
+        ), row=1, col=2)
+
+        # 3. 库龄分布直方图 - 优化悬停
+        fig.add_trace(go.Histogram(
+            x=processed_inventory['库龄'],
+            nbinsx=20,
+            marker_color=COLOR_SCHEME['primary'],
+            opacity=0.7,
+            name="库龄分布",
+            hovertemplate="库龄: %{x}天<br>" +
+                          "批次数: %{y}个<br>" +
+                          "<extra></extra>"
+        ), row=2, col=1)
+
+        # 4. 高风险批次分析 - 优化悬停
+        high_risk_data = processed_inventory[
+            processed_inventory['风险等级'].isin(['极高风险', '高风险'])
+        ].head(15)
+
+        if not high_risk_data.empty:
+            fig.add_trace(go.Scatter(
+                x=high_risk_data['库龄'],
+                y=high_risk_data['批次价值'],
+                mode='markers',
+                marker=dict(
+                    size=np.minimum(high_risk_data['数量'] / 20, 50),
+                    color=high_risk_data['风险等级'].map({
+                        '极高风险': COLOR_SCHEME['risk_extreme'],
+                        '高风险': COLOR_SCHEME['risk_high']
+                    }),
+                    opacity=0.8,
+                    line=dict(width=2, color='white')
+                ),
+                text=high_risk_data['产品名称'],
+                hovertemplate="<b>%{text}</b><br>" +
+                              "库龄: %{x}天<br>" +
+                              "价值: ¥%{y:,.0f}<br>" +
+                              "风险: %{marker.color}<br>" +
+                              "<extra></extra>",
+                name="高风险批次"
+            ), row=2, col=2)
+
+        # 优化布局 - 解决悬停遮挡问题
+        fig.update_layout(
+            height=800,
+            showlegend=False,
+            title_text="库存风险综合分析",
+            title_x=0.5,
+            hoverlabel=dict(
+                bgcolor="rgba(255,255,255,0.95)",
+                font_size=12,
+                font_family="Inter",
+                bordercolor="rgba(0,0,0,0.1)",
+                align="left"
+            ),
+            hovermode='closest',
+            paper_bgcolor='rgba(255,255,255,0.98)',
+            plot_bgcolor='rgba(255,255,255,0.98)',
+            margin=dict(l=20, r=20, t=80, b=20)
+        )
+
+        # 更新子图标题样式
+        for i in fig['layout']['annotations']:
+            i['font'] = dict(size=16, family='Inter', weight=700)
+
+        return fig
+
+    except Exception as e:
+        st.error(f"风险分析图表创建失败: {str(e)}")
+        return go.Figure()
+
+
+def create_product_analysis_optimized(product_stats):
+    """创建优化的产品分析图表 - 解决悬停遮挡问题"""
+    try:
+        # 创建增强的产品分析图表 - 4个子图整合
+        fig_product = make_subplots(
+            rows=2, cols=2,
+            subplot_titles=("产品库存价值TOP15", "产品库龄vs风险得分", "产品价值vs清库天数", "产品库存周转率"),
+            specs=[[{"type": "bar"}, {"type": "scatter"}],
+                   [{"type": "scatter"}, {"type": "bar"}]],
+            horizontal_spacing=0.12,
+            vertical_spacing=0.15
+        )
+
+        # 1. TOP15产品价值 - 优化悬停
+        top15_products = product_stats.head(15)
+
+        # 为不同风险等级设置颜色
+        risk_colors = {
+            '极高风险': '#8B0000',
+            '高风险': '#FF0000',
+            '中风险': '#FFA500',
+            '低风险': '#90EE90',
+            '极低风险': '#006400',
+            '未知': '#808080'
+        }
+
+        if '批次价值' in top15_products.columns:
+            fig_product.add_trace(
+                go.Bar(
+                    x=top15_products.index,
+                    y=top15_products['批次价值'],
+                    marker_color=[risk_colors.get(risk, '#808080') for risk in
+                                  top15_products.get('风险等级', ['未知'] * len(top15_products))],
+                    text=top15_products['批次价值'].apply(lambda x: f"¥{x / 10000:.1f}万"),
+                    textposition='auto',
+                    textfont=dict(size=10),
+                    hovertemplate="<b>%{x}</b><br>" +
+                                  "价值: ¥%{y:,.0f}<br>" +
+                                  "风险: %{marker.color}<br>" +
+                                  "<extra></extra>",
+                    name="产品价值分析"
+                ),
+                row=1, col=1
+            )
+
+        # 2. 产品库龄vs风险得分矩阵 - 优化悬停
+        if all(col in product_stats.columns for col in ['库龄', '风险得分', '批次价值']):
+            fig_product.add_trace(
+                go.Scatter(
+                    x=product_stats['库龄'],
+                    y=product_stats['风险得分'],
+                    mode='markers',
+                    marker=dict(
+                        size=np.log1p(product_stats['批次价值']) * 3,
+                        color=product_stats.get('预计清库天数', [30] * len(product_stats)).replace([np.inf, -np.inf], 365),
+                        colorscale='RdYlGn_r',
+                        cmin=0,
+                        cmax=180,
+                        showscale=True,
+                        colorbar=dict(
+                            title="清库天数",
+                            x=0.48,
+                            len=0.4
+                        ),
+                        opacity=0.8,
+                        line=dict(width=2, color='white')
+                    ),
+                    text=product_stats.index,
+                    hovertemplate="<b>%{text}</b><br>" +
+                                  "库龄: %{x:.0f}天<br>" +
+                                  "风险得分: %{y:.0f}分<br>" +
+                                  "<extra></extra>",
+                    name="风险矩阵分析"
+                ),
+                row=1, col=2
+            )
+
+        # 3. 产品价值vs清库天数风险象限 - 优化悬停
+        if all(col in product_stats.columns for col in ['批次价值', '预计清库天数']):
+            clearance_data = product_stats['预计清库天数'].replace([np.inf, -np.inf], 365)
+
+            fig_product.add_trace(
+                go.Scatter(
+                    x=product_stats['批次价值'],
+                    y=clearance_data,
+                    mode='markers',
+                    marker=dict(
+                        size=product_stats.get('库龄', [30] * len(product_stats)) / 3,
+                        color=[risk_colors.get(risk, '#808080') for risk in
+                               product_stats.get('风险等级', ['未知'] * len(product_stats))],
+                        opacity=0.7,
+                        line=dict(width=2, color='white')
+                    ),
+                    text=product_stats.index,
+                    hovertemplate="<b>%{text}</b><br>" +
+                                  "价值: ¥%{x:,.0f}<br>" +
+                                  "清库: %{y:.0f}天<br>" +
+                                  "<extra></extra>",
+                    name="价值风险象限"
+                ),
+                row=2, col=1
+            )
+
+        # 4. 产品库存周转率分析 - 优化悬停
+        if '库存周转率' in product_stats.columns:
+            top15_turnover = product_stats.head(15)
+            turnover_colors = top15_turnover['库存周转率'].apply(
+                lambda x: '#006400' if x > 6 else '#90EE90' if x > 4 else '#FFA500' if x > 2 else '#FF0000'
+            )
+
+            fig_product.add_trace(
+                go.Bar(
+                    x=top15_turnover.index,
+                    y=top15_turnover['库存周转率'],
+                    marker_color=turnover_colors,
+                    text=top15_turnover['库存周转率'].apply(lambda x: f"{x:.1f}"),
+                    textposition='auto',
+                    textfont=dict(size=10),
+                    hovertemplate="<b>%{x}</b><br>" +
+                                  "周转率: %{y:.1f}次/年<br>" +
+                                  "<extra></extra>",
+                    name="库存周转分析"
+                ),
+                row=2, col=2
+            )
+
+        # 优化布局 - 解决悬停遮挡问题
+        fig_product.update_layout(
+            height=900,
+            showlegend=False,
+            title_text="产品维度库存风险深度分析",
+            hoverlabel=dict(
+                bgcolor="rgba(255,255,255,0.95)",
+                font_size=11,
+                font_family="Inter",
+                bordercolor="rgba(0,0,0,0.1)",
+                align="left"
+            ),
+            hovermode='closest',
+            paper_bgcolor='rgba(255,255,255,0.98)',
+            plot_bgcolor='rgba(255,255,255,0.98)',
+            margin=dict(l=20, r=20, t=100, b=20)
+        )
+
+        # 调整x轴标签角度
+        fig_product.update_xaxes(tickangle=-45, row=1, col=1)
+        fig_product.update_xaxes(tickangle=-45, row=2, col=2)
+
+        return fig_product
+
+    except Exception as e:
+        st.error(f"产品分析图表创建失败: {str(e)}")
+        return go.Figure()
+
+
+def create_region_analysis_optimized(region_stats, region_risk_details):
+    """创建优化的区域分析图表 - 解决悬停遮挡问题"""
+    try:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # 区域价值分布饼图 - 优化悬停
+            if '批次价值' in region_stats.columns:
+                fig_region_pie = go.Figure(data=[go.Pie(
+                    labels=region_stats.index,
+                    values=region_stats['批次价值'],
+                    hole=.4,
+                    marker_colors=COLOR_SCHEME['chart_colors'][:len(region_stats)],
+                    hovertemplate="<b>%{label}</b><br>" +
+                                  "价值: ¥%{value:,.0f}<br>" +
+                                  "占比: %{percent}<br>" +
+                                  "<extra></extra>"
+                )])
+                fig_region_pie.update_layout(
+                    title="区域库存价值分布",
+                    height=450,
+                    hoverlabel=dict(
+                        bgcolor="rgba(255,255,255,0.95)",
+                        font_size=12,
+                        bordercolor="rgba(0,0,0,0.1)"
+                    )
+                )
+                st.plotly_chart(fig_region_pie, use_container_width=True)
+
+        with col2:
+            # 区域风险得分对比 - 优化悬停
+            if '风险得分' in region_stats.columns:
+                region_colors = region_stats['风险得分'].apply(
+                    lambda x: '#8B0000' if x > 70 else '#FF0000' if x > 60 else '#FFA500' if x > 40 else '#90EE90'
+                )
+
+                fig_region_risk = go.Figure(data=[go.Bar(
+                    x=region_stats.index,
+                    y=region_stats['风险得分'],
+                    marker_color=region_colors,
+                    text=region_stats['风险得分'].apply(lambda x: f"{x:.0f}"),
+                    textposition='outside',
+                    textfont=dict(size=11),
+                    hovertemplate="<b>%{x}</b><br>" +
+                                  "风险得分: %{y:.0f}分<br>" +
+                                  "<extra></extra>"
+                )])
+
+                fig_region_risk.update_layout(
+                    title="区域平均风险得分",
+                    height=450,
+                    yaxis_title="风险得分",
+                    hoverlabel=dict(
+                        bgcolor="rgba(255,255,255,0.95)",
+                        font_size=12,
+                        bordercolor="rgba(0,0,0,0.1)"
+                    )
+                )
+                st.plotly_chart(fig_region_risk, use_container_width=True)
+
+        return True
+
+    except Exception as e:
+        st.error(f"区域分析失败: {str(e)}")
+        return False
 def simplify_product_name(product_name):
     """简化产品名称：去掉'口力'和'-中国'"""
     if pd.isna(product_name):
@@ -1593,20 +1955,42 @@ def create_integrated_risk_analysis(processed_inventory):
                 name="高风险批次"
             ), row=2, col=2)
 
-        # 更新布局
+        # 更新布局 - 优化悬停体验
         fig.update_layout(
             height=800,
             showlegend=False,
             title_text="库存风险综合分析",
             title_x=0.5,
             hoverlabel=dict(
-                bgcolor="white",
-                font_size=14,
-                font_family="Inter"
+                bgcolor="rgba(255,255,255,0.95)",
+                font_size=13,
+                font_family="Inter",
+                align="left",
+                namelength=-1
             ),
+            hovermode='closest',
+            hoverdistance=20,
             paper_bgcolor='rgba(255,255,255,0.98)',
             plot_bgcolor='rgba(255,255,255,0.98)',
-            margin=dict(l=20, r=20, t=80, b=20)
+            margin=dict(l=50, r=50, t=100, b=50)
+        )
+
+        # 为不同类型的图表设置悬停对齐
+        fig.update_traces(
+            hoverlabel_align='auto',
+            selector=dict(type='pie')
+        )
+        fig.update_traces(
+            hoverlabel_align='right',
+            selector=dict(type='bar')
+        )
+        fig.update_traces(
+            hoverlabel_align='auto',
+            selector=dict(type='histogram')
+        )
+        fig.update_traces(
+            hoverlabel_align='left',
+            selector=dict(type='scatter')
         )
 
         # 更新子图标题样式
@@ -2406,538 +2790,262 @@ with tab1:
 # 标签2：风险分布分析
 # 标签2：风险分布分析 - 整合统计分析
 # 标签2：风险分布分析 - 修复版本
+# 标签2：风险分布分析 - 重构版本使用子标签
 with tab2:
-    st.markdown("### 🎯 库存风险分布全景分析")
+    st.markdown("### 🎯 库存风险分布综合分析")
 
-    # 原有的风险分析图表
-    integrated_fig = create_integrated_risk_analysis(processed_inventory)
-    st.plotly_chart(integrated_fig, use_container_width=True)
+    # 创建子标签页进行分类展示
+    risk_tab1, risk_tab2, risk_tab3, risk_tab4 = st.tabs([
+        "📊 风险分布全景",
+        "📦 产品维度分析",
+        "🌍 区域维度分析",
+        "📈 深度统计洞察"
+    ])
 
-    # 风险分析洞察
-    st.markdown(f"""
-    <div class="insight-box">
-        <div class="insight-title">📊 综合风险分析洞察</div>
-        <div class="insight-content">
-            • 极高风险: {metrics['risk_counts']['extreme']}个批次 ({metrics['risk_counts']['extreme'] / max(metrics['total_batches'], 1) * 100:.1f}%)<br>
-            • 高风险: {metrics['risk_counts']['high']}个批次 ({metrics['risk_counts']['high'] / max(metrics['total_batches'], 1) * 100:.1f}%)<br>
-            • 高风险批次价值占比: {metrics['high_risk_value_ratio']:.1f}%<br>
-            • 建议优先处理极高风险和高风险批次，通过促销可回收资金: ¥{metrics['high_risk_value'] * 0.8:.1f}M
+    # 子标签1：风险分布全景
+    with risk_tab1:
+        st.markdown("#### 🎯 库存风险分布全景分析")
+
+        # 原有的风险分析图表 - 优化悬停
+        integrated_fig = create_integrated_risk_analysis_optimized(processed_inventory)
+        st.plotly_chart(integrated_fig, use_container_width=True)
+
+        # 风险分析洞察
+        st.markdown(f"""
+        <div class="insight-box">
+            <div class="insight-title">📊 综合风险分析洞察</div>
+            <div class="insight-content">
+                • 极高风险: {metrics['risk_counts']['extreme']}个批次 ({metrics['risk_counts']['extreme'] / max(metrics['total_batches'], 1) * 100:.1f}%)<br>
+                • 高风险: {metrics['risk_counts']['high']}个批次 ({metrics['risk_counts']['high'] / max(metrics['total_batches'], 1) * 100:.1f}%)<br>
+                • 高风险批次价值占比: {metrics['high_risk_value_ratio']:.1f}%<br>
+                • 建议优先处理极高风险和高风险批次，通过促销可回收资金: ¥{metrics['high_risk_value'] * 0.8:.1f}M
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    # 新增：深度统计分析部分 - 修复列名错误
-    st.markdown("---")
-    st.markdown("### 📊 库存积压深度统计分析")
+    # 子标签2：产品维度分析
+    with risk_tab2:
+        st.markdown("#### 📦 产品维度风险分析")
 
-    # 按产品统计 - 修复列名并增强悬停功能
-    if not processed_inventory.empty:
-        # 检查实际存在的列名
-        available_columns = processed_inventory.columns.tolist()
+        if not processed_inventory.empty:
+            # 检查实际存在的列名
+            available_columns = processed_inventory.columns.tolist()
 
-        # 使用实际存在的列名进行聚合
-        agg_dict = {}
-        if '数量' in available_columns:
-            agg_dict['数量'] = 'sum'
-        elif '批次库存' in available_columns:
-            agg_dict['批次库存'] = 'sum'
+            # 使用实际存在的列名进行聚合
+            agg_dict = {}
+            if '数量' in available_columns:
+                agg_dict['数量'] = 'sum'
+            elif '批次库存' in available_columns:
+                agg_dict['批次库存'] = 'sum'
 
-        if '批次价值' in available_columns:
-            agg_dict['批次价值'] = 'sum'
+            if '批次价值' in available_columns:
+                agg_dict['批次价值'] = 'sum'
 
-        if '库龄' in available_columns:
-            agg_dict['库龄'] = 'mean'
+            if '库龄' in available_columns:
+                agg_dict['库龄'] = 'mean'
 
-        if '风险得分' in available_columns:
-            agg_dict['风险得分'] = 'mean'
+            if '风险得分' in available_columns:
+                agg_dict['风险得分'] = 'mean'
 
-        if '日均出货' in available_columns:
-            agg_dict['日均出货'] = 'mean'
+            if '日均出货' in available_columns:
+                agg_dict['日均出货'] = 'mean'
 
-        if '风险等级' in available_columns:
-            agg_dict['风险等级'] = lambda x: x.mode()[0] if not x.empty else '未知'
+            if '风险等级' in available_columns:
+                agg_dict['风险等级'] = lambda x: x.mode()[0] if not x.empty else '未知'
 
-        if '积压原因' in available_columns:
-            agg_dict['积压原因'] = lambda x: '，'.join(x.unique()[:3])
+            if '积压原因' in available_columns:
+                agg_dict['积压原因'] = lambda x: '，'.join(x.unique()[:3])
 
-        if '责任区域' in available_columns:
-            agg_dict['责任区域'] = lambda x: x.mode()[0] if not x.empty else '未知'
+            if '责任区域' in available_columns:
+                agg_dict['责任区域'] = lambda x: x.mode()[0] if not x.empty else '未知'
 
-        if '物料' in available_columns:
-            agg_dict['物料'] = 'first'
-        elif '产品代码' in available_columns:
-            agg_dict['产品代码'] = 'first'
+            if '物料' in available_columns:
+                agg_dict['物料'] = 'first'
+            elif '产品代码' in available_columns:
+                agg_dict['产品代码'] = 'first'
 
-        # 执行聚合操作
-        try:
-            product_stats = processed_inventory.groupby('产品名称').agg(agg_dict).round(2)
+            # 执行聚合操作
+            try:
+                product_stats = processed_inventory.groupby('产品名称').agg(agg_dict).round(2)
 
-            # 统一列名处理
-            if '数量' in product_stats.columns:
-                product_stats = product_stats.rename(columns={'数量': '批次库存'})
-            if '物料' in product_stats.columns:
-                product_stats = product_stats.rename(columns={'物料': '产品代码'})
+                # 统一列名处理
+                if '数量' in product_stats.columns:
+                    product_stats = product_stats.rename(columns={'数量': '批次库存'})
+                if '物料' in product_stats.columns:
+                    product_stats = product_stats.rename(columns={'物料': '产品代码'})
 
-            # 计算衍生指标
-            if '批次库存' in product_stats.columns and '日均出货' in product_stats.columns:
-                product_stats['预计清库天数'] = product_stats['批次库存'] / product_stats['日均出货'].replace(0, 0.1)
-                product_stats['库存周转率'] = 365 / product_stats['预计清库天数'].replace([np.inf, -np.inf], 365)
+                # 计算衍生指标
+                if '批次库存' in product_stats.columns and '日均出货' in product_stats.columns:
+                    product_stats['预计清库天数'] = product_stats['批次库存'] / product_stats['日均出货'].replace(0,
+                                                                                                                  0.1)
+                    product_stats['库存周转率'] = 365 / product_stats['预计清库天数'].replace([np.inf, -np.inf], 365)
 
-            if '批次价值' in product_stats.columns:
-                product_stats['价值占比'] = product_stats['批次价值'] / product_stats['批次价值'].sum() * 100
-                product_stats = product_stats.sort_values('批次价值', ascending=False)
+                if '批次价值' in product_stats.columns:
+                    product_stats['价值占比'] = product_stats['批次价值'] / product_stats['批次价值'].sum() * 100
+                    product_stats = product_stats.sort_values('批次价值', ascending=False)
 
-            # 创建增强的产品分析图表 - 4个子图整合
-            fig_product = make_subplots(
-                rows=2, cols=2,
-                subplot_titles=("产品库存价值TOP15 - 风险分层分析", "产品库龄vs风险得分矩阵",
-                                "产品价值vs清库天数风险象限", "产品库存周转率分析"),
-                specs=[[{"type": "bar"}, {"type": "scatter"}],
-                       [{"type": "scatter"}, {"type": "bar"}]],
-                horizontal_spacing=0.12,
-                vertical_spacing=0.15
-            )
+                # 创建优化的产品分析图表
+                fig_product = create_product_analysis_optimized(product_stats)
+                st.plotly_chart(fig_product, use_container_width=True)
 
-            # 1. TOP15产品价值 - 按风险等级分层显示，增强悬停
-            top15_products = product_stats.head(15)
+            except Exception as e:
+                st.error(f"产品统计分析失败: {str(e)}")
+                st.info("正在显示基础统计信息...")
+                st.write("可用列名:", processed_inventory.columns.tolist())
 
-            # 为不同风险等级设置颜色
-            risk_colors = {
-                '极高风险': '#8B0000',
-                '高风险': '#FF0000',
-                '中风险': '#FFA500',
-                '低风险': '#90EE90',
-                '极低风险': '#006400',
-                '未知': '#808080'
-            }
+        else:
+            st.info("暂无产品数据进行分析")
 
-            if '批次价值' in top15_products.columns:
-                fig_product.add_trace(
-                    go.Bar(
-                        x=top15_products.index,
-                        y=top15_products['批次价值'],
-                        marker_color=[risk_colors.get(risk, '#808080') for risk in
-                                      top15_products.get('风险等级', ['未知'] * len(top15_products))],
-                        text=top15_products['批次价值'].apply(lambda x: f"¥{x / 10000:.1f}万"),
-                        textposition='auto',
-                        textfont=dict(size=10),
-                        customdata=np.column_stack((
-                            top15_products.get('产品代码', ['未知'] * len(top15_products)),
-                            top15_products.get('批次库存', [0] * len(top15_products)),
-                            top15_products.get('库龄', [0] * len(top15_products)),
-                            top15_products.get('风险等级', ['未知'] * len(top15_products)),
-                            top15_products.get('风险得分', [0] * len(top15_products)),
-                            top15_products.get('价值占比', [0] * len(top15_products)),
-                            top15_products.get('积压原因', ['未知'] * len(top15_products)),
-                            top15_products.get('责任区域', ['未知'] * len(top15_products)),
-                            top15_products.get('日均出货', [0] * len(top15_products)),
-                            top15_products.get('预计清库天数', [0] * len(top15_products))
-                        )),
-                        hovertemplate="<b>🏷️ 产品: %{x}</b><br>" +
-                                      "<b>📦 产品代码: %{customdata[0]}</b><br>" +
-                                      "<br><b>💰 价值分析</b><br>" +
-                                      "库存价值: ¥%{y:,.0f}<br>" +
-                                      "价值占比: %{customdata[5]:.1f}%<br>" +
-                                      "库存量: %{customdata[1]:,.0f}箱<br>" +
-                                      "<br><b>⚠️ 风险评估</b><br>" +
-                                      "风险等级: <b>%{customdata[3]}</b><br>" +
-                                      "风险得分: %{customdata[4]:.0f}分<br>" +
-                                      "平均库龄: %{customdata[2]:.0f}天<br>" +
-                                      "<br><b>📈 销售表现</b><br>" +
-                                      "日均出货: %{customdata[8]:.2f}箱<br>" +
-                                      "预计清库: %{customdata[9]:.0f}天<br>" +
-                                      "<br><b>🎯 管理信息</b><br>" +
-                                      "责任区域: %{customdata[7]}<br>" +
-                                      "积压原因: %{customdata[6]}<br>" +
-                                      "<extra></extra>",
-                        name="产品价值分析"
-                    ),
-                    row=1, col=1
-                )
+    # 子标签3：区域维度分析
+    with risk_tab3:
+        st.markdown("#### 🌍 区域库存风险分析")
 
-            # 2. 产品库龄vs风险得分矩阵 - 增强悬停
-            if all(col in product_stats.columns for col in ['库龄', '风险得分', '批次价值']):
-                fig_product.add_trace(
-                    go.Scatter(
-                        x=product_stats['库龄'],
-                        y=product_stats['风险得分'],
-                        mode='markers',
-                        marker=dict(
-                            size=np.log1p(product_stats['批次价值']) * 3,
-                            color=product_stats.get('预计清库天数', [30] * len(product_stats)).replace(
-                                [np.inf, -np.inf], 365),
-                            colorscale='RdYlGn_r',
-                            cmin=0,
-                            cmax=180,
-                            showscale=True,
-                            colorbar=dict(
-                                title="预计清库天数",
-                                x=0.48,
-                                len=0.4
-                            ),
-                            opacity=0.8,
-                            line=dict(width=2, color='white')
-                        ),
-                        text=product_stats.index,
-                        customdata=np.column_stack((
-                            product_stats.get('产品代码', ['未知'] * len(product_stats)),
-                            product_stats['批次价值'],
-                            product_stats.get('批次库存', [0] * len(product_stats)),
-                            product_stats.get('风险等级', ['未知'] * len(product_stats)),
-                            product_stats.get('预计清库天数', [30] * len(product_stats)).replace([np.inf, -np.inf],
-                                                                                                 365),
-                            product_stats.get('积压原因', ['未知'] * len(product_stats)),
-                            product_stats.get('日均出货', [0] * len(product_stats)),
-                            product_stats.get('责任区域', ['未知'] * len(product_stats)),
-                            product_stats.get('库存周转率', [1] * len(product_stats))
-                        )),
-                        hovertemplate="<b>📊 产品分析: %{text}</b><br>" +
-                                      "<b>代码: %{customdata[0]}</b><br>" +
-                                      "<br><b>🎯 风险定位</b><br>" +
-                                      "库龄: %{x:.0f}天<br>" +
-                                      "风险得分: %{y:.0f}分<br>" +
-                                      "风险等级: <b>%{customdata[3]}</b><br>" +
-                                      "<br><b>💼 业务影响</b><br>" +
-                                      "库存价值: ¥%{customdata[1]:,.0f}<br>" +
-                                      "库存量: %{customdata[2]:,.0f}箱<br>" +
-                                      "预计清库: %{customdata[4]:.0f}天<br>" +
-                                      "库存周转率: %{customdata[8]:.2f}次/年<br>" +
-                                      "<br><b>🔍 原因分析</b><br>" +
-                                      "积压原因: %{customdata[5]}<br>" +
-                                      "日均出货: %{customdata[6]:.2f}箱<br>" +
-                                      "责任区域: %{customdata[7]}<br>" +
-                                      "<extra></extra>",
-                        name="风险矩阵分析"
-                    ),
-                    row=1, col=2
-                )
+        if not processed_inventory.empty and '责任区域' in processed_inventory.columns:
+            # 使用实际存在的列名进行区域分析
+            region_agg_dict = {}
+            if '数量' in processed_inventory.columns:
+                region_agg_dict['数量'] = 'sum'
+            elif '批次库存' in processed_inventory.columns:
+                region_agg_dict['批次库存'] = 'sum'
 
-            # 3. 产品价值vs清库天数风险象限 - 增强悬停
-            if all(col in product_stats.columns for col in ['批次价值', '预计清库天数']):
-                clearance_data = product_stats['预计清库天数'].replace([np.inf, -np.inf], 365)
+            if '批次价值' in processed_inventory.columns:
+                region_agg_dict['批次价值'] = 'sum'
+            if '库龄' in processed_inventory.columns:
+                region_agg_dict['库龄'] = 'mean'
+            if '风险得分' in processed_inventory.columns:
+                region_agg_dict['风险得分'] = 'mean'
+            if '产品名称' in processed_inventory.columns:
+                region_agg_dict['产品名称'] = 'nunique'
+            if '日均出货' in processed_inventory.columns:
+                region_agg_dict['日均出货'] = 'mean'
+            if '积压原因' in processed_inventory.columns:
+                region_agg_dict['积压原因'] = lambda x: '，'.join(pd.Series(x).value_counts().head(3).index)
 
-                # 计算象限分析
-                value_median = product_stats['批次价值'].median()
-                象限分类 = np.where((product_stats['批次价值'] > value_median) &
-                                    (clearance_data > 90), '高价值高风险',
-                                    np.where((product_stats['批次价值'] > value_median) &
-                                             (clearance_data <= 90), '高价值低风险',
-                                             np.where((product_stats['批次价值'] <= value_median) &
-                                                      (clearance_data > 90), '低价值高风险', '低价值低风险')))
+            try:
+                region_stats = processed_inventory.groupby('责任区域').agg(region_agg_dict).round(2)
 
-                fig_product.add_trace(
-                    go.Scatter(
-                        x=product_stats['批次价值'],
-                        y=clearance_data,
-                        mode='markers',
-                        marker=dict(
-                            size=product_stats.get('库龄', [30] * len(product_stats)) / 3,
-                            color=[risk_colors.get(risk, '#808080') for risk in
-                                   product_stats.get('风险等级', ['未知'] * len(product_stats))],
-                            opacity=0.7,
-                            line=dict(width=2, color='white')
-                        ),
-                        text=product_stats.index,
-                        customdata=np.column_stack((
-                            product_stats.get('产品代码', ['未知'] * len(product_stats)),
-                            product_stats.get('库龄', [30] * len(product_stats)),
-                            product_stats.get('批次库存', [0] * len(product_stats)),
-                            product_stats.get('风险等级', ['未知'] * len(product_stats)),
-                            product_stats.get('风险得分', [0] * len(product_stats)),
-                            product_stats.get('积压原因', ['未知'] * len(product_stats)),
-                            product_stats.get('日均出货', [0] * len(product_stats)),
-                            product_stats.get('责任区域', ['未知'] * len(product_stats)),
-                            象限分类,
-                            product_stats.get('价值占比', [0] * len(product_stats))
-                        )),
-                        hovertemplate="<b>🎯 象限分析: %{text}</b><br>" +
-                                      "<b>代码: %{customdata[0]}</b><br>" +
-                                      "<br><b>💰 价值维度</b><br>" +
-                                      "库存价值: ¥%{x:,.0f}<br>" +
-                                      "价值占比: %{customdata[9]:.1f}%<br>" +
-                                      "库存量: %{customdata[2]:,.0f}箱<br>" +
-                                      "<br><b>⏱️ 时间维度</b><br>" +
-                                      "预计清库: %{y:.0f}天<br>" +
-                                      "当前库龄: %{customdata[1]:.0f}天<br>" +
-                                      "日均出货: %{customdata[6]:.2f}箱<br>" +
-                                      "<br><b>🎯 策略建议</b><br>" +
-                                      "象限分类: <b>%{customdata[8]}</b><br>" +
-                                      "风险等级: %{customdata[3]}<br>" +
-                                      "风险得分: %{customdata[4]:.0f}分<br>" +
-                                      "<br><b>🔍 管理信息</b><br>" +
-                                      "积压原因: %{customdata[5]}<br>" +
-                                      "责任区域: %{customdata[7]}<br>" +
-                                      "<extra></extra>",
-                        name="价值风险象限"
-                    ),
-                    row=2, col=1
-                )
+                # 统一列名
+                if '数量' in region_stats.columns:
+                    region_stats = region_stats.rename(columns={'数量': '批次库存'})
 
-            # 4. 产品库存周转率分析 - 增强悬停
-            if '库存周转率' in product_stats.columns:
-                top15_turnover = product_stats.head(15)
-                turnover_colors = top15_turnover['库存周转率'].apply(
-                    lambda x: '#006400' if x > 6 else '#90EE90' if x > 4 else '#FFA500' if x > 2 else '#FF0000'
-                )
+                # 计算每个区域的风险等级分布
+                region_risk_details = {}
+                for region in region_stats.index:
+                    region_data = processed_inventory[processed_inventory['责任区域'] == region]
+                    if '风险等级' in processed_inventory.columns:
+                        risk_counts = region_data['风险等级'].value_counts().to_dict()
+                    else:
+                        risk_counts = {}
+                    region_risk_details[region] = risk_counts
 
-                fig_product.add_trace(
-                    go.Bar(
-                        x=top15_turnover.index,
-                        y=top15_turnover['库存周转率'],
-                        marker_color=turnover_colors,
-                        text=top15_turnover['库存周转率'].apply(lambda x: f"{x:.1f}"),
-                        textposition='auto',
-                        textfont=dict(size=10),
-                        customdata=np.column_stack((
-                            top15_turnover.get('产品代码', ['未知'] * len(top15_turnover)),
-                            top15_turnover.get('批次价值', [0] * len(top15_turnover)),
-                            top15_turnover.get('批次库存', [0] * len(top15_turnover)),
-                            top15_turnover.get('库龄', [30] * len(top15_turnover)),
-                            top15_turnover.get('风险等级', ['未知'] * len(top15_turnover)),
-                            top15_turnover.get('预计清库天数', [30] * len(top15_turnover)).replace([np.inf, -np.inf],
-                                                                                                   365),
-                            top15_turnover.get('日均出货', [0] * len(top15_turnover)),
-                            top15_turnover.get('积压原因', ['未知'] * len(top15_turnover)),
-                            top15_turnover.get('责任区域', ['未知'] * len(top15_turnover)),
-                            top15_turnover['库存周转率'].apply(
-                                lambda
-                                    x: '优秀(>6次/年)' if x > 6 else '良好(4-6次/年)' if x > 4 else '一般(2-4次/年)' if x > 2 else '需改进(<2次/年)'
-                            )
-                        )),
-                        hovertemplate="<b>📈 周转分析: %{x}</b><br>" +
-                                      "<b>代码: %{customdata[0]}</b><br>" +
-                                      "<br><b>🔄 周转表现</b><br>" +
-                                      "年周转率: %{y:.1f}次<br>" +
-                                      "周转评级: <b>%{customdata[9]}</b><br>" +
-                                      "预计清库: %{customdata[5]:.0f}天<br>" +
-                                      "<br><b>💼 经营数据</b><br>" +
-                                      "库存价值: ¥%{customdata[1]:,.0f}<br>" +
-                                      "库存量: %{customdata[2]:,.0f}箱<br>" +
-                                      "日均出货: %{customdata[6]:.2f}箱<br>" +
-                                      "<br><b>⚠️ 风险状况</b><br>" +
-                                      "风险等级: %{customdata[4]}<br>" +
-                                      "当前库龄: %{customdata[3]:.0f}天<br>" +
-                                      "积压原因: %{customdata[7]}<br>" +
-                                      "<br><b>🎯 管理责任</b><br>" +
-                                      "责任区域: %{customdata[8]}<br>" +
-                                      "<extra></extra>",
-                        name="库存周转分析"
-                    ),
-                    row=2, col=2
-                )
+                # 创建优化的区域分析图表
+                fig_region = create_region_analysis_optimized(region_stats, region_risk_details)
+                st.plotly_chart(fig_region, use_container_width=True)
 
-            # 添加参考线 - 修复重叠问题
-            # 象限分析参考线
-            if all(col in product_stats.columns for col in ['批次价值', '预计清库天数']):
-                fig_product.add_hline(y=90, line_dash="dash", line_color="red",
-                                      annotation=dict(text="90天清库线",
-                                                      xref="x3", yref="y3",
-                                                      x=0.05, xanchor="left",
-                                                      bgcolor="rgba(255,255,255,0.8)",
-                                                      bordercolor="red"),
-                                      row=2, col=1)
-                fig_product.add_vline(x=product_stats['批次价值'].median(), line_dash="dash", line_color="blue",
-                                      annotation=dict(text="价值中位线",
-                                                      xref="x3", yref="paper",
-                                                      y=0.35, yanchor="bottom",
-                                                      bgcolor="rgba(255,255,255,0.8)",
-                                                      bordercolor="blue"),
-                                      row=2, col=1)
+            except Exception as e:
+                st.error(f"区域分析失败: {str(e)}")
 
-            # 周转率参考线 - 调整位置避免重叠
-            if '库存周转率' in product_stats.columns:
-                fig_product.add_hline(y=4, line_dash="dash", line_color="orange",
-                                      annotation=dict(text="良好周转线",
-                                                      xref="x4", yref="y4",
-                                                      x=0.05, xanchor="left",
-                                                      bgcolor="rgba(255,255,255,0.8)",
-                                                      bordercolor="orange"),
-                                      row=2, col=2)
+        else:
+            st.info("暂无区域数据或责任区域列不存在")
 
-            fig_product.update_layout(
-                height=900,
-                showlegend=False,
-                title_text="产品维度库存风险深度分析 - 多维度综合评估",
-                hoverlabel=dict(
-                    bgcolor="white",
-                    font_size=12,
-                    font_family="Inter"
-                )
-            )
+    # 子标签4：深度统计洞察
+    with risk_tab4:
+        st.markdown("#### 📈 库存风险深度统计洞察")
 
-            # 调整x轴标签角度
-            fig_product.update_xaxes(tickangle=-45, row=1, col=1)
-            fig_product.update_xaxes(tickangle=-45, row=2, col=2)
-
-            st.plotly_chart(fig_product, use_container_width=True)
-
-        except Exception as e:
-            st.error(f"产品统计分析失败: {str(e)}")
-            st.info("正在显示基础统计信息...")
-
-            # 显示可用列名用于调试
-            st.write("可用列名:", processed_inventory.columns.tolist())
-
-    # 区域分析 - 增强悬停功能
-    st.markdown("#### 🌍 区域库存风险分析")
-
-    if not processed_inventory.empty and '责任区域' in processed_inventory.columns:
-        # 使用实际存在的列名进行区域分析
-        region_agg_dict = {}
-        if '数量' in processed_inventory.columns:
-            region_agg_dict['数量'] = 'sum'
-        elif '批次库存' in processed_inventory.columns:
-            region_agg_dict['批次库存'] = 'sum'
-
-        if '批次价值' in processed_inventory.columns:
-            region_agg_dict['批次价值'] = 'sum'
-        if '库龄' in processed_inventory.columns:
-            region_agg_dict['库龄'] = 'mean'
-        if '风险得分' in processed_inventory.columns:
-            region_agg_dict['风险得分'] = 'mean'
-        if '产品名称' in processed_inventory.columns:
-            region_agg_dict['产品名称'] = 'nunique'
-        if '日均出货' in processed_inventory.columns:
-            region_agg_dict['日均出货'] = 'mean'
-        if '积压原因' in processed_inventory.columns:
-            region_agg_dict['积压原因'] = lambda x: '，'.join(pd.Series(x).value_counts().head(3).index)
-
-        try:
-            region_stats = processed_inventory.groupby('责任区域').agg(region_agg_dict).round(2)
-
-            # 统一列名
-            if '数量' in region_stats.columns:
-                region_stats = region_stats.rename(columns={'数量': '批次库存'})
-
-            # 计算每个区域的风险等级分布
-            region_risk_details = {}
-            for region in region_stats.index:
-                region_data = processed_inventory[processed_inventory['责任区域'] == region]
-                if '风险等级' in processed_inventory.columns:
-                    risk_counts = region_data['风险等级'].value_counts().to_dict()
-                else:
-                    risk_counts = {}
-                region_risk_details[region] = risk_counts
-
-            col1, col2 = st.columns(2)
+        if not processed_inventory.empty:
+            # 创建统计概览
+            col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                # 区域价值分布饼图 - 增强悬停
-                if '批次价值' in region_stats.columns:
-                    fig_region_pie = go.Figure(data=[go.Pie(
-                        labels=region_stats.index,
-                        values=region_stats['批次价值'],
-                        hole=.4,
-                        marker_colors=COLOR_SCHEME['chart_colors'][:len(region_stats)],
-                        customdata=np.column_stack((
-                            region_stats.get('批次库存', [0] * len(region_stats)),
-                            region_stats.get('库龄', [0] * len(region_stats)),
-                            region_stats.get('风险得分', [0] * len(region_stats)),
-                            region_stats.get('产品名称', [0] * len(region_stats)),
-                            region_stats.get('日均出货', [0] * len(region_stats)),
-                            # 计算每个区域的高风险批次数
-                            [region_risk_details[region].get('极高风险', 0) + region_risk_details[region].get('高风险',
-                                                                                                              0)
-                             for region in region_stats.index],
-                            region_stats.get('积压原因', ['未知'] * len(region_stats)),
-                            # 计算价值占比
-                            region_stats['批次价值'] / region_stats['批次价值'].sum() * 100
-                        )),
-                        hovertemplate="<b>🌍 区域: %{label}</b><br>" +
-                                      "<br><b>💰 价值分析</b><br>" +
-                                      "库存价值: ¥%{value:,.0f}<br>" +
-                                      "价值占比: %{percent}<br>" +
-                                      "库存量: %{customdata[0]:,.0f}箱<br>" +
-                                      "<br><b>📊 运营指标</b><br>" +
-                                      "产品种类: %{customdata[3]}个<br>" +
-                                      "平均库龄: %{customdata[1]:.0f}天<br>" +
-                                      "日均出货: %{customdata[4]:.2f}箱<br>" +
-                                      "<br><b>⚠️ 风险状况</b><br>" +
-                                      "平均风险得分: %{customdata[2]:.0f}分<br>" +
-                                      "高风险批次: %{customdata[5]}个<br>" +
-                                      "<br><b>🔍 管理洞察</b><br>" +
-                                      "主要积压原因: %{customdata[6]}<br>" +
-                                      "<extra></extra>"
-                    )])
-                    fig_region_pie.update_layout(
-                        title="区域库存价值分布与风险概览",
-                        height=450
-                    )
-                    st.plotly_chart(fig_region_pie, use_container_width=True)
+                st.metric(
+                    "总批次数",
+                    f"{len(processed_inventory):,}",
+                    help="当前系统中的库存批次总数"
+                )
 
             with col2:
-                # 区域风险得分对比 - 增强悬停
-                if '风险得分' in region_stats.columns:
-                    region_colors = region_stats['风险得分'].apply(
-                        lambda x: '#8B0000' if x > 70 else '#FF0000' if x > 60 else '#FFA500' if x > 40 else '#90EE90'
-                    )
+                high_risk_count = len(processed_inventory[processed_inventory['风险等级'].isin(['极高风险', '高风险'])])
+                high_risk_ratio = (high_risk_count / len(processed_inventory) * 100) if len(
+                    processed_inventory) > 0 else 0
+                st.metric(
+                    "高风险批次",
+                    f"{high_risk_count:,}",
+                    delta=f"{high_risk_ratio:.1f}%",
+                    help="极高风险和高风险批次数量及占比"
+                )
 
-                    fig_region_risk = go.Figure(data=[go.Bar(
-                        x=region_stats.index,
-                        y=region_stats['风险得分'],
-                        marker_color=region_colors,
-                        text=region_stats['风险得分'].apply(lambda x: f"{x:.0f}"),
-                        textposition='outside',
-                        textfont=dict(size=11),
-                        customdata=np.column_stack((
-                            region_stats.get('批次价值', [0] * len(region_stats)),
-                            region_stats.get('批次库存', [0] * len(region_stats)),
-                            region_stats.get('库龄', [0] * len(region_stats)),
-                            region_stats.get('产品名称', [0] * len(region_stats)),
-                            # 计算每个区域的风险等级分布
-                            [
-                                f"极高:{region_risk_details[region].get('极高风险', 0)} 高:{region_risk_details[region].get('高风险', 0)} 中:{region_risk_details[region].get('中风险', 0)}"
-                                for region in region_stats.index],
-                            region_stats.get('积压原因', ['未知'] * len(region_stats)),
-                            region_stats.get('日均出货', [0] * len(region_stats)),
-                            # 风险等级评价
-                            region_stats['风险得分'].apply(
-                                lambda
-                                    x: '极高风险区域' if x > 70 else '高风险区域' if x > 60 else '中风险区域' if x > 40 else '低风险区域'
-                            )
-                        )),
-                        hovertemplate="<b>🎯 区域风险: %{x}</b><br>" +
-                                      "<br><b>⚠️ 风险评估</b><br>" +
-                                      "风险得分: %{y:.0f}分<br>" +
-                                      "风险等级: <b>%{customdata[7]}</b><br>" +
-                                      "风险分布: %{customdata[4]}<br>" +
-                                      "<br><b>💼 业务规模</b><br>" +
-                                      "库存价值: ¥%{customdata[0]:,.0f}<br>" +
-                                      "库存量: %{customdata[1]:,.0f}箱<br>" +
-                                      "产品种类: %{customdata[3]}个<br>" +
-                                      "<br><b>📈 运营表现</b><br>" +
-                                      "平均库龄: %{customdata[2]:.0f}天<br>" +
-                                      "日均出货: %{customdata[6]:.2f}箱<br>" +
-                                      "<br><b>🔍 问题诊断</b><br>" +
-                                      "主要积压原因: %{customdata[5]}<br>" +
-                                      "<extra></extra>"
-                    )])
+            with col3:
+                avg_age = processed_inventory['库龄'].mean()
+                st.metric(
+                    "平均库龄",
+                    f"{avg_age:.0f}天",
+                    help="所有批次的平均库存天数"
+                )
 
-                    # 添加风险等级参考线 - 调整位置避免重叠
-                    fig_region_risk.add_hline(y=60, line_dash="dash", line_color="red",
-                                              annotation=dict(text="高风险线",
-                                                              x=0.05, xanchor="left",
-                                                              bgcolor="rgba(255,255,255,0.8)",
-                                                              bordercolor="red"))
-                    fig_region_risk.add_hline(y=40, line_dash="dash", line_color="orange",
-                                              annotation=dict(text="中风险线",
-                                                              x=0.05, xanchor="left",
-                                                              y=42,
-                                                              bgcolor="rgba(255,255,255,0.8)",
-                                                              bordercolor="orange"))
+            with col4:
+                total_value = processed_inventory['批次价值'].sum() / 1000000
+                st.metric(
+                    "库存总价值",
+                    f"¥{total_value:.1f}M",
+                    help="所有库存批次的总价值"
+                )
 
-                    fig_region_risk.update_layout(
-                        title="区域平均风险得分与管理建议",
-                        height=450,
-                        yaxis_title="风险得分"
-                    )
-                    st.plotly_chart(fig_region_risk, use_container_width=True)
+            # 风险分布饼图
+            st.markdown("##### 📊 风险等级分布详情")
+            risk_distribution = processed_inventory['风险等级'].value_counts()
 
-        except Exception as e:
-            st.error(f"区域分析失败: {str(e)}")
+            fig_pie = go.Figure(data=[go.Pie(
+                labels=risk_distribution.index,
+                values=risk_distribution.values,
+                hole=.4,
+                textinfo='label+percent+value',
+                texttemplate='%{label}<br>%{value}批次<br>(%{percent})',
+                hovertemplate="<b>%{label}</b><br>" +
+                              "批次数量: %{value}<br>" +
+                              "占比: %{percent}<br>" +
+                              "<extra></extra>",
+                marker=dict(
+                    colors=['#8B0000', '#FF0000', '#FFA500', '#90EE90', '#006400'],
+                    line=dict(color='white', width=2)
+                )
+            )])
 
-    else:
-        st.info("暂无区域数据或责任区域列不存在")
+            fig_pie.update_layout(
+                title="风险等级分布统计",
+                height=400,
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+            )
+
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+            # 统计表格
+            st.markdown("##### 📋 详细统计信息")
+
+            stats_data = []
+            for risk_level in ['极高风险', '高风险', '中风险', '低风险', '极低风险']:
+                if risk_level in risk_distribution.index:
+                    count = risk_distribution[risk_level]
+                    ratio = count / len(processed_inventory) * 100
+                    risk_data = processed_inventory[processed_inventory['风险等级'] == risk_level]
+                    avg_value = risk_data['批次价值'].mean()
+                    total_value = risk_data['批次价值'].sum()
+                    avg_age = risk_data['库龄'].mean()
+
+                    stats_data.append({
+                        '风险等级': risk_level,
+                        '批次数量': f"{count:,}",
+                        '占比': f"{ratio:.1f}%",
+                        '平均价值': f"¥{avg_value:,.0f}",
+                        '总价值': f"¥{total_value:,.0f}",
+                        '平均库龄': f"{avg_age:.0f}天"
+                    })
+
+            stats_df = pd.DataFrame(stats_data)
+            st.dataframe(stats_df, use_container_width=True, hide_index=True)
+
+        else:
+            st.info("暂无数据进行统计分析")
 
 # 标签3：销售预测准确性综合分析 - 纯图表版本
 with tab3:
