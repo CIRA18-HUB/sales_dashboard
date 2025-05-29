@@ -1,4 +1,4 @@
-# data_storage.py - 数据存储模块
+# data_storage.py - 数据存储模块（修正密码配置）
 import json
 import os
 from datetime import datetime
@@ -33,18 +33,18 @@ class DataStorage:
             with open(self.updates_file, 'w', encoding='utf-8') as f:
                 json.dump([], f, ensure_ascii=False)
         
-        # 初始化用户文件
+        # 初始化用户文件 - 🔥 修正密码配置
         if not os.path.exists(self.users_file):
             default_users = [
                 {
                     "username": "admin",
-                    "password": "SAL!2025",
+                    "password": "cira18",  # 管理员密码：cira18
                     "role": "管理员",
                     "display_name": "管理员"
                 },
                 {
                     "username": "user",
-                    "password": "user123",
+                    "password": "SAL!2025",  # 普通用户密码：SAL!2025
                     "role": "普通用户", 
                     "display_name": "普通用户"
                 }
