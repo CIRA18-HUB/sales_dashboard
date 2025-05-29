@@ -1,4 +1,4 @@
-# 登陆界面haha.py - 简化版登录界面
+# 登陆界面haha.py - 增强版登录界面（完整版）
 import streamlit as st
 from datetime import datetime
 import time
@@ -26,8 +26,8 @@ hide_elements = """
 """
 st.markdown(hide_elements, unsafe_allow_html=True)
 
-# 紫色渐变背景 + 完整样式
-complete_css = """
+# 【替换类别】complete_css → enhanced_complete_css（替换原有的complete_css）
+enhanced_complete_css = """
 <style>
     /* 导入字体 */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -39,14 +39,15 @@ complete_css = """
         min-height: 100vh;
     }
 
-    /* 主容器背景 + 动画 */
+    /* 主容器背景 + 增强动画 */
     .main {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         min-height: 100vh;
         position: relative;
+        overflow: hidden;
     }
 
-    /* 动态背景波纹效果 */
+    /* 增强版动态背景波纹效果 */
     .main::before {
         content: '';
         position: fixed;
@@ -55,30 +56,36 @@ complete_css = """
         width: 100%;
         height: 100%;
         background: 
-            radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
-            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.2) 0%, transparent 50%),
-            radial-gradient(circle at 50% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 60%);
-        animation: waveMove 8s ease-in-out infinite;
+            radial-gradient(circle at 20% 20%, rgba(120, 119, 198, 0.6) 0%, transparent 60%),
+            radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 40% 60%, rgba(120, 119, 198, 0.4) 0%, transparent 70%),
+            radial-gradient(circle at 70% 30%, rgba(182, 244, 146, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 90% 10%, rgba(255, 182, 193, 0.4) 0%, transparent 60%);
+        animation: enhancedWaveMove 12s ease-in-out infinite;
         pointer-events: none;
         z-index: 0;
     }
 
-    @keyframes waveMove {
+    @keyframes enhancedWaveMove {
         0%, 100% { 
-            background-size: 200% 200%, 150% 150%, 300% 300%;
-            background-position: 0% 0%, 100% 100%, 50% 50%; 
+            background-size: 200% 200%, 150% 150%, 300% 300%, 180% 180%, 220% 220%;
+            background-position: 0% 0%, 100% 100%, 50% 50%, 20% 80%, 90% 10%; 
         }
-        33% { 
-            background-size: 300% 300%, 200% 200%, 250% 250%;
-            background-position: 100% 0%, 0% 50%, 80% 20%; 
+        25% { 
+            background-size: 300% 300%, 200% 200%, 250% 250%, 240% 240%, 160% 160%;
+            background-position: 100% 0%, 0% 50%, 80% 20%, 70% 30%, 10% 90%; 
         }
-        66% { 
-            background-size: 250% 250%, 300% 300%, 200% 200%;
-            background-position: 50% 100%, 50% 0%, 20% 80%; 
+        50% { 
+            background-size: 250% 250%, 300% 300%, 200% 200%, 190% 190%, 280% 280%;
+            background-position: 50% 100%, 50% 0%, 20% 80%, 90% 70%, 30% 20%; 
+        }
+        75% { 
+            background-size: 320% 320%, 180% 180%, 270% 270%, 210% 210%, 200% 200%;
+            background-position: 20% 70%, 80% 30%, 60% 10%, 40% 90%, 70% 50%; 
         }
     }
 
-    /* 浮动粒子效果 */  
+    /* 增强版浮动粒子效果 */  
     .main::after {
         content: '';
         position: fixed;
@@ -87,21 +94,27 @@ complete_css = """
         width: 100%;
         height: 100%;
         background-image: 
-            radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.3), transparent),
-            radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.2), transparent),
-            radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.4), transparent),
-            radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.2), transparent),
-            radial-gradient(2px 2px at 160px 30px, rgba(255,255,255,0.3), transparent);
+            radial-gradient(3px 3px at 20px 30px, rgba(255,255,255,0.4), transparent),
+            radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.3), transparent),
+            radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.5), transparent),
+            radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.3), transparent),
+            radial-gradient(3px 3px at 160px 30px, rgba(255,255,255,0.4), transparent),
+            radial-gradient(1px 1px at 200px 60px, rgba(182, 244, 146, 0.6), transparent),
+            radial-gradient(2px 2px at 250px 90px, rgba(255, 182, 193, 0.5), transparent),
+            radial-gradient(1px 1px at 300px 20px, rgba(255, 255, 255, 0.4), transparent);
         background-repeat: repeat;
-        background-size: 200px 100px;
-        animation: particleFloat 20s linear infinite;
+        background-size: 300px 150px;
+        animation: enhancedParticleFloat 25s linear infinite;
         pointer-events: none;
         z-index: 1;
     }
 
-    @keyframes particleFloat {
-        0% { transform: translateY(100vh) translateX(0); }
-        100% { transform: translateY(-100vh) translateX(100px); }
+    @keyframes enhancedParticleFloat {
+        0% { transform: translateY(100vh) translateX(0) rotate(0deg); }
+        25% { transform: translateY(75vh) translateX(50px) rotate(90deg); }
+        50% { transform: translateY(50vh) translateX(-30px) rotate(180deg); }
+        75% { transform: translateY(25vh) translateX(80px) rotate(270deg); }
+        100% { transform: translateY(-100vh) translateX(120px) rotate(360deg); }
     }
 
     /* 主容器 */
@@ -109,61 +122,158 @@ complete_css = """
         position: relative;
         z-index: 10;
         background: rgba(255, 255, 255, 0.02);
-        backdrop-filter: blur(5px);
+        backdrop-filter: blur(8px);
         padding-top: 1rem;
         max-width: 100%;
     }
 
-    /* 登录容器 */
+    /* 增强版登录容器 */
     .login-container {
-        animation: slideUpBounce 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        animation: enhancedSlideUpBounce 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        position: relative;
     }
 
-    @keyframes slideUpBounce {
+    @keyframes enhancedSlideUpBounce {
         0% {
             opacity: 0;
-            transform: translateY(100px) scale(0.8) rotateX(30deg);
+            transform: translateY(150px) scale(0.6) rotateX(45deg) rotateY(15deg);
         }
-        60% {
+        40% {
+            opacity: 0.8;
+            transform: translateY(-30px) scale(1.1) rotateX(-10deg) rotateY(-8deg);
+        }
+        70% {
             opacity: 1;
-            transform: translateY(-10px) scale(1.05) rotateX(-5deg);
+            transform: translateY(15px) scale(0.95) rotateX(5deg) rotateY(3deg);
         }
         100% {
             opacity: 1;
-            transform: translateY(0) scale(1) rotateX(0deg);
+            transform: translateY(0) scale(1) rotateX(0deg) rotateY(0deg);
         }
     }
 
-    /* 输入框动画 */
+    /* 互动游戏元素 - 可爱飘浮图标 */
+    .floating-icons {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    .floating-icon {
+        position: absolute;
+        font-size: 1.5rem;
+        animation: floatingIconMove 8s ease-in-out infinite;
+        opacity: 0.7;
+        cursor: pointer;
+        pointer-events: auto;
+        transition: all 0.3s ease;
+    }
+
+    .floating-icon:hover {
+        transform: scale(1.5) rotate(360deg);
+        opacity: 1;
+        animation-play-state: paused;
+    }
+
+    .floating-icon:nth-child(1) { 
+        top: 15%; left: 10%; 
+        animation-delay: 0s;
+        animation-duration: 6s;
+    }
+    .floating-icon:nth-child(2) { 
+        top: 25%; right: 15%; 
+        animation-delay: 1s;
+        animation-duration: 8s;
+    }
+    .floating-icon:nth-child(3) { 
+        top: 45%; left: 5%; 
+        animation-delay: 2s;
+        animation-duration: 7s;
+    }
+    .floating-icon:nth-child(4) { 
+        top: 60%; right: 8%; 
+        animation-delay: 3s;
+        animation-duration: 9s;
+    }
+    .floating-icon:nth-child(5) { 
+        top: 75%; left: 12%; 
+        animation-delay: 4s;
+        animation-duration: 5s;
+    }
+    .floating-icon:nth-child(6) { 
+        top: 35%; right: 25%; 
+        animation-delay: 2.5s;
+        animation-duration: 6.5s;
+    }
+
+    @keyframes floatingIconMove {
+        0%, 100% { 
+            transform: translateY(0) translateX(0) rotate(0deg) scale(1);
+        }
+        25% { 
+            transform: translateY(-20px) translateX(15px) rotate(90deg) scale(1.1);
+        }
+        50% { 
+            transform: translateY(-10px) translateX(-10px) rotate(180deg) scale(0.9);
+        }
+        75% { 
+            transform: translateY(-30px) translateX(20px) rotate(270deg) scale(1.2);
+        }
+    }
+
+    /* 增强版输入框动画 */
     .stTextInput > div > div > input {
-        background: rgba(255, 255, 255, 0.9);
-        border: 2px solid rgba(229, 232, 240, 0.8);
-        border-radius: 10px;
-        padding: 1rem 1.2rem;
-        font-size: 1rem;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        background: rgba(255, 255, 255, 0.95);
+        border: 3px solid rgba(229, 232, 240, 0.8);
+        border-radius: 15px;
+        padding: 1.2rem 1.5rem;
+        font-size: 1.1rem;
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
     }
 
     .stTextInput > div > div > input:focus {
         border-color: #667eea;
-        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        transform: translateY(-3px) scale(1.02);
+        box-shadow: 
+            0 0 0 6px rgba(102, 126, 234, 0.15),
+            0 10px 30px rgba(102, 126, 234, 0.3),
+            inset 0 0 20px rgba(102, 126, 234, 0.1);
+        transform: translateY(-5px) scale(1.03);
         background: rgba(255, 255, 255, 1);
+        animation: inputGlow 2s ease-in-out infinite;
     }
 
-    /* 登录按钮动画 */
+    @keyframes inputGlow {
+        0%, 100% { 
+            box-shadow: 
+                0 0 0 6px rgba(102, 126, 234, 0.15),
+                0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        50% { 
+            box-shadow: 
+                0 0 0 8px rgba(102, 126, 234, 0.25),
+                0 15px 40px rgba(102, 126, 234, 0.5);
+        }
+    }
+
+    /* 超级增强版登录按钮动画 */
     .stButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        border-radius: 10px;
-        padding: 1rem 2rem;
-        font-size: 1rem;
+        border-radius: 15px;
+        padding: 1.2rem 2.5rem;
+        font-size: 1.1rem;
         font-weight: 600;
         width: 100%;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         overflow: hidden;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
     }
 
     .stButton > button::before {
@@ -174,43 +284,102 @@ complete_css = """
         width: 0;
         height: 0;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.3);
-        transition: width 0.6s, height 0.6s, top 0.6s, left 0.6s;
+        background: rgba(255, 255, 255, 0.4);
+        transition: width 0.8s, height 0.8s, top 0.8s, left 0.8s;
         transform: translate(-50%, -50%);
     }
 
+    .stButton > button::after {
+        content: '✨';
+        position: absolute;
+        top: 50%;
+        right: 20px;
+        transform: translateY(-50%);
+        opacity: 0;
+        transition: all 0.3s ease;
+    }
+
+    .stButton > button:hover::after {
+        opacity: 1;
+        right: 15px;
+        animation: sparkle 1s ease-in-out infinite;
+    }
+
+    @keyframes sparkle {
+        0%, 100% { transform: translateY(-50%) scale(1) rotate(0deg); }
+        50% { transform: translateY(-50%) scale(1.2) rotate(180deg); }
+    }
+
     .stButton > button:active::before {
-        width: 300px;
-        height: 300px;
+        width: 400px;
+        height: 400px;
     }
 
     .stButton > button:hover {
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        transform: translateY(-5px) scale(1.03);
+        box-shadow: 
+            0 20px 50px rgba(102, 126, 234, 0.5),
+            0 0 30px rgba(102, 126, 234, 0.3);
         background: linear-gradient(135deg, #5a6fd8 0%, #6b4f9a 100%);
+        animation: buttonPulse 1.5s ease-in-out infinite;
     }
 
-    /* 消息动画 */
+    @keyframes buttonPulse {
+        0%, 100% { 
+            box-shadow: 
+                0 20px 50px rgba(102, 126, 234, 0.5),
+                0 0 30px rgba(102, 126, 234, 0.3);
+        }
+        50% { 
+            box-shadow: 
+                0 25px 60px rgba(102, 126, 234, 0.7),
+                0 0 50px rgba(102, 126, 234, 0.5);
+        }
+    }
+
+    /* 增强版消息动画 */
     .stAlert {
-        border-radius: 10px;
+        border-radius: 15px;
         border: none;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        backdrop-filter: blur(10px);
-        animation: alertSlideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(15px);
+        animation: enhancedAlertSlideIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        position: relative;
+        overflow: hidden;
     }
 
-    @keyframes alertSlideIn {
+    .stAlert::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        animation: shimmer 2s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+        0% { left: -100%; }
+        100% { left: 100%; }
+    }
+
+    @keyframes enhancedAlertSlideIn {
         0% {
             opacity: 0;
-            transform: translateY(-30px) scale(0.8);
+            transform: translateY(-50px) scale(0.8) rotateX(30deg);
         }
-        60% {
+        40% {
+            opacity: 0.8;
+            transform: translateY(10px) scale(1.1) rotateX(-10deg);
+        }
+        70% {
             opacity: 1;
-            transform: translateY(5px) scale(1.05);
+            transform: translateY(-5px) scale(0.95) rotateX(5deg);
         }
         100% {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: translateY(0) scale(1) rotateX(0deg);
         }
     }
 
@@ -224,7 +393,7 @@ complete_css = """
         color: white;
     }
 
-    /* 主标题部分 */
+    /* 增强版主标题部分 */
     .main-title {
         text-align: center;
         margin-bottom: 3rem;
@@ -233,74 +402,360 @@ complete_css = """
     }
 
     .main-title h1 {
-        font-size: 3rem;
+        font-size: 3.5rem;
         color: white;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.4);
         margin-bottom: 1rem;
         font-weight: 700;
-        animation: titleGlowPulse 4s ease-in-out infinite;
+        animation: enhancedTitleGlowPulse 4s ease-in-out infinite;
     }
 
     .main-title p {
-        font-size: 1.2rem;
-        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.3rem;
+        color: rgba(255, 255, 255, 0.95);
         margin-bottom: 2rem;
-        animation: subtitleFloat 6s ease-in-out infinite;
+        animation: enhancedSubtitleFloat 6s ease-in-out infinite;
     }
 
-    @keyframes titleGlowPulse {
+    @keyframes enhancedTitleGlowPulse {
         0%, 100% { 
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.5);
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.4), 0 0 30px rgba(255, 255, 255, 0.6);
             transform: scale(1);
         }
+        25% { 
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.4), 0 0 50px rgba(182, 244, 146, 0.8);
+            transform: scale(1.02);
+        }
         50% { 
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 0 0 40px rgba(255, 255, 255, 0.9);
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.4), 0 0 60px rgba(255, 255, 255, 1);
+            transform: scale(1.05);
+        }
+        75% { 
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.4), 0 0 40px rgba(255, 182, 193, 0.9);
             transform: scale(1.02);
         }
     }
 
-    @keyframes subtitleFloat {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-8px); }
+    @keyframes enhancedSubtitleFloat {
+        0%, 100% { transform: translateY(0) scale(1); }
+        33% { transform: translateY(-12px) scale(1.02); }
+        66% { transform: translateY(-6px) scale(0.98); }
     }
 
-    /* 更新提示 */
-    .update-badge {
-        display: inline-block;
-        background: linear-gradient(135deg, #81ecec 0%, #74b9ff 100%);
-        color: white;
-        padding: 1.2rem 2.5rem;
-        border-radius: 30px;
-        font-weight: 600;
-        font-size: 1.1rem;
-        animation: badgeGlowPulse 3s ease-in-out infinite, badgeFloat 5s ease-in-out infinite;
-        position: relative;
-        overflow: hidden;
+    /* 可爱图标动画容器 */
+    .cute-login-icon {
+        font-size: 4rem;
+        background: linear-gradient(45deg, #667eea, #764ba2, #81ecec, #fd79a8);
+        background-size: 400% 400%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1.5rem;
+        animation: cuteIconColorShift 4s ease-in-out infinite, cuteIconBounce 2s ease-in-out infinite;
+        display: block;
+        transition: all 0.3s ease;
+        cursor: pointer;
     }
 
-    @keyframes badgeGlowPulse {
+    .cute-login-icon:hover {
+        animation: cuteIconSpin 1s ease-in-out, cuteIconColorShift 4s ease-in-out infinite;
+        transform: scale(1.2);
+    }
+
+    @keyframes cuteIconColorShift {
         0%, 100% { 
-            box-shadow: 0 5px 15px rgba(116, 185, 255, 0.3);
+            background-position: 0% 50%;
+            filter: hue-rotate(0deg);
+        }
+        25% { 
+            background-position: 100% 50%;
+            filter: hue-rotate(90deg);
         }
         50% { 
-            box-shadow: 0 10px 40px rgba(116, 185, 255, 0.8);
+            background-position: 50% 100%;
+            filter: hue-rotate(180deg);
+        }
+        75% { 
+            background-position: 50% 0%;
+            filter: hue-rotate(270deg);
         }
     }
 
-    @keyframes badgeFloat {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        33% { transform: translateY(-8px) rotate(1deg); }
-        66% { transform: translateY(-12px) rotate(-1deg); }
+    @keyframes cuteIconBounce {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-10px) scale(1.1); }
+    }
+
+    @keyframes cuteIconSpin {
+        0% { transform: rotate(0deg) scale(1.2); }
+        100% { transform: rotate(360deg) scale(1.2); }
+    }
+
+    /* 互动小游戏 - 点击效果 */
+    .click-effect {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,255,255,0.8), transparent);
+        pointer-events: none;
+        animation: clickRipple 1s ease-out forwards;
+    }
+
+    @keyframes clickRipple {
+        0% {
+            transform: scale(0);
+            opacity: 1;
+        }
+        100% {
+            transform: scale(10);
+            opacity: 0;
+        }
+    }
+
+    /* 数字统计卡片样式保持不变 */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2rem;
+        margin-bottom: 4rem;
+    }
+
+    .stat-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: all 0.4s ease;
+        animation: cardSlideUpStagger 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    .stat-card:nth-child(1) { animation-delay: 0.1s; }
+    .stat-card:nth-child(2) { animation-delay: 0.2s; }
+    .stat-card:nth-child(3) { animation-delay: 0.3s; }
+    .stat-card:nth-child(4) { animation-delay: 0.4s; }
+
+    @keyframes cardSlideUpStagger {
+        0% {
+            opacity: 0;
+            transform: translateY(60px) scale(0.8) rotateX(30deg);
+        }
+        60% {
+            opacity: 1;
+            transform: translateY(-10px) scale(1.05) rotateX(-5deg);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1) rotateX(0deg);
+        }
+    }
+
+    .stat-card:hover {
+        animation: cardWiggle 0.6s ease-in-out;
+        transform: scale(1.05);
+    }
+
+    @keyframes cardWiggle {
+        0%, 100% { transform: rotate(0deg) scale(1.05); }
+        25% { transform: rotate(2deg) scale(1.08); }
+        75% { transform: rotate(-2deg) scale(1.08); }
+    }
+
+    .counter-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+        display: block;
+        transition: all 0.3s ease;
+        animation: numberSlideUp 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes numberSlideUp {
+        0% {
+            opacity: 0;
+            transform: translateY(100%) scale(0.5) rotateX(90deg);
+        }
+        60% {
+            opacity: 1;
+            transform: translateY(-10%) scale(1.1) rotateX(-10deg);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1) rotateX(0deg);
+        }
+    }
+
+    .counter-number.updating {
+        animation: numberBounceUpdate 0.6s ease-out;
+    }
+
+    @keyframes numberBounceUpdate {
+        0% { 
+            transform: scale(1); 
+            filter: brightness(1); 
+        }
+        30% { 
+            transform: scale(1.2) translateY(-10px); 
+            filter: brightness(1.4) hue-rotate(30deg); 
+        }
+        60% { 
+            transform: scale(0.9) translateY(5px); 
+            filter: brightness(1.2) hue-rotate(-15deg); 
+        }
+        100% { 
+            transform: scale(1); 
+            filter: brightness(1); 
+        }
+    }
+
+    .counter-number.sparkle {
+        animation: numberSparkle 0.8s ease-out;
+    }
+
+    @keyframes numberSparkle {
+        0%, 100% { 
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            text-shadow: none;
+        }
+        25% { 
+            background: linear-gradient(45deg, #ff6b6b, #ffa500);
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.8);
+        }
+        50% { 
+            background: linear-gradient(45deg, #4ecdc4, #44e1ff);
+            text-shadow: 0 0 25px rgba(78, 205, 196, 0.9);
+        }
+        75% { 
+            background: linear-gradient(45deg, #96ceb4, #feca57);
+            text-shadow: 0 0 20px rgba(150, 206, 180, 0.8);
+        }
+    }
+
+    .stat-label {
+        color: #4a5568;
+        font-size: 0.9rem;
+    }
+
+    /* 功能模块介绍 */
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .feature-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        animation: featureCardFloat 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.5s ease;
+    }
+
+    .feature-card:nth-child(1) { animation-delay: 0.2s; }
+    .feature-card:nth-child(2) { animation-delay: 0.4s; }
+    .feature-card:nth-child(3) { animation-delay: 0.6s; }
+    .feature-card:nth-child(4) { animation-delay: 0.8s; }
+
+    @keyframes featureCardFloat {
+        0% {
+            opacity: 0;
+            transform: translateY(80px) scale(0.8) rotateX(45deg);
+        }
+        60% {
+            opacity: 1;
+            transform: translateY(-15px) scale(1.05) rotateX(-10deg);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1) rotateX(0deg);
+        }
+    }
+
+    .feature-card:hover {
+        animation: cardBounce 0.8s ease-in-out;
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
+    }
+
+    @keyframes cardBounce {
+        0%, 100% { transform: translateY(-10px) scale(1.02); }
+        25% { transform: translateY(-20px) scale(1.05); }
+        50% { transform: translateY(-5px) scale(1.08); }
+        75% { transform: translateY(-15px) scale(1.03); }
+    }
+
+    .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(45deg, #667eea, #764ba2, #81ecec);
+        background-size: 300% 300%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: iconColorShift 4s ease-in-out infinite;
+        display: block;
+        transition: all 0.3s ease;
+    }
+
+    .feature-card:hover .feature-icon {
+        animation: iconSpin 0.6s ease-in-out, iconColorShift 4s ease-in-out infinite;
+    }
+
+    @keyframes iconSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @keyframes iconColorShift {
+        0%, 100% { 
+            background-position: 0% 50%;
+            filter: hue-rotate(0deg);
+        }
+        25% { 
+            background-position: 50% 50%;
+            filter: hue-rotate(90deg);
+        }
+        50% { 
+            background-position: 100% 50%;
+            filter: hue-rotate(180deg);
+        }
+        75% { 
+            background-position: 50% 50%;
+            filter: hue-rotate(270deg);
+        }
+    }
+
+    .feature-title {
+        font-size: 1.4rem;
+        color: #2d3748;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+
+    .feature-description {
+        color: #4a5568;
+        line-height: 1.6;
     }
 
     /* 页脚 */
     .footer {
         text-align: center;
-        color: rgba(255, 255, 255, 0.7);
-        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 1rem;
         margin-top: 3rem;
         padding: 2rem 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     .footer p {
@@ -310,16 +765,95 @@ complete_css = """
     /* 响应式设计 */
     @media (max-width: 768px) {
         .main-title h1 {
-            font-size: 2rem;
+            font-size: 2.5rem;
         }
         .main-title p {
+            font-size: 1.1rem;
+        }
+        .floating-icon {
+            font-size: 1.2rem;
+        }
+        .cute-login-icon {
+            font-size: 3rem;
+        }
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        .features-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+        .counter-number {
+            font-size: 2rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .floating-icon {
             font-size: 1rem;
+        }
+        .cute-login-icon {
+            font-size: 2.5rem;
+        }
+        .stats-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>
 """
 
-st.markdown(complete_css, unsafe_allow_html=True)
+st.markdown(enhanced_complete_css, unsafe_allow_html=True)
+
+# 【新增类别】互动小游戏JavaScript - 新增
+interactive_js = """
+<script>
+// 互动点击效果
+document.addEventListener('click', function(e) {
+    const effect = document.createElement('div');
+    effect.className = 'click-effect';
+    effect.style.left = e.clientX - 10 + 'px';
+    effect.style.top = e.clientY - 10 + 'px';
+    document.body.appendChild(effect);
+    
+    setTimeout(() => {
+        effect.remove();
+    }, 1000);
+});
+
+// 键盘彩蛋
+document.addEventListener('keydown', function(e) {
+    if (e.code === 'Space') {
+        const icons = document.querySelectorAll('.floating-icon');
+        icons.forEach(icon => {
+            icon.style.animationPlayState = 'paused';
+            setTimeout(() => {
+                icon.style.animationPlayState = 'running';
+            }, 2000);
+        });
+    }
+});
+
+// 随机鼓励语句
+const encouragements = [
+    '🌟 你今天看起来很棒！',
+    '💪 相信自己，你可以的！',
+    '🎉 今天会是美好的一天！',
+    '✨ 你的笑容很有感染力！',
+    '🌈 保持积极的心态！'
+];
+
+function showRandomEncouragement() {
+    const message = encouragements[Math.floor(Math.random() * encouragements.length)];
+    console.log(message);
+}
+
+// 每30秒显示一次鼓励语句
+setInterval(showRandomEncouragement, 30000);
+</script>
+"""
+
+st.markdown(interactive_js, unsafe_allow_html=True)
 
 # 初始化会话状态
 if 'authenticated' not in st.session_state:
@@ -334,7 +868,7 @@ if 'display_name' not in st.session_state:
 # 检查是否已登录，如果已登录则显示欢迎页面
 if st.session_state.authenticated:
     # ================================
-    # 🎯 登录成功后的欢迎页面
+    # 🎯 登录成功后的欢迎页面（删除指定的3个部分）
     # ================================
     
     # 🎯 初始化动态数字的session state
@@ -346,7 +880,7 @@ if st.session_state.authenticated:
         st.session_state.stat4_value = 99
         st.session_state.last_update = time.time()
 
-    # 🔄 动态更新数字的函数
+    # 🔄 动态更新数字的函数（保持不变）
     def update_dynamic_stats():
         current_time = time.time()
         time_elapsed = current_time - st.session_state.last_update
@@ -371,270 +905,6 @@ if st.session_state.authenticated:
 
     # 🎯 更新动态数字
     is_updated = update_dynamic_stats()
-
-    # 数字统计卡片的CSS样式
-    stats_css = """
-    <style>
-        /* 数据统计展示 */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 2rem;
-            margin-bottom: 4rem;
-        }
-
-        .stat-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 15px;
-            padding: 1.5rem;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            transition: all 0.4s ease;
-            animation: cardSlideUpStagger 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-
-        .stat-card:nth-child(1) { animation-delay: 0.1s; }
-        .stat-card:nth-child(2) { animation-delay: 0.2s; }
-        .stat-card:nth-child(3) { animation-delay: 0.3s; }
-        .stat-card:nth-child(4) { animation-delay: 0.4s; }
-
-        @keyframes cardSlideUpStagger {
-            0% {
-                opacity: 0;
-                transform: translateY(60px) scale(0.8) rotateX(30deg);
-            }
-            60% {
-                opacity: 1;
-                transform: translateY(-10px) scale(1.05) rotateX(-5deg);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0) scale(1) rotateX(0deg);
-            }
-        }
-
-        .stat-card:hover {
-            animation: cardWiggle 0.6s ease-in-out;
-            transform: scale(1.05);
-        }
-
-        @keyframes cardWiggle {
-            0%, 100% { transform: rotate(0deg) scale(1.05); }
-            25% { transform: rotate(2deg) scale(1.08); }
-            75% { transform: rotate(-2deg) scale(1.08); }
-        }
-
-        /* 数字滚动动画效果 */
-        .counter-number {
-            font-size: 2.5rem;
-            font-weight: bold;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 0.5rem;
-            display: block;
-            transition: all 0.3s ease;
-            animation: numberSlideUp 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-
-        @keyframes numberSlideUp {
-            0% {
-                opacity: 0;
-                transform: translateY(100%) scale(0.5) rotateX(90deg);
-            }
-            60% {
-                opacity: 1;
-                transform: translateY(-10%) scale(1.1) rotateX(-10deg);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0) scale(1) rotateX(0deg);
-            }
-        }
-
-        .counter-number.updating {
-            animation: numberBounceUpdate 0.6s ease-out;
-        }
-
-        @keyframes numberBounceUpdate {
-            0% { 
-                transform: scale(1); 
-                filter: brightness(1); 
-            }
-            30% { 
-                transform: scale(1.2) translateY(-10px); 
-                filter: brightness(1.4) hue-rotate(30deg); 
-            }
-            60% { 
-                transform: scale(0.9) translateY(5px); 
-                filter: brightness(1.2) hue-rotate(-15deg); 
-            }
-            100% { 
-                transform: scale(1); 
-                filter: brightness(1); 
-            }
-        }
-
-        .counter-number.sparkle {
-            animation: numberSparkle 0.8s ease-out;
-        }
-
-        @keyframes numberSparkle {
-            0%, 100% { 
-                background: linear-gradient(45deg, #667eea, #764ba2);
-                text-shadow: none;
-            }
-            25% { 
-                background: linear-gradient(45deg, #ff6b6b, #ffa500);
-                text-shadow: 0 0 20px rgba(255, 107, 107, 0.8);
-            }
-            50% { 
-                background: linear-gradient(45deg, #4ecdc4, #44e1ff);
-                text-shadow: 0 0 25px rgba(78, 205, 196, 0.9);
-            }
-            75% { 
-                background: linear-gradient(45deg, #96ceb4, #feca57);
-                text-shadow: 0 0 20px rgba(150, 206, 180, 0.8);
-            }
-        }
-
-        .stat-label {
-            color: #4a5568;
-            font-size: 0.9rem;
-        }
-
-        /* 功能模块介绍 */
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 2rem;
-            margin-bottom: 3rem;
-        }
-
-        .feature-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 15px;
-            padding: 2rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            animation: featureCardFloat 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            position: relative;
-            overflow: hidden;
-            transition: all 0.5s ease;
-        }
-
-        .feature-card:nth-child(1) { animation-delay: 0.2s; }
-        .feature-card:nth-child(2) { animation-delay: 0.4s; }
-        .feature-card:nth-child(3) { animation-delay: 0.6s; }
-        .feature-card:nth-child(4) { animation-delay: 0.8s; }
-
-        @keyframes featureCardFloat {
-            0% {
-                opacity: 0;
-                transform: translateY(80px) scale(0.8) rotateX(45deg);
-            }
-            60% {
-                opacity: 1;
-                transform: translateY(-15px) scale(1.05) rotateX(-10deg);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0) scale(1) rotateX(0deg);
-            }
-        }
-
-        .feature-card:hover {
-            animation: cardBounce 0.8s ease-in-out;
-            transform: translateY(-10px) scale(1.02);
-            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
-        }
-
-        @keyframes cardBounce {
-            0%, 100% { transform: translateY(-10px) scale(1.02); }
-            25% { transform: translateY(-20px) scale(1.05); }
-            50% { transform: translateY(-5px) scale(1.08); }
-            75% { transform: translateY(-15px) scale(1.03); }
-        }
-
-        .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            background: linear-gradient(45deg, #667eea, #764ba2, #81ecec);
-            background-size: 300% 300%;
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: iconColorShift 4s ease-in-out infinite;
-            display: block;
-            transition: all 0.3s ease;
-        }
-
-        .feature-card:hover .feature-icon {
-            animation: iconSpin 0.6s ease-in-out, iconColorShift 4s ease-in-out infinite;
-        }
-
-        @keyframes iconSpin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        @keyframes iconColorShift {
-            0%, 100% { 
-                background-position: 0% 50%;
-                filter: hue-rotate(0deg);
-            }
-            25% { 
-                background-position: 50% 50%;
-                filter: hue-rotate(90deg);
-            }
-            50% { 
-                background-position: 100% 50%;
-                filter: hue-rotate(180deg);
-            }
-            75% { 
-                background-position: 50% 50%;
-                filter: hue-rotate(270deg);
-            }
-        }
-
-        .feature-title {
-            font-size: 1.4rem;
-            color: #2d3748;
-            margin-bottom: 1rem;
-            font-weight: 600;
-        }
-
-        .feature-description {
-            color: #4a5568;
-            line-height: 1.6;
-        }
-
-        /* 响应式设计 */
-        @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 1rem;
-            }
-            .features-grid {
-                grid-template-columns: 1fr;
-                gap: 1.5rem;
-            }
-            .counter-number {
-                font-size: 2rem;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-    """
-    
-    st.markdown(stats_css, unsafe_allow_html=True)
     
     # 主标题
     st.markdown("""
@@ -644,32 +914,11 @@ if st.session_state.authenticated:
     </div>
     """, unsafe_allow_html=True)
 
-    # 更新提示（移到原用户信息卡片位置）
-    st.markdown("""
-    <div style="text-align: center; margin: 3rem auto; max-width: 600px;">
-        <div class="update-badge">
-            🔄 每周四17:00刷新数据
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # 【删除部分1】"每周四17:00刷新数据" 提示 - 删除
+    # 【删除部分2】"请使用左侧导航栏访问各分析页面" 指引 - 删除  
+    # 【删除部分3】"退出登录" 按钮 - 删除
 
-    # 导航指引
-    st.markdown("""
-    <div style="text-align: center; color: rgba(255, 255, 255, 0.8); font-size: 1.1rem; margin: 2rem auto; animation: bounceArrow 3s ease-in-out infinite;">
-        👈 请使用左侧导航栏访问各分析页面
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 退出登录按钮
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        if st.button("🚪 退出登录", use_container_width=True, key="logout_main"):
-            # 清除所有session state
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
-
-    # 🎯 数据统计展示 - 带动态数字更新
+    # 🎯 数据统计展示 - 带动态数字更新（保持不变）
     col1, col2, col3, col4 = st.columns(4)
 
     # 添加CSS类来触发动画
@@ -707,7 +956,7 @@ if st.session_state.authenticated:
         </div>
         """, unsafe_allow_html=True)
 
-    # 功能模块介绍
+    # 功能模块介绍（保持不变）
     st.markdown("<br><br>", unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
@@ -754,35 +1003,15 @@ if st.session_state.authenticated:
         </div>
         """, unsafe_allow_html=True)
 
-    # 更新提示和导航指引
+    # 页脚（保持不变）
     st.markdown("""
-    <div style="text-align: center; margin: 3rem auto; max-width: 600px;">
-        <div class="update-badge">
-            🔄 每周四17:00刷新数据
-        </div>
-    </div>
-
-    <div style="text-align: center; color: rgba(255, 255, 255, 0.8); font-size: 1.1rem; margin-top: 2rem; animation: bounceArrow 3s ease-in-out infinite;">
-        👈 请使用左侧导航栏访问各分析页面
-    </div>
-
     <div class="footer">
         <p>Trolli SAL | 版本 1.0.0 | 最后更新: 2025年5月</p>
         <p>每周四17:00刷新数据 | 将枯燥数据变好看</p>
     </div>
-
-    <style>
-    @keyframes bounceArrow {
-        0%, 20%, 50%, 80%, 100% { transform: translateY(0) translateX(0); }
-        10% { transform: translateY(-8px) translateX(-5px); }
-        30% { transform: translateY(-5px) translateX(-8px); }
-        40% { transform: translateY(-12px) translateX(-3px); }
-        60% { transform: translateY(-8px) translateX(-6px); }
-    }
-    </style>
     """, unsafe_allow_html=True)
 
-    # 🔄 自动刷新页面来实现动态效果（只在登录成功后执行）
+    # 🔄 自动刷新页面来实现动态效果（保持不变）
     if not st.session_state.stats_initialized:
         st.session_state.stats_initialized = True
         time.sleep(0.1)  # 短暂延迟确保初始化完成
@@ -794,28 +1023,40 @@ if st.session_state.authenticated:
 
 else:
     # ================================
-    # 🔐 登录界面
+    # 🔐 增强版登录界面
     # ================================
+    
+    # 【新增类别】飘浮可爱图标 - 新增
+    st.markdown("""
+    <div class="floating-icons">
+        <div class="floating-icon">🌟</div>
+        <div class="floating-icon">✨</div>
+        <div class="floating-icon">🎉</div>
+        <div class="floating-icon">💫</div>
+        <div class="floating-icon">🌈</div>
+        <div class="floating-icon">🎨</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
         st.markdown("""
-        <div class="login-container" style="max-width: 450px; margin: 3rem auto; padding: 3rem 2.5rem; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.2); text-align: center;">
-            <div style="font-size: 3rem; background: linear-gradient(45deg, #667eea, #764ba2); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 1rem; animation: titlePulse 2s infinite;">📊</div>
-            <h2 style="font-size: 1.8rem; color: #2d3748; margin-bottom: 0.5rem; font-weight: 600;">Trolli SAL</h2>
-            <p style="color: #718096; font-size: 0.9rem; margin-bottom: 2rem;">欢迎使用Trolli SAL，本系统提供销售数据的多维度分析，帮助您洞察业务趋势、发现增长机会</p>
+        <div class="login-container" style="max-width: 500px; margin: 3rem auto; padding: 3.5rem 3rem; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(25px); border-radius: 25px; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.3); text-align: center;">
+            <div class="cute-login-icon">📊</div>
+            <h2 style="font-size: 2rem; color: #2d3748; margin-bottom: 0.8rem; font-weight: 700;">Trolli SAL</h2>
+            <p style="color: #718096; font-size: 1rem; margin-bottom: 2.5rem; line-height: 1.6;">欢迎使用Trolli SAL，本系统提供销售数据的多维度分析，帮助您洞察业务趋势、发现增长机会</p>
         </div>
         """, unsafe_allow_html=True)
 
-        # 登录表单
+        # 【替换类别】增强版登录表单 - 替换原有的登录表单按钮文案
         with st.form("login_form"):
             st.markdown("#### 🔐 请输入访问密码")
             password = st.text_input("密码", type="password", placeholder="请输入访问密码")
-            submit_button = st.form_submit_button("登 录", use_container_width=True)
+            submit_button = st.form_submit_button("🚀 开始分析之旅", use_container_width=True)
 
         if submit_button:
-            # 使用storage进行用户认证
+            # 使用storage进行用户认证（保持不变）
             auth_result = storage.authenticate_user(password)
             if auth_result['authenticated']:
                 st.session_state.authenticated = True
@@ -828,11 +1069,14 @@ else:
             else:
                 st.error("❌ 密码错误，请重试！")
 
-        # 更新提示
+        # 【新增类别】小贴士和互动提示 - 新增
         st.markdown("""
-        <div style="text-align: center; margin: 3rem auto; max-width: 600px;">
-            <div class="update-badge">
-                🔄 每周四17:00刷新数据
-            </div>
+        <div style="text-align: center; margin: 2rem auto; padding: 1.5rem; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border-radius: 15px; color: rgba(255, 255, 255, 0.9);">
+            <p style="margin-bottom: 0.5rem;">💡 <strong>小贴士：</strong></p>
+            <p style="font-size: 0.9rem; line-height: 1.5;">
+                点击飘浮的图标可以暂停它们 ✨<br>
+                按空格键可以让所有图标暂停一会儿 🎮<br>
+                试试点击屏幕的不同地方看看会发生什么 🌟
+            </p>
         </div>
         """, unsafe_allow_html=True)
