@@ -26,7 +26,7 @@ hide_elements = """
 """
 st.markdown(hide_elements, unsafe_allow_html=True)
 
-# 【保持类别】fixed_enhanced_complete_css（保持完整CSS样式）
+# 【替换类别】enhanced_complete_css → fixed_enhanced_complete_css（修复版本）
 fixed_enhanced_complete_css = """
 <style>
     /* 导入字体 */
@@ -856,9 +856,10 @@ setInterval(showRandomEncouragement, 30000);
 
 st.markdown(interactive_js, unsafe_allow_html=True)
 
-# 【替换类别】enhanced_session_state_init（增强版本的会话状态初始化）
-def enhanced_session_state_init():
-    """增强版本的会话状态初始化函数 - 更可靠的状态管理"""
+
+# 【替换类别】会话状态初始化 → fixed_session_state_init（修复版本）
+def fixed_session_state_init():
+    """修复版本的会话状态初始化函数"""
     # 强制初始化所有必要的状态
     required_states = {
         'authenticated': False,
@@ -866,77 +867,59 @@ def enhanced_session_state_init():
         'user_role': "",
         'display_name': "",
         'login_attempts': 0,
-        'page_loaded': False,
-        'login_success_flag': False  # 新增：登录成功标志
+        'page_loaded': False
     }
-    
+
     for key, default_value in required_states.items():
         if key not in st.session_state:
             st.session_state[key] = default_value
-    
-    # 确保状态正确性验证
-    if hasattr(st.session_state, 'authenticated') and st.session_state.authenticated:
-        if not hasattr(st.session_state, 'username') or st.session_state.username == "":
-            # 状态不一致，重置认证状态
-            st.session_state.authenticated = False
-            st.session_state.login_success_flag = False
 
-# 【替换类别】enhanced_authentication_check（增强版本的认证状态检查）
-def enhanced_authentication_check():
-    """增强版本的认证状态检查函数 - 更严格的验证"""
-    # 多层验证确保认证状态正确
-    try:
-        basic_check = (
-            hasattr(st.session_state, 'authenticated') and 
-            st.session_state.authenticated is True
-        )
-        
-        user_info_check = (
-            hasattr(st.session_state, 'username') and 
-            st.session_state.username != "" and
-            st.session_state.username is not None
-        )
-        
-        success_flag_check = (
-            hasattr(st.session_state, 'login_success_flag') and
-            st.session_state.login_success_flag is True
-        )
-        
-        return basic_check and user_info_check and success_flag_check
-        
-    except Exception as e:
-        # 如果检查过程出错，重置状态
-        st.session_state.authenticated = False
-        st.session_state.login_success_flag = False
-        return False
+    # 调试信息（可选，用于排查问题）
+    # st.write(f"调试信息: authenticated={st.session_state.authenticated}")
 
-# 【替换类别】enhanced_stats_initialization（增强版本的动态统计数字初始化）
-def enhanced_stats_initialization():
-    """增强版本的动态统计数字初始化函数 - 减少刷新频率"""
+
+# 调用修复版本的初始化函数
+fixed_session_state_init()
+
+
+# 【替换类别】认证状态检查 → fixed_authentication_check（修复版本）
+def fixed_authentication_check():
+    """修复版本的认证状态检查函数"""
+    # 严格检查认证状态
+    is_authenticated = (
+            hasattr(st.session_state, 'authenticated') and
+            st.session_state.authenticated is True and
+            hasattr(st.session_state, 'username') and
+            st.session_state.username != ""
+    )
+    return is_authenticated
+
+
+# 【替换类别】动态统计数字初始化 → fixed_stats_initialization（修复版本）
+def fixed_stats_initialization():
+    """修复版本的动态统计数字初始化函数"""
     stats_keys = [
-        'stats_initialized', 'stat1_value', 'stat2_value', 
-        'stat3_value', 'stat4_value', 'last_update', 'stats_update_interval'
+        'stats_initialized', 'stat1_value', 'stat2_value',
+        'stat3_value', 'stat4_value', 'last_update'
     ]
-    
+
     if not all(key in st.session_state for key in stats_keys):
-        st.session_state.stats_initialized = True  # 改为True，避免不必要的刷新
+        st.session_state.stats_initialized = False
         st.session_state.stat1_value = 1000
         st.session_state.stat2_value = 4
         st.session_state.stat3_value = 24
         st.session_state.stat4_value = 99
         st.session_state.last_update = time.time()
-        st.session_state.stats_update_interval = 10  # 改为10秒更新一次，减少频率
 
-# 【替换类别】enhanced_update_dynamic_stats（增强版本的动态数字更新）
-def enhanced_update_dynamic_stats():
-    """增强版本的动态数字更新函数 - 降低更新频率"""
+
+# 【替换类别】动态数字更新函数 → fixed_update_dynamic_stats（修复版本）
+def fixed_update_dynamic_stats():
+    """修复版本的动态数字更新函数"""
     current_time = time.time()
     time_elapsed = current_time - st.session_state.last_update
-    
-    # 改为每10秒更新一次，减少刷新频率
-    update_interval = st.session_state.get('stats_update_interval', 10)
-    
-    if time_elapsed >= update_interval:
+
+    # 每3秒更新一次
+    if time_elapsed >= 3:
         # 数据分析 - 递增趋势
         st.session_state.stat1_value = 1000 + random.randint(0, 200) + int(math.sin(current_time * 0.1) * 100)
 
@@ -953,57 +936,51 @@ def enhanced_update_dynamic_stats():
         return True
     return False
 
-# 【替换类别】enhanced_login_handler（增强版本的登录处理）
-def enhanced_login_handler(password):
-    """增强版本的登录处理函数 - 移除时序问题"""
+
+# 【替换类别】登录处理函数 → fixed_login_handler（修复版本）
+def fixed_login_handler(password):
+    """修复版本的登录处理函数"""
     try:
         # 使用storage进行用户认证
         auth_result = storage.authenticate_user(password)
-        
+
         if auth_result and auth_result.get('authenticated', False):
-            # 成功登录，立即设置所有相关状态
+            # 成功登录，设置会话状态
             st.session_state.authenticated = True
             st.session_state.username = auth_result.get('username', '')
             st.session_state.user_role = auth_result.get('role', '')
             st.session_state.display_name = auth_result.get('display_name', '')
             st.session_state.login_attempts = 0
-            st.session_state.login_success_flag = True  # 设置成功标志
-            
-            # 显示成功消息 - 移除time.sleep，立即重新运行
+
+            # 显示成功消息
             st.success(f"🎉 登录成功！欢迎 {auth_result.get('display_name', '用户')}，正在进入仪表盘...")
-            
-            # 立即重新运行，不等待
+            time.sleep(1)
             st.rerun()
-            
+
         else:
             # 登录失败
             st.session_state.login_attempts = st.session_state.get('login_attempts', 0) + 1
             st.error("❌ 密码错误，请重试！")
-            
+
     except Exception as e:
         st.error(f"❌ 登录过程中出现错误：{str(e)}")
-        # 出错时确保状态被重置
-        st.session_state.authenticated = False
-        st.session_state.login_success_flag = False
 
-# 调用增强版本的初始化函数
-enhanced_session_state_init()
 
 # ================================
-# 【替换类别】主要页面逻辑 → enhanced_main_page_logic（增强版本）
+# 【替换类别】主要页面逻辑 → fixed_main_page_logic（修复版本）
 # ================================
 
-# 使用增强版本的认证检查
-if enhanced_authentication_check():
+# 使用修复版本的认证检查
+if fixed_authentication_check():
     # ================================
     # 🎯 登录成功后的欢迎页面
     # ================================
 
     # 初始化动态数字
-    enhanced_stats_initialization()
+    fixed_stats_initialization()
 
-    # 更新动态数字（降低频率）
-    is_updated = enhanced_update_dynamic_stats()
+    # 更新动态数字
+    is_updated = fixed_update_dynamic_stats()
 
     # 主标题
     st.markdown("""
@@ -1102,28 +1079,23 @@ if enhanced_authentication_check():
     st.markdown("""
     <div class="footer">
         <p>Trolli SAL | 版本 1.0.0 | 最后更新: 2025年5月</p>
-        <p>每周四17:00刷新数据 | 将枯燥数据变好看</p>
+        <p>数据更新截止到5月30日 | 将枯燥数据变好看</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # 【关键修复】移除导致持续刷新的代码
-    # 原来的问题代码：
-    # if not st.session_state.stats_initialized:
-    #     st.session_state.stats_initialized = True
-    #     time.sleep(0.1)
-    #     st.rerun()
-    # time.sleep(3)
-    # st.rerun()
-    
-    # 改为：只在数字需要更新时才刷新
-    if is_updated:
-        # 使用streamlit的自动刷新功能，而不是强制刷新
-        time.sleep(0.1)  # 短暂延迟确保DOM更新
+    # 自动刷新页面来实现动态效果
+    if not st.session_state.stats_initialized:
+        st.session_state.stats_initialized = True
+        time.sleep(0.1)
         st.rerun()
+
+    # 每3秒自动刷新页面
+    time.sleep(3)
+    st.rerun()
 
 else:
     # ================================
-    # 🔐 增强版登录界面
+    # 🔐 修复版登录界面
     # ================================
 
     # 飘浮可爱图标
@@ -1149,7 +1121,7 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
-        # 增强版登录表单
+        # 修复版登录表单
         with st.form("login_form"):
             st.markdown("#### 🔐 请输入访问密码")
             password = st.text_input("密码", type="password", placeholder="请输入访问密码")
@@ -1157,7 +1129,7 @@ else:
 
         if submit_button:
             if password:
-                enhanced_login_handler(password)
+                fixed_login_handler(password)
             else:
                 st.error("❌ 请输入密码！")
 
