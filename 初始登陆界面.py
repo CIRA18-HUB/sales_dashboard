@@ -970,13 +970,7 @@ def fixed_login_handler(password):
 # 【替换类别】主要页面逻辑 → fixed_main_page_logic（修复版本）
 # ================================
 
-# 添加调试信息
-st.sidebar.write("=== 调试信息 ===")
-st.sidebar.write(f"authenticated: {st.session_state.get('authenticated', 'None')}")
-st.sidebar.write(f"username: {st.session_state.get('username', 'None')}")
-st.sidebar.write(f"user_role: {st.session_state.get('user_role', 'None')}")
-st.sidebar.write(f"认证检查结果: {fixed_authentication_check()}")
-st.sidebar.write("================")
+
 
 # 使用修复版本的认证检查
 if fixed_authentication_check():
@@ -1090,6 +1084,9 @@ if fixed_authentication_check():
         <p>数据更新截止到5月30日 | 将枯燥数据变好看</p>
     </div>
     """, unsafe_allow_html=True)
+    
+    # 添加这行，阻止继续执行
+    st.stop()
 
     # 自动刷新页面来实现动态效果
     if not st.session_state.stats_initialized:
@@ -1106,8 +1103,6 @@ else:
     # 🔐 修复版登录界面
     # ================================
 
-    # 添加调试信息
-    st.sidebar.write("=== 进入登录界面 ===")
 
     # 飘浮可爱图标
     st.markdown("""
