@@ -611,55 +611,6 @@ if st.session_state.authenticated:
             line-height: 1.6;
         }
 
-        /* 用户信息卡片 */
-        .user-info-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 15px;
-            padding: 1.5rem;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            margin: 2rem auto;
-            max-width: 400px;
-            animation: cardSlideUp 0.8s ease-out;
-        }
-
-        @keyframes cardSlideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .user-avatar {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .user-name {
-            font-size: 1.5rem;
-            color: #2d3748;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-
-        .user-role {
-            color: #667eea;
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            background: rgba(102, 126, 234, 0.1);
-            border-radius: 20px;
-            display: inline-block;
-            margin-bottom: 1rem;
-        }
-
-        .logout-btn {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
-            margin-top: 1rem;
-        }
-
         /* 响应式设计 */
         @media (max-width: 768px) {
             .stats-grid {
@@ -693,13 +644,19 @@ if st.session_state.authenticated:
     </div>
     """, unsafe_allow_html=True)
 
-    # 用户信息卡片
-    st.markdown(f"""
-    <div class="user-info-card">
-        <div class="user-avatar">👤</div>
-        <div class="user-name">{st.session_state.display_name}</div>
-        <div class="user-role">{st.session_state.user_role}</div>
-        <p style="color: #4a5568; margin-bottom: 0;">欢迎回来！请通过左侧导航访问各功能模块。</p>
+    # 更新提示（移到原用户信息卡片位置）
+    st.markdown("""
+    <div style="text-align: center; margin: 3rem auto; max-width: 600px;">
+        <div class="update-badge">
+            🔄 每周四17:00刷新数据
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 导航指引
+    st.markdown("""
+    <div style="text-align: center; color: rgba(255, 255, 255, 0.8); font-size: 1.1rem; margin: 2rem auto; animation: bounceArrow 3s ease-in-out infinite;">
+        👈 请使用左侧导航栏访问各分析页面
     </div>
     """, unsafe_allow_html=True)
 
