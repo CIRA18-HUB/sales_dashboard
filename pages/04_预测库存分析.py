@@ -2354,8 +2354,7 @@ def create_enhanced_region_forecast_chart(merged_data):
                 bgcolor="rgba(255,255,255,0.95)",
                 font_size=12,
                 font_family="Inter",
-                bordercolor="rgba(100,100,100,0.3)",
-                borderwidth=1
+                bordercolor="rgba(100,100,100,0.3)"
             ),
 
             # 悬停模式
@@ -3840,6 +3839,8 @@ with tab3:
             # 子标签4：区域维度深度分析 - 使用图表
             # 子标签4：区域维度深度分析 - 使用图表
             # 在with sub_tab4中找到并替换以下代码段：
+
+            # 完整替换with sub_tab4中的所有代码：
 
             # 完整替换with sub_tab4中的所有代码：
 
