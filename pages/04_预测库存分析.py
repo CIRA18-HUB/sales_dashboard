@@ -2257,25 +2257,27 @@ def create_enhanced_region_forecast_chart(merged_data):
             hovertemplate="%{customdata}<extra></extra>"
         ))
 
-        # 添加全国平均线（垂直虚线）
+        # 添加全国平均线（垂直虚线）- 修复标注位置
         fig.add_vline(
-            x=national_average,
-            line_dash="dash",
-            line_color="#4169E1",
+            x=national_average, 
+            line_dash="dash", 
+            line_color="#4169E1", 
             line_width=3,
             annotation=dict(
                 text=f"全国平均: {national_average:.1f}%",
-                x=national_average,
-                y=len(region_comparison) * 0.95,
+                x=national_average, 
+                y=len(region_comparison) - 1,  # 修改：使用实际的区域数量
+                yref="y",  # 添加：明确y轴参考
                 bgcolor="rgba(65,105,225,0.15)",
                 bordercolor="#4169E1",
-                font=dict(color="#4169E1", size=13, weight="bold"),
+                font=dict(color="#4169E1", size=12, family="Inter"),
                 showarrow=True,
                 arrowhead=2,
                 arrowcolor="#4169E1",
                 arrowwidth=2,
-                ax=50,
-                ay=0
+                ax=0,  # 修改：水平偏移为0
+                ay=-30,  # 修改：向上偏移30像素
+                xanchor="center"  # 添加：水平居中对齐
             )
         )
 
@@ -2330,8 +2332,8 @@ def create_enhanced_region_forecast_chart(merged_data):
                 categoryorder='array',
                 categoryarray=region_comparison['所属区域'].tolist()
             ),
-            height=max(400, len(region_comparison) * 80),
-            margin=dict(l=100, r=80, t=100, b=80),  # 调整为全宽布局的边距
+            height=max(450, len(region_comparison) * 80),  # 稍微增加高度
+            margin=dict(l=100, r=80, t=120, b=80),  # 增加顶部边距
             showlegend=False,
             plot_bgcolor='rgba(248,250,252,0.8)',
             paper_bgcolor='rgba(255,255,255,0.95)',
