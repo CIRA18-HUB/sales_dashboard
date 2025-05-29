@@ -5,6 +5,7 @@ import os
 import time
 import random
 import math
+from data_storage import storage
 
 # 设置页面配置
 st.set_page_config(
@@ -56,7 +57,7 @@ hide_elements = """
 
 st.markdown(hide_elements, unsafe_allow_html=True)
 
-# 完整CSS样式（完全按照HTML文件）+ 新增数字动画
+# 完整CSS样式（完全按照HTML文件）+ 新增数字动画 + 新增更新提示动画
 complete_css_with_animations = """
 <style>
     /* 导入字体 */
@@ -262,6 +263,37 @@ complete_css_with_animations = """
         25% { box-shadow: 0 0 25px #667eea, 0 0 35px #667eea; }
         50% { box-shadow: 0 0 35px #764ba2, 0 0 45px #764ba2; }
         75% { box-shadow: 0 0 25px #81ecec, 0 0 35px #81ecec; }
+    }
+
+    /* 🔥 新增：系统更新提示样式 */
+    .update-notification {
+        position: relative;
+        display: inline-block;
+    }
+
+    .update-badge {
+        color: #e53e3e !important;
+        font-weight: bold;
+        font-size: 0.8rem;
+        margin-left: 5px;
+    }
+
+    .update-exclamation {
+        color: #e53e3e !important;
+        font-weight: bold;
+        margin-left: 3px;
+        animation: exclamationPulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes exclamationPulse {
+        0%, 100% { 
+            transform: scale(1); 
+            opacity: 1;
+        }
+        50% { 
+            transform: scale(1.3); 
+            opacity: 0.7;
+        }
     }
 
     /* 用户信息框 */
@@ -774,6 +806,12 @@ st.markdown(complete_css_with_animations, unsafe_allow_html=True)
 # 初始化会话状态
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
+if 'username' not in st.session_state:
+    st.session_state.username = ""
+if 'user_role' not in st.session_state:
+    st.session_state.user_role = ""
+if 'display_name' not in st.session_state:
+    st.session_state.display_name = ""
 
 # 登录界面
 if not st.session_state.authenticated:
@@ -795,10 +833,15 @@ if not st.session_state.authenticated:
             submit_button = st.form_submit_button("登 录", use_container_width=True)
 
         if submit_button:
-            if password == 'SAL!2025':
+            # 使用storage进行用户认证
+            auth_result = storage.authenticate_user(password)
+            if auth_result['authenticated']:
                 st.session_state.authenticated = True
-                st.success("🎉 登录成功！正在进入仪表盘...")
-                time.sleep(1)  # 短暂延迟显示成功消息
+                st.session_state.username = auth_result['username']
+                st.session_state.user_role = auth_result['role']
+                st.session_state.display_name = auth_result['display_name']
+                st.success(f"🎉 登录成功！欢迎 {auth_result['display_name']}，正在进入仪表盘...")
+                time.sleep(1)
                 st.rerun()
             else:
                 st.error("❌ 密码错误，请重试！")
@@ -863,6 +906,9 @@ def update_dynamic_stats():
 # 🎯 更新动态数字
 is_updated = update_dynamic_stats()
 
+# 检查用户是否有未读更新
+has_unread = storage.has_unread_updates(st.session_state.username)
+
 # 认证成功后的主页面
 with st.sidebar:
     st.markdown("### 📊 Trolli SAL")
@@ -887,18 +933,47 @@ with st.sidebar:
         st.switch_page("pages/销售达成分析.py")
 
     st.markdown("---")
+    
+    # 🔥 新增：需求管理和系统更新功能
+    st.markdown("#### 📝 需求管理")
+    
+    if st.button("📋 需求管理", use_container_width=True):
+        st.switch_page("pages/需求管理.py")
+
+    # 🔥 管理员功能：系统更新发布（带动态提示）
+    if storage.is_admin(st.session_state.username):
+        st.markdown("#### 🔧 管理功能")
+        
+        # 系统更新发布按钮（带动态提示）
+        update_text = "🔄 系统更新发布"
+        if has_unread:
+            update_text += '<span class="update-badge">（新）</span><span class="update-exclamation">!</span>'
+        
+        # 使用unsafe_allow_html显示带样式的按钮文本
+        st.markdown(f"""
+        <div class="update-notification">
+            {update_text}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🔄 系统更新发布", use_container_width=True, key="system_update"):
+            st.switch_page("pages/系统更新发布.py")
+
+    st.markdown("---")
     st.markdown("#### 👤 用户信息")
-    st.markdown("""
+    st.markdown(f"""
     <div class="user-info">
-        <strong>管理员</strong>
-        cira
+        <strong>{st.session_state.display_name}</strong>
+        {st.session_state.username}
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     if st.button("🚪 退出登录", use_container_width=True):
-        st.session_state.authenticated = False
+        # 清除所有session state
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
         st.rerun()
 
 # 主内容区
@@ -993,6 +1068,34 @@ with col2:
         </p>
     </div>
     """, unsafe_allow_html=True)
+
+# 🔥 新增功能介绍
+st.markdown("<br>", unsafe_allow_html=True)
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("""
+    <div class="feature-card">
+        <span class="feature-icon">📋</span>
+        <h3 class="feature-title">需求管理</h3>
+        <p class="feature-description">
+            用户可以提交需求和问题反馈，管理员可以查看处理待处理需求，完善的需求跟踪和管理流程。
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    if storage.is_admin(st.session_state.username):
+        st.markdown("""
+        <div class="feature-card">
+            <span class="feature-icon">🔄</span>
+            <h3 class="feature-title">系统更新发布</h3>
+            <p class="feature-description">
+                管理员可以发布系统更新通知，用户可以查看最新的系统更新内容，保持信息同步。
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
 # 更新提示和导航指引
 st.markdown("""
