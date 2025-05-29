@@ -2157,7 +2157,7 @@ def load_and_process_data():
 
 
 def create_enhanced_region_forecast_chart(merged_data):
-    """创建升级版区域预测准确率图表 - 修复标签遮挡问题，移动到图表外部"""
+    """创建优化版区域预测准确率图表 - 修复布局问题，充分利用容器宽度"""
     try:
         if merged_data is None or merged_data.empty:
             fig = go.Figure()
@@ -2246,7 +2246,6 @@ def create_enhanced_region_forecast_chart(merged_data):
             marker=dict(
                 color=colors,
                 line=dict(color='rgba(255,255,255,0.8)', width=2),
-                # 添加渐变效果
                 opacity=0.9
             ),
             text=[f"{acc:.1f}%" for acc in region_comparison['准确率']],
@@ -2257,81 +2256,39 @@ def create_enhanced_region_forecast_chart(merged_data):
             hovertemplate="%{customdata}<extra></extra>"
         ))
 
-        # 计算图表顶部位置（用于所有标注的统一y坐标）
-        top_position = len(region_comparison) + 0.8
+        # 优化x轴范围，减少右边空白
+        max_accuracy = region_comparison['准确率'].max()
+        x_range_max = min(max_accuracy + 8, 100)  # 减少右边缓冲区到8%，最大不超过100%
 
-        # 添加全国平均线（垂直虚线）
-        fig.add_vline(
-            x=national_average, 
-            line_dash="dash", 
-            line_color="#4169E1", 
-            line_width=3
-        )
+        # 添加参考线 - 只添加在有意义的范围内
+        reference_lines = []
 
-        # 添加全国平均线标注 - 精简样式，放在线的正上方
-        fig.add_annotation(
-            x=national_average,
-            y=top_position,
-            text=f"全国平均<br>{national_average:.1f}%",
-            showarrow=False,
-            bgcolor="rgba(65,105,225,0.85)",
-            bordercolor="#4169E1",
-            borderwidth=1,
-            font=dict(color="white", size=10, family="Inter"),
-            xanchor="center",
-            yanchor="bottom",
-            borderpad=3
-        )
+        # 全国平均线
+        if national_average <= x_range_max:
+            fig.add_vline(
+                x=national_average,
+                line_dash="dash",
+                line_color="#4169E1",
+                line_width=3
+            )
+            reference_lines.append(("全国平均", national_average, "#4169E1"))
 
-        # 添加优秀标准参考线
-        fig.add_vline(x=85, line_dash="dash", line_color="#2E8B57", line_width=2)
-        fig.add_annotation(
-            x=85,
-            y=top_position,
-            text="优秀标准<br>85%",
-            showarrow=False,
-            bgcolor="rgba(46,139,87,0.85)",
-            bordercolor="#2E8B57",
-            borderwidth=1,
-            font=dict(color="white", size=10, family="Inter"),
-            xanchor="center",
-            yanchor="bottom",
-            borderpad=3
-        )
+        # 优秀标准线
+        if 85 <= x_range_max:
+            fig.add_vline(x=85, line_dash="dash", line_color="#2E8B57", line_width=2)
+            reference_lines.append(("优秀标准", 85, "#2E8B57"))
 
-        # 添加良好标准参考线
-        fig.add_vline(x=75, line_dash="dot", line_color="#FFD700", line_width=2)
-        fig.add_annotation(
-            x=75,
-            y=top_position,
-            text="良好标准<br>75%",
-            showarrow=False,
-            bgcolor="rgba(255,215,0,0.9)",
-            bordercolor="#FFD700",
-            borderwidth=1,
-            font=dict(color="black", size=10, family="Inter"),
-            xanchor="center",
-            yanchor="bottom",
-            borderpad=3
-        )
+        # 良好标准线  
+        if 75 <= x_range_max:
+            fig.add_vline(x=75, line_dash="dot", line_color="#FFD700", line_width=2)
+            reference_lines.append(("良好标准", 75, "#FFD700"))
 
-        # 添加及格标准参考线
-        fig.add_vline(x=65, line_dash="dot", line_color="#FF8C00", line_width=2)
-        fig.add_annotation(
-            x=65,
-            y=top_position,
-            text="及格标准<br>65%",
-            showarrow=False,
-            bgcolor="rgba(255,140,0,0.85)",
-            bordercolor="#FF8C00",
-            borderwidth=1,
-            font=dict(color="white", size=10, family="Inter"),
-            xanchor="center",
-            yanchor="bottom",
-            borderpad=3
-        )
+        # 及格标准线
+        if 65 <= x_range_max:
+            fig.add_vline(x=65, line_dash="dot", line_color="#FF8C00", line_width=2)
+            reference_lines.append(("及格标准", 65, "#FF8C00"))
 
-        # 现代化布局设计 - 优化比例和空间利用
+        # 优化布局 - 充分利用容器宽度
         fig.update_layout(
             title=dict(
                 text="<b>区域预测准确率综合分析</b><br><sub>基于实际销量与预测销量对比 | 彩色编码显示表现等级 | 悬停查看详细分析</sub>",
@@ -2344,7 +2301,7 @@ def create_enhanced_region_forecast_chart(merged_data):
                     text="<b>预测准确率 (%)</b>",
                     font=dict(size=14, family='Inter')
                 ),
-                range=[0, max(region_comparison['准确率'].max() + 25, 110)],  # 修改：大幅增加缓冲区到25，上限到110
+                range=[0, x_range_max],  # 优化范围，减少右边空白
                 ticksuffix="%",
                 showgrid=True,
                 gridcolor="rgba(128,128,128,0.2)",
@@ -2359,10 +2316,9 @@ def create_enhanced_region_forecast_chart(merged_data):
                 tickfont=dict(size=13, family='Inter'),
                 categoryorder='array',
                 categoryarray=region_comparison['所属区域'].tolist(),
-                range=[-0.5, len(region_comparison) + 1.2]  # 为顶部标注预留空间
             ),
-            height=max(450, len(region_comparison) * 70 + 120),  # 优化高度，为标注预留空间
-            margin=dict(l=80, r=120, t=120, b=80),  # 修改：右边距大幅增加到120
+            height=max(450, len(region_comparison) * 70 + 80),  # 优化高度
+            margin=dict(l=80, r=50, t=120, b=80),  # 大幅减少右边距，从120改为50
             showlegend=False,
             plot_bgcolor='rgba(248,250,252,0.8)',
             paper_bgcolor='rgba(255,255,255,0.95)',
@@ -2374,9 +2330,34 @@ def create_enhanced_region_forecast_chart(merged_data):
                 bordercolor="rgba(0,0,0,0.1)",
                 align="left"
             ),
-            # 添加动画效果
             transition=dict(duration=500, easing="cubic-in-out")
         )
+
+        # 在图表内部添加标准线说明 - 使用更紧凑的布局
+        annotation_y_start = len(region_comparison) * 0.85
+        y_step = len(region_comparison) * 0.15
+
+        for i, (line_name, line_value, line_color) in enumerate(reference_lines):
+            if line_value <= x_range_max:  # 只显示在可见范围内的标准线
+                annotation_y = annotation_y_start - (i * y_step)
+
+                fig.add_annotation(
+                    x=line_value,
+                    y=annotation_y,
+                    text=f"<b>{line_name}</b><br>{line_value}%",
+                    showarrow=True,
+                    arrowhead=2,
+                    arrowcolor=line_color,
+                    arrowwidth=2,
+                    ax=20 if line_value < x_range_max * 0.7 else -20,  # 根据位置调整箭头方向
+                    ay=0,
+                    bgcolor="rgba(255,255,255,0.95)",
+                    bordercolor=line_color,
+                    borderwidth=1,
+                    font=dict(size=10, family="Inter", color=line_color),
+                    xanchor="center",
+                    yanchor="middle"
+                )
 
         return fig, region_comparison
 
