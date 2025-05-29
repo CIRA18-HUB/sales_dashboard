@@ -2262,9 +2262,9 @@ def create_enhanced_region_forecast_chart(merged_data):
 
         # 添加全国平均线（垂直虚线）
         fig.add_vline(
-            x=national_average,
-            line_dash="dash",
-            line_color="#4169E1",
+            x=national_average, 
+            line_dash="dash", 
+            line_color="#4169E1", 
             line_width=3
         )
 
@@ -2344,7 +2344,7 @@ def create_enhanced_region_forecast_chart(merged_data):
                     text="<b>预测准确率 (%)</b>",
                     font=dict(size=14, family='Inter')
                 ),
-                range=[0, max(region_comparison['准确率'].max() + 15, 100)],  # 修改：从+5改为+15
+                range=[0, max(region_comparison['准确率'].max() + 25, 110)],  # 修改：大幅增加缓冲区到25，上限到110
                 ticksuffix="%",
                 showgrid=True,
                 gridcolor="rgba(128,128,128,0.2)",
@@ -2362,7 +2362,7 @@ def create_enhanced_region_forecast_chart(merged_data):
                 range=[-0.5, len(region_comparison) + 1.2]  # 为顶部标注预留空间
             ),
             height=max(450, len(region_comparison) * 70 + 120),  # 优化高度，为标注预留空间
-            margin=dict(l=80, r=80, t=120, b=80),  # 修改：右边距从40改为80
+            margin=dict(l=80, r=120, t=120, b=80),  # 修改：右边距大幅增加到120
             showlegend=False,
             plot_bgcolor='rgba(248,250,252,0.8)',
             paper_bgcolor='rgba(255,255,255,0.95)',
