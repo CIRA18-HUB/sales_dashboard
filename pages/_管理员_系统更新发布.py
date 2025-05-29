@@ -1,4 +1,4 @@
-# pages/系统更新发布.py - 系统更新发布页面
+# pages/_管理员_系统更新发布.py - 管理员专用系统更新发布页面
 import streamlit as st
 from datetime import datetime
 import sys
@@ -16,7 +16,30 @@ st.set_page_config(
     layout="wide"
 )
 
-# 应用主要CSS样式
+# 🔐 登录状态检查
+if not st.session_state.get('authenticated', False):
+    st.error("❌ 请先登录系统")
+    st.markdown("""
+    <div style="text-align: center; margin: 2rem;">
+        <p>您需要先登录才能访问此页面</p>
+        <a href="/" style="color: #667eea; text-decoration: none; font-weight: 500;">👈 返回登录页面</a>
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
+# 🛡️ 管理员权限检查
+if not storage.is_admin(st.session_state.username):
+    st.error("❌ 您没有权限访问此页面")
+    st.markdown("""
+    <div style="text-align: center; margin: 2rem; background: rgba(231, 76, 60, 0.1); padding: 2rem; border-radius: 10px; border-left: 4px solid #e74c3c;">
+        <h3 style="color: #e74c3c; margin-bottom: 1rem;">🚫 访问被拒绝</h3>
+        <p style="color: #c0392b; margin-bottom: 1.5rem;">此页面仅限管理员访问。</p>
+        <p style="color: #7f8c8d;">如果您认为这是个错误，请联系系统管理员。</p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
+# 应用完整CSS样式（包含紫色背景）
 st.markdown("""
 <style>
     /* 导入字体 */
@@ -35,8 +58,49 @@ st.markdown("""
         min-height: 100vh;
     }
 
+    /* 主容器背景 */
+    .main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        position: relative;
+    }
+
+    /* 动态背景波纹效果 */
+    .main::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+            radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
+            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 50% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 60%);
+        animation: waveMove 8s ease-in-out infinite;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    @keyframes waveMove {
+        0%, 100% { 
+            background-size: 200% 200%, 150% 150%, 300% 300%;
+            background-position: 0% 0%, 100% 100%, 50% 50%; 
+        }
+        33% { 
+            background-size: 300% 300%, 200% 200%, 250% 250%;
+            background-position: 100% 0%, 0% 50%, 80% 20%; 
+        }
+        66% { 
+            background-size: 250% 250%, 300% 300%, 200% 200%;
+            background-position: 50% 100%, 50% 0%, 20% 80%; 
+        }
+    }
+
     /* 主容器 */
     .main .block-container {
+        position: relative;
+        z-index: 10;
         background: rgba(255, 255, 255, 0.02);
         backdrop-filter: blur(10px);
         border-radius: 20px;
@@ -245,6 +309,17 @@ st.markdown("""
         margin-bottom: 1rem;
     }
 
+    /* 用户信息样式 */
+    .user-info {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        color: white;
+        text-align: center;
+    }
+
     /* 响应式设计 */
     @media (max-width: 768px) {
         .page-title {
@@ -268,18 +343,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 检查认证和权限
-if not st.session_state.get('authenticated', False):
-    st.error("❌ 请先登录系统")
-    if st.button("返回登录页面"):
-        st.switch_page("登陆界面haha.py")
-    st.stop()
-
-if not storage.is_admin(st.session_state.username):
-    st.error("❌ 您没有权限访问此页面")
-    if st.button("返回主页"):
-        st.switch_page("登陆界面haha.py")
-    st.stop()
+# 显示用户信息和管理员标识
+st.markdown(f"""
+<div class="user-info">
+    👤 {st.session_state.display_name} ({st.session_state.user_role}) | 管理员专用页面
+</div>
+""", unsafe_allow_html=True)
 
 # 页面标题
 st.markdown('<h1 class="page-title">🔄 系统更新发布</h1>', unsafe_allow_html=True)
@@ -293,7 +362,7 @@ with tab1:
     st.markdown('<div class="content-card">', unsafe_allow_html=True)
     
     st.markdown("### 📝 发布系统更新")
-    st.markdown("发布新的系统更新通知，用户在侧边栏会看到更新提示。")
+    st.markdown("发布新的系统更新通知，用户在系统中会看到更新提示。")
     
     with st.form("publish_update_form", clear_on_submit=True):
         title = st.text_input(
@@ -423,10 +492,3 @@ with col3:
     st.metric("已读更新", read_count, help="您已读的更新数量")
 
 st.markdown('</div>', unsafe_allow_html=True)
-
-# 返回按钮
-st.markdown("<br>", unsafe_allow_html=True)
-col1, col2, col3 = st.columns([1, 1, 1])
-with col2:
-    if st.button("🏠 返回主页", use_container_width=True):
-        st.switch_page("登陆界面haha.py")
