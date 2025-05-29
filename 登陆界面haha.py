@@ -4,18 +4,21 @@ from datetime import datetime
 import time
 import random
 import math
+from data_storage import storage
 
 # 设置页面配置
 st.set_page_config(
     page_title="Trolli SAL",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"  # 改为展开侧边栏
+    initial_sidebar_state="expanded"
 )
 
 # 初始化会话状态
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
+if 'user_role' not in st.session_state:
+    st.session_state.user_role = None  # 'admin' 或 'user'
 if 'stats_initialized' not in st.session_state:
     st.session_state.stats_initialized = False
     st.session_state.stat1_value = 1000
@@ -25,6 +28,8 @@ if 'stats_initialized' not in st.session_state:
     st.session_state.last_update = time.time()
 if 'current_page' not in st.session_state:
     st.session_state.current_page = "welcome"
+if 'show_request_form' not in st.session_state:
+    st.session_state.show_request_form = False
 
 # 隐藏Streamlit默认元素 - 修复版（不隐藏侧边栏）
 hide_streamlit_style = """
@@ -52,7 +57,7 @@ hide_streamlit_style = """
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# 主要CSS样式 - 增强版
+# 主要CSS样式 - 增强版（包含新增的需求提交和展示样式）
 main_css = """
 <style>
     /* 导入字体 */
@@ -400,6 +405,138 @@ main_css = """
         padding: 1rem;
         margin: 1rem 0;
     }
+    
+    /* 需求提交表单容器 */
+    .request-form-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-top: 2rem;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        animation: formFadeIn 0.5s ease-out;
+    }
+    
+    @keyframes formFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* 需求展示区域 */
+    .request-display-area {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 15px;
+        padding: 2rem;
+        margin: 2rem 0;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    /* 需求卡片 */
+    .request-card {
+        background: rgba(248, 249, 250, 0.9);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #667eea;
+        transition: all 0.3s ease;
+    }
+    
+    .request-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* 标签样式 */
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+    }
+    
+    .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .status-processed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .type-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+    }
+    
+    .type-requirement {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .type-issue {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    /* Tabs样式 */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 1rem;
+        background: transparent;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 10px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    /* 文本域样式 */
+    .stTextArea > div > div > textarea {
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid rgba(229, 232, 240, 0.8);
+        border-radius: 10px;
+        padding: 1rem;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stTextArea > div > div > textarea:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        background: white;
+    }
+    
+    /* 日期输入样式 */
+    .stDateInput > div > div > input {
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid rgba(229, 232, 240, 0.8);
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+    }
 </style>
 """
 
@@ -431,11 +568,62 @@ if not st.session_state.authenticated:
         if submit_button:
             if password == 'SAL!2025':
                 st.session_state.authenticated = True
+                st.session_state.user_role = 'user'
                 st.success("🎉 登录成功！正在进入仪表盘...")
+                time.sleep(1)
+                st.rerun()
+            elif password == 'cira18':
+                st.session_state.authenticated = True
+                st.session_state.user_role = 'admin'
+                st.success("🎉 管理员登录成功！正在进入仪表盘...")
                 time.sleep(1)
                 st.rerun()
             else:
                 st.error("❌ 密码错误，请重试！")
+        
+        # 需求提交区域
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # 提交需求按钮
+        if st.button("📝 我要提交需求/问题", use_container_width=True):
+            st.session_state.show_request_form = not st.session_state.show_request_form
+        
+        # 需求提交表单
+        if st.session_state.show_request_form:
+            with st.container():
+                st.markdown('<div class="request-form-container">', unsafe_allow_html=True)
+                st.markdown("### 📋 提交需求/问题")
+                
+                with st.form("request_form"):
+                    col_type, col_date = st.columns(2)
+                    with col_type:
+                        request_type = st.selectbox("类型", ["需求", "问题"])
+                    with col_date:
+                        requirement_date = st.date_input("需求时间", value=datetime.now())
+                    
+                    title = st.text_input("标题", placeholder="请简要描述您的需求或问题")
+                    content = st.text_area("详细描述", placeholder="请详细说明您的需求或遇到的问题", height=150)
+                    submitter = st.text_input("提交人（选填）", placeholder="您的姓名或部门")
+                    
+                    submit_request = st.form_submit_button("提交", use_container_width=True)
+                    
+                    if submit_request:
+                        if title and content:
+                            if storage.add_request(
+                                request_type=request_type,
+                                title=title,
+                                content=content,
+                                submitter=submitter,
+                                requirement_date=str(requirement_date)
+                            ):
+                                st.success("✅ 提交成功！我们会尽快处理您的需求。")
+                                st.session_state.show_request_form = False
+                                time.sleep(2)
+                                st.rerun()
+                        else:
+                            st.error("❌ 请填写标题和详细描述！")
+                
+                st.markdown('</div>', unsafe_allow_html=True)
         
         # 更新提示
         st.markdown("""
@@ -450,10 +638,41 @@ if not st.session_state.authenticated:
 
 # 主页面
 
-# 侧边栏退出登录按钮
+# 侧边栏
 with st.sidebar:
+    st.markdown(f"### 👤 当前用户")
+    if st.session_state.user_role == 'admin':
+        st.markdown("🔐 **管理员**")
+    else:
+        st.markdown("👤 **普通用户**")
+    
+    st.markdown("---")
+    
+    # 管理员功能
+    if st.session_state.user_role == 'admin':
+        st.markdown("### 🛠️ 管理员功能")
+        
+        # 发布系统更新
+        with st.expander("📢 发布系统更新"):
+            with st.form("update_form"):
+                update_title = st.text_input("更新标题", placeholder="例如：新增销售报表功能")
+                update_content = st.text_area("更新内容", placeholder="详细说明更新内容", height=100)
+                
+                if st.form_submit_button("发布更新", use_container_width=True):
+                    if update_title and update_content:
+                        if storage.add_update(update_title, update_content):
+                            st.success("✅ 更新发布成功！")
+                            time.sleep(1)
+                            st.rerun()
+                    else:
+                        st.error("❌ 请填写完整信息！")
+        
+        st.markdown("---")
+    
+    # 退出登录按钮
     if st.button("🚪 退出登录", use_container_width=True):
         st.session_state.authenticated = False
+        st.session_state.user_role = None
         st.session_state.current_page = "welcome"
         st.rerun()
 
@@ -470,8 +689,8 @@ def update_stats():
     current_time = time.time()
     if current_time - st.session_state.last_update >= 3:
         st.session_state.stat1_value = 1000 + random.randint(0, 200) + int(math.sin(current_time * 0.1) * 100)
-        st.session_state.stat2_value = 4  # 固定值
-        st.session_state.stat3_value = 24  # 固定值
+        st.session_state.stat2_value = 4
+        st.session_state.stat3_value = 24
         st.session_state.stat4_value = 95 + random.randint(0, 4) + int(math.sin(current_time * 0.15) * 3)
         st.session_state.last_update = current_time
         return True
@@ -516,7 +735,116 @@ with col4:
     </div>
     """, unsafe_allow_html=True)
 
-# 功能模块介绍 - 可点击导航版本
+# 需求和更新展示区域
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown('<div class="request-display-area">', unsafe_allow_html=True)
+
+# 使用标签页展示
+tab1, tab2, tab3 = st.tabs(["📋 待处理需求", "📢 系统更新", "✅ 处理记录"])
+
+with tab1:
+    pending_requests = storage.get_pending_requests()
+    if pending_requests:
+        st.markdown(f"### 共有 {len(pending_requests)} 个待处理项目")
+        
+        # 倒序显示，最新的在前
+        for request in reversed(pending_requests):
+            with st.container():
+                col1, col2 = st.columns([10, 2])
+                
+                with col1:
+                    # 类型和状态标签
+                    type_class = "type-requirement" if request['type'] == "需求" else "type-issue"
+                    st.markdown(f"""
+                    <div class="request-card">
+                        <div style="margin-bottom: 0.5rem;">
+                            <span class="type-badge {type_class}">{request['type']}</span>
+                            <span class="status-badge status-pending">待处理</span>
+                            <span style="color: #6b7280; font-size: 0.85rem;">
+                                {request['submit_time']} | {request['submitter']}
+                            </span>
+                        </div>
+                        <h4 style="margin: 0.5rem 0; color: #1f2937;">{request['title']}</h4>
+                        <p style="color: #4b5563; margin: 0.5rem 0;">{request['content']}</p>
+                        <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 0.5rem;">
+                            需求时间：{request['requirement_date']}
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    if st.session_state.user_role == 'admin':
+                        if st.button("标记已处理", key=f"process_{request['id']}"):
+                            if storage.process_request(request['id']):
+                                st.success("✅ 已标记为处理完成")
+                                time.sleep(1)
+                                st.rerun()
+    else:
+        st.info("👍 当前没有待处理的需求")
+
+with tab2:
+    updates = storage.get_all_updates()
+    if updates:
+        st.markdown(f"### 系统更新通知")
+        
+        # 倒序显示，最新的在前
+        for update in reversed(updates):
+            with st.container():
+                col1, col2 = st.columns([10, 2])
+                
+                with col1:
+                    st.markdown(f"""
+                    <div class="request-card" style="border-left-color: #10b981;">
+                        <div style="margin-bottom: 0.5rem;">
+                            <span style="color: #6b7280; font-size: 0.85rem;">
+                                {update['publish_time']} | {update['publisher']}
+                            </span>
+                        </div>
+                        <h4 style="margin: 0.5rem 0; color: #1f2937;">📢 {update['title']}</h4>
+                        <p style="color: #4b5563; margin: 0.5rem 0;">{update['content']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    if st.session_state.user_role == 'admin':
+                        if st.button("删除", key=f"delete_{update['id']}"):
+                            if storage.delete_update(update['id']):
+                                st.success("✅ 已删除")
+                                time.sleep(1)
+                                st.rerun()
+    else:
+        st.info("📭 暂无系统更新")
+
+with tab3:
+    processed_requests = storage.get_processed_requests()
+    if processed_requests:
+        st.markdown(f"### 已处理 {len(processed_requests)} 个项目")
+        
+        # 倒序显示，最新处理的在前
+        for request in reversed(processed_requests):
+            type_class = "type-requirement" if request['type'] == "需求" else "type-issue"
+            st.markdown(f"""
+            <div class="request-card" style="opacity: 0.8;">
+                <div style="margin-bottom: 0.5rem;">
+                    <span class="type-badge {type_class}">{request['type']}</span>
+                    <span class="status-badge status-processed">已处理</span>
+                    <span style="color: #6b7280; font-size: 0.85rem;">
+                        提交：{request['submit_time']} | {request['submitter']}
+                    </span>
+                </div>
+                <h4 style="margin: 0.5rem 0; color: #1f2937;">{request['title']}</h4>
+                <p style="color: #4b5563; margin: 0.5rem 0;">{request['content']}</p>
+                <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 0.5rem;">
+                    处理时间：{request['process_time']} | 处理人：{request['processor']}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("📭 暂无处理记录")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# 功能模块介绍
 st.markdown("<br><br>", unsafe_allow_html=True)
 
 # 添加导航提示
@@ -542,7 +870,6 @@ with col1:
     </div>
     """, unsafe_allow_html=True)
     
-    # 导航按钮
     if st.button("🚀 进入产品组合分析", key="product_nav", use_container_width=True):
         try:
             st.switch_page("pages/产品组合分析.py")
@@ -560,7 +887,6 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
     
-    # 导航按钮
     if st.button("🚀 进入预测库存分析", key="inventory_nav", use_container_width=True):
         try:
             st.switch_page("pages/预测库存分析.py")
@@ -583,7 +909,6 @@ with col3:
     </div>
     """, unsafe_allow_html=True)
     
-    # 导航按钮
     if st.button("🚀 进入客户依赖分析", key="customer_nav", use_container_width=True):
         try:
             st.switch_page("pages/客户依赖分析.py")
@@ -601,7 +926,6 @@ with col4:
     </div>
     """, unsafe_allow_html=True)
     
-    # 导航按钮
     if st.button("🚀 进入销售达成分析", key="sales_nav", use_container_width=True):
         try:
             st.switch_page("pages/销售达成分析.py")
@@ -626,9 +950,8 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 自动刷新机制 - 已恢复
+# 自动刷新机制
 if st.session_state.authenticated:
-    # 每3秒刷新一次数据
     time.sleep(0.1)
     if is_updated:
         st.rerun()
