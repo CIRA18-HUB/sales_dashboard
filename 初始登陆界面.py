@@ -1090,8 +1090,8 @@ if fixed_authentication_check():
         st.rerun()
 
     # 每3秒自动刷新页面
-    time.sleep(3)
-    st.rerun()
+    # time.sleep(3)    # 注释掉这行
+    # st.rerun()       # 注释掉这行
 
 else:
     # ================================
