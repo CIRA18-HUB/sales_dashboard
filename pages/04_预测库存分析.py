@@ -2157,7 +2157,7 @@ def load_and_process_data():
 
 
 def create_enhanced_region_forecast_chart(merged_data):
-    """创建升级版区域预测准确率图表 - 添加全国平均线并将总结移到悬停中"""
+    """创建升级版区域预测准确率图表 - 修复标签遮挡问题，移动到图表外部"""
     try:
         if merged_data is None or merged_data.empty:
             fig = go.Figure()
@@ -2217,26 +2217,26 @@ def create_enhanced_region_forecast_chart(merged_data):
         # 准备悬停信息
         hover_data = []
         for idx, row in region_comparison.iterrows():
-            hover_info = f"""
-<b>🌏 {row['所属区域']}区域预测表现</b><br>
-<b>预测准确率:</b> {row['准确率']:.1f}%<br>
-<br><b>📊 销量数据</b><br>
-实际销量: {int(row['实际销量']):,}箱<br>
-预测销量: {int(row['预测销量']):,}箱<br>
-销量占比: {row['销量占比']:.1f}%<br>
-<br><b>📈 预测偏差</b><br>
-差异量: {int(row['差异量']):+,}箱<br>
-差异率: {row['差异率']:+.1f}%<br>
-<br><b>📋 全国对比</b><br>
-🥇 最佳区域: {best_region['所属区域']} ({best_region['准确率']:.1f}%)<br>
-🎯 待改进区域: {worst_region['所属区域']} ({worst_region['准确率']:.1f}%)<br>
-📊 全国平均: {national_average:.1f}%<br>
-<br><b>🎨 颜色说明</b><br>
-🟢 绿色 = 优秀 (≥85%)<br>
-🟡 黄色 = 一般 (65-85%)<br>
-🔴 红色 = 需改进 (<65%)<br>
-            """
-            hover_data.append(hover_info.strip())
+            hover_info = (
+                f"<b>🌏 {row['所属区域']}区域预测表现</b><br>"
+                f"<b>预测准确率:</b> {row['准确率']:.1f}%<br>"
+                f"<br><b>📊 销量数据</b><br>"
+                f"实际销量: {int(row['实际销量']):,}箱<br>"
+                f"预测销量: {int(row['预测销量']):,}箱<br>"
+                f"销量占比: {row['销量占比']:.1f}%<br>"
+                f"<br><b>📈 预测偏差</b><br>"
+                f"差异量: {int(row['差异量']):+,}箱<br>"
+                f"差异率: {row['差异率']:+.1f}%<br>"
+                f"<br><b>📋 全国对比</b><br>"
+                f"🥇 最佳区域: {best_region['所属区域']} ({best_region['准确率']:.1f}%)<br>"
+                f"🎯 待改进区域: {worst_region['所属区域']} ({worst_region['准确率']:.1f}%)<br>"
+                f"📊 全国平均: {national_average:.1f}%<br>"
+                f"<br><b>🎨 颜色说明</b><br>"
+                f"🟢 绿色 = 优秀 (≥85%)<br>"
+                f"🟡 黄色 = 一般 (65-85%)<br>"
+                f"🔴 红色 = 需改进 (<65%)"
+            )
+            hover_data.append(hover_info)
 
         # 主要条形图
         fig.add_trace(go.Bar(
@@ -2246,6 +2246,7 @@ def create_enhanced_region_forecast_chart(merged_data):
             marker=dict(
                 color=colors,
                 line=dict(color='rgba(255,255,255,0.8)', width=2),
+                # 添加渐变效果
                 opacity=0.9
             ),
             text=[f"{acc:.1f}%" for acc in region_comparison['准确率']],
@@ -2329,7 +2330,7 @@ def create_enhanced_region_forecast_chart(merged_data):
                 categoryorder='array',
                 categoryarray=region_comparison['所属区域'].tolist()
             ),
-            height=max(500, len(region_comparison) * 80),
+            height=max(400, len(region_comparison) * 80),
             margin=dict(l=100, r=80, t=100, b=80),  # 调整为全宽布局的边距
             showlegend=False,
             plot_bgcolor='rgba(248,250,252,0.8)',
@@ -2337,7 +2338,7 @@ def create_enhanced_region_forecast_chart(merged_data):
             font=dict(family='Inter'),
             hoverlabel=dict(
                 bgcolor="rgba(255,255,255,0.98)",
-                font_size=12,
+                font_size=13,
                 font_family="Inter",
                 bordercolor="rgba(0,0,0,0.1)",
                 align="left"
@@ -3810,6 +3811,7 @@ with tab3:
             # 子标签4：区域维度深度分析 - 使用图表
             # 子标签4：区域维度深度分析 - 使用图表
             # 子标签4：区域维度深度分析 - 使用图表
+            # 子标签4：区域维度深度分析 - 使用图表
             with sub_tab4:
                 st.markdown("#### 🌍 区域维度预测准确性深度分析")
 
@@ -3855,14 +3857,7 @@ with tab3:
 
                     st.plotly_chart(fig_heatmap, use_container_width=True)
 
-# 替换整个 with tab4 块的内容
-# 标签4：库存积压预警详情 - 完整移植附件一的报告格式
-# 标签4：库存积压预警详情 - 简化版，只保留批次分析明细
-# 标签4：库存积压预警详情 - 修改后版本
-# 标签4：库存积压预警详情 - 修改后版本
-# 标签4：库存积压预警详情 - 修改后版本
-# 标签4：库存积压预警详情分析 - 简化版，只保留批次分析明细
-# 标签4：库存积压预警详情 - 完全按照积压超详细.py的逻辑实现
+
 with tab4:
     st.markdown("### 📋 库存积压预警详情分析")
 
