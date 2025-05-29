@@ -970,6 +970,14 @@ def fixed_login_handler(password):
 # 【替换类别】主要页面逻辑 → fixed_main_page_logic（修复版本）
 # ================================
 
+# 添加调试信息
+st.sidebar.write("=== 调试信息 ===")
+st.sidebar.write(f"authenticated: {st.session_state.get('authenticated', 'None')}")
+st.sidebar.write(f"username: {st.session_state.get('username', 'None')}")
+st.sidebar.write(f"user_role: {st.session_state.get('user_role', 'None')}")
+st.sidebar.write(f"认证检查结果: {fixed_authentication_check()}")
+st.sidebar.write("================")
+
 # 使用修复版本的认证检查
 if fixed_authentication_check():
     # ================================
@@ -1090,13 +1098,16 @@ if fixed_authentication_check():
         st.rerun()
 
     # 每3秒自动刷新页面
-    # time.sleep(3)    # 注释掉这行
-    # st.rerun()       # 注释掉这行
+    time.sleep(3)
+    st.rerun()
 
 else:
     # ================================
     # 🔐 修复版登录界面
     # ================================
+
+    # 添加调试信息
+    st.sidebar.write("=== 进入登录界面 ===")
 
     # 飘浮可爱图标
     st.markdown("""
