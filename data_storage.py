@@ -13,7 +13,8 @@ class DataStorage:
         self.data_dir = "data"
         self.requests_file = os.path.join(self.data_dir, "requests.json")
         self.updates_file = os.path.join(self.data_dir, "updates.json")
-        self.user_read_status_file = os.path.join(self.data_dir, "user_read_status.json")
+        self.users_file = os.path.join(self.data_dir, "users.json")
+        self.read_status_file = os.path.join(self.data_dir, "read_status.json")
         self._ensure_data_files()
     
     def _ensure_data_files(self):
@@ -32,10 +33,61 @@ class DataStorage:
             with open(self.updates_file, 'w', encoding='utf-8') as f:
                 json.dump([], f, ensure_ascii=False)
         
-        # 初始化用户已读状态文件
-        if not os.path.exists(self.user_read_status_file):
-            with open(self.user_read_status_file, 'w', encoding='utf-8') as f:
+        # 初始化用户文件
+        if not os.path.exists(self.users_file):
+            default_users = [
+                {
+                    "username": "admin",
+                    "password": "SAL!2025",
+                    "role": "管理员",
+                    "display_name": "管理员"
+                },
+                {
+                    "username": "user",
+                    "password": "user123",
+                    "role": "普通用户", 
+                    "display_name": "普通用户"
+                }
+            ]
+            with open(self.users_file, 'w', encoding='utf-8') as f:
+                json.dump(default_users, f, ensure_ascii=False, indent=2)
+        
+        # 初始化已读状态文件
+        if not os.path.exists(self.read_status_file):
+            with open(self.read_status_file, 'w', encoding='utf-8') as f:
                 json.dump({}, f, ensure_ascii=False)
+    
+    def authenticate_user(self, password: str) -> Dict:
+        """验证用户身份"""
+        try:
+            with open(self.users_file, 'r', encoding='utf-8') as f:
+                users = json.load(f)
+            
+            for user in users:
+                if user['password'] == password:
+                    return {
+                        'authenticated': True,
+                        'username': user['username'],
+                        'role': user['role'],
+                        'display_name': user['display_name']
+                    }
+            
+            return {'authenticated': False}
+        except:
+            return {'authenticated': False}
+    
+    def is_admin(self, username: str) -> bool:
+        """检查用户是否为管理员"""
+        try:
+            with open(self.users_file, 'r', encoding='utf-8') as f:
+                users = json.load(f)
+            
+            for user in users:
+                if user['username'] == username:
+                    return user['role'] == '管理员'
+            return False
+        except:
+            return False
     
     def add_request(self, request_type: str, title: str, content: str, 
                    submitter: str, requirement_date: str) -> bool:
@@ -144,38 +196,61 @@ class DataStorage:
             if not updates:
                 return False
             
-            # 获取最新更新的时间
-            latest_update_time = max(update['publish_time'] for update in updates)
-            
             # 获取用户已读状态
-            with open(self.user_read_status_file, 'r', encoding='utf-8') as f:
+            with open(self.read_status_file, 'r', encoding='utf-8') as f:
                 read_status = json.load(f)
             
-            user_last_read = read_status.get(username, "1900-01-01 00:00:00")
+            user_read_updates = read_status.get(username, [])
             
-            return latest_update_time > user_last_read
+            # 检查是否有新更新
+            for update in updates:
+                if update['id'] not in user_read_updates:
+                    return True
+            
+            return False
         except:
             return False
     
     def mark_updates_as_read(self, username: str) -> bool:
-        """标记用户已读所有更新"""
+        """标记所有更新为已读"""
         try:
-            with open(self.user_read_status_file, 'r', encoding='utf-8') as f:
-                read_status = json.load(f)
+            updates = self.get_all_updates()
+            update_ids = [update['id'] for update in updates]
             
-            read_status[username] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # 读取当前已读状态
+            try:
+                with open(self.read_status_file, 'r', encoding='utf-8') as f:
+                    read_status = json.load(f)
+            except:
+                read_status = {}
             
-            with open(self.user_read_status_file, 'w', encoding='utf-8') as f:
+            # 更新用户已读状态
+            read_status[username] = update_ids
+            
+            # 保存已读状态
+            with open(self.read_status_file, 'w', encoding='utf-8') as f:
                 json.dump(read_status, f, ensure_ascii=False, indent=2)
+            
             return True
         except:
             return False
     
-    def get_user_role(self, username: str) -> str:
-        """获取用户角色（简单实现）"""
-        # 这里可以根据实际需求扩展用户权限系统
-        admin_users = ["cira", "管理员", "admin"]
-        return "管理员" if username in admin_users else "普通用户"
+    def get_unread_updates(self, username: str) -> List[Dict]:
+        """获取用户未读的更新"""
+        try:
+            updates = self.get_all_updates()
+            
+            # 获取用户已读状态
+            with open(self.read_status_file, 'r', encoding='utf-8') as f:
+                read_status = json.load(f)
+            
+            user_read_updates = read_status.get(username, [])
+            
+            # 返回未读更新
+            unread_updates = [update for update in updates if update['id'] not in user_read_updates]
+            return sorted(unread_updates, key=lambda x: x['publish_time'], reverse=True)
+        except:
+            return self.get_all_updates()
 
 # 创建全局实例
 storage = DataStorage()
