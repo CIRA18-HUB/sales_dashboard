@@ -1023,7 +1023,7 @@ def get_strategy_suggestion(category):
 # 修改促销活动有效性分析函数
 # 修改促销活动有效性分析函数
 def analyze_promotion_effectiveness_enhanced(data):
-    """增强的促销活动有效性分析（新品需要有效增长幅度）"""
+    """增强的促销活动有效性分析（基于实际促销时间段）"""
     promotion_df = data['promotion_df']
     sales_df = data['sales_df']
 
@@ -1035,40 +1035,102 @@ def analyze_promotion_effectiveness_enhanced(data):
     for _, promo in national_promotions.iterrows():
         product_code = promo['产品代码']
 
-        # 计算各个时期的销售数据
-        april_2025 = sales_df[(sales_df['发运月份'].dt.year == 2025) &
-                              (sales_df['发运月份'].dt.month == 4) &
-                              (sales_df['产品代码'] == product_code)]['销售额'].sum()
+        # 解析促销时间
+        try:
+            promo_start = pd.to_datetime(promo['促销开始供货时间'])
+            promo_end = pd.to_datetime(promo['促销结束供货时间'])
+        except:
+            # 如果时间解析失败，跳过该促销
+            continue
 
-        march_2025 = sales_df[(sales_df['发运月份'].dt.year == 2025) &
-                              (sales_df['发运月份'].dt.month == 3) &
-                              (sales_df['产品代码'] == product_code)]['销售额'].sum()
+        # 计算促销期间长度（天数）
+        promo_duration = (promo_end - promo_start).days + 1
 
-        april_2024 = sales_df[(sales_df['发运月份'].dt.year == 2024) &
-                              (sales_df['发运月份'].dt.month == 4) &
-                              (sales_df['产品代码'] == product_code)]['销售额'].sum()
+        # 计算促销期间的销售数据
+        promo_period_sales = sales_df[
+            (sales_df['发运月份'] >= promo_start) &
+            (sales_df['发运月份'] <= promo_end) &
+            (sales_df['产品代码'] == product_code)
+            ]['销售额'].sum()
 
-        avg_2024 = sales_df[(sales_df['发运月份'].dt.year == 2024) &
-                            (sales_df['产品代码'] == product_code)].groupby(
-            sales_df['发运月份'].dt.month)['销售额'].sum().mean()
+        promo_period_boxes = sales_df[
+            (sales_df['发运月份'] >= promo_start) &
+            (sales_df['发运月份'] <= promo_end) &
+            (sales_df['产品代码'] == product_code)
+            ]['箱数'].sum()
+
+        # 计算促销前同等长度时间段的销售数据（用于环比）
+        pre_promo_start = promo_start - pd.Timedelta(days=promo_duration)
+        pre_promo_end = promo_start - pd.Timedelta(days=1)
+
+        pre_promo_sales = sales_df[
+            (sales_df['发运月份'] >= pre_promo_start) &
+            (sales_df['发运月份'] <= pre_promo_end) &
+            (sales_df['产品代码'] == product_code)
+            ]['销售额'].sum()
+
+        # 计算去年同期数据（用于同比）
+        last_year_start = promo_start - pd.DateOffset(years=1)
+        last_year_end = promo_end - pd.DateOffset(years=1)
+
+        last_year_sales = sales_df[
+            (sales_df['发运月份'] >= last_year_start) &
+            (sales_df['发运月份'] <= last_year_end) &
+            (sales_df['产品代码'] == product_code)
+            ]['销售额'].sum()
+
+        # 计算去年该产品的平均销售额（按相同时间长度）
+        last_year_all_data = sales_df[
+            (sales_df['发运月份'].dt.year == last_year_start.year) &
+            (sales_df['产品代码'] == product_code)
+            ]
+
+        if len(last_year_all_data) > 0:
+            # 计算去年日均销售额，然后乘以促销期间天数
+            last_year_daily_avg = last_year_all_data['销售额'].sum() / 365
+            avg_expected_sales = last_year_daily_avg * promo_duration
+        else:
+            avg_expected_sales = 0
 
         # 计算增长率
-        mom_growth = ((april_2025 - march_2025) / march_2025 * 100) if march_2025 > 0 else 0
-        yoy_growth = ((april_2025 - april_2024) / april_2024 * 100) if april_2024 > 0 else 0
-        avg_growth = ((april_2025 - avg_2024) / avg_2024 * 100) if avg_2024 > 0 else 0
+        # 环比增长率（促销期间 vs 促销前同期）
+        if pre_promo_sales > 0:
+            mom_growth = ((promo_period_sales - pre_promo_sales) / pre_promo_sales * 100)
+        elif promo_period_sales > 0:
+            mom_growth = 100
+        else:
+            mom_growth = 0
 
-        # 判断是否为新品
-        # 使用更宽松的判断：如果去年4月销售额小于1（接近0）就算新品
-        # 这样可以处理浮点数精度问题
-        is_new_product = april_2024 < 1  # 小于1元就认为是新品
+        # 同比增长率（促销期间 vs 去年同期）
+        if last_year_sales > 0:
+            yoy_growth = ((promo_period_sales - last_year_sales) / last_year_sales * 100)
+        elif promo_period_sales > 0:
+            yoy_growth = 100
+        else:
+            yoy_growth = 0
 
-        # 判断有效性（新品特殊处理）
+        # 较历史平均增长率
+        if avg_expected_sales > 0:
+            avg_growth = ((promo_period_sales - avg_expected_sales) / avg_expected_sales * 100)
+        elif promo_period_sales > 0:
+            avg_growth = 100
+        else:
+            avg_growth = 0
+
+        # 判断是否为新品（去年同期无销售数据）
+        is_new_product = last_year_sales < 1
+
+        # 判断有效性
         if is_new_product:
-            # 新品需要环比增长在有效范围内才算有效
-            # 定义有效范围：环比增长超过10%
-            is_effective = mom_growth >= 10
-            effectiveness_reason = f"{'✅ 有效' if is_effective else '❌ 无效'}（新品，环比增长{mom_growth:.1f}%{'≥10%' if mom_growth >= 10 else '<10%'}）"
-            positive_count = None  # 新品不计算positive_count
+            # 新品：促销期间环比增长≥10%或促销期间有显著销售表现
+            is_effective = mom_growth >= 10 or promo_period_sales >= avg_expected_sales * 1.2
+            if mom_growth >= 10:
+                effectiveness_reason = f"✅ 有效（新品，环比增长{mom_growth:.1f}%≥10%）"
+            elif promo_period_sales >= avg_expected_sales * 1.2:
+                effectiveness_reason = f"✅ 有效（新品，销售表现超预期{((promo_period_sales / avg_expected_sales - 1) * 100):.1f}%）"
+            else:
+                effectiveness_reason = f"❌ 无效（新品，环比增长{mom_growth:.1f}%<10%且未超预期）"
+            positive_count = None
         else:
             # 非新品：三个指标中至少两个为正增长
             positive_count = sum([mom_growth > 0, yoy_growth > 0, avg_growth > 0])
@@ -1078,17 +1140,21 @@ def analyze_promotion_effectiveness_enhanced(data):
         effectiveness_results.append({
             'product': promo['促销产品名称'],
             'product_code': product_code,
-            'sales': april_2025,
+            'sales': promo_period_sales,
+            'boxes': promo_period_boxes,
             'is_effective': is_effective,
             'mom_growth': mom_growth,
             'yoy_growth': yoy_growth,
             'avg_growth': avg_growth,
             'positive_count': positive_count,
             'effectiveness_reason': effectiveness_reason,
-            'march_sales': march_2025,
-            'april_2024_sales': april_2024,
-            'avg_2024_sales': avg_2024,
-            'is_new_product': is_new_product
+            'pre_promo_sales': pre_promo_sales,
+            'last_year_sales': last_year_sales,
+            'avg_expected_sales': avg_expected_sales,
+            'is_new_product': is_new_product,
+            'promo_start': promo_start.strftime('%Y-%m-%d'),
+            'promo_end': promo_end.strftime('%Y-%m-%d'),
+            'promo_duration': promo_duration
         })
 
     return pd.DataFrame(effectiveness_results)
@@ -1516,7 +1582,7 @@ def create_real_product_network(data, product_filter='all'):
 # 促销活动柱状图
 # 促销活动柱状图
 def create_optimized_promotion_chart(promo_results):
-    """创建优化的促销活动有效性柱状图"""
+    """创建优化的促销活动有效性柱状图（基于实际促销时间段）"""
     if len(promo_results) == 0:
         return None
 
@@ -1533,26 +1599,28 @@ def create_optimized_promotion_chart(promo_results):
         if row['is_new_product']:
             hover_text = f"""<b>{row['product']}</b><br>
 <b>产品类型:</b> 🌟 新品<br>
-<b>4月销售额:</b> ¥{row['sales']:,.0f}<br>
+<b>促销时间:</b> {row['promo_start']} 至 {row['promo_end']} ({row['promo_duration']}天)<br>
+<b>促销期销售额:</b> ¥{row['sales']:,.0f}<br>
 <b>有效性判断:</b> {row['effectiveness_reason']}<br>
 <br><b>详细分析:</b><br>
-- 3月销售额: ¥{row['march_sales']:,.0f}<br>
+- 促销前同期: ¥{row['pre_promo_sales']:,.0f}<br>
 - 环比: {arrow_up if row['mom_growth'] > 0 else arrow_down}{abs(row['mom_growth']):.1f}%<br>
-- 去年4月无销售数据（新品）<br>
-- 去年月均: ¥{row['avg_2024_sales']:,.0f}<br>
+- 去年同期无销售数据（新品）<br>
+- 预期销售额: ¥{row['avg_expected_sales']:,.0f}<br>
 <br><b>营销建议:</b><br>
 {'继续加大推广力度，建立市场认知' if row['is_effective'] else '调整新品推广策略，需要更大的增长幅度'}"""
         else:
             hover_text = f"""<b>{row['product']}</b><br>
-<b>4月销售额:</b> ¥{row['sales']:,.0f}<br>
+<b>促销时间:</b> {row['promo_start']} 至 {row['promo_end']} ({row['promo_duration']}天)<br>
+<b>促销期销售额:</b> ¥{row['sales']:,.0f}<br>
 <b>有效性判断:</b> {row['effectiveness_reason']}<br>
 <br><b>详细分析:</b><br>
-- 3月销售额: ¥{row['march_sales']:,.0f}<br>
+- 促销前同期: ¥{row['pre_promo_sales']:,.0f}<br>
 - 环比: {arrow_up if row['mom_growth'] > 0 else arrow_down}{abs(row['mom_growth']):.1f}%<br>
-- 去年4月: ¥{row['april_2024_sales']:,.0f}<br>
+- 去年同期: ¥{row['last_year_sales']:,.0f}<br>
 - 同比: {arrow_up if row['yoy_growth'] > 0 else arrow_down}{abs(row['yoy_growth']):.1f}%<br>
-- 去年月均: ¥{row['avg_2024_sales']:,.0f}<br>
-- 较月均: {arrow_up if row['avg_growth'] > 0 else arrow_down}{abs(row['avg_growth']):.1f}%<br>
+- 预期销售额: ¥{row['avg_expected_sales']:,.0f}<br>
+- 较预期: {arrow_up if row['avg_growth'] > 0 else arrow_down}{abs(row['avg_growth']):.1f}%<br>
 <br><b>营销建议:</b><br>
 {'继续加大促销力度，扩大市场份额' if row['is_effective'] else '调整促销策略，优化投入产出比'}"""
         hover_texts.append(hover_text)
@@ -1575,15 +1643,20 @@ def create_optimized_promotion_chart(promo_results):
     effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
     max_sales = y_values.max() if len(y_values) > 0 else 1000
 
+    # 计算促销时间范围
+    all_start_dates = pd.to_datetime(promo_results['promo_start'])
+    all_end_dates = pd.to_datetime(promo_results['promo_end'])
+    time_range = f"{all_start_dates.min().strftime('%Y-%m-%d')} 至 {all_end_dates.max().strftime('%Y-%m-%d')}"
+
     fig.update_layout(
         title=dict(
-            text=f"<b>全国促销活动总体有效率: {effectiveness_rate:.1f}%</b> ({promo_results['is_effective'].sum()}/{len(promo_results)})",
+            text=f"<b>全国促销活动有效性分析</b><br>有效率: {effectiveness_rate:.1f}% ({promo_results['is_effective'].sum()}/{len(promo_results)}) | 时间范围: {time_range}",
             font=dict(size=20),
             x=0.5,
             xanchor='center'
         ),
         xaxis=dict(title="促销产品", tickangle=-30 if len(x_labels) > 6 else 0),
-        yaxis=dict(title="销售额 (¥)", range=[0, max_sales * 1.3]),
+        yaxis=dict(title="促销期销售额 (¥)", range=[0, max_sales * 1.3]),
         height=550,
         showlegend=False,
         hovermode='closest',
@@ -2354,7 +2427,7 @@ def main():
             st.markdown(f"""
             <div class="promo-header">
                 <h2>🚀 全国促销活动有效性分析</h2>
-                <h3>总体有效率: {effectiveness_rate:.1f}% ({promo_results['is_effective'].sum()}/{len(promo_results)})</h3>
+                <h3>基于实际促销时间段的效果评估</h3>
             </div>
             """, unsafe_allow_html=True)
 
@@ -2370,6 +2443,10 @@ def main():
                     effective_products = promo_results[promo_results['is_effective'] == True]
                     ineffective_products = promo_results[promo_results['is_effective'] == False]
 
+                    # 计算平均促销时长
+                    avg_duration_effective = effective_products['promo_duration'].mean() if len(
+                        effective_products) > 0 else 0
+
                     # 计算非新品的同比增长率平均值
                     effective_non_new = effective_products[~effective_products['is_new_product']]
                     avg_yoy_effective = effective_non_new['yoy_growth'].mean() if len(effective_non_new) > 0 else 0
@@ -2377,12 +2454,17 @@ def main():
                     st.info(f"""
                     **🎯 有效促销产品特征**
                     - 有效产品数: {len(effective_products)}个
-                    - 平均销售额: ¥{effective_products['sales'].mean():,.0f}
+                    - 平均促销时长: {avg_duration_effective:.1f}天
+                    - 平均促销期销售额: ¥{effective_products['sales'].mean():,.0f}
                     - 环比增长率: {effective_products['mom_growth'].mean():.1f}%
                     - 同比增长率: {avg_yoy_effective:.1f}%
                     """)
 
                 with col2:
+                    # 计算平均促销时长
+                    avg_duration_ineffective = ineffective_products['promo_duration'].mean() if len(
+                        ineffective_products) > 0 else 0
+
                     # 计算非新品的同比增长率平均值
                     ineffective_non_new = ineffective_products[~ineffective_products['is_new_product']]
                     avg_yoy_ineffective = ineffective_non_new['yoy_growth'].mean() if len(
@@ -2391,7 +2473,8 @@ def main():
                     st.warning(f"""
                     **⚠️ 无效促销产品分析**
                     - 无效产品数: {len(ineffective_products)}个
-                    - 平均销售额: ¥{ineffective_products['sales'].mean():,.0f}
+                    - 平均促销时长: {avg_duration_ineffective:.1f}天
+                    - 平均促销期销售额: ¥{ineffective_products['sales'].mean():,.0f}
                     - 环比增长率: {ineffective_products['mom_growth'].mean():.1f}%
                     - 同比增长率: {avg_yoy_ineffective:.1f}%
                     """)
@@ -2399,13 +2482,33 @@ def main():
                 # 新品促销分析
                 new_products_promo = promo_results[promo_results['is_new_product'] == True]
                 if len(new_products_promo) > 0:
+                    avg_new_duration = new_products_promo['promo_duration'].mean()
                     st.success(f"""
                     **🌟 新品促销分析**
                     - 新品促销数: {len(new_products_promo)}个
                     - 有效新品数: {new_products_promo['is_effective'].sum()}个
                     - 新品有效率: {new_products_promo['is_effective'].sum() / len(new_products_promo) * 100:.1f}%
+                    - 平均促销时长: {avg_new_duration:.1f}天
                     - 平均环比增长: {new_products_promo['mom_growth'].mean():.1f}%
-                    - 注：新品需环比增长≥10%才算有效
+                    - 注：新品需环比增长≥10%或超预期20%才算有效
+                    """)
+
+                # 促销时间段分析
+                promo_results_copy = promo_results.copy()
+                promo_results_copy['month'] = pd.to_datetime(promo_results_copy['promo_start']).dt.strftime('%Y-%m')
+                monthly_summary = promo_results_copy.groupby('month').agg({
+                    'is_effective': ['count', 'sum'],
+                    'sales': 'sum',
+                    'promo_duration': 'mean'
+                }).round(1)
+
+                if len(monthly_summary) > 1:
+                    st.info(f"""
+                    **📅 促销时间分布分析**
+                    - 促销活动涵盖: {len(monthly_summary)}个月份
+                    - 最早促销: {promo_results['promo_start'].min()}
+                    - 最晚促销: {promo_results['promo_end'].max()}
+                    - 建议：分析不同时期促销效果，优化促销节奏
                     """)
         else:
             st.info("暂无全国促销活动数据")
