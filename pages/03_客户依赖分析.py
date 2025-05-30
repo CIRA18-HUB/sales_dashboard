@@ -1813,68 +1813,419 @@ def create_timeline_chart(cycles_df):
 
 
 def create_enhanced_charts(metrics, sales_data, monthly_data):
-    """创建增强图表 - 修复目标达成散点图"""
+    """创建增强图表 - 完整实现所有图表"""
     global ECHARTS_AVAILABLE
     charts = {}
 
-    # 1-5. 其他图表代码保持不变...
-    # [这里省略其他图表的代码，只修复散点图部分]
+    # 1. 健康诊断雷达图
+    try:
+        print("=== 创建健康诊断雷达图 ===")
 
-    # 6. 彻底修复：目标达成散点图
+        # 计算健康指标
+        health_metrics = {
+            '客户活跃度': min(100, metrics['normal_rate']),
+            '业务增长性': min(100, max(0, 50 + metrics['growth_rate'])),
+            '客户集中度': max(0, 100 - metrics['concentration_rate']),
+            '高价值占比': min(100, metrics['high_value_rate']),
+            '目标达成度': min(100, metrics['target_achievement_rate']),
+            '客户稳定性': min(100, max(0, 100 - metrics['risk_customers'] * 10))
+        }
+
+        categories = list(health_metrics.keys())
+        values = list(health_metrics.values())
+
+        fig_radar = go.Figure()
+
+        fig_radar.add_trace(go.Scatterpolar(
+            r=values + [values[0]],  # 闭合图形
+            theta=categories + [categories[0]],  # 闭合图形
+            fill='toself',
+            fillcolor='rgba(102, 126, 234, 0.3)',
+            line=dict(color='#667eea', width=3),
+            marker=dict(size=8, color='#667eea'),
+            name='健康指数',
+            hovertemplate='%{theta}: %{r:.1f}分<extra></extra>'
+        ))
+
+        # 添加理想状态线
+        ideal_values = [90] * len(categories)
+        fig_radar.add_trace(go.Scatterpolar(
+            r=ideal_values + [ideal_values[0]],
+            theta=categories + [categories[0]],
+            fill='toself',
+            fillcolor='rgba(46, 204, 113, 0.1)',
+            line=dict(color='#2ecc71', width=2, dash='dash'),
+            name='理想状态',
+            hovertemplate='理想值: %{r}分<extra></extra>'
+        ))
+
+        fig_radar.update_layout(
+            polar=dict(
+                radialaxis=dict(
+                    visible=True,
+                    range=[0, 100],
+                    ticksuffix='分',
+                    gridcolor='rgba(0,0,0,0.1)'
+                ),
+                angularaxis=dict(
+                    tickfont=dict(size=12, color='#2d3748')
+                )
+            ),
+            height=500,
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.1,
+                xanchor="center",
+                x=0.5
+            ),
+            plot_bgcolor='white',
+            paper_bgcolor='white'
+        )
+
+        charts['health_radar'] = fig_radar
+        print("健康诊断雷达图创建成功")
+
+    except Exception as e:
+        print(f"健康诊断雷达图创建失败: {e}")
+        charts['health_radar'] = None
+
+    # 2. Top20客户贡献分析
+    try:
+        print("=== 创建Top20客户贡献分析 ===")
+
+        # 计算客户销售额
+        current_year_sales = sales_data[sales_data['发运月份'].dt.year == metrics['current_year']]
+        customer_sales = current_year_sales.groupby('经销商名称')['金额'].sum().sort_values(ascending=False)
+
+        if len(customer_sales) > 0:
+            top20_customers = customer_sales.head(20)
+            total_sales = customer_sales.sum()
+
+            # 计算累计贡献度
+            cumulative_sales = top20_customers.cumsum()
+            cumulative_percentage = (cumulative_sales / total_sales * 100)
+            individual_percentage = (top20_customers / total_sales * 100)
+
+            fig_top20 = make_subplots(
+                specs=[[{"secondary_y": True}]],
+                subplot_titles=("Top 20 客户销售额及累计贡献度",)
+            )
+
+            # 销售额柱状图
+            fig_top20.add_trace(
+                go.Bar(
+                    x=list(range(1, len(top20_customers) + 1)),
+                    y=top20_customers.values,
+                    name='销售额',
+                    marker_color='#667eea',
+                    opacity=0.8,
+                    text=[f'{format_amount(v)}' for v in top20_customers.values],
+                    textposition='outside',
+                    hovertemplate='排名: %{x}<br>客户: %{customdata}<br>销售额: %{y:,.0f}<br>占比: %{text}<extra></extra>',
+                    customdata=top20_customers.index,
+                    texttemplate='%{text}'
+                ),
+                secondary_y=False,
+            )
+
+            # 累计贡献度折线图
+            fig_top20.add_trace(
+                go.Scatter(
+                    x=list(range(1, len(top20_customers) + 1)),
+                    y=cumulative_percentage.values,
+                    mode='lines+markers',
+                    name='累计贡献度',
+                    line=dict(color='#e74c3c', width=3),
+                    marker=dict(size=8),
+                    text=[f'{v:.1f}%' for v in cumulative_percentage.values],
+                    textposition='top center',
+                    hovertemplate='Top %{x} 客户累计贡献: %{y:.1f}%<extra></extra>'
+                ),
+                secondary_y=True,
+            )
+
+            # 添加80/20法则参考线
+            fig_top20.add_hline(y=80, line_dash="dash", line_color="orange",
+                                annotation_text="80%贡献线", secondary_y=True)
+
+            fig_top20.update_xaxes(title_text="客户排名", dtick=1)
+            fig_top20.update_yaxes(title_text="销售额 (¥)", secondary_y=False)
+            fig_top20.update_yaxes(title_text="累计贡献度 (%)", secondary_y=True, range=[0, 100])
+
+            fig_top20.update_layout(
+                height=500,
+                hovermode='x unified',
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                showlegend=True
+            )
+
+            charts['top20'] = fig_top20
+            print(f"Top20客户分析创建成功，包含{len(top20_customers)}个客户")
+        else:
+            charts['top20'] = None
+            print("没有足够的客户销售数据")
+
+    except Exception as e:
+        print(f"Top20客户分析创建失败: {e}")
+        import traceback
+        print(f"详细错误: {traceback.format_exc()}")
+        charts['top20'] = None
+
+    # 3. 区域风险矩阵
+    try:
+        print("=== 创建区域风险矩阵 ===")
+
+        if not metrics['region_stats'].empty:
+            region_df = metrics['region_stats'].copy()
+
+            fig_risk_matrix = go.Figure()
+
+            # 为每个区域创建散点
+            for _, region in region_df.iterrows():
+                # 计算风险指标
+                dependency_risk = region['最大客户依赖度']
+                revenue_concentration = (region['最大客户销售额'] / region['总销售额'] * 100) if region[
+                                                                                                     '总销售额'] > 0 else 0
+
+                # 确定颜色
+                if dependency_risk > 50 or revenue_concentration > 40:
+                    color = '#e74c3c'  # 高风险
+                    risk_level = '高风险'
+                elif dependency_risk > 30 or revenue_concentration > 25:
+                    color = '#f39c12'  # 中风险
+                    risk_level = '中风险'
+                else:
+                    color = '#27ae60'  # 低风险
+                    risk_level = '低风险'
+
+                # 计算气泡大小（基于总销售额）
+                max_sales = region_df['总销售额'].max()
+                bubble_size = max(10, (region['总销售额'] / max_sales) * 50)
+
+                hover_text = f"<b>{region['区域']}</b><br>" + \
+                             f"总销售额: {format_amount(region['总销售额'])}<br>" + \
+                             f"客户数: {region['客户数']}家<br>" + \
+                             f"最大客户: {region['最大客户']}<br>" + \
+                             f"最大客户销售额: {format_amount(region['最大客户销售额'])}<br>" + \
+                             f"依赖度: {dependency_risk:.1f}%<br>" + \
+                             f"风险等级: {risk_level}"
+
+                fig_risk_matrix.add_trace(go.Scatter(
+                    x=[dependency_risk],
+                    y=[revenue_concentration],
+                    mode='markers+text',
+                    marker=dict(
+                        size=bubble_size,
+                        color=color,
+                        line=dict(color='white', width=2),
+                        opacity=0.8
+                    ),
+                    text=region['区域'],
+                    textposition='middle center',
+                    textfont=dict(color='white', size=10, family='Arial Black'),
+                    name=risk_level,
+                    hovertemplate=hover_text + '<extra></extra>',
+                    showlegend=False
+                ))
+
+            # 添加风险区域背景
+            fig_risk_matrix.add_shape(
+                type="rect", x0=50, y0=40, x1=100, y1=100,
+                fillcolor="rgba(231, 76, 60, 0.1)", layer="below", line=dict(width=0)
+            )
+            fig_risk_matrix.add_shape(
+                type="rect", x0=30, y0=25, x1=50, y1=40,
+                fillcolor="rgba(243, 156, 18, 0.1)", layer="below", line=dict(width=0)
+            )
+
+            # 添加风险区域标签
+            fig_risk_matrix.add_annotation(
+                x=75, y=70, text="<b>高风险区</b>", showarrow=False,
+                font=dict(size=16, color='#e74c3c'), opacity=0.7
+            )
+            fig_risk_matrix.add_annotation(
+                x=40, y=32, text="<b>中风险区</b>", showarrow=False,
+                font=dict(size=14, color='#f39c12'), opacity=0.7
+            )
+            fig_risk_matrix.add_annotation(
+                x=15, y=15, text="<b>低风险区</b>", showarrow=False,
+                font=dict(size=14, color='#27ae60'), opacity=0.7
+            )
+
+            fig_risk_matrix.update_layout(
+                xaxis=dict(
+                    title='最大客户依赖度 (%)',
+                    range=[0, 100],
+                    showgrid=True,
+                    gridcolor='rgba(0,0,0,0.1)'
+                ),
+                yaxis=dict(
+                    title='收入集中度 (%)',
+                    range=[0, 100],
+                    showgrid=True,
+                    gridcolor='rgba(0,0,0,0.1)'
+                ),
+                height=500,
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                hovermode='closest'
+            )
+
+            charts['risk_matrix'] = fig_risk_matrix
+            print(f"区域风险矩阵创建成功，包含{len(region_df)}个区域")
+        else:
+            charts['risk_matrix'] = None
+            print("没有区域统计数据")
+
+    except Exception as e:
+        print(f"区域风险矩阵创建失败: {e}")
+        import traceback
+        print(f"详细错误: {traceback.format_exc()}")
+        charts['risk_matrix'] = None
+
+    # 4. 客户价值流动分析（桑基图）
+    try:
+        print("=== 创建客户价值流动分析 ===")
+
+        if not metrics['rfm_df'].empty:
+            rfm_df = metrics['rfm_df'].copy()
+
+            # 统计各类型客户数量和销售额
+            type_stats = rfm_df.groupby('类型').agg({
+                '客户': 'count',
+                'M': 'sum'
+            }).reset_index()
+            type_stats.columns = ['客户类型', '客户数', '总销售额']
+
+            # 准备桑基图数据
+            categories = ['钻石客户', '黄金客户', '白银客户', '潜力客户', '流失风险']
+            colors = ['#e74c3c', '#f39c12', '#3498db', '#2ecc71', '#95a5a6']
+
+            # 构建节点
+            labels = []
+            node_colors = []
+
+            # 左侧节点：客户类型
+            for i, cat in enumerate(categories):
+                if cat in type_stats['客户类型'].values:
+                    count = type_stats[type_stats['客户类型'] == cat]['客户数'].iloc[0]
+                    revenue = type_stats[type_stats['客户类型'] == cat]['总销售额'].iloc[0]
+                    labels.append(f"{cat}<br>{count}家<br>{format_amount(revenue)}")
+                else:
+                    labels.append(f"{cat}<br>0家<br>¥0")
+                node_colors.append(colors[i])
+
+            # 右侧节点：销售额贡献
+            total_revenue = type_stats['总销售额'].sum()
+            labels.extend([
+                f"高价值贡献<br>{format_amount(total_revenue * 0.8)}",
+                f"一般贡献<br>{format_amount(total_revenue * 0.15)}",
+                f"低价值贡献<br>{format_amount(total_revenue * 0.05)}"
+            ])
+            node_colors.extend(['#27ae60', '#f39c12', '#e74c3c'])
+
+            # 构建连接
+            source = []
+            target = []
+            value = []
+            link_colors = []
+
+            for i, cat in enumerate(categories):
+                if cat in type_stats['客户类型'].values:
+                    revenue = type_stats[type_stats['客户类型'] == cat]['总销售额'].iloc[0]
+
+                    # 根据客户类型分配到不同价值贡献
+                    if cat in ['钻石客户', '黄金客户']:
+                        # 高价值客户主要贡献到高价值区
+                        source.extend([i, i])
+                        target.extend([5, 6])  # 高价值贡献, 一般贡献
+                        value.extend([revenue * 0.9, revenue * 0.1])
+                        link_colors.extend([colors[i], colors[i]])
+                    elif cat in ['白银客户', '潜力客户']:
+                        # 中等客户主要贡献到一般价值区
+                        source.extend([i, i])
+                        target.extend([6, 7])  # 一般贡献, 低价值贡献
+                        value.extend([revenue * 0.8, revenue * 0.2])
+                        link_colors.extend([colors[i], colors[i]])
+                    else:  # 流失风险
+                        # 风险客户主要是低价值贡献
+                        source.extend([i])
+                        target.extend([7])  # 低价值贡献
+                        value.extend([revenue])
+                        link_colors.extend([colors[i]])
+
+            # 创建桑基图
+            fig_sankey = go.Figure(data=[go.Sankey(
+                node=dict(
+                    pad=15,
+                    thickness=20,
+                    line=dict(color="black", width=0.5),
+                    label=labels,
+                    color=node_colors,
+                    hovertemplate='%{label}<extra></extra>'
+                ),
+                link=dict(
+                    source=source,
+                    target=target,
+                    value=value,
+                    color=[f'rgba({int(c[1:3], 16)}, {int(c[3:5], 16)}, {int(c[5:7], 16)}, 0.3)'
+                           for c in link_colors],
+                    hovertemplate='%{source.label} → %{target.label}<br>贡献额: ¥%{value:,.0f}<extra></extra>'
+                )
+            )])
+
+            fig_sankey.update_layout(
+                font_size=10,
+                height=500,
+                plot_bgcolor='white',
+                paper_bgcolor='white'
+            )
+
+            charts['sankey'] = fig_sankey
+            print(f"客户价值流动分析创建成功，包含{len(rfm_df)}个客户")
+        else:
+            charts['sankey'] = None
+            print("没有RFM客户分析数据")
+
+    except Exception as e:
+        print(f"客户价值流动分析创建失败: {e}")
+        import traceback
+        print(f"详细错误: {traceback.format_exc()}")
+        charts['sankey'] = None
+
+    # 5. 保留原有的目标散点图代码不变
     try:
         print(f"=== 创建目标达成散点图 ===")
         if not metrics['customer_achievement_details'].empty:
             achievement_df = metrics['customer_achievement_details'].copy()
             print(f"原始数据行数: {len(achievement_df)}")
-            print(f"数据字段: {achievement_df.columns.tolist()}")
 
-            # 数据验证和清理
             required_columns = ['年度目标', '实际', '达成率', '客户']
             missing_columns = [col for col in required_columns if col not in achievement_df.columns]
             if missing_columns:
                 print(f"缺少必要字段: {missing_columns}")
                 charts['target_scatter'] = None
             else:
-                # 确保数据类型正确
                 achievement_df = achievement_df.dropna(subset=['年度目标', '实际'])
                 achievement_df = achievement_df[achievement_df['年度目标'] > 0]
                 achievement_df = achievement_df[achievement_df['实际'] >= 0]
 
-                print(f"清理后数据行数: {len(achievement_df)}")
-
                 if not achievement_df.empty and len(achievement_df) > 0:
-                    # ===== 关键修复：重新验证并修正达成率 =====
-                    print(f"=== 重新验证达成率计算 ===")
-
-                    # 重新计算达成率，确保正确
                     achievement_df['达成率_验证'] = (achievement_df['实际'] / achievement_df['年度目标'] * 100)
-
-                    # 检查是否有差异
-                    for i in range(min(3, len(achievement_df))):
-                        row = achievement_df.iloc[i]
-                        original_rate = row['达成率']
-                        verified_rate = row['达成率_验证']
-                        print(f"客户: {row['客户']}")
-                        print(f"  年度目标: {row['年度目标']:,.0f}")
-                        print(f"  实际销售: {row['实际']:,.0f}")
-                        print(f"  原始达成率: {original_rate:.1f}%")
-                        print(f"  验证达成率: {verified_rate:.1f}%")
-                        print(f"  是否一致: {abs(original_rate - verified_rate) < 0.1}")
-
-                    # 使用验证后的达成率
                     achievement_df['达成率'] = achievement_df['达成率_验证']
 
-                    # 计算颜色和大小
                     colors = ['#48bb78' if rate >= 100 else '#ffd93d' if rate >= 80 else '#ff6b6b'
                               for rate in achievement_df['达成率']]
                     sizes = [max(8, min(40, rate / 5)) for rate in achievement_df['达成率']]
 
                     fig_scatter = go.Figure()
 
-                    # 添加散点 - 确保使用正确的数据
                     fig_scatter.add_trace(go.Scatter(
-                        x=achievement_df['年度目标'],  # X轴：年度目标
-                        y=achievement_df['实际'],  # Y轴：实际销售额
+                        x=achievement_df['年度目标'],
+                        y=achievement_df['实际'],
                         mode='markers',
                         marker=dict(
                             size=sizes,
@@ -1884,25 +2235,21 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                         ),
                         text=achievement_df['客户'],
                         name='客户达成情况',
-                        # 关键修复：悬停信息使用验证后的达成率
                         hovertemplate='<b>%{text}</b><br>' +
                                       '年度目标: ¥%{x:,.0f}<br>' +
                                       '实际销售: ¥%{y:,.0f}<br>' +
                                       '达成率: %{customdata:.1f}%<extra></extra>',
-                        customdata=achievement_df['达成率']  # 使用验证后的达成率
+                        customdata=achievement_df['达成率']
                     ))
 
-                    # 添加参考线
                     max_val = max(achievement_df['年度目标'].max(), achievement_df['实际'].max()) * 1.1
 
-                    # 100%达成线 (y = x)
                     fig_scatter.add_trace(go.Scatter(
                         x=[0, max_val], y=[0, max_val], mode='lines', name='目标线(100%)',
                         line=dict(color='#e74c3c', width=3, dash='dash'),
                         hoverinfo='skip'
                     ))
 
-                    # 80%达成线 (y = 0.8x)
                     fig_scatter.add_trace(go.Scatter(
                         x=[0, max_val], y=[0, max_val * 0.8], mode='lines', name='达成线(80%)',
                         line=dict(color='#f39c12', width=2, dash='dot'),
@@ -1917,36 +2264,20 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
                         hovermode='closest',
                         plot_bgcolor='white',
                         paper_bgcolor='white',
-                        margin=dict(t=60, b=60, l=60, r=60),
-                        xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)'),
-                        yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)'),
                         showlegend=True
                     )
 
                     charts['target_scatter'] = fig_scatter
                     print(f"目标散点图创建成功，数据点数量: {len(achievement_df)}")
-
-                    # 最终验证：输出修正后的达成率示例
-                    if len(achievement_df) > 0:
-                        sample = achievement_df.iloc[0]
-                        print(f"=== 最终验证 ===")
-                        print(f"示例客户: {sample['客户']}")
-                        print(f"年度目标: {sample['年度目标']:,.0f}")
-                        print(f"实际销售: {sample['实际']:,.0f}")
-                        print(f"最终达成率: {sample['达成率']:.1f}%")
-                        print(f"数学验证: {sample['实际'] / sample['年度目标'] * 100:.1f}%")
                 else:
-                    print("目标达成数据为空或无效")
                     charts['target_scatter'] = None
         else:
-            print("没有客户目标达成数据")
             charts['target_scatter'] = None
     except Exception as e:
         print(f"目标散点图创建失败: {e}")
-        import traceback
-        print(f"详细错误: {traceback.format_exc()}")
         charts['target_scatter'] = None
 
+    print(f"=== 图表创建完成，成功创建{len([k for k, v in charts.items() if v is not None])}个图表 ===")
     return charts
 
 
