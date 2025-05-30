@@ -3347,5 +3347,5 @@ def main():
             else:
                 st.warning("暂无产品数据")
 
-        if __name__ == "__main__":
+if __name__ == "__main__":
             main()
