@@ -5,10 +5,17 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
-import warnings
 import time
 import re
 from itertools import combinations
+import warnings
+
+# 新增：导入认证模块
+try:
+    from data_storage import storage
+except ImportError:
+    st.error("请确保 data_storage 模块可用")
+    st.stop()
 
 warnings.filterwarnings('ignore')
 
@@ -508,7 +515,42 @@ def simplify_product_name(name):
     if len(name) > 8:
         name = name[:8] + '..'
     return name.strip()
+def fixed_authentication_check():
+    """检查附件一的认证状态"""
+    is_authenticated = (
+            hasattr(st.session_state, 'authenticated') and
+            st.session_state.authenticated is True and
+            hasattr(st.session_state, 'username') and
+            st.session_state.username != ""
+    )
+    return is_authenticated
 
+def show_auth_required_page():
+    """显示需要认证的提示页面"""
+    st.markdown("""
+    <div style="
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        margin: 2rem 0;
+    ">
+        <div style="
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            text-align: center;
+            min-width: 400px;
+        ">
+            <h2 style="color: #667eea; margin-bottom: 2rem;">🔐 需要登录</h2>
+            <p style="color: #666; margin-bottom: 2rem;">请先通过主页面登录系统后再访问产品组合分析</p>
+            <p style="color: #999; font-size: 0.9rem;">您可以通过侧边栏返回主页面进行登录</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 def clear_promotion_cache():
     """清理促销分析缓存"""
     try:
@@ -517,7 +559,6 @@ def clear_promotion_cache():
     except:
         st.info("缓存清理完成")
 # 缓存数据加载函数
-@st.cache_data
 @st.cache_data
 def load_data():
     """加载所有数据文件"""
@@ -551,8 +592,14 @@ def load_data():
         print(f"计算销售额后的数据:")
         print(f"总记录数: {len(sales_df)}")
         print(f"唯一产品数: {sales_df['产品代码'].nunique()}")
-        print(f"2025年记录数: {len(sales_df[sales_df['发运月份'].dt.year == 2025])}")
-        print(f"2025年总销售额: {sales_df[sales_df['发运月份'].dt.year == 2025]['销售额'].sum():,.0f}")
+
+        # 获取动态时间信息
+        time_info = get_dynamic_time_range(sales_df)
+        current_year = time_info['current_year']
+
+        print(f"{current_year}年记录数: {len(sales_df[sales_df['发运月份'].dt.year == current_year])}")
+        print(
+            f"{current_year}年总销售额: {sales_df[sales_df['发运月份'].dt.year == current_year]['销售额'].sum():,.0f}")
 
         # 简化产品名称
         sales_df['产品简称'] = sales_df['产品简称'].apply(simplify_product_name)
@@ -563,7 +610,8 @@ def load_data():
             'new_products': new_products,
             'dashboard_products': dashboard_products,
             'promotion_df': promotion_df,
-            'sales_df': sales_df
+            'sales_df': sales_df,
+            'time_info': time_info
         }
     except Exception as e:
         st.error(f"数据加载错误: {str(e)}")
@@ -571,24 +619,106 @@ def load_data():
         return None
 
 
+
+def get_dynamic_time_range(sales_df):
+    """动态获取数据的时间范围和最新月份"""
+    try:
+        # 获取数据中的最新月份和最早月份
+        sales_df['发运月份'] = pd.to_datetime(sales_df['发运月份'])
+        latest_month = sales_df['发运月份'].max()
+        earliest_month = sales_df['发运月份'].min()
+
+        # 获取当前年份的数据
+        current_year = latest_month.year
+        current_year_data = sales_df[sales_df['发运月份'].dt.year == current_year]
+
+        if len(current_year_data) > 0:
+            current_year_latest = current_year_data['发运月份'].max()
+        else:
+            current_year_latest = latest_month
+
+        # 计算环比月份（上个月）
+        previous_month = current_year_latest - pd.DateOffset(months=1)
+
+        # 计算同比月份（去年同期）
+        same_month_last_year = current_year_latest - pd.DateOffset(years=1)
+
+        return {
+            'latest_month': current_year_latest,
+            'previous_month': previous_month,
+            'same_month_last_year': same_month_last_year,
+            'current_year': current_year,
+            'data_range': f"{earliest_month.strftime('%Y-%m')} 至 {latest_month.strftime('%Y-%m')}"
+        }
+    except Exception as e:
+        st.error(f"时间范围计算出错: {str(e)}")
+        # 返回默认值
+        return {
+            'latest_month': pd.Timestamp('2025-04'),
+            'previous_month': pd.Timestamp('2025-03'),
+            'same_month_last_year': pd.Timestamp('2024-04'),
+            'current_year': 2025,
+            'data_range': "2024-01 至 2025-04"
+        }
+def get_dynamic_time_range(sales_df):
+    """动态获取数据的时间范围和最新月份"""
+    try:
+        # 获取数据中的最新月份和最早月份
+        sales_df['发运月份'] = pd.to_datetime(sales_df['发运月份'])
+        latest_month = sales_df['发运月份'].max()
+        earliest_month = sales_df['发运月份'].min()
+
+        # 获取当前年份的数据
+        current_year = latest_month.year
+        current_year_data = sales_df[sales_df['发运月份'].dt.year == current_year]
+
+        if len(current_year_data) > 0:
+            current_year_latest = current_year_data['发运月份'].max()
+        else:
+            current_year_latest = latest_month
+
+        # 计算环比月份（上个月）
+        previous_month = current_year_latest - pd.DateOffset(months=1)
+
+        # 计算同比月份（去年同期）
+        same_month_last_year = current_year_latest - pd.DateOffset(years=1)
+
+        return {
+            'latest_month': current_year_latest,
+            'previous_month': previous_month,
+            'same_month_last_year': same_month_last_year,
+            'current_year': current_year,
+            'data_range': f"{earliest_month.strftime('%Y-%m')} 至 {latest_month.strftime('%Y-%m')}"
+        }
+    except Exception as e:
+        st.error(f"时间范围计算出错: {str(e)}")
+        # 返回默认值
+        return {
+            'latest_month': pd.Timestamp('2025-04'),
+            'previous_month': pd.Timestamp('2025-03'),
+            'same_month_last_year': pd.Timestamp('2024-04'),
+            'current_year': 2025,
+            'data_range': "2024-01 至 2025-04"
+        }
+
 # 添加缓存函数来优化BCG矩阵计算
 @st.cache_data
-def analyze_product_bcg_cached(sales_df, dashboard_products, year, region=None):
-    """缓存BCG矩阵分析结果"""
+def analyze_product_bcg_cached(sales_df, dashboard_products, time_info, region=None):
+    """缓存BCG矩阵分析结果（使用动态时间）"""
     if region:
         sales_df = sales_df[sales_df['区域'] == region]
-    return analyze_product_bcg_comprehensive(sales_df, dashboard_products)
+    return analyze_product_bcg_comprehensive(sales_df, dashboard_products, time_info)
 
 
 # 添加缓存函数来优化促销分析
 @st.cache_data
-def analyze_promotion_cached(promotion_df, sales_df):
-    """缓存促销分析结果 - 版本2.0"""
+def analyze_promotion_cached(promotion_df, sales_df, time_info):
+    """缓存促销分析结果（使用动态时间）"""
     data = {
         'promotion_df': promotion_df,
         'sales_df': sales_df
     }
-    return analyze_promotion_effectiveness_enhanced(data)
+    return analyze_promotion_effectiveness_enhanced(data, time_info)
 
 
 # 添加缓存函数来优化产品关联网络
@@ -629,13 +759,13 @@ def create_regional_penetration_analysis_cached(sales_df, new_products):
 
 
 @st.cache_data
-def analyze_growth_rates_cached(sales_df, dashboard_products):
-    """缓存增长率分析结果"""
+def analyze_growth_rates_cached(sales_df, dashboard_products, time_info):
+    """缓存增长率分析结果（使用动态时间）"""
     data = {
         'sales_df': sales_df,
         'dashboard_products': dashboard_products
     }
-    return analyze_product_growth_rates(data)
+    return analyze_product_growth_rates(data, time_info)
 
 
 # 计算总体指标（基于后续所有分析）- 添加缓存
@@ -643,17 +773,19 @@ def analyze_growth_rates_cached(sales_df, dashboard_products):
 # 计算总体指标（基于后续所有分析）- 修改缓存键强制刷新
 # 计算总体指标（基于后续所有分析）- 添加缓存
 @st.cache_data
-def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashboard_products, promotion_df):
-    """计算产品情况总览的各项指标（总销售额计算所有产品，其他指标基于仪表盘产品）"""
-    # 2025年数据
-    sales_2025 = sales_df[sales_df['发运月份'].dt.year == 2025]
+def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashboard_products, promotion_df, time_info):
+    """计算产品情况总览的各项指标（使用动态时间范围）"""
+    current_year = time_info['current_year']
+
+    # 当前年份数据
+    sales_current_year = sales_df[sales_df['发运月份'].dt.year == current_year]
 
     # 总销售额 - 计算所有产品并四舍五入
-    total_sales = round(sales_2025['销售额'].sum())
+    total_sales = round(sales_current_year['销售额'].sum())
 
     # 星品和新品销售额 - 在所有产品中查找星品和新品
-    star_sales = sales_2025[sales_2025['产品代码'].isin(star_products)]['销售额'].sum()
-    new_sales = sales_2025[sales_2025['产品代码'].isin(new_products)]['销售额'].sum()
+    star_sales = sales_current_year[sales_current_year['产品代码'].isin(star_products)]['销售额'].sum()
+    new_sales = sales_current_year[sales_current_year['产品代码'].isin(new_products)]['销售额'].sum()
 
     # 占比计算 - 基于所有产品的总销售额
     star_ratio = (star_sales / total_sales * 100) if total_sales > 0 else 0
@@ -661,17 +793,19 @@ def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashb
     total_ratio = star_ratio + new_ratio
 
     # 新品渗透率 - 基于所有客户
-    total_customers = sales_2025['客户名称'].nunique()
-    new_customers = sales_2025[sales_2025['产品代码'].isin(new_products)]['客户名称'].nunique()
+    total_customers = sales_current_year['客户名称'].nunique()
+    new_customers = sales_current_year[sales_current_year['产品代码'].isin(new_products)]['客户名称'].nunique()
     penetration_rate = (new_customers / total_customers * 100) if total_customers > 0 else 0
 
     # BCG分析 - 只分析仪表盘产品
-    dashboard_sales_2025 = sales_2025[sales_2025['产品代码'].isin(dashboard_products)]
-    product_analysis = analyze_product_bcg_comprehensive(dashboard_sales_2025, dashboard_products)
+    dashboard_sales_current = sales_current_year[sales_current_year['产品代码'].isin(dashboard_products)]
+    product_analysis = analyze_product_bcg_comprehensive(sales_df, dashboard_products, time_info)
 
-    total_bcg_sales = product_analysis['sales'].sum()
-    cow_sales = product_analysis[product_analysis['category'] == 'cow']['sales'].sum()
-    star_question_sales = product_analysis[product_analysis['category'].isin(['star', 'question'])]['sales'].sum()
+    total_bcg_sales = product_analysis['sales'].sum() if len(product_analysis) > 0 else 0
+    cow_sales = product_analysis[product_analysis['category'] == 'cow']['sales'].sum() if len(
+        product_analysis) > 0 else 0
+    star_question_sales = product_analysis[product_analysis['category'].isin(['star', 'question'])][
+        'sales'].sum() if len(product_analysis) > 0 else 0
 
     cow_ratio = cow_sales / total_bcg_sales * 100 if total_bcg_sales > 0 else 0
     star_question_ratio = star_question_sales / total_bcg_sales * 100 if total_bcg_sales > 0 else 0
@@ -683,12 +817,12 @@ def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashb
         'promotion_df': promotion_df,
         'sales_df': sales_df
     }
-    promo_results = analyze_promotion_effectiveness_enhanced(data)
+    promo_results = analyze_promotion_effectiveness_enhanced(data, time_info)
     promo_effectiveness = (promo_results['is_effective'].sum() / len(promo_results) * 100) if len(
         promo_results) > 0 else 0
 
     # 有效产品分析 - 只分析仪表盘产品
-    effective_rate_all = calculate_effective_products_rate(sales_2025, dashboard_products)
+    effective_rate_all = calculate_effective_products_rate(sales_current_year, dashboard_products)
 
     # 计算有效产品详细数据 - 只分析仪表盘产品
     data = {
@@ -714,16 +848,17 @@ def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashb
         'promo_effectiveness': promo_effectiveness,
         'effective_products_rate': effective_rate_all,
         'effective_products_count': effective_count,
-        'avg_effective_sales': avg_effective_sales
+        'avg_effective_sales': avg_effective_sales,
+        'current_year': current_year,
+        'data_range': time_info['data_range']
     }
 
-
-def analyze_product_bcg_comprehensive(sales_df, dashboard_products):
-    """分析产品BCG矩阵数据，包括所有仪表盘产品"""
+def analyze_product_bcg_comprehensive(sales_df, dashboard_products, time_info):
+    """分析产品BCG矩阵数据，使用动态时间范围"""
     if len(sales_df) == 0:
         return pd.DataFrame()
 
-    current_year = 2025
+    current_year = time_info['current_year']
     current_data = sales_df[sales_df['发运月份'].dt.year == current_year]
     prev_data = sales_df[sales_df['发运月份'].dt.year == current_year - 1]
 
@@ -794,7 +929,6 @@ def analyze_product_bcg_comprehensive(sales_df, dashboard_products):
             })
 
     return pd.DataFrame(product_stats)
-
 
 def create_bcg_matrix(data, dimension='national', selected_region=None):
     """创建BCG矩阵分析"""
@@ -1028,8 +1162,8 @@ def get_strategy_suggestion(category):
 # 修改促销活动有效性分析函数
 # 修改促销活动有效性分析函数
 # 修改促销活动有效性分析函数
-def analyze_promotion_effectiveness_enhanced(data):
-    """基于实际促销周期的有效性分析（使用日均销售额标准化）"""
+def analyze_promotion_effectiveness_enhanced(data, time_info):
+    """基于实际促销周期的有效性分析（使用动态时间）"""
     promotion_df = data['promotion_df']
     sales_df = data['sales_df']
 
@@ -1630,8 +1764,8 @@ def create_real_product_network(data, product_filter='all'):
 
 # 促销活动柱状图
 # 促销活动柱状图
-def create_optimized_promotion_chart(promo_results):
-    """创建基于日均销售额的促销活动有效性柱状图"""
+def create_optimized_promotion_chart(promo_results, time_info):
+    """创建基于日均销售额的促销活动有效性柱状图（显示动态时间范围）"""
     if len(promo_results) == 0:
         return None
 
@@ -1647,7 +1781,7 @@ def create_optimized_promotion_chart(promo_results):
             elif field == 'daily_avg_sales':
                 promo_results[field] = promo_results.get('sales', 0) / 30  # 估算日均
             elif field in ['promo_start', 'promo_end']:
-                promo_results[field] = '2025-04-01'  # 默认日期
+                promo_results[field] = time_info['latest_month'].strftime('%Y-%m-01')  # 使用动态日期
             elif field == 'promo_duration':
                 promo_results[field] = 30  # 默认30天
 
@@ -1664,8 +1798,8 @@ def create_optimized_promotion_chart(promo_results):
         is_new_product = row.get('is_new_product', False)
         is_short_term = row.get('is_short_term', True)
         daily_avg_sales = row.get('daily_avg_sales', 0)
-        promo_start = row.get('promo_start', '2025-04-01')
-        promo_end = row.get('promo_end', '2025-04-30')
+        promo_start = row.get('promo_start', time_info['latest_month'].strftime('%Y-%m-01'))
+        promo_end = row.get('promo_end', time_info['latest_month'].strftime('%Y-%m-30'))
         promo_duration = row.get('promo_duration', 30)
 
         # 根据是否为新品调整hover文本
@@ -1721,13 +1855,13 @@ def create_optimized_promotion_chart(promo_results):
     effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
     max_sales = y_values.max() if len(y_values) > 0 and y_values.max() > 0 else 1000
 
-    # 计算促销时间范围
+    # 计算促销时间范围 - 使用动态时间
     try:
         all_start_dates = pd.to_datetime(promo_results['promo_start'])
         all_end_dates = pd.to_datetime(promo_results['promo_end'])
         time_range = f"{all_start_dates.min().strftime('%Y-%m-%d')} 至 {all_end_dates.max().strftime('%Y-%m-%d')}"
     except:
-        time_range = "2025年1-7月"
+        time_range = time_info['data_range']
 
     # 统计促销类型
     short_term_count = promo_results.get('is_short_term', pd.Series([True] * len(promo_results))).sum()
@@ -2025,15 +2159,15 @@ def create_effective_products_chart(product_df, title="有效产品分析"):
 
 
 # 新增：产品环比同比分析函数
-def analyze_product_growth_rates(data):
-    """分析所有仪表盘产品的环比同比增长率"""
+def analyze_product_growth_rates(data, time_info):
+    """分析所有仪表盘产品的环比同比增长率（使用动态时间）"""
     sales_df = data['sales_df']
     dashboard_products = data['dashboard_products']
 
-    # 获取最新月份（2025年4月）
-    latest_month = pd.Timestamp('2025-04')
-    previous_month = pd.Timestamp('2025-03')
-    same_month_last_year = pd.Timestamp('2024-04')
+    # 使用动态时间
+    latest_month = time_info['latest_month']
+    previous_month = time_info['previous_month']
+    same_month_last_year = time_info['same_month_last_year']
 
     product_growth_stats = []
 
@@ -2120,8 +2254,8 @@ def analyze_product_growth_rates(data):
 
 
 # 新增：创建环比同比分析图表
-def create_growth_rate_charts(growth_df):
-    """创建环比同比分析图表"""
+def create_growth_rate_charts(growth_df, time_info):
+    """创建环比同比分析图表（显示动态时间信息）"""
     # 只显示有当前销售数据的产品
     active_products = growth_df[growth_df['has_current_sales'] == True].copy()
 
@@ -2142,8 +2276,12 @@ def create_growth_rate_charts(growth_df):
         arrow_up = '↑'
         arrow_down = '↓'
 
+        # 使用动态时间信息
+        current_month = time_info['latest_month'].strftime('%Y-%m')
+        previous_month = time_info['previous_month'].strftime('%Y-%m')
+
         hover_text = f"""<b>{row['product_name']} ({row['product_code']})</b><br>
-<br><b>环比分析（2025年4月 vs 3月）:</b><br>
+<br><b>环比分析（{current_month} vs {previous_month}）:</b><br>
 - 当月销售额: ¥{row['current_sales']:,.0f}<br>
 - 上月销售额: ¥{row['previous_sales']:,.0f}<br>
 - 销售额环比: {arrow_up if row['mom_sales_growth'] > 0 else arrow_down}{abs(row['mom_sales_growth']):.1f}%<br>
@@ -2171,9 +2309,13 @@ def create_growth_rate_charts(growth_df):
     positive_count_mom = (active_products['mom_sales_growth'] > 0).sum()
     total_count = len(active_products)
 
+    # 使用动态时间信息更新标题
+    current_month = time_info['latest_month'].strftime('%Y年%m月')
+    previous_month = time_info['previous_month'].strftime('%Y年%m月')
+
     fig_mom.update_layout(
         title=dict(
-            text=f"<b>产品环比增长率分析</b><br>正增长产品: {positive_count_mom}/{total_count} ({positive_count_mom / total_count * 100:.1f}%)",
+            text=f"<b>产品环比增长率分析（{current_month} vs {previous_month}）</b><br>正增长产品: {positive_count_mom}/{total_count} ({positive_count_mom / total_count * 100:.1f}%)",
             font=dict(size=20),
             x=0.5
         ),
@@ -2204,10 +2346,14 @@ def create_growth_rate_charts(growth_df):
         arrow_up = '↑'
         arrow_down = '↓'
 
+        # 使用动态时间信息
+        current_month = time_info['latest_month'].strftime('%Y-%m')
+        last_year_month = time_info['same_month_last_year'].strftime('%Y-%m')
+
         if row['is_new_product']:
             hover_text = f"""<b>{row['product_name']} ({row['product_code']})</b><br>
 <b>产品类型:</b> 🌟 新品<br>
-<br><b>同比分析（2025年4月 vs 2024年4月）:</b><br>
+<br><b>同比分析（{current_month} vs {last_year_month}）:</b><br>
 - 当期销售额: ¥{row['current_sales']:,.0f}<br>
 - 去年同期: 无数据（新品）<br>
 - 当期箱数: {row['current_boxes']:,.0f}箱<br>
@@ -2215,7 +2361,7 @@ def create_growth_rate_charts(growth_df):
 新品上市，需要重点关注市场反馈"""
         else:
             hover_text = f"""<b>{row['product_name']} ({row['product_code']})</b><br>
-<br><b>同比分析（2025年4月 vs 2024年4月）:</b><br>
+<br><b>同比分析（{current_month} vs {last_year_month}）:</b><br>
 - 当期销售额: ¥{row['current_sales']:,.0f}<br>
 - 去年同期: ¥{row['last_year_sales']:,.0f}<br>
 - 销售额同比: {arrow_up if row['yoy_sales_growth'] > 0 else arrow_down}{abs(row['yoy_sales_growth']):.1f}%<br>
@@ -2270,9 +2416,13 @@ def create_growth_rate_charts(growth_df):
     new_count = active_products['is_new_product'].sum()
     non_new_count = total_count - new_count
 
+    # 使用动态时间信息更新标题
+    current_year = time_info['current_year']
+    last_year = current_year - 1
+
     fig_yoy.update_layout(
         title=dict(
-            text=f"<b>产品同比增长率分析</b><br>正增长: {positive_count_yoy}/{non_new_count}个老品 | 新品: {new_count}个",
+            text=f"<b>产品同比增长率分析（{current_year} vs {last_year}）</b><br>正增长: {positive_count_yoy}/{non_new_count}个老品 | 新品: {new_count}个",
             font=dict(size=20),
             x=0.5
         ),
@@ -2295,7 +2445,33 @@ def create_growth_rate_charts(growth_df):
 
 
 # 主页面
+# 主页面
 def main():
+    # 检查认证状态 - 使用附件一的认证系统
+    if not fixed_authentication_check():
+        show_auth_required_page()
+        st.stop()
+
+    # 显示当前用户信息和登出按钮
+    col1, col2, col3 = st.columns([5, 2, 1])
+
+    with col2:
+        if hasattr(st.session_state, 'display_name') and st.session_state.display_name:
+            st.info(f"👤 {st.session_state.display_name}")
+        elif hasattr(st.session_state, 'username') and st.session_state.username:
+            st.info(f"👤 {st.session_state.username}")
+
+    with col3:
+        if st.button("🚪 登出", key="logout_btn"):
+            # 清理认证状态 - 与附件一保持一致
+            st.session_state.authenticated = False
+            st.session_state.username = ""
+            st.session_state.user_role = ""
+            st.session_state.display_name = ""
+            st.success("已成功登出！")
+            time.sleep(1)
+            st.rerun()
+
     st.markdown("""
     <div class="main-header">
         <h1>📦 产品组合分析</h1>
@@ -2303,10 +2479,17 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # 加载数据（移除了缓存按钮代码）
+    # 加载数据
     data = load_data()
     if data is None:
         return
+
+    # 获取时间信息
+    time_info = data['time_info']
+
+    # 显示数据时间范围
+    st.info(
+        f"📅 **数据时间范围**: {time_info['data_range']} | **当前分析年份**: {time_info['current_year']} | **最新月份**: {time_info['latest_month'].strftime('%Y-%m')}")
 
     # 创建标签页
     tab_names = [
@@ -2326,7 +2509,8 @@ def main():
             data['star_products'],
             data['new_products'],
             data['dashboard_products'],
-            data['promotion_df']
+            data['promotion_df'],
+            time_info
         )
 
         # 第一行：4个卡片
@@ -2343,7 +2527,7 @@ def main():
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-value">{sales_text}</div>
-                <div class="metric-label">💰 2025总销售额</div>
+                <div class="metric-label">💰 {metrics['current_year']}总销售额</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -2447,7 +2631,7 @@ def main():
             product_analysis = analyze_product_bcg_cached(
                 data['sales_df'][data['sales_df']['产品代码'].isin(data['dashboard_products'])],
                 data['dashboard_products'],
-                2025
+                time_info
             )
             title = "BCG产品矩阵"
             selected_region = None
@@ -2457,7 +2641,7 @@ def main():
             product_analysis = analyze_product_bcg_cached(
                 data['sales_df'][data['sales_df']['产品代码'].isin(data['dashboard_products'])],
                 data['dashboard_products'],
-                2025,
+                time_info,
                 selected_region
             )
             title = f"{selected_region}区域 BCG产品矩阵"
@@ -2504,142 +2688,143 @@ def main():
         else:
             st.warning("该区域暂无产品数据")
 
-        # Tab 3: 全国促销活动有效性
-        with tabs[2]:
-            # 添加缓存清理按钮
-            col1, col2, col3 = st.columns([2, 1, 1])
-            with col3:
-                if st.button("🔄 刷新数据", key="clear_promo_cache"):
-                    clear_promotion_cache()
-                    st.rerun()
+    # Tab 3: 全国促销活动有效性
+    with tabs[2]:
+        # 添加缓存清理按钮
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col3:
+            if st.button("🔄 刷新数据", key="clear_promo_cache"):
+                clear_promotion_cache()
+                st.rerun()
 
-            try:
-                promo_results = analyze_promotion_cached(data['promotion_df'], data['sales_df'])
+        try:
+            promo_results = analyze_promotion_cached(data['promotion_df'], data['sales_df'], time_info)
 
-                if len(promo_results) > 0:
-                    # 计算有效率并显示在标题中
-                    effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
+            if len(promo_results) > 0:
+                # 计算有效率并显示在标题中
+                effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
 
-                    # 促销活动效果图表
-                    st.markdown(f"""
-                    <div class="promo-header">
-                        <h2>🚀 全国促销活动有效性分析</h2>
-                        <h3>基于实际促销周期和日均销售额的精确分析 | 总体有效率: {effectiveness_rate:.1f}% ({promo_results['is_effective'].sum()}/{len(promo_results)})</h3>
-                    </div>
-                    """, unsafe_allow_html=True)
+                # 促销活动效果图表
+                st.markdown(f"""
+                <div class="promo-header">
+                    <h2>🚀 全国促销活动有效性分析</h2>
+                    <h3>基于实际促销周期和日均销售额的精确分析 | 总体有效率: {effectiveness_rate:.1f}% ({promo_results['is_effective'].sum()}/{len(promo_results)})</h3>
+                </div>
+                """, unsafe_allow_html=True)
 
-                    fig = create_optimized_promotion_chart(promo_results)
-                    if fig:
-                        st.plotly_chart(fig, use_container_width=True)
+                fig = create_optimized_promotion_chart(promo_results, time_info)
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
 
-                    # 促销洞察分析
-                    with st.expander("💡 促销活动深度洞察（基于日均销售额分析）", expanded=True):
-                        col1, col2 = st.columns(2)
+                # 促销洞察分析
+                with st.expander("💡 促销活动深度洞察（基于日均销售额分析）", expanded=True):
+                    col1, col2 = st.columns(2)
 
-                        with col1:
-                            effective_products = promo_results[promo_results['is_effective'] == True]
-                            ineffective_products = promo_results[promo_results['is_effective'] == False]
+                    with col1:
+                        effective_products = promo_results[promo_results['is_effective'] == True]
+                        ineffective_products = promo_results[promo_results['is_effective'] == False]
 
-                            # 有效产品统计
-                            avg_daily_sales_effective = effective_products.get('daily_avg_sales',
+                        # 有效产品统计
+                        avg_daily_sales_effective = effective_products.get('daily_avg_sales',
+                                                                           pd.Series([0])).mean() if len(
+                            effective_products) > 0 else 0
+                        avg_duration_effective = effective_products.get('promo_duration',
+                                                                        pd.Series([30])).mean() if len(
+                            effective_products) > 0 else 0
+                        avg_mom_effective = effective_products.get('mom_growth', pd.Series([0])).mean() if len(
+                            effective_products) > 0 else 0
+
+                        effective_text = f"""**🎯 有效促销产品特征**
+- 有效产品数: {len(effective_products)}个
+- 平均日均销售额: ¥{avg_daily_sales_effective:,.0f}
+- 平均促销时长: {avg_duration_effective:.1f}天
+- 平均日均环比增长: {avg_mom_effective:.1f}%
+- 平均总销售额: ¥{effective_products['sales'].mean() if len(effective_products) > 0 else 0:,.0f}"""
+
+                        st.info(effective_text)
+
+                    with col2:
+                        # 无效产品统计
+                        avg_daily_sales_ineffective = ineffective_products.get('daily_avg_sales',
                                                                                pd.Series([0])).mean() if len(
-                                effective_products) > 0 else 0
-                            avg_duration_effective = effective_products.get('promo_duration',
+                            ineffective_products) > 0 else 0
+                        avg_duration_ineffective = ineffective_products.get('promo_duration',
                                                                             pd.Series([30])).mean() if len(
-                                effective_products) > 0 else 0
-                            avg_mom_effective = effective_products.get('mom_growth', pd.Series([0])).mean() if len(
-                                effective_products) > 0 else 0
+                            ineffective_products) > 0 else 0
+                        avg_mom_ineffective = ineffective_products.get('mom_growth', pd.Series([0])).mean() if len(
+                            ineffective_products) > 0 else 0
 
-                            effective_text = f"""**🎯 有效促销产品特征**
-    - 有效产品数: {len(effective_products)}个
-    - 平均日均销售额: ¥{avg_daily_sales_effective:,.0f}
-    - 平均促销时长: {avg_duration_effective:.1f}天
-    - 平均日均环比增长: {avg_mom_effective:.1f}%
-    - 平均总销售额: ¥{effective_products['sales'].mean() if len(effective_products) > 0 else 0:,.0f}"""
+                        ineffective_text = f"""**⚠️ 无效促销产品分析**
+- 无效产品数: {len(ineffective_products)}个
+- 平均日均销售额: ¥{avg_daily_sales_ineffective:,.0f}
+- 平均促销时长: {avg_duration_ineffective:.1f}天
+- 平均日均环比增长: {avg_mom_ineffective:.1f}%
+- 平均总销售额: ¥{ineffective_products['sales'].mean() if len(ineffective_products) > 0 else 0:,.0f}"""
 
-                            st.info(effective_text)
+                        st.warning(ineffective_text)
 
-                        with col2:
-                            # 无效产品统计
-                            avg_daily_sales_ineffective = ineffective_products.get('daily_avg_sales',
-                                                                                   pd.Series([0])).mean() if len(
-                                ineffective_products) > 0 else 0
-                            avg_duration_ineffective = ineffective_products.get('promo_duration',
-                                                                                pd.Series([30])).mean() if len(
-                                ineffective_products) > 0 else 0
-                            avg_mom_ineffective = ineffective_products.get('mom_growth', pd.Series([0])).mean() if len(
-                                ineffective_products) > 0 else 0
+                    # 新品促销分析
+                    new_products_promo = promo_results[promo_results.get('is_new_product', False) == True]
+                    if len(new_products_promo) > 0:
+                        new_effective = new_products_promo['is_effective'].sum()
+                        new_avg_daily = new_products_promo.get('daily_avg_sales', pd.Series([0])).mean()
+                        new_avg_growth = new_products_promo.get('mom_growth', pd.Series([0])).mean()
 
-                            ineffective_text = f"""**⚠️ 无效促销产品分析**
-    - 无效产品数: {len(ineffective_products)}个
-    - 平均日均销售额: ¥{avg_daily_sales_ineffective:,.0f}
-    - 平均促销时长: {avg_duration_ineffective:.1f}天
-    - 平均日均环比增长: {avg_mom_ineffective:.1f}%
-    - 平均总销售额: ¥{ineffective_products['sales'].mean() if len(ineffective_products) > 0 else 0:,.0f}"""
+                        new_promo_text = f"""**🌟 新品促销分析**
+- 新品促销数: {len(new_products_promo)}个
+- 有效新品数: {new_effective}个
+- 新品有效率: {new_effective / len(new_products_promo) * 100:.1f}%
+- 新品平均日均销售额: ¥{new_avg_daily:,.0f}
+- 新品平均日均环比增长: {new_avg_growth:.1f}%
+- 判断标准: 新品需日均环比增长≥15%"""
 
-                            st.warning(ineffective_text)
+                        st.success(new_promo_text)
 
-                        # 新品促销分析
-                        new_products_promo = promo_results[promo_results.get('is_new_product', False) == True]
-                        if len(new_products_promo) > 0:
-                            new_effective = new_products_promo['is_effective'].sum()
-                            new_avg_daily = new_products_promo.get('daily_avg_sales', pd.Series([0])).mean()
-                            new_avg_growth = new_products_promo.get('mom_growth', pd.Series([0])).mean()
+                    # 促销类型分析
+                    short_term_promo = promo_results[promo_results.get('is_short_term', True) == True]
+                    long_term_promo = promo_results[promo_results.get('is_short_term', True) == False]
 
-                            new_promo_text = f"""**🌟 新品促销分析**
-    - 新品促销数: {len(new_products_promo)}个
-    - 有效新品数: {new_effective}个
-    - 新品有效率: {new_effective / len(new_products_promo) * 100:.1f}%
-    - 新品平均日均销售额: ¥{new_avg_daily:,.0f}
-    - 新品平均日均环比增长: {new_avg_growth:.1f}%
-    - 判断标准: 新品需日均环比增长≥15%"""
+                    col3, col4 = st.columns(2)
 
-                            st.success(new_promo_text)
+                    with col3:
+                        if len(short_term_promo) > 0:
+                            short_effective = short_term_promo['is_effective'].sum()
+                            short_avg_daily = short_term_promo.get('daily_avg_sales', pd.Series([0])).mean()
 
-                        # 促销类型分析
-                        short_term_promo = promo_results[promo_results.get('is_short_term', True) == True]
-                        long_term_promo = promo_results[promo_results.get('is_short_term', True) == False]
+                            st.info(f"""**⚡ 短期促销分析（≤15天）**
+- 短期促销数: {len(short_term_promo)}个
+- 有效数量: {short_effective}个
+- 有效率: {short_effective / len(short_term_promo) * 100:.1f}%
+- 平均日均销售额: ¥{short_avg_daily:,.0f}
+- 判断标准: 三指标中至少2个≥10%""")
 
-                        col3, col4 = st.columns(2)
+                    with col4:
+                        if len(long_term_promo) > 0:
+                            long_effective = long_term_promo['is_effective'].sum()
+                            long_avg_daily = long_term_promo.get('daily_avg_sales', pd.Series([0])).mean()
 
-                        with col3:
-                            if len(short_term_promo) > 0:
-                                short_effective = short_term_promo['is_effective'].sum()
-                                short_avg_daily = short_term_promo.get('daily_avg_sales', pd.Series([0])).mean()
+                            st.info(f"""**📅 长期促销分析（>15天）**
+- 长期促销数: {len(long_term_promo)}个
+- 有效数量: {long_effective}个
+- 有效率: {long_effective / len(long_term_promo) * 100:.1f}%
+- 平均日均销售额: ¥{long_avg_daily:,.0f}
+- 判断标准: 三指标中至少2个≥5%""")
 
-                                st.info(f"""**⚡ 短期促销分析（≤15天）**
-    - 短期促销数: {len(short_term_promo)}个
-    - 有效数量: {short_effective}个
-    - 有效率: {short_effective / len(short_term_promo) * 100:.1f}%
-    - 平均日均销售额: ¥{short_avg_daily:,.0f}
-    - 判断标准: 三指标中至少2个≥10%""")
+                    # 促销策略建议
+                    st.success(f"""**📈 促销策略建议**
+- 分析覆盖{time_info['data_range']}促销活动
+- 短期促销更适合爆发式增长需求
+- 长期促销更适合稳定市场渗透
+- 新品促销需要更高的增长目标
+- 建议优先推广有效产品，调整无效产品策略""")
+            else:
+                st.info("暂无全国促销活动数据")
+        except Exception as e:
+            st.error(f"数据分析出现问题，请点击'🔄 刷新数据'按钮重新加载。错误信息：{str(e)}")
+            if st.button("🔄 立即刷新", key="immediate_refresh"):
+                clear_promotion_cache()
+                st.rerun()
 
-                        with col4:
-                            if len(long_term_promo) > 0:
-                                long_effective = long_term_promo['is_effective'].sum()
-                                long_avg_daily = long_term_promo.get('daily_avg_sales', pd.Series([0])).mean()
-
-                                st.info(f"""**📅 长期促销分析（>15天）**
-    - 长期促销数: {len(long_term_promo)}个
-    - 有效数量: {long_effective}个
-    - 有效率: {long_effective / len(long_term_promo) * 100:.1f}%
-    - 平均日均销售额: ¥{long_avg_daily:,.0f}
-    - 判断标准: 三指标中至少2个≥5%""")
-
-                        # 促销策略建议
-                        st.success(f"""**📈 促销策略建议**
-    - 分析覆盖2025年1-7月促销活动
-    - 短期促销更适合爆发式增长需求
-    - 长期促销更适合稳定市场渗透
-    - 新品促销需要更高的增长目标
-    - 建议优先推广有效产品，调整无效产品策略""")
-                else:
-                    st.info("暂无全国促销活动数据")
-            except Exception as e:
-                st.error(f"数据分析出现问题，请点击'🔄 刷新数据'按钮重新加载。错误信息：{str(e)}")
-                if st.button("🔄 立即刷新", key="immediate_refresh"):
-                    clear_promotion_cache()
-                    st.rerun()
     # Tab 4: 星品新品达成
     with tabs[3]:
         # 选择控件
@@ -2649,12 +2834,15 @@ def main():
         star_products = data['star_products']
         new_products = data['new_products']
         star_new_products = list(set(star_products + new_products))
+        current_year = time_info['current_year']
 
         if view_type == "按区域":
-            # 区域分析
+            # 区域分析 - 使用当前年份数据
             region_stats = []
-            for region in sales_df['区域'].unique():
-                region_data = sales_df[sales_df['区域'] == region]
+            current_year_data = sales_df[sales_df['发运月份'].dt.year == current_year]
+
+            for region in current_year_data['区域'].unique():
+                region_data = current_year_data[current_year_data['区域'] == region]
                 total_sales = region_data['销售额'].sum()
                 star_new_sales = region_data[region_data['产品代码'].isin(star_new_products)]['销售额'].sum()
                 ratio = (star_new_sales / total_sales * 100) if total_sales > 0 else 0
@@ -2706,7 +2894,7 @@ def main():
                           annotation_text="目标线 20%", annotation_position="right")
 
             fig.update_layout(
-                title="各区域星品&新品占比达成情况",
+                title=f"各区域星品&新品占比达成情况（{current_year}年）",
                 xaxis_title="销售区域",
                 yaxis_title="占比 (%)",
                 height=500,
@@ -2717,10 +2905,12 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
 
         elif view_type == "按销售员":
-            # 销售员分析
+            # 销售员分析 - 使用当前年份数据
             salesperson_stats = []
-            for person in sales_df['销售员'].unique():
-                person_data = sales_df[sales_df['销售员'] == person]
+            current_year_data = sales_df[sales_df['发运月份'].dt.year == current_year]
+
+            for person in current_year_data['销售员'].unique():
+                person_data = current_year_data[current_year_data['销售员'] == person]
                 total_sales = person_data['销售额'].sum()
                 star_new_sales = person_data[person_data['产品代码'].isin(star_new_products)]['销售额'].sum()
                 ratio = (star_new_sales / total_sales * 100) if total_sales > 0 else 0
@@ -2772,7 +2962,7 @@ def main():
                           annotation_text="目标线 20%", annotation_position="right")
 
             fig.update_layout(
-                title=f"全部销售员星品&新品占比达成情况（共{len(person_df)}人）",
+                title=f"全部销售员星品&新品占比达成情况（{current_year}年，共{len(person_df)}人）",
                 xaxis_title="销售员",
                 yaxis_title="占比 (%)",
                 height=600,
@@ -2788,10 +2978,14 @@ def main():
                 f"📊 达成率统计：{achieved_count}/{len(person_df)}人达标（{achieved_count / len(person_df) * 100:.1f}%）")
 
         else:  # 趋势分析
-            # 趋势分析
+            # 趋势分析 - 动态时间范围
             monthly_stats = []
 
-            for month in pd.date_range(start='2024-01', end='2025-04', freq='M'):
+            # 动态生成月份范围
+            latest_month = time_info['latest_month']
+            start_month = latest_month - pd.DateOffset(months=12)  # 显示最近12个月
+
+            for month in pd.date_range(start=start_month, end=latest_month, freq='M'):
                 month_data = sales_df[
                     (sales_df['发运月份'].dt.year == month.year) &
                     (sales_df['发运月份'].dt.month == month.month)
@@ -2838,7 +3032,7 @@ def main():
                           annotation_text="目标线 20%", annotation_position="right")
 
             fig.update_layout(
-                title="星品&新品占比月度趋势",
+                title=f"星品&新品占比月度趋势（最近12个月至{latest_month.strftime('%Y-%m')}）",
                 xaxis_title="月份",
                 yaxis_title="占比 (%)",
                 height=500,
@@ -2981,18 +3175,18 @@ def main():
                 with col2:
                     top_region = penetration_df.iloc[-1]  # 因为是升序排列，最后一个是最高的
                     st.success(f"""
-                    **🏆 最佳区域**
-                    {top_region['region']}: {top_region['penetration_rate']:.1f}%
-                    客户: {top_region['new_product_customers']}/{top_region['total_customers']}
-                    """)
+                                    **🏆 最佳区域**
+                                    {top_region['region']}: {top_region['penetration_rate']:.1f}%
+                                    客户: {top_region['new_product_customers']}/{top_region['total_customers']}
+                                    """)
 
                 with col3:
                     bottom_region = penetration_df.iloc[0]  # 第一个是最低的
                     st.warning(f"""
-                    **⚠️ 待提升区域**
-                    {bottom_region['region']}: {bottom_region['penetration_rate']:.1f}%
-                    潜力: {bottom_region['total_customers'] - bottom_region['new_product_customers']}个客户
-                    """)
+                                    **⚠️ 待提升区域**
+                                    {bottom_region['region']}: {bottom_region['penetration_rate']:.1f}%
+                                    潜力: {bottom_region['total_customers'] - bottom_region['new_product_customers']}个客户
+                                    """)
 
             # 详细数据表
             with st.expander("📋 查看各区域新品渗透详情", expanded=False):
@@ -3040,27 +3234,28 @@ def main():
                     ineffective_products = product_analysis[product_analysis['is_effective'] == False]
 
                     st.info(f"""
-                    **📋 策略建议**
-                    - 有效产品（{len(effective_products)}个）：继续保持良好销售势头，可作为主推产品
-                    - 接近标准产品：月均销售10-15箱的产品，稍加推广即可达标
-                    - 低效产品：月均销售低于10箱的产品，需要重新评估市场定位
-                    - 区域差异：不同区域的有效产品可能不同，需因地制宜
-                    """)
+                                    **📋 策略建议**
+                                    - 有效产品（{len(effective_products)}个）：继续保持良好销售势头，可作为主推产品
+                                    - 接近标准产品：月均销售10-15箱的产品，稍加推广即可达标
+                                    - 低效产品：月均销售低于10箱的产品，需要重新评估市场定位
+                                    - 区域差异：不同区域的有效产品可能不同，需因地制宜
+                                    """)
             else:
                 st.warning("暂无产品数据")
 
         else:  # 环比同比分析
-            st.subheader("📊 仪表盘产品环比同比分析")
+            st.subheader(f"📊 仪表盘产品环比同比分析（{time_info['latest_month'].strftime('%Y-%m')}）")
 
-            # 分析产品增长率 - 使用缓存版本
+            # 分析产品增长率 - 使用缓存版本和动态时间
             growth_df = analyze_growth_rates_cached(
                 data['sales_df'],
-                data['dashboard_products']
+                data['dashboard_products'],
+                time_info
             )
 
             if len(growth_df) > 0:
                 # 创建环比同比图表
-                fig_mom, fig_yoy = create_growth_rate_charts(growth_df)
+                fig_mom, fig_yoy = create_growth_rate_charts(growth_df, time_info)
 
                 if fig_mom and fig_yoy:
                     # 显示环比分析
@@ -3080,14 +3275,17 @@ def main():
                             mom_negative = (active_products['mom_sales_growth'] <= 0).sum()
                             avg_mom = active_products['mom_sales_growth'].mean()
 
+                            current_month = time_info['latest_month'].strftime('%Y年%m月')
+                            previous_month = time_info['previous_month'].strftime('%Y年%m月')
+
                             st.info(f"""
-                            **📈 环比分析（4月 vs 3月）**
-                            - 正增长产品: {mom_positive}个
-                            - 负增长产品: {mom_negative}个
-                            - 平均增长率: {avg_mom:.1f}%
-                            - 最高增长: {active_products['mom_sales_growth'].max():.1f}%
-                            - 最大下滑: {active_products['mom_sales_growth'].min():.1f}%
-                            """)
+                                            **📈 环比分析（{current_month} vs {previous_month}）**
+                                            - 正增长产品: {mom_positive}个
+                                            - 负增长产品: {mom_negative}个
+                                            - 平均增长率: {avg_mom:.1f}%
+                                            - 最高增长: {active_products['mom_sales_growth'].max():.1f}%
+                                            - 最大下滑: {active_products['mom_sales_growth'].min():.1f}%
+                                            """)
 
                         with col2:
                             non_new_products = active_products[active_products['is_new_product'] == False]
@@ -3095,14 +3293,17 @@ def main():
                             yoy_negative = (non_new_products['yoy_sales_growth'] <= 0).sum()
                             avg_yoy = non_new_products['yoy_sales_growth'].mean()
 
+                            current_year = time_info['current_year']
+                            last_year = current_year - 1
+
                             st.success(f"""
-                            **📊 同比分析（2025 vs 2024）**
-                            - 正增长产品: {yoy_positive}个
-                            - 负增长产品: {yoy_negative}个
-                            - 平均增长率: {avg_yoy:.1f}%
-                            - 新品数量: {active_products['is_new_product'].sum()}个
-                            - 最高增长: {non_new_products['yoy_sales_growth'].max():.1f}%
-                            """)
+                                            **📊 同比分析（{current_year} vs {last_year}）**
+                                            - 正增长产品: {yoy_positive}个
+                                            - 负增长产品: {yoy_negative}个
+                                            - 平均增长率: {avg_yoy:.1f}%
+                                            - 新品数量: {active_products['is_new_product'].sum()}个
+                                            - 最高增长: {non_new_products['yoy_sales_growth'].max():.1f}%
+                                            """)
 
                         with col3:
                             # 双增长产品（环比同比都增长）
@@ -3113,12 +3314,12 @@ def main():
                                 ]
 
                             st.warning(f"""
-                            **⭐ 明星增长产品**
-                            - 双增长产品: {len(double_growth)}个
-                            - 占老品比例: {len(double_growth) / (len(active_products) - active_products['is_new_product'].sum()) * 100:.1f}%
-                            - 建议: 重点关注和推广
-                            - 策略: 可作为主打产品
-                            """)
+                                            **⭐ 明星增长产品**
+                                            - 双增长产品: {len(double_growth)}个
+                                            - 占老品比例: {len(double_growth) / (len(active_products) - active_products['is_new_product'].sum()) * 100:.1f}%
+                                            - 建议: 重点关注和推广
+                                            - 策略: 可作为主打产品
+                                            """)
 
                     # 产品增长明细表
                     with st.expander("📋 产品增长率明细表", expanded=False):
@@ -3146,6 +3347,5 @@ def main():
             else:
                 st.warning("暂无产品数据")
 
-
-if __name__ == "__main__":
-    main()
+        if __name__ == "__main__":
+            main()
