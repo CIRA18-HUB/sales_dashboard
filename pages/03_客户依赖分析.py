@@ -2304,6 +2304,8 @@ def main():
         if st.button("", key="tab0_hidden", help="", disabled=True, type="secondary"):
             st.session_state.active_tab = 0
 
+        # 在main函数的Tab 1中，找到核心业务指标部分，替换为以下代码：
+
         # 核心业务指标
         st.markdown("### 💰 核心业务指标")
         col1, col2, col3, col4 = st.columns(4)
@@ -2339,58 +2341,74 @@ def main():
                 """, unsafe_allow_html=True)
 
         with col4:
-            # 目标达成率 - 添加"?"图标和计算说明弹窗
-            # 添加JavaScript和CSS用于弹窗功能
+            # 目标达成率 - 修复对齐和简化弹窗内容
             st.markdown("""
             <style>
             .info-icon {
                 position: absolute;
                 bottom: 8px;
                 right: 8px;
-                width: 18px;
-                height: 18px;
+                width: 20px;
+                height: 20px;
                 background: #667eea;
                 color: white;
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 12px;
+                font-size: 14px;
                 cursor: pointer;
                 z-index: 10;
                 font-weight: bold;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
             }
 
             .info-icon:hover {
                 background: #5a67d8;
+                transform: scale(1.1);
             }
 
             .tooltip {
                 visibility: hidden;
                 position: absolute;
-                bottom: 25px;
+                bottom: 30px;
                 right: 0;
-                background: rgba(0,0,0,0.9);
+                background: rgba(0,0,0,0.92);
                 color: white;
                 text-align: left;
-                border-radius: 8px;
-                padding: 12px;
+                border-radius: 10px;
+                padding: 16px;
                 z-index: 1000;
                 opacity: 0;
-                transition: opacity 0.3s;
-                width: 300px;
-                font-size: 12px;
-                line-height: 1.4;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                transition: all 0.3s ease;
+                width: 280px;
+                font-size: 13px;
+                line-height: 1.6;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+                border: 1px solid rgba(255,255,255,0.1);
             }
 
             .info-icon:hover .tooltip {
                 visibility: visible;
                 opacity: 1;
+                transform: translateY(-5px);
             }
 
             .metric-card-with-info {
                 position: relative;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+
+            /* 确保所有指标卡片高度一致 */
+            .metric-card {
+                min-height: 140px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
             }
             </style>
             """, unsafe_allow_html=True)
@@ -2403,13 +2421,11 @@ def main():
                     <div class="info-icon">
                         ?
                         <div class="tooltip">
-                            <strong>📊 目标达成率计算说明</strong><br><br>
-                            <strong>计算方式：</strong>{metrics.get('target_calculation_method', '按发运月份统计，按时间进度调整目标')}<br>
-                            <strong>时间进度：</strong>{metrics.get('days_passed', 0)}/{metrics.get('total_days_in_year', 365)}天 
-                            ({metrics.get('time_progress', 0):.1f}%)<br>
-                            <strong>达成标准：</strong>实际销售额 ≥ (年度目标 × 时间进度 × 80%)<br>
-                            <strong>目标基准：</strong>基于历史数据调整的{metrics['current_year']}年预期目标<br>
-                            <strong>数据基准：</strong>以发运月份为统计口径
+                            <strong>📊 计算说明</strong><br><br>
+                            <strong>统计口径：</strong>按发运月份统计<br>
+                            <strong>时间进度：</strong>{metrics.get('days_passed', 0)}/{metrics.get('total_days_in_year', 365)}天 ({metrics.get('time_progress', 0):.1f}%)<br>
+                            <strong>达成标准：</strong>实际 ≥ 目标×进度×80%<br>
+                            <strong>目标基准：</strong>基于历史数据的2025年预期
                         </div>
                     </div>
                 </div>
