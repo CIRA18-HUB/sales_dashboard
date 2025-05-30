@@ -799,7 +799,7 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
 
 
 def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
-    """计算业务指标 - 调试版本，修复按发运月份计算销售额和时间进度"""
+    """计算业务指标 - 修复按年度目标计算达成率，不考虑时间进度"""
 
     print(f"=== calculate_metrics 调试信息 ===")
     print(f"输入参数 - current_year: {current_year}")
@@ -812,7 +812,7 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     closed_customers = len(customer_status[customer_status['状态'] == '闭户'])
     normal_rate = (normal_customers / total_customers * 100) if total_customers > 0 else 0
 
-    # 关键修复：确保发运月份字段正确处理
+    # 按发运月份筛选当前年度销售数据
     print(f"=== 筛选当前年度数据 ===")
 
     # 先检查发运月份字段
@@ -868,7 +868,7 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     print(f"往年同期总额: {last_year_total:,.0f}")
     print(f"同比增长率: {growth_rate:.1f}%")
 
-    # 修正时间进度计算
+    # 计算时间进度（仅用于显示，不影响目标达成率计算）
     from datetime import datetime, date
     current_date = datetime.now().date()
     year_start = date(current_year, 1, 1)
@@ -879,13 +879,13 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     days_passed = (current_date - year_start).days + 1
     time_progress = min(days_passed / total_days_in_year, 1.0)  # 确保不超过100%
 
-    print(f"=== 时间进度计算 ===")
+    print(f"=== 时间进度信息（仅供参考）===")
     print(f"当前日期: {current_date}")
     print(f"年度开始: {year_start}")
     print(f"年度结束: {year_end}")
     print(f"年度进度: {days_passed}/{total_days_in_year}天 ({time_progress * 100:.1f}%)")
 
-    # 处理目标数据
+    # 处理目标数据 - 关键修改：按年度目标计算，不考虑时间进度
     target_growth_factor = 1.1  # 2025年目标增长系数
 
     # 获取客户目标数据
@@ -893,11 +893,11 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
         ['客户', '所属大区']].drop_duplicates() if '所属大区' in monthly_data.columns else pd.DataFrame()
     customer_actual_sales = current_year_sales.groupby('经销商名称')['金额'].sum()
 
-    # 计算目标
-    adjusted_customer_targets = {}
+    # 计算年度目标
+    customer_annual_targets = {}
     total_historical_target = monthly_data['月度指标'].sum() if '月度指标' in monthly_data.columns else 0
 
-    # 为每个有实际销售的客户分配目标
+    # 为每个有实际销售的客户分配年度目标
     for customer in customer_actual_sales.index:
         # 基于历史数据估算该客户的年度目标
         historical_sales = 0
@@ -905,40 +905,40 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
             historical_sales = monthly_data[monthly_data['客户'] == customer]['往年同期'].sum()
 
         if historical_sales > 0:
-            estimated_target = historical_sales * target_growth_factor
+            estimated_annual_target = historical_sales * target_growth_factor
         else:
             avg_target = total_historical_target / len(monthly_data['客户'].unique()) if len(
                 monthly_data['客户'].unique()) > 0 else 500000
-            estimated_target = avg_target * target_growth_factor
+            estimated_annual_target = avg_target * target_growth_factor
 
-        adjusted_customer_targets[customer] = estimated_target
+        customer_annual_targets[customer] = estimated_annual_target
 
-    # 目标达成分析
+    # 关键修改：目标达成分析 - 直接按年度目标计算，不考虑时间进度
     achieved_customers = 0
-    total_target_customers = len(adjusted_customer_targets)
+    total_target_customers = len(customer_annual_targets)
     customer_achievement_details = []
 
-    print(f"=== 目标达成分析 ===")
+    print(f"=== 目标达成分析（按年度目标）===")
     print(f"需要评估的客户数: {total_target_customers}")
 
-    for customer, annual_target in adjusted_customer_targets.items():
-        # 按时间进度调整目标
-        adjusted_target = annual_target * time_progress
+    for customer, annual_target in customer_annual_targets.items():
         actual = customer_actual_sales.get(customer, 0)
 
-        if adjusted_target > 0:
-            achievement_rate = (actual / adjusted_target * 100)
-            is_achieved = actual >= adjusted_target * 0.8
+        if annual_target > 0:
+            # 关键修改：直接按年度目标计算达成率
+            achievement_rate = (actual / annual_target * 100)
+            # 达成标准：实际销售额达到年度目标的80%即视为达成
+            is_achieved = actual >= annual_target * 0.8
             if is_achieved:
                 achieved_customers += 1
 
             customer_achievement_details.append({
                 '客户': customer,
                 '年度目标': annual_target,
-                '调整后目标': adjusted_target,
                 '实际': actual,
                 '达成率': achievement_rate,
                 '状态': '达成' if is_achieved else '未达成',
+                # 保留时间进度信息用于显示
                 '时间进度': time_progress * 100
             })
 
@@ -946,6 +946,16 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
 
     print(f"目标达成客户数: {achieved_customers}/{total_target_customers}")
     print(f"目标达成率: {target_achievement_rate:.1f}%")
+
+    # 验证计算结果
+    if customer_achievement_details:
+        sample_customer = customer_achievement_details[0]
+        print(f"=== 验证计算示例 ===")
+        print(f"客户: {sample_customer['客户']}")
+        print(f"年度目标: {sample_customer['年度目标']:,.0f}")
+        print(f"实际销售: {sample_customer['实际']:,.0f}")
+        print(f"达成率: {sample_customer['达成率']:.1f}%")
+        print(f"验证计算: {sample_customer['实际'] / sample_customer['年度目标'] * 100:.1f}%")
 
     # 区域风险分析
     sales_with_region = pd.DataFrame()
@@ -1053,11 +1063,11 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
             customer_achievement_details) if customer_achievement_details else pd.DataFrame(),
         'sales_with_region': sales_with_region,
         'total_customers': total_customers,
-        # 修复的字段
+        # 修改的字段 - 明确计算方法
         'time_progress': time_progress * 100,
         'days_passed': days_passed,
         'total_days_in_year': total_days_in_year,
-        'target_calculation_method': '按发运月份统计，按天数进度调整目标'
+        'target_calculation_method': '按年度目标计算，不考虑时间进度'
     }
 
 
@@ -1763,7 +1773,7 @@ def create_timeline_chart(cycles_df):
 
 
 def create_enhanced_charts(metrics, sales_data, monthly_data):
-    """创建增强图表"""
+    """创建增强图表 - 修复目标达成散点图"""
     global ECHARTS_AVAILABLE  # 声明使用全局变量
     charts = {}
 
@@ -2021,82 +2031,112 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
         except Exception as e:
             print(f"趋势图创建失败: {e}")
 
-    # 6. 目标达成散点图（修复版本）
+    # 6. 关键修复：目标达成散点图 - 确保使用年度目标和正确的达成率
     try:
+        print(f"=== 创建目标达成散点图 ===")
         if not metrics['customer_achievement_details'].empty:
             achievement_df = metrics['customer_achievement_details'].copy()
+            print(f"原始数据行数: {len(achievement_df)}")
+            print(f"数据字段: {achievement_df.columns.tolist()}")
 
-            # 确保数据类型正确
-            achievement_df = achievement_df.dropna(subset=['年度目标', '实际'])
-            achievement_df = achievement_df[achievement_df['年度目标'] > 0]
-            achievement_df = achievement_df[achievement_df['实际'] >= 0]
-
-            if not achievement_df.empty and len(achievement_df) > 0:
-                # 计算颜色和大小
-                colors = ['#48bb78' if rate >= 100 else '#ffd93d' if rate >= 80 else '#ff6b6b'
-                          for rate in achievement_df['达成率']]
-                sizes = [max(8, min(40, rate / 5)) for rate in achievement_df['达成率']]
-
-                fig_scatter = go.Figure()
-
-                # 添加散点
-                fig_scatter.add_trace(go.Scatter(
-                    x=achievement_df['年度目标'],
-                    y=achievement_df['实际'],
-                    mode='markers',
-                    marker=dict(
-                        size=sizes,
-                        color=colors,
-                        line=dict(width=2, color='white'),
-                        opacity=0.8
-                    ),
-                    text=achievement_df['客户'],
-                    name='客户达成情况',
-                    hovertemplate='<b>%{text}</b><br>目标: ¥%{x:,.0f}<br>实际: ¥%{y:,.0f}<br>达成率: %{customdata:.1f}%<extra></extra>',
-                    customdata=achievement_df['达成率']
-                ))
-
-                # 添加参考线
-                max_val = max(achievement_df['年度目标'].max(), achievement_df['实际'].max()) * 1.1
-
-                # 100%达成线
-                fig_scatter.add_trace(go.Scatter(
-                    x=[0, max_val], y=[0, max_val], mode='lines', name='目标线(100%)',
-                    line=dict(color='#e74c3c', width=3, dash='dash'),
-                    hoverinfo='skip'
-                ))
-
-                # 80%达成线
-                fig_scatter.add_trace(go.Scatter(
-                    x=[0, max_val], y=[0, max_val * 0.8], mode='lines', name='达成线(80%)',
-                    line=dict(color='#f39c12', width=2, dash='dot'),
-                    hoverinfo='skip'
-                ))
-
-                fig_scatter.update_layout(
-                    title="客户目标 vs 实际销售额",
-                    xaxis_title="目标金额 (¥)",
-                    yaxis_title="实际金额 (¥)",
-                    height=500,
-                    hovermode='closest',
-                    plot_bgcolor='white',
-                    paper_bgcolor='white',
-                    margin=dict(t=60, b=60, l=60, r=60),
-                    xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)'),
-                    yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)'),
-                    showlegend=True
-                )
-
-                charts['target_scatter'] = fig_scatter
-                print(f"目标散点图创建成功，数据点数量: {len(achievement_df)}")
-            else:
-                print("目标达成数据为空或无效")
+            # 数据验证和清理
+            required_columns = ['年度目标', '实际', '达成率', '客户']
+            missing_columns = [col for col in required_columns if col not in achievement_df.columns]
+            if missing_columns:
+                print(f"缺少必要字段: {missing_columns}")
                 charts['target_scatter'] = None
+            else:
+                # 确保数据类型正确
+                achievement_df = achievement_df.dropna(subset=['年度目标', '实际'])
+                achievement_df = achievement_df[achievement_df['年度目标'] > 0]
+                achievement_df = achievement_df[achievement_df['实际'] >= 0]
+
+                print(f"清理后数据行数: {len(achievement_df)}")
+
+                if not achievement_df.empty and len(achievement_df) > 0:
+                    # 验证达成率计算是否正确
+                    print(f"=== 验证达成率计算 ===")
+                    for i in range(min(3, len(achievement_df))):  # 检查前3个客户
+                        row = achievement_df.iloc[i]
+                        calculated_rate = (row['实际'] / row['年度目标'] * 100)
+                        print(f"客户: {row['客户']}")
+                        print(f"  年度目标: {row['年度目标']:,.0f}")
+                        print(f"  实际销售: {row['实际']:,.0f}")
+                        print(f"  存储达成率: {row['达成率']:.1f}%")
+                        print(f"  计算达成率: {calculated_rate:.1f}%")
+                        print(f"  是否匹配: {abs(row['达成率'] - calculated_rate) < 0.1}")
+
+                    # 计算颜色和大小
+                    colors = ['#48bb78' if rate >= 100 else '#ffd93d' if rate >= 80 else '#ff6b6b'
+                              for rate in achievement_df['达成率']]
+                    sizes = [max(8, min(40, rate / 5)) for rate in achievement_df['达成率']]
+
+                    fig_scatter = go.Figure()
+
+                    # 添加散点 - 关键修改：确保使用年度目标
+                    fig_scatter.add_trace(go.Scatter(
+                        x=achievement_df['年度目标'],  # X轴：年度目标
+                        y=achievement_df['实际'],  # Y轴：实际销售额
+                        mode='markers',
+                        marker=dict(
+                            size=sizes,
+                            color=colors,
+                            line=dict(width=2, color='white'),
+                            opacity=0.8
+                        ),
+                        text=achievement_df['客户'],
+                        name='客户达成情况',
+                        # 关键修改：悬停信息确保显示正确的达成率
+                        hovertemplate='<b>%{text}</b><br>' +
+                                      '年度目标: ¥%{x:,.0f}<br>' +
+                                      '实际销售: ¥%{y:,.0f}<br>' +
+                                      '达成率: %{customdata:.1f}%<extra></extra>',
+                        customdata=achievement_df['达成率']  # 使用计算好的达成率
+                    ))
+
+                    # 添加参考线
+                    max_val = max(achievement_df['年度目标'].max(), achievement_df['实际'].max()) * 1.1
+
+                    # 100%达成线 (y = x)
+                    fig_scatter.add_trace(go.Scatter(
+                        x=[0, max_val], y=[0, max_val], mode='lines', name='目标线(100%)',
+                        line=dict(color='#e74c3c', width=3, dash='dash'),
+                        hoverinfo='skip'
+                    ))
+
+                    # 80%达成线 (y = 0.8x)
+                    fig_scatter.add_trace(go.Scatter(
+                        x=[0, max_val], y=[0, max_val * 0.8], mode='lines', name='达成线(80%)',
+                        line=dict(color='#f39c12', width=2, dash='dot'),
+                        hoverinfo='skip'
+                    ))
+
+                    fig_scatter.update_layout(
+                        title="客户年度目标 vs 实际销售额",
+                        xaxis_title="年度目标 (¥)",
+                        yaxis_title="实际销售额 (¥)",
+                        height=500,
+                        hovermode='closest',
+                        plot_bgcolor='white',
+                        paper_bgcolor='white',
+                        margin=dict(t=60, b=60, l=60, r=60),
+                        xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)'),
+                        yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)'),
+                        showlegend=True
+                    )
+
+                    charts['target_scatter'] = fig_scatter
+                    print(f"目标散点图创建成功，数据点数量: {len(achievement_df)}")
+                else:
+                    print("目标达成数据为空或无效")
+                    charts['target_scatter'] = None
         else:
             print("没有客户目标达成数据")
             charts['target_scatter'] = None
     except Exception as e:
         print(f"目标散点图创建失败: {e}")
+        import traceback
+        print(f"详细错误: {traceback.format_exc()}")
         charts['target_scatter'] = None
 
     return charts
@@ -2263,7 +2303,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # 加载数据（删除了调试工具部分）
+    # 加载数据
     with st.spinner('正在加载数据...'):
         metrics, customer_status, sales_data, monthly_data = load_and_process_data()
 
@@ -2284,7 +2324,105 @@ def main():
 
     # Tab 1: 核心指标
     with tabs[0]:
-        # 核心业务指标（修复对齐和空行问题）
+        # 关键修复：为目标达成率卡片添加完全一致的CSS样式
+        st.markdown("""
+        <style>
+        /* 确保所有指标卡片使用相同的基础样式 */
+        .metric-card {
+            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%) !important;
+            padding: 1.5rem !important; 
+            border-radius: 18px !important; 
+            text-align: center !important; 
+            height: 140px !important;
+            min-height: 140px !important;
+            max-height: 140px !important;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08), 0 3px 10px rgba(0,0,0,0.03) !important;
+            border: 1px solid rgba(255,255,255,0.3) !important;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+            animation: slideUp 0.8s ease-out !important;
+            backdrop-filter: blur(10px) !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            align-items: center !important;
+            position: relative !important;
+            overflow: hidden !important;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-8px) scale(1.02) !important;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.12), 0 10px 20px rgba(102, 126, 234, 0.15) !important;
+        }
+
+        .metric-card::before {
+            content: '' !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: -100% !important;
+            width: 100% !important;
+            height: 100% !important;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent) !important;
+            transition: left 0.6s ease !important;
+        }
+
+        .metric-card:hover::before {
+            left: 100% !important;
+        }
+
+        /* 目标达成率特殊样式 - 与其他卡片完全一致 */
+        .info-icon {
+            position: absolute !important;
+            bottom: 8px !important;
+            right: 8px !important;
+            width: 20px !important;
+            height: 20px !important;
+            background: #667eea !important;
+            color: white !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 14px !important;
+            cursor: pointer !important;
+            z-index: 10 !important;
+            font-weight: bold !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+        }
+
+        .info-icon:hover {
+            background: #5a67d8 !important;
+            transform: scale(1.1) !important;
+        }
+
+        .tooltip {
+            visibility: hidden !important;
+            position: absolute !important;
+            bottom: 30px !important;
+            right: 0 !important;
+            background: rgba(0,0,0,0.92) !important;
+            color: white !important;
+            text-align: left !important;
+            border-radius: 10px !important;
+            padding: 16px !important;
+            z-index: 1000 !important;
+            opacity: 0 !important;
+            transition: all 0.3s ease !important;
+            width: 280px !important;
+            font-size: 13px !important;
+            line-height: 1.6 !important;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3) !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+        }
+
+        .info-icon:hover .tooltip {
+            visibility: visible !important;
+            opacity: 1 !important;
+            transform: translateY(-5px) !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # 核心业务指标
         st.markdown("### 💰 核心业务指标")
         col1, col2, col3, col4 = st.columns(4)
 
@@ -2319,86 +2457,9 @@ def main():
                 """, unsafe_allow_html=True)
 
         with col4:
-            # 目标达成率 - 修复对齐问题
-            st.markdown("""
-            <style>
-            .info-icon {
-                position: absolute;
-                bottom: 8px;
-                right: 8px;
-                width: 20px;
-                height: 20px;
-                background: #667eea;
-                color: white;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 14px;
-                cursor: pointer;
-                z-index: 10;
-                font-weight: bold;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            }
-
-            .info-icon:hover {
-                background: #5a67d8;
-                transform: scale(1.1);
-            }
-
-            .tooltip {
-                visibility: hidden;
-                position: absolute;
-                bottom: 30px;
-                right: 0;
-                background: rgba(0,0,0,0.92);
-                color: white;
-                text-align: left;
-                border-radius: 10px;
-                padding: 16px;
-                z-index: 1000;
-                opacity: 0;
-                transition: all 0.3s ease;
-                width: 280px;
-                font-size: 13px;
-                line-height: 1.6;
-                box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-                border: 1px solid rgba(255,255,255,0.1);
-            }
-
-            .info-icon:hover .tooltip {
-                visibility: visible;
-                opacity: 1;
-                transform: translateY(-5px);
-            }
-
-            .metric-card-with-info {
-                position: relative;
-                background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-                padding: 1.5rem; 
-                border-radius: 18px; 
-                text-align: center; 
-                min-height: 140px;
-                box-shadow: 0 8px 25px rgba(0,0,0,0.08), 0 3px 10px rgba(0,0,0,0.03);
-                border: 1px solid rgba(255,255,255,0.3);
-                transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                animation: slideUp 0.8s ease-out;
-                backdrop-filter: blur(10px);
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-            }
-
-            .metric-card-with-info:hover {
-                transform: translateY(-8px) scale(1.02);
-                box-shadow: 0 20px 40px rgba(0,0,0,0.12), 0 10px 20px rgba(102, 126, 234, 0.15);
-            }
-            </style>
-            """, unsafe_allow_html=True)
-
+            # 关键修复：目标达成率卡片使用与其他卡片完全相同的CSS类
             st.markdown(f"""
-                <div class="metric-card-with-info">
+                <div class="metric-card">
                     <div class="metric-value">{metrics['target_achievement_rate']:.1f}%</div>
                     <div class="metric-label">目标达成率</div>
                     <div class="metric-sublabel">{metrics['achieved_customers']}/{metrics['total_target_customers']} 家达成</div>
@@ -2407,9 +2468,9 @@ def main():
                         <div class="tooltip">
                             <strong>📊 计算说明</strong><br><br>
                             <strong>统计口径：</strong>按发运月份统计<br>
-                            <strong>时间进度：</strong>{metrics.get('days_passed', 0)}/{metrics.get('total_days_in_year', 365)}天 ({metrics.get('time_progress', 0):.1f}%)<br>
-                            <strong>达成标准：</strong>实际 ≥ 目标×进度×80%<br>
-                            <strong>目标基准：</strong>基于历史数据的2025年预期
+                            <strong>计算方式：</strong>实际销售额 ÷ 年度目标<br>
+                            <strong>达成标准：</strong>实际 ≥ 年度目标×80%<br>
+                            <strong>目标基准：</strong>基于历史数据的{metrics['current_year']}年预期
                         </div>
                     </div>
                 </div>
