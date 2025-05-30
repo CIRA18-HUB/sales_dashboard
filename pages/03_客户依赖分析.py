@@ -117,30 +117,46 @@ st.markdown("""
         to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* 统一指标卡片样式 */
+    /* === 关键修复：统一指标卡片样式 === */
     .metric-card {
-        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        padding: 1.5rem; border-radius: 18px; text-align: center; height: 100%;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.08), 0 3px 10px rgba(0,0,0,0.03);
-        border: 1px solid rgba(255,255,255,0.3);
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        animation: slideUp 0.8s ease-out;
-        position: relative; overflow: hidden;
-        backdrop-filter: blur(10px);
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%) !important;
+        padding: 1.5rem !important; 
+        border-radius: 18px !important; 
+        text-align: center !important; 
+        height: 160px !important;
+        min-height: 160px !important;
+        max-height: 160px !important;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08), 0 3px 10px rgba(0,0,0,0.03) !important;
+        border: 1px solid rgba(255,255,255,0.3) !important;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+        animation: slideUp 0.8s ease-out !important;
+        backdrop-filter: blur(10px) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        position: relative !important;
+        overflow: hidden !important;
+        margin-bottom: 1rem !important;
     }
 
     .metric-card::before {
-        content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
-        transition: left 0.6s ease;
+        content: '' !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: -100% !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent) !important;
+        transition: left 0.6s ease !important;
     }
 
     .metric-card:hover {
-        transform: translateY(-8px) scale(1.02);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.12), 0 10px 20px rgba(102, 126, 234, 0.15);
+        transform: translateY(-8px) scale(1.02) !important;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.12), 0 10px 20px rgba(102, 126, 234, 0.15) !important;
     }
 
-    .metric-card:hover::before { left: 100%; }
+    .metric-card:hover::before { left: 100% !important; }
 
     @keyframes slideUp {
         from { opacity: 0; transform: translateY(30px) scale(0.95); }
@@ -181,6 +197,43 @@ st.markdown("""
         font-weight: 500; font-style: italic;
     }
 
+    /* === 新增：目标达成率卡片专用样式 === */
+    .target-achievement-card {
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%) !important;
+        padding: 1.2rem !important; 
+        border-radius: 18px !important; 
+        text-align: center !important; 
+        height: 160px !important;
+        min-height: 160px !important;
+        max-height: 160px !important;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08), 0 3px 10px rgba(0,0,0,0.03) !important;
+        border: 1px solid rgba(255,255,255,0.3) !important;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+        animation: slideUp 0.8s ease-out !important;
+        backdrop-filter: blur(10px) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        position: relative !important;
+        overflow: hidden !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .target-achievement-card:hover {
+        transform: translateY(-8px) scale(1.02) !important;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.12), 0 10px 20px rgba(102, 126, 234, 0.15) !important;
+    }
+
+    .target-calculation-logic {
+        font-size: 0.7rem !important;
+        color: #6b7280 !important;
+        margin-top: 0.3rem !important;
+        line-height: 1.2 !important;
+        font-weight: 500 !important;
+        text-align: center !important;
+    }
+
     /* 标签页样式 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px; background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
@@ -207,7 +260,7 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
     }
 
-    /* 直接对Plotly图表应用圆角样式 */
+    /* === 修复：直接对Plotly图表应用圆角样式并禁用全屏 === */
     .stPlotlyChart {
         border-radius: 16px !important;
         overflow: hidden !important;
@@ -216,15 +269,26 @@ st.markdown("""
         margin: 1.5rem 0;
     }
 
-    /* 确保图表内部背景为白色 */
-    .js-plotly-plot {
+    .stPlotlyChart .js-plotly-plot {
         background: white !important;
         border-radius: 16px !important;
     }
 
-    .plot-container {
+    .stPlotlyChart .plot-container {
         background: white !important;
         border-radius: 16px !important;
+    }
+
+    /* === 新增：禁用Plotly全屏按钮 === */
+    .stPlotlyChart .modebar-btn[data-title="zoom"],
+    .stPlotlyChart .modebar-btn[data-title="Zoom"],
+    .stPlotlyChart .modebar-btn[data-title*="zoom"],
+    .stPlotlyChart .modebar-btn[data-title*="full"],
+    .stPlotlyChart .modebar-btn[data-title*="Full"],
+    .stPlotlyChart .modebar-btn[data-title="Toggle Spike Lines"],
+    .stPlotlyChart .modebar-btn[data-title="Show closest data on hover"],
+    .stPlotlyChart .modebar-btn[data-title="Compare data on hover"] {
+        display: none !important;
     }
 
     /* 洞察卡片 */
@@ -273,7 +337,8 @@ st.markdown("""
     /* 响应式 */
     @media (max-width: 768px) {
         .metric-value, .big-value { font-size: 1.8rem; }
-        .metric-card { padding: 1rem; margin: 0.5rem 0; }
+        .metric-card { padding: 1rem; margin: 0.5rem 0; height: 140px !important; }
+        .target-achievement-card { padding: 1rem; margin: 0.5rem 0; height: 140px !important; }
         .main-header { padding: 1.5rem 0; }
     }
 
@@ -2171,137 +2236,47 @@ def main():
 
         with col1:
             st.markdown(f"""
-                <div class="metric-card">
-                    <div class="big-value">{format_amount(metrics['total_sales'])}</div>
-                    <div class="metric-label">年度销售总额</div>
-                    <div class="metric-sublabel">同比 {'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%</div>
-                </div>
-                """, unsafe_allow_html=True)
+                        <div class="metric-card">
+                            <div class="big-value">{format_amount(metrics['total_sales'])}</div>
+                            <div class="metric-label">年度销售总额</div>
+                            <div class="metric-sublabel">同比 {'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%</div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
         with col2:
             st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value">{metrics['normal_rate']:.1f}%</div>
-                    <div class="metric-label">客户健康度</div>
-                    <div class="metric-sublabel">正常客户 {metrics['normal_customers']} 家</div>
-                </div>
-                """, unsafe_allow_html=True)
+                        <div class="metric-card">
+                            <div class="metric-value">{metrics['normal_rate']:.1f}%</div>
+                            <div class="metric-label">客户健康度</div>
+                            <div class="metric-sublabel">正常客户 {metrics['normal_customers']} 家</div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
         with col3:
             risk_color = '#e74c3c' if metrics['max_dependency'] > 30 else '#667eea'
             st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value" style="color: {risk_color} !important;">
-                        {metrics['max_dependency']:.1f}%
-                    </div>
-                    <div class="metric-label">最高区域风险</div>
-                    <div class="metric-sublabel">{metrics['max_dependency_region']} 区域</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-        # 在main函数的核心业务指标部分，替换第4列的目标达成率卡片
-
-        with col4:
-            # 彻底修复：目标达成率卡片对齐问题
-            st.markdown("""
-            <style>
-            /* 强制统一所有指标卡片的样式 */
-            .metric-card {
-                background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%) !important;
-                padding: 1.5rem !important; 
-                border-radius: 18px !important; 
-                text-align: center !important; 
-                height: 140px !important;
-                min-height: 140px !important;
-                max-height: 140px !important;
-                box-shadow: 0 8px 25px rgba(0,0,0,0.08), 0 3px 10px rgba(0,0,0,0.03) !important;
-                border: 1px solid rgba(255,255,255,0.3) !important;
-                transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-                animation: slideUp 0.8s ease-out !important;
-                backdrop-filter: blur(10px) !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: center !important;
-                align-items: center !important;
-                position: relative !important;
-                overflow: hidden !important;
-            }
-
-            .metric-card:hover {
-                transform: translateY(-8px) scale(1.02) !important;
-                box-shadow: 0 20px 40px rgba(0,0,0,0.12), 0 10px 20px rgba(102, 126, 234, 0.15) !important;
-            }
-
-            .info-icon {
-                position: absolute !important;
-                bottom: 8px !important;
-                right: 8px !important;
-                width: 20px !important;
-                height: 20px !important;
-                background: #667eea !important;
-                color: white !important;
-                border-radius: 50% !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                font-size: 14px !important;
-                cursor: pointer !important;
-                z-index: 10 !important;
-                font-weight: bold !important;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
-            }
-
-            .info-icon:hover {
-                background: #5a67d8 !important;
-                transform: scale(1.1) !important;
-            }
-
-            .tooltip {
-                visibility: hidden !important;
-                position: absolute !important;
-                bottom: 30px !important;
-                right: 0 !important;
-                background: rgba(0,0,0,0.92) !important;
-                color: white !important;
-                text-align: left !important;
-                border-radius: 10px !important;
-                padding: 16px !important;
-                z-index: 1000 !important;
-                opacity: 0 !important;
-                transition: all 0.3s ease !important;
-                width: 280px !important;
-                font-size: 13px !important;
-                line-height: 1.6 !important;
-                box-shadow: 0 8px 25px rgba(0,0,0,0.3) !important;
-                border: 1px solid rgba(255,255,255,0.1) !important;
-            }
-
-            .info-icon:hover .tooltip {
-                visibility: visible !important;
-                opacity: 1 !important;
-                transform: translateY(-5px) !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
-
-            st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value">{metrics['target_achievement_rate']:.1f}%</div>
-                    <div class="metric-label">目标达成率</div>
-                    <div class="metric-sublabel">{metrics['achieved_customers']}/{metrics['total_target_customers']} 家达成</div>
-                    <div class="info-icon">
-                        ?
-                        <div class="tooltip">
-                            <strong>📊 计算说明</strong><br><br>
-                            <strong>计算公式：</strong>实际销售额 ÷ 年度目标 × 100%<br>
-                            <strong>统计口径：</strong>按发运月份统计<br>
-                            <strong>达成标准：</strong>实际 ≥ 年度目标×80%<br>
-                            <strong>目标基准：</strong>基于历史数据的{metrics['current_year']}年预期<br>
-                            <strong>不考虑时间进度调整</strong>
+                        <div class="metric-card">
+                            <div class="metric-value" style="color: {risk_color} !important;">
+                                {metrics['max_dependency']:.1f}%
+                            </div>
+                            <div class="metric-label">最高区域风险</div>
+                            <div class="metric-sublabel">{metrics['max_dependency_region']} 区域</div>
                         </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
+
+        # === 关键修复：目标达成率卡片 - 移除悬停框，直接显示计算逻辑 ===
+        with col4:
+            st.markdown(f"""
+                        <div class="target-achievement-card">
+                            <div class="metric-value">{metrics['target_achievement_rate']:.1f}%</div>
+                            <div class="metric-label">目标达成率</div>
+                            <div class="metric-sublabel">{metrics['achieved_customers']}/{metrics['total_target_customers']} 家达成</div>
+                            <div class="target-calculation-logic">
+                                计算逻辑：实际销售额÷年度目标×100%<br>
+                                统计口径：按发运月份，不考虑时间进度
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
         # 客户分布指标
         st.markdown("### 👥 客户分布指标")
         col1, col2, col3, col4, col5 = st.columns(5)
