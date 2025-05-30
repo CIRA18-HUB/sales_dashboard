@@ -742,24 +742,123 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(200, 200, 200, 0.2)')
 
     return fig
+
+
 def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
-    """计算业务指标"""
+    """计算业务指标 - 修复销售总额和目标达成率计算"""
+
+    # 添加调试信息 - 排查销售总额差异
+    print(f"=== 销售总额调试信息 ===")
+    print(f"原始销售数据总记录数: {len(sales_data)}")
+    print(f"销售数据字段: {sales_data.columns.tolist()}")
+
     # 基础客户指标
     total_customers = len(customer_status)
     normal_customers = len(customer_status[customer_status['状态'] == '正常'])
     closed_customers = len(customer_status[customer_status['状态'] == '闭户'])
     normal_rate = (normal_customers / total_customers * 100) if total_customers > 0 else 0
 
-    # 销售数据
+    # 销售数据处理 - 添加详细调试
     current_year_sales = sales_data[sales_data['订单日期'].dt.year == current_year]
+    print(f"{current_year}年销售记录数: {len(current_year_sales)}")
+
+    # 确保金额字段正确处理
+    if '金额' in current_year_sales.columns:
+        # 处理可能的字符串格式金额
+        current_year_sales = current_year_sales.copy()
+        current_year_sales['金额'] = pd.to_numeric(
+            current_year_sales['金额'].astype(str).str.replace(',', '').str.replace('，', ''),
+            errors='coerce'
+        ).fillna(0)
+
     total_sales = current_year_sales['金额'].sum()
+    print(f"计算得到的总销售额: {total_sales:,.0f}")
 
     # 同比增长
     last_year_total = monthly_data['往年同期'].sum()
     growth_rate = ((total_sales - last_year_total) / last_year_total * 100) if last_year_total > 0 else 0
 
-    # 区域风险分析
+    # ================================
+    # 修正目标达成率计算逻辑
+    # ================================
+
+    # 计算当前时间进度（精确到天）
+    from datetime import datetime, date
+    current_date = datetime.now().date()
+    year_start = date(current_year, 1, 1)
+    year_end = date(current_year, 12, 31)
+
+    # 计算年度总天数和已过天数
+    total_days_in_year = (year_end - year_start).days + 1
+    days_passed = (current_date - year_start).days + 1
+    time_progress = min(days_passed / total_days_in_year, 1.0)  # 确保不超过100%
+
+    print(f"=== 目标达成率调试信息 ===")
+    print(f"当前日期: {current_date}")
+    print(f"年度进度: {days_passed}/{total_days_in_year}天 ({time_progress * 100:.1f}%)")
+
+    # 处理目标数据 - 调整为2025年目标（基于历史数据推算）
+    # 假设2025年目标比历史平均提升10%（可根据实际业务调整）
+    target_growth_factor = 1.1  # 2025年目标增长系数
+
+    # 获取客户目标数据
     customer_region_map = monthly_data[['客户', '所属大区']].drop_duplicates()
+    customer_actual_sales = current_year_sales.groupby('经销商名称')['金额'].sum()
+
+    # 重新计算目标 - 将历史目标调整为2025年目标
+    adjusted_customer_targets = {}
+    total_historical_target = monthly_data['月度指标'].sum()
+
+    # 为每个有实际销售的客户分配目标
+    for customer in customer_actual_sales.index:
+        # 基于历史数据估算该客户的年度目标
+        historical_sales = monthly_data[monthly_data['客户'] == customer]['往年同期'].sum()
+        if historical_sales > 0:
+            # 基于历史销售推算2025年目标
+            estimated_target = historical_sales * target_growth_factor
+        else:
+            # 如果没有历史数据，基于行业平均推算
+            avg_target = total_historical_target / len(monthly_data['客户'].unique()) if len(
+                monthly_data['客户'].unique()) > 0 else 500000
+            estimated_target = avg_target * target_growth_factor
+
+        adjusted_customer_targets[customer] = estimated_target
+
+    # 目标达成分析 - 按时间进度调整
+    achieved_customers = 0
+    total_target_customers = len(adjusted_customer_targets)
+    customer_achievement_details = []
+
+    print(f"需要评估的客户数: {total_target_customers}")
+
+    for customer, annual_target in adjusted_customer_targets.items():
+        # 按时间进度调整目标
+        adjusted_target = annual_target * time_progress
+        actual = customer_actual_sales.get(customer, 0)
+
+        if adjusted_target > 0:
+            achievement_rate = (actual / adjusted_target * 100)
+            # 达成标准：实际销售 >= 调整后目标的80%
+            is_achieved = actual >= adjusted_target * 0.8
+            if is_achieved:
+                achieved_customers += 1
+
+            customer_achievement_details.append({
+                '客户': customer,
+                '年度目标': annual_target,
+                '调整后目标': adjusted_target,
+                '实际': actual,
+                '达成率': achievement_rate,
+                '状态': '达成' if is_achieved else '未达成',
+                '时间进度': time_progress * 100
+            })
+
+    target_achievement_rate = (achieved_customers / total_target_customers * 100) if total_target_customers > 0 else 0
+
+    print(f"目标达成客户数: {achieved_customers}/{total_target_customers}")
+    print(f"目标达成率: {target_achievement_rate:.1f}%")
+
+    # 区域风险分析
     sales_with_region = current_year_sales.merge(
         customer_region_map, left_on='经销商名称', right_on='客户', how='left'
     )
@@ -793,14 +892,13 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     region_stats = pd.DataFrame(region_details) if region_details else pd.DataFrame()
 
     # RFM客户分析
-    current_date = datetime.now()
+    current_date_dt = datetime.now()
     customer_rfm = []
-    customer_actual_sales = current_year_sales.groupby('经销商名称')['金额'].sum()
 
     for customer in customer_actual_sales.index:
         customer_orders = current_year_sales[current_year_sales['经销商名称'] == customer]
         last_order_date = customer_orders['订单日期'].max()
-        recency = (current_date - last_order_date).days
+        recency = (current_date_dt - last_order_date).days
         frequency = len(customer_orders)
         monetary = customer_orders['金额'].sum()
 
@@ -835,30 +933,6 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
 
     high_value_rate = ((diamond_customers + gold_customers) / normal_customers * 100) if normal_customers > 0 else 0
 
-    # 目标达成分析
-    current_year_str = str(current_year)
-    current_year_targets = monthly_data[monthly_data['月份'].astype(str).str.startswith(current_year_str)]
-    customer_targets = current_year_targets.groupby('客户')['月度指标'].sum()
-
-    achieved_customers = 0
-    total_target_customers = len(customer_targets)
-    customer_achievement_details = []
-
-    for customer in customer_targets.index:
-        target = customer_targets[customer]
-        actual = customer_actual_sales.get(customer, 0)
-        if target > 0:
-            achievement_rate = (actual / target * 100)
-            if actual >= target * 0.8:
-                achieved_customers += 1
-
-            customer_achievement_details.append({
-                '客户': customer, '目标': target, '实际': actual,
-                '达成率': achievement_rate, '状态': '达成' if achievement_rate >= 80 else '未达成'
-            })
-
-    target_achievement_rate = (achieved_customers / total_target_customers * 100) if total_target_customers > 0 else 0
-
     # 客户集中度
     concentration_rate = 0
     if len(customer_actual_sales) > 0:
@@ -868,8 +942,8 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
         concentration_rate = (top20_sales / total_sales * 100) if total_sales > 0 else 0
 
     return {
-        'total_customers': total_customers, 'normal_customers': normal_customers, 'closed_customers': closed_customers,
-        'normal_rate': normal_rate, 'total_sales': total_sales, 'growth_rate': growth_rate,
+        'total_sales': total_sales, 'normal_customers': normal_customers, 'closed_customers': closed_customers,
+        'normal_rate': normal_rate, 'growth_rate': growth_rate,
         'region_stats': region_stats, 'max_dependency': max_dependency, 'max_dependency_region': max_dependency_region,
         'target_achievement_rate': target_achievement_rate, 'achieved_customers': achieved_customers,
         'total_target_customers': total_target_customers,
@@ -879,7 +953,13 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
         'current_year': current_year, 'rfm_df': rfm_df, 'concentration_rate': concentration_rate,
         'customer_achievement_details': pd.DataFrame(
             customer_achievement_details) if customer_achievement_details else pd.DataFrame(),
-        'sales_with_region': sales_with_region
+        'sales_with_region': sales_with_region,
+        'total_customers': total_customers,
+        # 新增字段 - 用于显示计算说明
+        'time_progress': time_progress * 100,
+        'days_passed': days_passed,
+        'total_days_in_year': total_days_in_year,
+        'target_calculation_method': '按天数进度调整目标'
     }
 
 
@@ -2034,7 +2114,7 @@ def create_enhanced_trend_analysis(sales_data, monthly_data, selected_region='�
     return fig, total_sales, total_orders, avg_order_value
 
 
-def main():
+ddef main():
     global ECHARTS_AVAILABLE  # 声明使用全局变量
 
     # 初始化session_state来保存标签状态
@@ -2051,6 +2131,26 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
+    # 添加调试和缓存控制
+    with st.expander("🔧 系统调试工具", expanded=False):
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🔄 清除缓存", help="清除所有缓存数据，重新计算"):
+                st.cache_data.clear()
+                st.success("缓存已清除！")
+                st.rerun()
+        
+        with col2:
+            if st.button("📊 显示调试信息", help="在控制台显示详细的计算过程"):
+                st.session_state.show_debug = True
+                st.info("调试信息已开启，请查看控制台输出")
+        
+        with col3:
+            if st.button("💾 导出计算详情", help="导出目标达成计算详情"):
+                st.session_state.export_debug = True
+                st.info("将在数据加载后提供下载")
+
     # 加载数据
     with st.spinner('正在加载数据...'):
         metrics, customer_status, sales_data, monthly_data = load_and_process_data()
@@ -2058,6 +2158,22 @@ def main():
     if metrics is None:
         st.error("❌ 数据加载失败，请检查数据文件。")
         return
+
+    # 如果用户要求导出计算详情
+    if st.session_state.get('export_debug', False):
+        if not metrics['customer_achievement_details'].empty:
+            st.markdown("### 📥 下载计算详情")
+            csv_data = metrics['customer_achievement_details'].to_csv(index=False, encoding='utf-8-sig')
+            st.download_button(
+                label="📥 下载目标达成计算详情.csv",
+                data=csv_data,
+                file_name=f"目标达成计算详情_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv",
+                key="download_achievement_details"
+            )
+            st.session_state.export_debug = False
+
+    # 其余代码保持不变...
 
     # 创建图表
     charts = create_enhanced_charts(metrics, sales_data, monthly_data)
@@ -2096,43 +2212,67 @@ def main():
 
         with col1:
             st.markdown(f"""
-            <div class="metric-card">
-                <div class="big-value">{format_amount(metrics['total_sales'])}</div>
-                <div class="metric-label">年度销售总额</div>
-                <div class="metric-sublabel">同比 {'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%</div>
-            </div>
-            """, unsafe_allow_html=True)
+                <div class="metric-card">
+                    <div class="big-value">{format_amount(metrics['total_sales'])}</div>
+                    <div class="metric-label">年度销售总额</div>
+                    <div class="metric-sublabel">同比 {'+' if metrics['growth_rate'] > 0 else ''}{metrics['growth_rate']:.1f}%</div>
+                </div>
+                """, unsafe_allow_html=True)
 
         with col2:
             st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{metrics['normal_rate']:.1f}%</div>
-                <div class="metric-label">客户健康度</div>
-                <div class="metric-sublabel">正常客户 {metrics['normal_customers']} 家</div>
-            </div>
-            """, unsafe_allow_html=True)
+                <div class="metric-card">
+                    <div class="metric-value">{metrics['normal_rate']:.1f}%</div>
+                    <div class="metric-label">客户健康度</div>
+                    <div class="metric-sublabel">正常客户 {metrics['normal_customers']} 家</div>
+                </div>
+                """, unsafe_allow_html=True)
 
         with col3:
             risk_color = '#e74c3c' if metrics['max_dependency'] > 30 else '#667eea'
             st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: {risk_color} !important;">
-                    {metrics['max_dependency']:.1f}%
+                <div class="metric-card">
+                    <div class="metric-value" style="color: {risk_color} !important;">
+                        {metrics['max_dependency']:.1f}%
+                    </div>
+                    <div class="metric-label">最高区域风险</div>
+                    <div class="metric-sublabel">{metrics['max_dependency_region']} 区域</div>
                 </div>
-                <div class="metric-label">最高区域风险</div>
-                <div class="metric-sublabel">{metrics['max_dependency_region']} 区域</div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
 
         with col4:
+            # 目标达成率 - 添加计算说明
             st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{metrics['target_achievement_rate']:.1f}%</div>
-                <div class="metric-label">目标达成率</div>
-                <div class="metric-sublabel">{metrics['achieved_customers']}/{metrics['total_target_customers']} 家达成</div>
+                <div class="metric-card">
+                    <div class="metric-value">{metrics['target_achievement_rate']:.1f}%</div>
+                    <div class="metric-label">目标达成率 
+                        <span style="font-size: 0.7rem; color: #666; font-weight: normal;">
+                            (按时间进度调整)
+                        </span>
+                    </div>
+                    <div class="metric-sublabel">{metrics['achieved_customers']}/{metrics['total_target_customers']} 家达成</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        # 添加目标达成率计算说明
+        st.markdown(f"""
+            <div style="background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%); 
+                        border-radius: 12px; padding: 1rem; margin: 1rem 0; 
+                        border-left: 4px solid #667eea;">
+                <h4 style="color: #2d3748; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                    📊 目标达成率计算说明
+                </h4>
+                <div style="color: #4a5568; font-size: 0.85rem; line-height: 1.4;">
+                    <strong>计算方式：</strong>{metrics.get('target_calculation_method', '按时间进度调整目标')}<br>
+                    <strong>时间进度：</strong>{metrics.get('days_passed', 0)}/{metrics.get('total_days_in_year', 365)}天 
+                    ({metrics.get('time_progress', 0):.1f}%)<br>
+                    <strong>达成标准：</strong>实际销售额 ≥ (年度目标 × 时间进度 × 80%)<br>
+                    <strong>目标基准：</strong>基于历史数据调整的2025年预期目标
+                </div>
             </div>
             """, unsafe_allow_html=True)
 
+        # 其余的核心指标代码保持不变...
         # 客户分布指标
         st.markdown("### 👥 客户分布指标")
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -2149,12 +2289,12 @@ def main():
             color = '#e74c3c' if label == "流失风险" else '#667eea'
             with col:
                 st.markdown(f"""
-                <div class="metric-card">
-                    <div style="font-size: 1.8rem; margin-bottom: 0.3rem;">{icon}</div>
-                    <div class="metric-value" style="color: {color} !important;">{count}</div>
-                    <div class="metric-label">{label}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    <div class="metric-card">
+                        <div style="font-size: 1.8rem; margin-bottom: 0.3rem;">{icon}</div>
+                        <div class="metric-value" style="color: {color} !important;">{count}</div>
+                        <div class="metric-label">{label}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
         # 客户状态统计
         st.markdown("### 📈 客户状态统计")
@@ -2169,11 +2309,11 @@ def main():
         for col, count, label, color in status_data:
             with col:
                 st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value" style="color: {color} !important;">{count}</div>
-                    <div class="metric-label">{label}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    <div class="metric-card">
+                        <div class="metric-value" style="color: {color} !important;">{count}</div>
+                        <div class="metric-label">{label}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
         # 价值分层关键指标
         if not metrics['rfm_df'].empty:
@@ -2187,22 +2327,22 @@ def main():
             with col1:
                 top_percentage = (top_revenue / total_revenue * 100) if total_revenue > 0 else 0
                 st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value">{top_percentage:.1f}%</div>
-                    <div class="metric-label">高价值客户贡献度</div>
-                    <div class="metric-sublabel">钻石+黄金客户</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    <div class="metric-card">
+                        <div class="metric-value">{top_percentage:.1f}%</div>
+                        <div class="metric-label">高价值客户贡献度</div>
+                        <div class="metric-sublabel">钻石+黄金客户</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
             with col2:
                 risk_percentage = (risk_revenue / total_revenue * 100) if total_revenue > 0 else 0
                 st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value" style="color: #e74c3c !important;">{risk_percentage:.1f}%</div>
-                    <div class="metric-label">风险客户价值占比</div>
-                    <div class="metric-sublabel">需要立即关注</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    <div class="metric-card">
+                        <div class="metric-value" style="color: #e74c3c !important;">{risk_percentage:.1f}%</div>
+                        <div class="metric-label">风险客户价值占比</div>
+                        <div class="metric-sublabel">需要立即关注</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
             with col3:
                 # 计算订单相关指标
@@ -2210,12 +2350,12 @@ def main():
                 avg_order_value_all = total_revenue / total_orders_all if total_orders_all > 0 else 0
 
                 st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value">{total_orders_all:,}</div>
-                    <div class="metric-label">年度总订单数</div>
-                    <div class="metric-sublabel">平均客单价: {format_amount(avg_order_value_all)}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    <div class="metric-card">
+                        <div class="metric-value">{total_orders_all:,}</div>
+                        <div class="metric-label">年度总订单数</div>
+                        <div class="metric-sublabel">平均客单价: {format_amount(avg_order_value_all)}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
     # Tab 2: 健康诊断
     with tabs[1]:
