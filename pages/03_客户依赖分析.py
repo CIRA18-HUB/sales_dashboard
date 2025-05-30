@@ -453,12 +453,23 @@ def load_and_process_data():
         sales_data = pd.read_excel("客户月度销售达成.xlsx")
         sales_data.columns = ['订单日期', '发运月份', '经销商名称', '金额']
 
+        # 处理金额字段 - 确保数值格式正确
         sales_data['金额'] = pd.to_numeric(
             sales_data['金额'].astype(str).str.replace(',', '').str.replace('，', ''),
             errors='coerce'
         ).fillna(0)
 
+        # 处理日期字段
         sales_data['订单日期'] = pd.to_datetime(sales_data['订单日期'])
+
+        # 关键修改：处理发运月份字段，确保能正确解析年份
+        sales_data['发运月份'] = pd.to_datetime(sales_data['发运月份'])
+
+        # 添加调试信息
+        print(f"=== 数据加载调试信息 ===")
+        print(f"原始数据总记录数: {len(sales_data)}")
+        print(f"原始金额总和: {sales_data['金额'].sum():,.0f}")
+        print(f"发运月份范围: {sales_data['发运月份'].min()} 到 {sales_data['发运月份'].max()}")
 
         monthly_data = pd.read_excel("客户月度指标.xlsx")
         monthly_data.columns = ['客户', '月度指标', '月份', '往年同期', '所属大区']
@@ -474,7 +485,7 @@ def load_and_process_data():
 
 
 def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='全国'):
-    """创建整合的趋势分析图表 - 优化高度和交互体验"""
+    """创建整合的趋势分析图表 - 修改为按发运月份统计"""
     # 获取区域数据
     if selected_region == '全国':
         region_sales = sales_data.copy()
@@ -493,8 +504,8 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
     total_orders = len(region_sales)
     avg_order_value = total_sales / total_orders if total_orders > 0 else 0
 
-    # 月度趋势数据
-    region_sales['年月'] = region_sales['订单日期'].dt.to_period('M')
+    # 关键修改：按发运月份统计月度趋势数据
+    region_sales['年月'] = region_sales['发运月份'].dt.to_period('M')
     monthly_trend = region_sales.groupby('年月').agg({
         '金额': ['sum', 'count', 'mean', 'std']
     }).reset_index()
@@ -517,7 +528,7 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
     }).reset_index()
     distribution.columns = ['金额区间', '订单数', '销售额', '平均金额']
 
-    # 客户分析
+    # 客户分析 - 按发运月份
     customer_monthly = region_sales.groupby(['年月', '经销商名称'])['金额'].sum().reset_index()
     active_customers = customer_monthly.groupby('年月')['经销商名称'].nunique().reset_index()
     active_customers.columns = ['年月', '活跃客户数']
@@ -668,7 +679,7 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
 
     # 添加优化的标题（位置调整，避免重叠）
     titles = [
-        (0.3, 0.98, "销售额与订单数趋势", 15),
+        (0.3, 0.98, "销售额与订单数趋势(按发运月份)", 15),
         (0.8, 0.98, "金额区间贡献", 14),
         (0.3, 0.48, "平均客单价与活跃客户数", 14),
         (0.8, 0.48, "环比增长率", 14)
@@ -745,9 +756,8 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
 
 
 def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
-    """计算业务指标 - 修复销售总额和目标达成率计算"""
+    """计算业务指标 - 修复按发运月份计算销售额和时间进度"""
 
-    # 添加调试信息 - 排查销售总额差异
     print(f"=== 销售总额调试信息 ===")
     print(f"原始销售数据总记录数: {len(sales_data)}")
     print(f"销售数据字段: {sales_data.columns.tolist()}")
@@ -758,28 +768,26 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     closed_customers = len(customer_status[customer_status['状态'] == '闭户'])
     normal_rate = (normal_customers / total_customers * 100) if total_customers > 0 else 0
 
-    # 销售数据处理 - 添加详细调试
-    current_year_sales = sales_data[sales_data['订单日期'].dt.year == current_year]
-    print(f"{current_year}年销售记录数: {len(current_year_sales)}")
+    # 关键修改：按发运月份筛选当前年度销售数据
+    current_year_sales = sales_data[sales_data['发运月份'].dt.year == current_year].copy()
+    print(f"{current_year}年发运销售记录数: {len(current_year_sales)}")
 
     # 确保金额字段正确处理
     if '金额' in current_year_sales.columns:
-        # 处理可能的字符串格式金额
-        current_year_sales = current_year_sales.copy()
         current_year_sales['金额'] = pd.to_numeric(
             current_year_sales['金额'].astype(str).str.replace(',', '').str.replace('，', ''),
             errors='coerce'
         ).fillna(0)
 
     total_sales = current_year_sales['金额'].sum()
-    print(f"计算得到的总销售额: {total_sales:,.0f}")
+    print(f"按发运月份计算的总销售额: {total_sales:,.0f}")
 
     # 同比增长
     last_year_total = monthly_data['往年同期'].sum()
     growth_rate = ((total_sales - last_year_total) / last_year_total * 100) if last_year_total > 0 else 0
 
     # ================================
-    # 修正目标达成率计算逻辑
+    # 修正目标达成率计算逻辑和时间进度
     # ================================
 
     # 计算当前时间进度（精确到天）
@@ -798,7 +806,6 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     print(f"年度进度: {days_passed}/{total_days_in_year}天 ({time_progress * 100:.1f}%)")
 
     # 处理目标数据 - 调整为2025年目标（基于历史数据推算）
-    # 假设2025年目标比历史平均提升10%（可根据实际业务调整）
     target_growth_factor = 1.1  # 2025年目标增长系数
 
     # 获取客户目标数据
@@ -814,10 +821,8 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
         # 基于历史数据估算该客户的年度目标
         historical_sales = monthly_data[monthly_data['客户'] == customer]['往年同期'].sum()
         if historical_sales > 0:
-            # 基于历史销售推算2025年目标
             estimated_target = historical_sales * target_growth_factor
         else:
-            # 如果没有历史数据，基于行业平均推算
             avg_target = total_historical_target / len(monthly_data['客户'].unique()) if len(
                 monthly_data['客户'].unique()) > 0 else 500000
             estimated_target = avg_target * target_growth_factor
@@ -838,7 +843,6 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
 
         if adjusted_target > 0:
             achievement_rate = (actual / adjusted_target * 100)
-            # 达成标准：实际销售 >= 调整后目标的80%
             is_achieved = actual >= adjusted_target * 0.8
             if is_achieved:
                 achieved_customers += 1
@@ -858,7 +862,7 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     print(f"目标达成客户数: {achieved_customers}/{total_target_customers}")
     print(f"目标达成率: {target_achievement_rate:.1f}%")
 
-    # 区域风险分析
+    # 区域风险分析 - 基于发运月份
     sales_with_region = current_year_sales.merge(
         customer_region_map, left_on='经销商名称', right_on='客户', how='left'
     )
@@ -896,8 +900,9 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     customer_rfm = []
 
     for customer in customer_actual_sales.index:
+        # 按发运月份分析客户订单
         customer_orders = current_year_sales[current_year_sales['经销商名称'] == customer]
-        last_order_date = customer_orders['订单日期'].max()
+        last_order_date = customer_orders['发运月份'].max()  # 改为按发运月份
         recency = (current_date_dt - last_order_date).days
         frequency = len(customer_orders)
         monetary = customer_orders['金额'].sum()
@@ -955,11 +960,11 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
             customer_achievement_details) if customer_achievement_details else pd.DataFrame(),
         'sales_with_region': sales_with_region,
         'total_customers': total_customers,
-        # 新增字段 - 用于显示计算说明
+        # 修复的字段 - 用于显示计算说明
         'time_progress': time_progress * 100,
         'days_passed': days_passed,
         'total_days_in_year': total_days_in_year,
-        'target_calculation_method': '按天数进度调整目标'
+        'target_calculation_method': '按发运月份统计，按天数进度调整目标'
     }
 
 
@@ -2241,38 +2246,82 @@ def main():
                 """, unsafe_allow_html=True)
 
         with col4:
-            # 目标达成率 - 添加计算说明
+            # 目标达成率 - 添加"?"图标和计算说明弹窗
+            # 添加JavaScript和CSS用于弹窗功能
+            st.markdown("""
+            <style>
+            .info-icon {
+                position: absolute;
+                bottom: 8px;
+                right: 8px;
+                width: 18px;
+                height: 18px;
+                background: #667eea;
+                color: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                cursor: pointer;
+                z-index: 10;
+                font-weight: bold;
+            }
+
+            .info-icon:hover {
+                background: #5a67d8;
+            }
+
+            .tooltip {
+                visibility: hidden;
+                position: absolute;
+                bottom: 25px;
+                right: 0;
+                background: rgba(0,0,0,0.9);
+                color: white;
+                text-align: left;
+                border-radius: 8px;
+                padding: 12px;
+                z-index: 1000;
+                opacity: 0;
+                transition: opacity 0.3s;
+                width: 300px;
+                font-size: 12px;
+                line-height: 1.4;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            }
+
+            .info-icon:hover .tooltip {
+                visibility: visible;
+                opacity: 1;
+            }
+
+            .metric-card-with-info {
+                position: relative;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
             st.markdown(f"""
-                <div class="metric-card">
+                <div class="metric-card metric-card-with-info">
                     <div class="metric-value">{metrics['target_achievement_rate']:.1f}%</div>
-                    <div class="metric-label">目标达成率 
-                        <span style="font-size: 0.7rem; color: #666; font-weight: normal;">
-                            (按时间进度调整)
-                        </span>
-                    </div>
+                    <div class="metric-label">目标达成率</div>
                     <div class="metric-sublabel">{metrics['achieved_customers']}/{metrics['total_target_customers']} 家达成</div>
+                    <div class="info-icon">
+                        ?
+                        <div class="tooltip">
+                            <strong>📊 目标达成率计算说明</strong><br><br>
+                            <strong>计算方式：</strong>{metrics.get('target_calculation_method', '按发运月份统计，按时间进度调整目标')}<br>
+                            <strong>时间进度：</strong>{metrics.get('days_passed', 0)}/{metrics.get('total_days_in_year', 365)}天 
+                            ({metrics.get('time_progress', 0):.1f}%)<br>
+                            <strong>达成标准：</strong>实际销售额 ≥ (年度目标 × 时间进度 × 80%)<br>
+                            <strong>目标基准：</strong>基于历史数据调整的{metrics['current_year']}年预期目标<br>
+                            <strong>数据基准：</strong>以发运月份为统计口径
+                        </div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
 
-        # 添加目标达成率计算说明
-        st.markdown(f"""
-            <div style="background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%); 
-                        border-radius: 12px; padding: 1rem; margin: 1rem 0; 
-                        border-left: 4px solid #667eea;">
-                <h4 style="color: #2d3748; margin-bottom: 0.5rem; font-size: 0.9rem;">
-                    📊 目标达成率计算说明
-                </h4>
-                <div style="color: #4a5568; font-size: 0.85rem; line-height: 1.4;">
-                    <strong>计算方式：</strong>{metrics.get('target_calculation_method', '按时间进度调整目标')}<br>
-                    <strong>时间进度：</strong>{metrics.get('days_passed', 0)}/{metrics.get('total_days_in_year', 365)}天 
-                    ({metrics.get('time_progress', 0):.1f}%)<br>
-                    <strong>达成标准：</strong>实际销售额 ≥ (年度目标 × 时间进度 × 80%)<br>
-                    <strong>目标基准：</strong>基于历史数据调整的2025年预期目标
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # 其余的核心指标代码保持不变...
         # 客户分布指标
         st.markdown("### 👥 客户分布指标")
         col1, col2, col3, col4, col5 = st.columns(5)
