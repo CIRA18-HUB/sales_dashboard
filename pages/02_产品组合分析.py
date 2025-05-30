@@ -635,38 +635,19 @@ def analyze_growth_rates_cached(sales_df, dashboard_products):
 # 计算总体指标（基于后续所有分析）- 添加缓存
 # 计算总体指标（基于后续所有分析）- 添加缓存
 # 计算总体指标（基于后续所有分析）- 修改缓存键强制刷新
-@st.cache_data(show_spinner=False, ttl=300)  # 添加TTL强制刷新缓存
+# 计算总体指标（基于后续所有分析）- 添加缓存
+@st.cache_data
 def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashboard_products, promotion_df):
     """计算产品情况总览的各项指标（总销售额计算所有产品，其他指标基于仪表盘产品）"""
-
-    # 强制调试：打印数据基本信息
-    print(f"=== 调试信息开始 ===")
-    print(f"销售数据总记录数: {len(sales_df)}")
-    print(f"唯一产品代码数: {sales_df['产品代码'].nunique()}")
-    print(f"仪表盘产品数: {len(dashboard_products)}")
-
-    # 2025年数据 - 不过滤产品
+    # 2025年数据
     sales_2025 = sales_df[sales_df['发运月份'].dt.year == 2025]
-    print(f"2025年总记录数: {len(sales_2025)}")
 
-    # 计算所有产品的总销售额
-    total_sales_all_products = sales_2025['销售额'].sum()
-    print(f"所有产品2025年销售额: {total_sales_all_products:,.0f}")
-
-    # 计算仪表盘产品销售额（用于对比）
-    dashboard_sales_2025 = sales_2025[sales_2025['产品代码'].isin(dashboard_products)]
-    total_sales_dashboard = dashboard_sales_2025['销售额'].sum()
-    print(f"仪表盘产品2025年销售额: {total_sales_dashboard:,.0f}")
-    print(f"非仪表盘产品销售额: {total_sales_all_products - total_sales_dashboard:,.0f}")
-
-    # 使用所有产品的销售额作为总销售额
-    total_sales = total_sales_all_products
+    # 总销售额 - 计算所有产品并四舍五入
+    total_sales = round(sales_2025['销售额'].sum())
 
     # 星品和新品销售额 - 在所有产品中查找星品和新品
     star_sales = sales_2025[sales_2025['产品代码'].isin(star_products)]['销售额'].sum()
     new_sales = sales_2025[sales_2025['产品代码'].isin(new_products)]['销售额'].sum()
-    print(f"星品销售额: {star_sales:,.0f}")
-    print(f"新品销售额: {new_sales:,.0f}")
 
     # 占比计算 - 基于所有产品的总销售额
     star_ratio = (star_sales / total_sales * 100) if total_sales > 0 else 0
@@ -679,6 +660,7 @@ def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashb
     penetration_rate = (new_customers / total_customers * 100) if total_customers > 0 else 0
 
     # BCG分析 - 只分析仪表盘产品
+    dashboard_sales_2025 = sales_2025[sales_2025['产品代码'].isin(dashboard_products)]
     product_analysis = analyze_product_bcg_comprehensive(dashboard_sales_2025, dashboard_products)
 
     total_bcg_sales = product_analysis['sales'].sum()
@@ -716,11 +698,8 @@ def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashb
     else:
         avg_effective_sales = 0
 
-    print(f"最终返回的总销售额: {total_sales:,.0f}")
-    print(f"=== 调试信息结束 ===")
-
     return {
-        'total_sales': total_sales,  # 所有产品的销售额
+        'total_sales': total_sales,  # 所有产品的销售额（已四舍五入）
         'star_ratio': star_ratio,
         'new_ratio': new_ratio,
         'total_ratio': total_ratio,
@@ -2162,20 +2141,10 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # 添加缓存清除按钮
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        if st.button("🔄 刷新数据缓存", help="如果数据显示不正确，点击这里清除缓存"):
-            st.cache_data.clear()
-            st.success("缓存已清除，页面将自动刷新")
-            st.rerun()
-
-    # 加载数据
+    # 加载数据（移除了缓存按钮代码）
     data = load_data()
     if data is None:
         return
-
-    # 其余代码保持不变...
 
     # 创建标签页
     tab_names = [
@@ -2202,10 +2171,10 @@ def main():
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
-            # 将销售额转换为更简洁的格式
-            sales_display = metrics['total_sales']
+            # 将销售额转换为更简洁的格式（四舍五入）
+            sales_display = round(metrics['total_sales'])  # 四舍五入到整数
             if sales_display >= 10000:
-                sales_text = f"¥{sales_display / 10000:.1f}万"
+                sales_text = f"¥{sales_display / 10000:.0f}万"
             else:
                 sales_text = f"¥{sales_display:.0f}"
 
