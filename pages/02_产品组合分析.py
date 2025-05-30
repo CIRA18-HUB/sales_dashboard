@@ -2470,7 +2470,7 @@ def main():
         else:
             st.warning("该区域暂无产品数据")
 
-            # Tab 3: 全国促销活动有效性
+       # Tab 3: 全国促销活动有效性
             with tabs[2]:
                 promo_results = analyze_promotion_cached(data['promotion_df'], data['sales_df'])
 
