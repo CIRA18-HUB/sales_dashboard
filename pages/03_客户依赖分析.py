@@ -445,7 +445,7 @@ st.markdown("""
 # 数据加载函数
 @st.cache_data(ttl=3600)
 def load_and_process_data():
-    """加载并处理客户数据"""
+    """加载并处理客户数据 - 调试版本"""
     try:
         customer_status = pd.read_excel("客户状态.xlsx")
         customer_status.columns = ['客户名称', '状态']
@@ -453,34 +453,77 @@ def load_and_process_data():
         sales_data = pd.read_excel("客户月度销售达成.xlsx")
         sales_data.columns = ['订单日期', '发运月份', '经销商名称', '金额']
 
-        # 处理金额字段 - 确保数值格式正确
-        sales_data['金额'] = pd.to_numeric(
-            sales_data['金额'].astype(str).str.replace(',', '').str.replace('，', ''),
-            errors='coerce'
-        ).fillna(0)
+        # 添加详细调试信息
+        print(f"=== 原始数据调试信息 ===")
+        print(f"数据总行数: {len(sales_data)}")
+        print(f"数据字段: {sales_data.columns.tolist()}")
+        print(f"前5行数据:")
+        print(sales_data.head())
+        print(f"发运月份字段类型: {sales_data['发运月份'].dtype}")
+        print(f"发运月份样例: {sales_data['发运月份'].head()}")
+        print(f"金额字段类型: {sales_data['金额'].dtype}")
+        print(f"金额样例: {sales_data['金额'].head()}")
+
+        # 处理金额字段 - 更严格的清理
+        print(f"=== 处理金额字段 ===")
+        # 先转换为字符串，移除所有可能的分隔符
+        sales_data['金额_原始'] = sales_data['金额'].copy()  # 保存原始值用于调试
+        sales_data['金额'] = sales_data['金额'].astype(str).str.replace(',', '').str.replace('，', '').str.replace(' ',
+                                                                                                                  '')
+
+        # 转换为数值类型
+        sales_data['金额'] = pd.to_numeric(sales_data['金额'], errors='coerce')
+
+        # 检查转换结果
+        print(f"金额转换后的空值数量: {sales_data['金额'].isna().sum()}")
+        print(f"金额转换后的总和: {sales_data['金额'].sum():,.0f}")
+
+        # 填充空值为0
+        sales_data['金额'] = sales_data['金额'].fillna(0)
 
         # 处理日期字段
-        sales_data['订单日期'] = pd.to_datetime(sales_data['订单日期'])
+        print(f"=== 处理日期字段 ===")
+        sales_data['订单日期'] = pd.to_datetime(sales_data['订单日期'], errors='coerce')
 
-        # 关键修改：处理发运月份字段，确保能正确解析年份
-        sales_data['发运月份'] = pd.to_datetime(sales_data['发运月份'])
+        # 关键修复：更严格的发运月份处理
+        if sales_data['发运月份'].dtype == 'object':
+            # 如果是字符串类型，先尝试解析
+            print("发运月份是字符串类型，尝试解析...")
+            sales_data['发运月份'] = pd.to_datetime(sales_data['发运月份'], errors='coerce')
+        else:
+            # 如果已经是datetime类型，直接使用
+            print("发运月份已是datetime类型")
+            sales_data['发运月份'] = pd.to_datetime(sales_data['发运月份'], errors='coerce')
 
-        # 添加调试信息
-        print(f"=== 数据加载调试信息 ===")
-        print(f"原始数据总记录数: {len(sales_data)}")
-        print(f"原始金额总和: {sales_data['金额'].sum():,.0f}")
+        print(f"发运月份处理后的空值数量: {sales_data['发运月份'].isna().sum()}")
         print(f"发运月份范围: {sales_data['发运月份'].min()} 到 {sales_data['发运月份'].max()}")
+
+        # 检查数据完整性
+        valid_data = sales_data.dropna(subset=['发运月份', '金额'])
+        print(f"有效数据行数: {len(valid_data)}")
+        print(f"有效数据金额总和: {valid_data['金额'].sum():,.0f}")
+
+        # 按年份分组查看数据分布
+        print(f"=== 按发运年份统计 ===")
+        sales_data['发运年份'] = sales_data['发运月份'].dt.year
+        yearly_stats = sales_data.groupby('发运年份')['金额'].agg(['count', 'sum']).reset_index()
+        print("年份分布:")
+        print(yearly_stats)
 
         monthly_data = pd.read_excel("客户月度指标.xlsx")
         monthly_data.columns = ['客户', '月度指标', '月份', '往年同期', '所属大区']
 
         current_year = datetime.now().year
+        print(f"当前年份: {current_year}")
+
         metrics = calculate_metrics(customer_status, sales_data, monthly_data, current_year)
 
         return metrics, customer_status, sales_data, monthly_data
 
     except Exception as e:
         st.error(f"数据加载错误: {e}")
+        import traceback
+        print(f"详细错误信息: {traceback.format_exc()}")
         return None, None, None, None
 
 
@@ -756,10 +799,11 @@ def create_integrated_trend_analysis(sales_data, monthly_data, selected_region='
 
 
 def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
-    """计算业务指标 - 修复按发运月份计算销售额和时间进度"""
+    """计算业务指标 - 调试版本，修复按发运月份计算销售额和时间进度"""
 
-    print(f"=== 销售总额调试信息 ===")
-    print(f"原始销售数据总记录数: {len(sales_data)}")
+    print(f"=== calculate_metrics 调试信息 ===")
+    print(f"输入参数 - current_year: {current_year}")
+    print(f"销售数据总记录数: {len(sales_data)}")
     print(f"销售数据字段: {sales_data.columns.tolist()}")
 
     # 基础客户指标
@@ -768,9 +812,38 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     closed_customers = len(customer_status[customer_status['状态'] == '闭户'])
     normal_rate = (normal_customers / total_customers * 100) if total_customers > 0 else 0
 
-    # 关键修改：按发运月份筛选当前年度销售数据
-    current_year_sales = sales_data[sales_data['发运月份'].dt.year == current_year].copy()
+    # 关键修复：确保发运月份字段正确处理
+    print(f"=== 筛选当前年度数据 ===")
+
+    # 先检查发运月份字段
+    if '发运月份' not in sales_data.columns:
+        print("错误：发运月份字段不存在")
+        return {}
+
+    # 确保发运月份是datetime类型
+    if sales_data['发运月份'].dtype != 'datetime64[ns]':
+        sales_data['发运月份'] = pd.to_datetime(sales_data['发运月份'], errors='coerce')
+
+    # 移除发运月份为空的行
+    sales_data_clean = sales_data.dropna(subset=['发运月份']).copy()
+    print(f"清理后数据行数: {len(sales_data_clean)}")
+
+    # 按发运月份筛选当前年度销售数据
+    current_year_sales = sales_data_clean[sales_data_clean['发运月份'].dt.year == current_year].copy()
     print(f"{current_year}年发运销售记录数: {len(current_year_sales)}")
+
+    if len(current_year_sales) == 0:
+        print(f"警告：{current_year}年没有发运数据")
+        # 检查所有年份的数据
+        all_years = sales_data_clean['发运月份'].dt.year.unique()
+        print(f"数据中包含的年份: {sorted(all_years)}")
+
+        # 如果当前年份没有数据，使用最新年份的数据
+        if len(all_years) > 0:
+            latest_year = max(all_years)
+            print(f"使用最新年份 {latest_year} 的数据")
+            current_year_sales = sales_data_clean[sales_data_clean['发运月份'].dt.year == latest_year].copy()
+            current_year = latest_year
 
     # 确保金额字段正确处理
     if '金额' in current_year_sales.columns:
@@ -780,17 +853,22 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
         ).fillna(0)
 
     total_sales = current_year_sales['金额'].sum()
-    print(f"按发运月份计算的总销售额: {total_sales:,.0f}")
+    print(f"按发运月份计算的{current_year}年总销售额: {total_sales:,.0f}")
+
+    # 详细统计
+    print(f"当年数据详细统计:")
+    print(f"- 记录数: {len(current_year_sales)}")
+    print(f"- 最小金额: {current_year_sales['金额'].min()}")
+    print(f"- 最大金额: {current_year_sales['金额'].max()}")
+    print(f"- 平均金额: {current_year_sales['金额'].mean():.0f}")
 
     # 同比增长
-    last_year_total = monthly_data['往年同期'].sum()
+    last_year_total = monthly_data['往年同期'].sum() if '往年同期' in monthly_data.columns else 0
     growth_rate = ((total_sales - last_year_total) / last_year_total * 100) if last_year_total > 0 else 0
+    print(f"往年同期总额: {last_year_total:,.0f}")
+    print(f"同比增长率: {growth_rate:.1f}%")
 
-    # ================================
-    # 修正目标达成率计算逻辑和时间进度
-    # ================================
-
-    # 计算当前时间进度（精确到天）
+    # 修正时间进度计算
     from datetime import datetime, date
     current_date = datetime.now().date()
     year_start = date(current_year, 1, 1)
@@ -801,25 +879,31 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     days_passed = (current_date - year_start).days + 1
     time_progress = min(days_passed / total_days_in_year, 1.0)  # 确保不超过100%
 
-    print(f"=== 目标达成率调试信息 ===")
+    print(f"=== 时间进度计算 ===")
     print(f"当前日期: {current_date}")
+    print(f"年度开始: {year_start}")
+    print(f"年度结束: {year_end}")
     print(f"年度进度: {days_passed}/{total_days_in_year}天 ({time_progress * 100:.1f}%)")
 
-    # 处理目标数据 - 调整为2025年目标（基于历史数据推算）
+    # 处理目标数据
     target_growth_factor = 1.1  # 2025年目标增长系数
 
     # 获取客户目标数据
-    customer_region_map = monthly_data[['客户', '所属大区']].drop_duplicates()
+    customer_region_map = monthly_data[
+        ['客户', '所属大区']].drop_duplicates() if '所属大区' in monthly_data.columns else pd.DataFrame()
     customer_actual_sales = current_year_sales.groupby('经销商名称')['金额'].sum()
 
-    # 重新计算目标 - 将历史目标调整为2025年目标
+    # 计算目标
     adjusted_customer_targets = {}
-    total_historical_target = monthly_data['月度指标'].sum()
+    total_historical_target = monthly_data['月度指标'].sum() if '月度指标' in monthly_data.columns else 0
 
     # 为每个有实际销售的客户分配目标
     for customer in customer_actual_sales.index:
         # 基于历史数据估算该客户的年度目标
-        historical_sales = monthly_data[monthly_data['客户'] == customer]['往年同期'].sum()
+        historical_sales = 0
+        if '往年同期' in monthly_data.columns:
+            historical_sales = monthly_data[monthly_data['客户'] == customer]['往年同期'].sum()
+
         if historical_sales > 0:
             estimated_target = historical_sales * target_growth_factor
         else:
@@ -829,11 +913,12 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
 
         adjusted_customer_targets[customer] = estimated_target
 
-    # 目标达成分析 - 按时间进度调整
+    # 目标达成分析
     achieved_customers = 0
     total_target_customers = len(adjusted_customer_targets)
     customer_achievement_details = []
 
+    print(f"=== 目标达成分析 ===")
     print(f"需要评估的客户数: {total_target_customers}")
 
     for customer, annual_target in adjusted_customer_targets.items():
@@ -862,10 +947,12 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     print(f"目标达成客户数: {achieved_customers}/{total_target_customers}")
     print(f"目标达成率: {target_achievement_rate:.1f}%")
 
-    # 区域风险分析 - 基于发运月份
-    sales_with_region = current_year_sales.merge(
-        customer_region_map, left_on='经销商名称', right_on='客户', how='left'
-    )
+    # 区域风险分析
+    sales_with_region = pd.DataFrame()
+    if not customer_region_map.empty:
+        sales_with_region = current_year_sales.merge(
+            customer_region_map, left_on='经销商名称', right_on='客户', how='left'
+        )
 
     region_details = []
     max_dependency = 0
@@ -902,26 +989,27 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
     for customer in customer_actual_sales.index:
         # 按发运月份分析客户订单
         customer_orders = current_year_sales[current_year_sales['经销商名称'] == customer]
-        last_order_date = customer_orders['发运月份'].max()  # 改为按发运月份
-        recency = (current_date_dt - last_order_date).days
-        frequency = len(customer_orders)
-        monetary = customer_orders['金额'].sum()
+        if len(customer_orders) > 0:
+            last_order_date = customer_orders['发运月份'].max()
+            recency = (current_date_dt - last_order_date).days
+            frequency = len(customer_orders)
+            monetary = customer_orders['金额'].sum()
 
-        if recency <= 30 and frequency >= 12 and monetary >= 1000000:
-            customer_type = '钻石客户'
-        elif recency <= 60 and frequency >= 8 and monetary >= 500000:
-            customer_type = '黄金客户'
-        elif recency <= 90 and frequency >= 6 and monetary >= 200000:
-            customer_type = '白银客户'
-        elif recency > 180 or frequency < 3:
-            customer_type = '流失风险'
-        else:
-            customer_type = '潜力客户'
+            if recency <= 30 and frequency >= 12 and monetary >= 1000000:
+                customer_type = '钻石客户'
+            elif recency <= 60 and frequency >= 8 and monetary >= 500000:
+                customer_type = '黄金客户'
+            elif recency <= 90 and frequency >= 6 and monetary >= 200000:
+                customer_type = '白银客户'
+            elif recency > 180 or frequency < 3:
+                customer_type = '流失风险'
+            else:
+                customer_type = '潜力客户'
 
-        customer_rfm.append({
-            '客户': customer, 'R': recency, 'F': frequency, 'M': monetary,
-            '类型': customer_type, '最近购买': last_order_date.strftime('%Y-%m-%d')
-        })
+            customer_rfm.append({
+                '客户': customer, 'R': recency, 'F': frequency, 'M': monetary,
+                '类型': customer_type, '最近购买': last_order_date.strftime('%Y-%m-%d')
+            })
 
     rfm_df = pd.DataFrame(customer_rfm) if customer_rfm else pd.DataFrame()
 
@@ -946,6 +1034,11 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
         top20_sales = sorted_sales.head(top20_count).sum()
         concentration_rate = (top20_sales / total_sales * 100) if total_sales > 0 else 0
 
+    print(f"=== 最终计算结果 ===")
+    print(f"总销售额: {total_sales:,.0f}")
+    print(f"正常客户数: {normal_customers}")
+    print(f"目标达成率: {target_achievement_rate:.1f}%")
+
     return {
         'total_sales': total_sales, 'normal_customers': normal_customers, 'closed_customers': closed_customers,
         'normal_rate': normal_rate, 'growth_rate': growth_rate,
@@ -960,7 +1053,7 @@ def calculate_metrics(customer_status, sales_data, monthly_data, current_year):
             customer_achievement_details) if customer_achievement_details else pd.DataFrame(),
         'sales_with_region': sales_with_region,
         'total_customers': total_customers,
-        # 修复的字段 - 用于显示计算说明
+        # 修复的字段
         'time_progress': time_progress * 100,
         'days_passed': days_passed,
         'total_days_in_year': total_days_in_year,
