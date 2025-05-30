@@ -2273,7 +2273,7 @@ def main():
                             <div class="metric-sublabel">{metrics['achieved_customers']}/{metrics['total_target_customers']} 家达成</div>
                             <div class="target-calculation-logic">
                                 计算逻辑：实际销售额÷年度目标×100%<br>
-    
+                                统计口径：按发运月份不考虑时间进度
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
