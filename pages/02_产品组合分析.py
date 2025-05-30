@@ -2470,139 +2470,138 @@ def main():
         else:
             st.warning("该区域暂无产品数据")
 
-       # Tab 3: 全国促销活动有效性
-            with tabs[2]:
-                promo_results = analyze_promotion_cached(data['promotion_df'], data['sales_df'])
+    # Tab 3: 全国促销活动有效性
+    with tabs[2]:
+        promo_results = analyze_promotion_cached(data['promotion_df'], data['sales_df'])
 
-                if len(promo_results) > 0:
-                    # 计算有效率并显示在标题中
-                    effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
+        if len(promo_results) > 0:
+            # 计算有效率并显示在标题中
+            effectiveness_rate = promo_results['is_effective'].sum() / len(promo_results) * 100
 
-                    # 促销活动效果图表
-                    st.markdown(f"""
-                    <div class="promo-header">
-                        <h2>🚀 全国促销活动有效性分析</h2>
-                        <h3>基于实际促销周期和日均销售额的精确分析 | 总体有效率: {effectiveness_rate:.1f}% ({promo_results['is_effective'].sum()}/{len(promo_results)})</h3>
-                    </div>
-                    """, unsafe_allow_html=True)
+            # 促销活动效果图表
+            st.markdown(f"""
+            <div class="promo-header">
+                <h2>🚀 全国促销活动有效性分析</h2>
+                <h3>基于实际促销周期和日均销售额的精确分析 | 总体有效率: {effectiveness_rate:.1f}% ({promo_results['is_effective'].sum()}/{len(promo_results)})</h3>
+            </div>
+            """, unsafe_allow_html=True)
 
-                    fig = create_optimized_promotion_chart(promo_results)
-                    if fig:
-                        st.plotly_chart(fig, use_container_width=True)
+            fig = create_optimized_promotion_chart(promo_results)
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
 
-                    # 促销洞察分析
-                    with st.expander("💡 促销活动深度洞察（基于日均销售额分析）", expanded=True):
-                        col1, col2 = st.columns(2)
+            # 促销洞察分析
+            with st.expander("💡 促销活动深度洞察（基于日均销售额分析）", expanded=True):
+                col1, col2 = st.columns(2)
 
-                        with col1:
-                            effective_products = promo_results[promo_results['is_effective'] == True]
-                            ineffective_products = promo_results[promo_results['is_effective'] == False]
+                with col1:
+                    effective_products = promo_results[promo_results['is_effective'] == True]
+                    ineffective_products = promo_results[promo_results['is_effective'] == False]
 
-                            # 有效产品统计
-                            avg_daily_sales_effective = effective_products['daily_avg_sales'].mean() if len(
-                                effective_products) > 0 else 0
-                            avg_duration_effective = effective_products['promo_duration'].mean() if len(
-                                effective_products) > 0 else 0
-                            avg_mom_effective = effective_products['mom_growth'].mean() if len(
-                                effective_products) > 0 else 0
+                    # 有效产品统计
+                    avg_daily_sales_effective = effective_products['daily_avg_sales'].mean() if len(
+                        effective_products) > 0 else 0
+                    avg_duration_effective = effective_products['promo_duration'].mean() if len(
+                        effective_products) > 0 else 0
+                    avg_mom_effective = effective_products['mom_growth'].mean() if len(effective_products) > 0 else 0
 
-                            effective_text = f"""**🎯 有效促销产品特征**
-        - 有效产品数: {len(effective_products)}个
-        - 平均日均销售额: ¥{avg_daily_sales_effective:,.0f}
-        - 平均促销时长: {avg_duration_effective:.1f}天
-        - 平均日均环比增长: {avg_mom_effective:.1f}%
-        - 平均总销售额: ¥{effective_products['sales'].mean():,.0f}"""
+                    effective_text = f"""**🎯 有效促销产品特征**
+- 有效产品数: {len(effective_products)}个
+- 平均日均销售额: ¥{avg_daily_sales_effective:,.0f}
+- 平均促销时长: {avg_duration_effective:.1f}天
+- 平均日均环比增长: {avg_mom_effective:.1f}%
+- 平均总销售额: ¥{effective_products['sales'].mean():,.0f}"""
 
-                            st.info(effective_text)
+                    st.info(effective_text)
 
-                        with col2:
-                            # 无效产品统计
-                            avg_daily_sales_ineffective = ineffective_products['daily_avg_sales'].mean() if len(
-                                ineffective_products) > 0 else 0
-                            avg_duration_ineffective = ineffective_products['promo_duration'].mean() if len(
-                                ineffective_products) > 0 else 0
-                            avg_mom_ineffective = ineffective_products['mom_growth'].mean() if len(
-                                ineffective_products) > 0 else 0
+                with col2:
+                    # 无效产品统计
+                    avg_daily_sales_ineffective = ineffective_products['daily_avg_sales'].mean() if len(
+                        ineffective_products) > 0 else 0
+                    avg_duration_ineffective = ineffective_products['promo_duration'].mean() if len(
+                        ineffective_products) > 0 else 0
+                    avg_mom_ineffective = ineffective_products['mom_growth'].mean() if len(
+                        ineffective_products) > 0 else 0
 
-                            ineffective_text = f"""**⚠️ 无效促销产品分析**
-        - 无效产品数: {len(ineffective_products)}个
-        - 平均日均销售额: ¥{avg_daily_sales_ineffective:,.0f}
-        - 平均促销时长: {avg_duration_ineffective:.1f}天
-        - 平均日均环比增长: {avg_mom_ineffective:.1f}%
-        - 平均总销售额: ¥{ineffective_products['sales'].mean():,.0f}"""
+                    ineffective_text = f"""**⚠️ 无效促销产品分析**
+- 无效产品数: {len(ineffective_products)}个
+- 平均日均销售额: ¥{avg_daily_sales_ineffective:,.0f}
+- 平均促销时长: {avg_duration_ineffective:.1f}天
+- 平均日均环比增长: {avg_mom_ineffective:.1f}%
+- 平均总销售额: ¥{ineffective_products['sales'].mean():,.0f}"""
 
-                            st.warning(ineffective_text)
+                    st.warning(ineffective_text)
 
-                        # 新品促销分析
-                        new_products_promo = promo_results[promo_results['is_new_product'] == True]
-                        if len(new_products_promo) > 0:
-                            new_effective = new_products_promo['is_effective'].sum()
-                            new_avg_daily = new_products_promo['daily_avg_sales'].mean()
-                            new_avg_growth = new_products_promo['mom_growth'].mean()
+                # 新品促销分析
+                new_products_promo = promo_results[promo_results['is_new_product'] == True]
+                if len(new_products_promo) > 0:
+                    new_effective = new_products_promo['is_effective'].sum()
+                    new_avg_daily = new_products_promo['daily_avg_sales'].mean()
+                    new_avg_growth = new_products_promo['mom_growth'].mean()
 
-                            new_promo_text = f"""**🌟 新品促销分析**
-        - 新品促销数: {len(new_products_promo)}个
-        - 有效新品数: {new_effective}个
-        - 新品有效率: {new_effective / len(new_products_promo) * 100:.1f}%
-        - 新品平均日均销售额: ¥{new_avg_daily:,.0f}
-        - 新品平均日均环比增长: {new_avg_growth:.1f}%
-        - 判断标准: 新品需日均环比增长≥15%"""
+                    new_promo_text = f"""**🌟 新品促销分析**
+- 新品促销数: {len(new_products_promo)}个
+- 有效新品数: {new_effective}个
+- 新品有效率: {new_effective / len(new_products_promo) * 100:.1f}%
+- 新品平均日均销售额: ¥{new_avg_daily:,.0f}
+- 新品平均日均环比增长: {new_avg_growth:.1f}%
+- 判断标准: 新品需日均环比增长≥15%"""
 
-                            st.success(new_promo_text)
+                    st.success(new_promo_text)
 
-                        # 促销类型分析
-                        short_term_promo = promo_results[promo_results['is_short_term'] == True]
-                        long_term_promo = promo_results[promo_results['is_short_term'] == False]
+                # 促销类型分析
+                short_term_promo = promo_results[promo_results['is_short_term'] == True]
+                long_term_promo = promo_results[promo_results['is_short_term'] == False]
 
-                        col3, col4 = st.columns(2)
+                col3, col4 = st.columns(2)
 
-                        with col3:
-                            if len(short_term_promo) > 0:
-                                short_effective = short_term_promo['is_effective'].sum()
-                                short_avg_daily = short_term_promo['daily_avg_sales'].mean()
+                with col3:
+                    if len(short_term_promo) > 0:
+                        short_effective = short_term_promo['is_effective'].sum()
+                        short_avg_daily = short_term_promo['daily_avg_sales'].mean()
 
-                                st.info(f"""**⚡ 短期促销分析（≤15天）**
-        - 短期促销数: {len(short_term_promo)}个
-        - 有效数量: {short_effective}个
-        - 有效率: {short_effective / len(short_term_promo) * 100:.1f}%
-        - 平均日均销售额: ¥{short_avg_daily:,.0f}
-        - 判断标准: 三指标中至少2个≥10%""")
+                        st.info(f"""**⚡ 短期促销分析（≤15天）**
+- 短期促销数: {len(short_term_promo)}个
+- 有效数量: {short_effective}个
+- 有效率: {short_effective / len(short_term_promo) * 100:.1f}%
+- 平均日均销售额: ¥{short_avg_daily:,.0f}
+- 判断标准: 三指标中至少2个≥10%""")
 
-                        with col4:
-                            if len(long_term_promo) > 0:
-                                long_effective = long_term_promo['is_effective'].sum()
-                                long_avg_daily = long_term_promo['daily_avg_sales'].mean()
+                with col4:
+                    if len(long_term_promo) > 0:
+                        long_effective = long_term_promo['is_effective'].sum()
+                        long_avg_daily = long_term_promo['daily_avg_sales'].mean()
 
-                                st.info(f"""**📅 长期促销分析（>15天）**
-        - 长期促销数: {len(long_term_promo)}个
-        - 有效数量: {long_effective}个
-        - 有效率: {long_effective / len(long_term_promo) * 100:.1f}%
-        - 平均日均销售额: ¥{long_avg_daily:,.0f}
-        - 判断标准: 三指标中至少2个≥5%""")
+                        st.info(f"""**📅 长期促销分析（>15天）**
+- 长期促销数: {len(long_term_promo)}个
+- 有效数量: {long_effective}个
+- 有效率: {long_effective / len(long_term_promo) * 100:.1f}%
+- 平均日均销售额: ¥{long_avg_daily:,.0f}
+- 判断标准: 三指标中至少2个≥5%""")
 
-                        # 促销时间分布分析
-                        promo_results_copy = promo_results.copy()
-                        promo_results_copy['start_month'] = pd.to_datetime(
-                            promo_results_copy['promo_start']).dt.strftime('%Y-%m')
-                        monthly_summary = promo_results_copy.groupby('start_month').agg({
-                            'is_effective': ['count', 'sum'],
-                            'daily_avg_sales': 'mean',
-                            'promo_duration': 'mean'
-                        }).round(1)
+                # 促销时间分布分析
+                promo_results_copy = promo_results.copy()
+                promo_results_copy['start_month'] = pd.to_datetime(promo_results_copy['promo_start']).dt.strftime(
+                    '%Y-%m')
+                monthly_summary = promo_results_copy.groupby('start_month').agg({
+                    'is_effective': ['count', 'sum'],
+                    'daily_avg_sales': 'mean',
+                    'promo_duration': 'mean'
+                }).round(1)
 
-                        if len(monthly_summary) > 1:
-                            earliest_start = promo_results['promo_start'].min()
-                            latest_end = promo_results['promo_end'].max()
+                if len(monthly_summary) > 1:
+                    earliest_start = promo_results['promo_start'].min()
+                    latest_end = promo_results['promo_end'].max()
 
-                            st.success(f"""**📈 促销策略建议**
-        - 分析时间范围: {earliest_start} 至 {latest_end}
-        - 涵盖月份: {len(monthly_summary)}个月
-        - 短期促销更适合爆发式增长需求
-        - 长期促销更适合稳定市场渗透
-        - 新品促销需要更高的增长目标
-        - 建议优先推广有效产品，调整无效产品策略""")
-                else:
-                    st.info("暂无全国促销活动数据")
+                    st.success(f"""**📈 促销策略建议**
+- 分析时间范围: {earliest_start} 至 {latest_end}
+- 涵盖月份: {len(monthly_summary)}个月
+- 短期促销更适合爆发式增长需求
+- 长期促销更适合稳定市场渗透
+- 新品促销需要更高的增长目标
+- 建议优先推广有效产品，调整无效产品策略""")
+        else:
+            st.info("暂无全国促销活动数据")
 
     # Tab 4: 星品新品达成
     with tabs[3]:
