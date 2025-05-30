@@ -4137,15 +4137,7 @@ with tab4:
                     hide_index=False
                 )
 
-                # 下载按钮
-                csv = display_data.to_csv(index=False, encoding='utf-8-sig')
-                st.download_button(
-                    label="📥 导出完整报告",
-                    data=csv,
-                    file_name=f"批次库存积压预警报告_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
+
 
                 st.markdown('</div>', unsafe_allow_html=True)
 
