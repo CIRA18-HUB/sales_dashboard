@@ -2021,49 +2021,83 @@ def create_enhanced_charts(metrics, sales_data, monthly_data):
         except Exception as e:
             print(f"趋势图创建失败: {e}")
 
-    # 6. 目标达成散点图
-    if not metrics['customer_achievement_details'].empty:
-        try:
+    # 6. 目标达成散点图（修复版本）
+    try:
+        if not metrics['customer_achievement_details'].empty:
             achievement_df = metrics['customer_achievement_details'].copy()
-            achievement_df = achievement_df.dropna(subset=['目标', '实际'])
-            achievement_df = achievement_df[achievement_df['目标'] > 0]
 
-            if not achievement_df.empty:
+            # 确保数据类型正确
+            achievement_df = achievement_df.dropna(subset=['年度目标', '实际'])
+            achievement_df = achievement_df[achievement_df['年度目标'] > 0]
+            achievement_df = achievement_df[achievement_df['实际'] >= 0]
+
+            if not achievement_df.empty and len(achievement_df) > 0:
+                # 计算颜色和大小
                 colors = ['#48bb78' if rate >= 100 else '#ffd93d' if rate >= 80 else '#ff6b6b'
                           for rate in achievement_df['达成率']]
-                sizes = [max(10, min(50, rate / 3)) for rate in achievement_df['达成率']]
+                sizes = [max(8, min(40, rate / 5)) for rate in achievement_df['达成率']]
 
                 fig_scatter = go.Figure()
+
+                # 添加散点
                 fig_scatter.add_trace(go.Scatter(
-                    x=achievement_df['目标'], y=achievement_df['实际'], mode='markers',
-                    marker=dict(size=sizes, color=colors, line=dict(width=2, color='white'), opacity=0.8),
-                    text=achievement_df['客户'], name='客户达成情况',
+                    x=achievement_df['年度目标'],
+                    y=achievement_df['实际'],
+                    mode='markers',
+                    marker=dict(
+                        size=sizes,
+                        color=colors,
+                        line=dict(width=2, color='white'),
+                        opacity=0.8
+                    ),
+                    text=achievement_df['客户'],
+                    name='客户达成情况',
                     hovertemplate='<b>%{text}</b><br>目标: ¥%{x:,.0f}<br>实际: ¥%{y:,.0f}<br>达成率: %{customdata:.1f}%<extra></extra>',
                     customdata=achievement_df['达成率']
                 ))
 
-                max_val = max(achievement_df['目标'].max(), achievement_df['实际'].max()) * 1.1
+                # 添加参考线
+                max_val = max(achievement_df['年度目标'].max(), achievement_df['实际'].max()) * 1.1
+
+                # 100%达成线
                 fig_scatter.add_trace(go.Scatter(
                     x=[0, max_val], y=[0, max_val], mode='lines', name='目标线(100%)',
-                    line=dict(color='#e74c3c', width=3, dash='dash')
+                    line=dict(color='#e74c3c', width=3, dash='dash'),
+                    hoverinfo='skip'
                 ))
+
+                # 80%达成线
                 fig_scatter.add_trace(go.Scatter(
                     x=[0, max_val], y=[0, max_val * 0.8], mode='lines', name='达成线(80%)',
-                    line=dict(color='#f39c12', width=2, dash='dot')
+                    line=dict(color='#f39c12', width=2, dash='dot'),
+                    hoverinfo='skip'
                 ))
 
                 fig_scatter.update_layout(
-                    xaxis_title="目标金额", yaxis_title="实际金额", height=500,
+                    title="客户目标 vs 实际销售额",
+                    xaxis_title="目标金额 (¥)",
+                    yaxis_title="实际金额 (¥)",
+                    height=500,
                     hovermode='closest',
                     plot_bgcolor='white',
                     paper_bgcolor='white',
                     margin=dict(t=60, b=60, l=60, r=60),
                     xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)'),
-                    yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
+                    yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)'),
+                    showlegend=True
                 )
+
                 charts['target_scatter'] = fig_scatter
-        except Exception as e:
-            print(f"散点图创建失败: {e}")
+                print(f"目标散点图创建成功，数据点数量: {len(achievement_df)}")
+            else:
+                print("目标达成数据为空或无效")
+                charts['target_scatter'] = None
+        else:
+            print("没有客户目标达成数据")
+            charts['target_scatter'] = None
+    except Exception as e:
+        print(f"目标散点图创建失败: {e}")
+        charts['target_scatter'] = None
 
     return charts
 
@@ -2229,27 +2263,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # 添加调试和缓存控制
-    with st.expander("🔧 系统调试工具", expanded=False):
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            if st.button("🔄 清除缓存", help="清除所有缓存数据，重新计算"):
-                st.cache_data.clear()
-                st.success("缓存已清除！")
-                st.rerun()
-
-        with col2:
-            if st.button("📊 显示调试信息", help="在控制台显示详细的计算过程"):
-                st.session_state.show_debug = True
-                st.info("调试信息已开启，请查看控制台输出")
-
-        with col3:
-            if st.button("💾 导出计算详情", help="导出目标达成计算详情"):
-                st.session_state.export_debug = True
-                st.info("将在数据加载后提供下载")
-
-    # 加载数据
+    # 加载数据（删除了调试工具部分）
     with st.spinner('正在加载数据...'):
         metrics, customer_status, sales_data, monthly_data = load_and_process_data()
 
@@ -2257,56 +2271,20 @@ def main():
         st.error("❌ 数据加载失败，请检查数据文件。")
         return
 
-    # 如果用户要求导出计算详情
-    if st.session_state.get('export_debug', False):
-        if not metrics['customer_achievement_details'].empty:
-            st.markdown("### 📥 下载计算详情")
-            csv_data = metrics['customer_achievement_details'].to_csv(index=False, encoding='utf-8-sig')
-            st.download_button(
-                label="📥 下载目标达成计算详情.csv",
-                data=csv_data,
-                file_name=f"目标达成计算详情_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv",
-                key="download_achievement_details"
-            )
-            st.session_state.export_debug = False
-
-    # 其余代码保持不变...
-
     # 创建图表
     charts = create_enhanced_charts(metrics, sales_data, monthly_data)
 
-    # 标签页 - 使用session_state来保持标签状态
+    # 标签页
     tab_list = [
         "📊 核心指标", "🎯 健康诊断", "⚠️ 风险评估",
         "💎 价值分层", "📈 目标追踪", "📉 趋势分析"
     ]
 
-    # 创建标签页并设置默认选中的标签
     tabs = st.tabs(tab_list)
-
-    # 使用JavaScript来控制标签切换
-    st.markdown(f"""
-    <script>
-        // 保持当前标签页状态
-        var tabIndex = {st.session_state.active_tab};
-        var tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
-        if (tabs && tabs.length > tabIndex) {{
-            setTimeout(function() {{
-                tabs[tabIndex].click();
-            }}, 100);
-        }}
-    </script>
-    """, unsafe_allow_html=True)
 
     # Tab 1: 核心指标
     with tabs[0]:
-        if st.button("", key="tab0_hidden", help="", disabled=True, type="secondary"):
-            st.session_state.active_tab = 0
-
-        # 在main函数的Tab 1中，找到核心业务指标部分，替换为以下代码：
-
-        # 核心业务指标
+        # 核心业务指标（修复对齐和空行问题）
         st.markdown("### 💰 核心业务指标")
         col1, col2, col3, col4 = st.columns(4)
 
@@ -2341,7 +2319,7 @@ def main():
                 """, unsafe_allow_html=True)
 
         with col4:
-            # 目标达成率 - 修复对齐和简化弹窗内容
+            # 目标达成率 - 修复对齐问题
             st.markdown("""
             <style>
             .info-icon {
@@ -2396,25 +2374,31 @@ def main():
 
             .metric-card-with-info {
                 position: relative;
-                height: 100%;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-            }
-
-            /* 确保所有指标卡片高度一致 */
-            .metric-card {
+                background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+                padding: 1.5rem; 
+                border-radius: 18px; 
+                text-align: center; 
                 min-height: 140px;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.08), 0 3px 10px rgba(0,0,0,0.03);
+                border: 1px solid rgba(255,255,255,0.3);
+                transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                animation: slideUp 0.8s ease-out;
+                backdrop-filter: blur(10px);
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
                 align-items: center;
             }
+
+            .metric-card-with-info:hover {
+                transform: translateY(-8px) scale(1.02);
+                box-shadow: 0 20px 40px rgba(0,0,0,0.12), 0 10px 20px rgba(102, 126, 234, 0.15);
+            }
             </style>
             """, unsafe_allow_html=True)
 
             st.markdown(f"""
-                <div class="metric-card metric-card-with-info">
+                <div class="metric-card-with-info">
                     <div class="metric-value">{metrics['target_achievement_rate']:.1f}%</div>
                     <div class="metric-label">目标达成率</div>
                     <div class="metric-sublabel">{metrics['achieved_customers']}/{metrics['total_target_customers']} 家达成</div>
@@ -2517,9 +2501,6 @@ def main():
 
     # Tab 2: 健康诊断
     with tabs[1]:
-        if st.button("", key="tab1_hidden", help="", disabled=True, type="secondary"):
-            st.session_state.active_tab = 1
-
         if 'health_radar' in charts:
             st.markdown('''
             <div class="chart-header">
@@ -2531,10 +2512,7 @@ def main():
 
     # Tab 3: 风险评估
     with tabs[2]:
-        if st.button("", key="tab2_hidden", help="", disabled=True, type="secondary"):
-            st.session_state.active_tab = 2
-
-        # 创建子标签页 - 使用独特的key
+        # 创建子标签页
         risk_subtab_list = ["📊 客户贡献分析", "🕐 下单周期监测", "🎯 风险预警模型"]
         risk_subtabs = st.tabs(risk_subtab_list)
 
@@ -2676,9 +2654,6 @@ def main():
 
     # Tab 4: 价值分层
     with tabs[3]:
-        if st.button("", key="tab3_hidden", help="", disabled=True, type="secondary"):
-            st.session_state.active_tab = 3
-
         st.markdown('''
         <div class="chart-header">
             <div class="chart-title">客户价值流动分析</div>
@@ -2706,11 +2681,8 @@ def main():
         else:
             st.info("💡 暂无客户价值分层数据。请确保已加载客户销售数据。")
 
-    # Tab 5: 目标追踪
+    # Tab 5: 目标追踪（修复图表显示问题）
     with tabs[4]:
-        if st.button("", key="tab4_hidden", help="", disabled=True, type="secondary"):
-            st.session_state.active_tab = 4
-
         st.markdown('''
         <div class="chart-header">
             <div class="chart-title">客户目标达成分析</div>
@@ -2718,17 +2690,71 @@ def main():
         </div>
         '''.format(metrics['current_year']), unsafe_allow_html=True)
 
-        if 'target_scatter' in charts:
+        # 修复目标散点图显示问题
+        if 'target_scatter' in charts and charts['target_scatter'] is not None:
             st.plotly_chart(charts['target_scatter'], use_container_width=True, key="target_scatter_chart")
+        else:
+            # 如果没有图表，显示详细的目标达成数据表格
+            if not metrics['customer_achievement_details'].empty:
+                st.markdown("### 📊 客户目标达成详细数据")
 
-    # Tab 6: 趋势分析（简化版，移除卡片）
-    # Tab 6: 趋势分析（简化版，移除卡片）
-    # Tab 6: 趋势分析（简化版，移除卡片）
-    # Tab 6: 趋势分析（简化版，移除卡片）
+                achievement_df = metrics['customer_achievement_details'].copy()
+                achievement_df = achievement_df.sort_values('达成率', ascending=False)
+
+                # 添加达成状态的颜色标识
+                def get_status_color(row):
+                    if row['达成率'] >= 100:
+                        return "🟢"
+                    elif row['达成率'] >= 80:
+                        return "🟡"
+                    else:
+                        return "🔴"
+
+                achievement_df['状态图标'] = achievement_df.apply(get_status_color, axis=1)
+
+                # 显示前20个客户的目标达成情况
+                top_customers = achievement_df.head(20)
+
+                for _, customer in top_customers.iterrows():
+                    col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
+
+                    with col1:
+                        st.markdown(f"**{customer['状态图标']} {customer['客户']}**")
+
+                    with col2:
+                        st.markdown(f"目标: {format_amount(customer['年度目标'])}")
+
+                    with col3:
+                        st.markdown(f"实际: {format_amount(customer['实际'])}")
+
+                    with col4:
+                        color = '#48bb78' if customer['达成率'] >= 100 else '#ffd93d' if customer[
+                                                                                             '达成率'] >= 80 else '#ff6b6b'
+                        st.markdown(
+                            f"<span style='color: {color}; font-weight: bold;'>{customer['达成率']:.1f}%</span>",
+                            unsafe_allow_html=True)
+
+                # 总结统计
+                total_customers = len(achievement_df)
+                achieved_100 = len(achievement_df[achievement_df['达成率'] >= 100])
+                achieved_80 = len(achievement_df[achievement_df['达成率'] >= 80])
+
+                st.markdown(f"""
+                <div class='insight-card'>
+                    <h4>📈 目标达成总结</h4>
+                    <ul>
+                        <li>🟢 <strong>完全达成（≥100%）：</strong>{achieved_100}家客户 ({achieved_100 / total_customers * 100:.1f}%)</li>
+                        <li>🟡 <strong>基本达成（≥80%）：</strong>{achieved_80}家客户 ({achieved_80 / total_customers * 100:.1f}%)</li>
+                        <li>🔴 <strong>未达成（<80%）：</strong>{total_customers - achieved_80}家客户 ({(total_customers - achieved_80) / total_customers * 100:.1f}%)</li>
+                        <li>📊 <strong>平均达成率：</strong>{achievement_df['达成率'].mean():.1f}%</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.info("暂无目标达成数据")
+
+    # Tab 6: 趋势分析
     with tabs[5]:
-        if st.button("", key="tab5_hidden", help="", disabled=True, type="secondary"):
-            st.session_state.active_tab = 5
-
         st.markdown('''
         <div class="chart-header">
             <div class="chart-title">销售趋势综合分析</div>
