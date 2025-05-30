@@ -2114,7 +2114,7 @@ def create_enhanced_trend_analysis(sales_data, monthly_data, selected_region='�
     return fig, total_sales, total_orders, avg_order_value
 
 
-ddef main():
+def main():
     global ECHARTS_AVAILABLE  # 声明使用全局变量
 
     # 初始化session_state来保存标签状态
@@ -2134,18 +2134,18 @@ ddef main():
     # 添加调试和缓存控制
     with st.expander("🔧 系统调试工具", expanded=False):
         col1, col2, col3 = st.columns(3)
-        
+
         with col1:
             if st.button("🔄 清除缓存", help="清除所有缓存数据，重新计算"):
                 st.cache_data.clear()
                 st.success("缓存已清除！")
                 st.rerun()
-        
+
         with col2:
             if st.button("📊 显示调试信息", help="在控制台显示详细的计算过程"):
                 st.session_state.show_debug = True
                 st.info("调试信息已开启，请查看控制台输出")
-        
+
         with col3:
             if st.button("💾 导出计算详情", help="导出目标达成计算详情"):
                 st.session_state.export_debug = True
