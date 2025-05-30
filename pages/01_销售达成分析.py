@@ -445,19 +445,46 @@ def load_data():
         sales_data['求和项:数量（箱）'] = pd.to_numeric(sales_data['求和项:数量（箱）'], errors='coerce').fillna(0)
         sales_data['销售额'] = sales_data['单价（箱）'] * sales_data['求和项:数量（箱）']
 
-        # 区分渠道类型
+        # 区分渠道类型 - 增加文本清理功能
         def identify_channel(order_type):
             if pd.isna(order_type):
                 return 'Other'
+
+            # 转换为字符串并清理文本
             order_type_str = str(order_type)
-            if 'TT' in order_type_str or 'tt' in order_type_str:
+            # 去除前后空格、换行符、制表符等
+            order_type_str = order_type_str.strip()
+            # 去除所有空格（包括中间的）
+            order_type_clean = order_type_str.replace(' ', '').replace('\t', '').replace('\n', '').replace('\r', '')
+            # 统一转为大写进行匹配
+            order_type_upper = order_type_clean.upper()
+
+            # 判断渠道类型
+            if 'TT' in order_type_upper:
                 return 'TT'
-            elif 'MT' in order_type_str or 'mt' in order_type_str or '正常' in order_type_str:
+            elif 'MT' in order_type_upper or '正常' in order_type_str:
                 return 'MT'
             else:
+                # 调试信息：记录被归类为Other的订单类型
+                if order_type_str and order_type_str != 'nan':
+                    print(f"警告：无法识别的订单类型: '{order_type_str}' (长度:{len(order_type_str)})")
                 return 'Other'
 
         sales_data['渠道类型'] = sales_data['订单类型'].apply(identify_channel)
+
+        # 添加数据验证 - 检查渠道分类结果
+        channel_counts = sales_data['渠道类型'].value_counts()
+        print("渠道分类统计:")
+        print(channel_counts)
+
+        # 检查是否有大量数据被分类为Other
+        if 'Other' in channel_counts and channel_counts['Other'] > 0:
+            print(f"\n注意：有 {channel_counts['Other']} 条记录被分类为 'Other' 渠道")
+            # 显示前5条Other类型的订单类型样本
+            other_samples = sales_data[sales_data['渠道类型'] == 'Other']['订单类型'].head(5)
+            print("Other渠道订单类型样本:")
+            for idx, sample in enumerate(other_samples):
+                print(f"  {idx + 1}. '{sample}' (类型: {type(sample)})")
 
         # MT数据
         mt_data['月份'] = pd.to_datetime(mt_data['月份'])
@@ -474,6 +501,33 @@ def load_data():
         return None
 
 
+@st.cache_data
+def validate_channel_data(data):
+    """验证渠道数据分类的准确性"""
+    sales_data = data['sales_data']
+
+    # 统计各渠道2025年的销售额
+    current_year = 2025
+    validation_results = {}
+
+    for channel in ['TT', 'MT', 'Other']:
+        channel_sales = sales_data[
+            (sales_data['渠道类型'] == channel) &
+            (sales_data['发运月份'].dt.year == current_year)
+            ]['销售额'].sum()
+
+        channel_count = len(sales_data[
+                                (sales_data['渠道类型'] == channel) &
+                                (sales_data['发运月份'].dt.year == current_year)
+                                ])
+
+        validation_results[channel] = {
+            '销售额': channel_sales,
+            '订单数': channel_count,
+            '平均单价': channel_sales / channel_count if channel_count > 0 else 0
+        }
+
+    return validation_results
 # 计算总体指标
 def calculate_overview_metrics(data):
     """计算销售达成总览的各项指标"""
@@ -1617,6 +1671,25 @@ def main():
 
     if data is None:
         return
+
+        # 加载数据
+        with st.spinner('正在加载数据...'):
+            data = load_data()
+
+        if data is None:
+            return
+
+        # 新增：数据验证（仅在开发模式下显示）
+        if st.sidebar.checkbox('显示数据验证信息', value=False):
+            st.sidebar.subheader('渠道数据验证')
+            validation = validate_channel_data(data)
+
+            for channel, info in validation.items():
+                st.sidebar.write(f"**{channel}渠道**")
+                st.sidebar.write(f"- 销售额: ¥{info['销售额'] / 10000:.1f}万")
+                st.sidebar.write(f"- 订单数: {info['订单数']}")
+                st.sidebar.write(f"- 平均单价: ¥{info['平均单价']:.2f}")
+                st.sidebar.write("---")
 
     # 计算总体指标
     metrics = calculate_overview_metrics(data)
