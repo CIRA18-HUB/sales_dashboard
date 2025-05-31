@@ -170,8 +170,8 @@ class EnhancedSalesPredictionSystem:
                 progress_callback(0.1, "正在加载数据文件...")
             
             # 从GitHub仓库加载数据
-            shipment_file = "2409~25022出货数据.xlsx"
-            promotion_file = "24-25促销效果销售数据.xlsx"
+            shipment_file = "预测模型出货数据每日xlsx.xlsx"
+            promotion_file = "销售业务员促销文件.xlsx"
             
             # 检查文件是否存在
             if not os.path.exists(shipment_file) or not os.path.exists(promotion_file):
