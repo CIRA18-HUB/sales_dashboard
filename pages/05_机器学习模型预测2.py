@@ -1,7 +1,8 @@
 # pages/05_机器学习模型预测.py
 """
-机器学习销售预测系统 - 完整集成版
+管理员专用机器学习销售预测系统 - 完整集成版
 包含数据加载、模型训练、预测和可视化
+仅限管理员账号访问
 """
 
 import streamlit as st
@@ -25,44 +26,207 @@ import time
 
 # 页面配置
 st.set_page_config(
-    page_title="机器学习模型预测",
+    page_title="管理员 - 机器学习模型预测",
     page_icon="🤖",
     layout="wide"
 )
 
-# 自定义CSS样式
-st.markdown("""
+# 权限检查函数 - 新增类别
+def check_admin_access():
+    """检查管理员权限"""
+    # 检查是否已登录且为管理员
+    if not hasattr(st.session_state, 'authenticated') or not st.session_state.authenticated:
+        st.error("❌ 未登录，请先从主页登录")
+        st.stop()
+    
+    if not hasattr(st.session_state, 'username') or st.session_state.username != 'admin':
+        st.error("❌ 权限不足，此功能仅限管理员使用")
+        st.info("💡 请使用管理员账号登录")
+        st.stop()
+
+# 执行权限检查
+check_admin_access()
+
+# 统一背景样式CSS - 替换类别
+unified_admin_styles = """
 <style>
-    /* 页面标题样式 */
-    .main-header {
+    /* 导入字体 */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    /* 全局样式 - 与登录界面保持一致 */
+    .stApp {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+
+    /* 主容器背景 + 增强动画 - 与登录界面完全一致 */
+    .main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* 增强版动态背景波纹效果 - 与登录界面一致 */
+    .main::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+            radial-gradient(circle at 20% 20%, rgba(120, 119, 198, 0.6) 0%, transparent 60%),
+            radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 40% 60%, rgba(120, 119, 198, 0.4) 0%, transparent 70%),
+            radial-gradient(circle at 70% 30%, rgba(182, 244, 146, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 90% 10%, rgba(255, 182, 193, 0.4) 0%, transparent 60%);
+        animation: enhancedWaveMove 12s ease-in-out infinite;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    @keyframes enhancedWaveMove {
+        0%, 100% { 
+            background-size: 200% 200%, 150% 150%, 300% 300%, 180% 180%, 220% 220%;
+            background-position: 0% 0%, 100% 100%, 50% 50%, 20% 80%, 90% 10%; 
+        }
+        25% { 
+            background-size: 300% 300%, 200% 200%, 250% 250%, 240% 240%, 160% 160%;
+            background-position: 100% 0%, 0% 50%, 80% 20%, 70% 30%, 10% 90%; 
+        }
+        50% { 
+            background-size: 250% 250%, 300% 300%, 200% 200%, 190% 190%, 280% 280%;
+            background-position: 50% 100%, 50% 0%, 20% 80%, 90% 70%, 30% 20%; 
+        }
+        75% { 
+            background-size: 320% 320%, 180% 180%, 270% 270%, 210% 210%, 200% 200%;
+            background-position: 20% 70%, 80% 30%, 60% 10%, 40% 90%, 70% 50%; 
+        }
+    }
+
+    /* 增强版浮动粒子效果 - 与登录界面一致 */  
+    .main::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: 
+            radial-gradient(3px 3px at 20px 30px, rgba(255,255,255,0.4), transparent),
+            radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.3), transparent),
+            radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.5), transparent),
+            radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.3), transparent),
+            radial-gradient(3px 3px at 160px 30px, rgba(255,255,255,0.4), transparent),
+            radial-gradient(1px 1px at 200px 60px, rgba(182, 244, 146, 0.6), transparent),
+            radial-gradient(2px 2px at 250px 90px, rgba(255, 182, 193, 0.5), transparent),
+            radial-gradient(1px 1px at 300px 20px, rgba(255, 255, 255, 0.4), transparent);
+        background-repeat: repeat;
+        background-size: 300px 150px;
+        animation: enhancedParticleFloat 25s linear infinite;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    @keyframes enhancedParticleFloat {
+        0% { transform: translateY(100vh) translateX(0) rotate(0deg); }
+        25% { transform: translateY(75vh) translateX(50px) rotate(90deg); }
+        50% { transform: translateY(50vh) translateX(-30px) rotate(180deg); }
+        75% { transform: translateY(25vh) translateX(80px) rotate(270deg); }
+        100% { transform: translateY(-100vh) translateX(120px) rotate(360deg); }
+    }
+
+    /* 主容器 */
+    .block-container {
+        position: relative;
+        z-index: 10;
+        background: rgba(255, 255, 255, 0.02);
+        backdrop-filter: blur(8px);
+        padding-top: 1rem;
+        max-width: 100%;
+    }
+
+    /* 管理员头部样式 - 新增类别 */
+    .admin-header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(25px);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        position: relative;
+        z-index: 20;
+    }
+
+    .admin-badge {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%);
         color: white;
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-block;
+        margin-bottom: 0.5rem;
+        animation: adminBadgePulse 2s ease-in-out infinite;
+    }
+
+    @keyframes adminBadgePulse {
+        0%, 100% { 
+            box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+            transform: scale(1);
+        }
+        50% { 
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
+            transform: scale(1.05);
+        }
+    }
+
+    /* 页面标题样式 - 修改原有样式保持一致性 */
+    .main-header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(25px);
+        color: #2d3748;
         padding: 2rem;
         border-radius: 20px;
         text-align: center;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        position: relative;
+        z-index: 20;
     }
     
     .main-title {
         font-size: 2.5rem;
         font-weight: 800;
         margin-bottom: 0.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
     
     .main-subtitle {
         font-size: 1.2rem;
+        color: #4a5568;
         opacity: 0.9;
     }
     
-    /* 指标卡片样式 */
+    /* 指标卡片样式 - 修改原有样式 */
     .metric-card {
-        background: white;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(25px);
         border-radius: 15px;
         padding: 1.5rem;
         box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border: 1px solid rgba(255, 255, 255, 0.3);
         border-left: 4px solid #667eea;
         transition: transform 0.3s ease;
+        position: relative;
+        z-index: 20;
     }
     
     .metric-card:hover {
@@ -82,12 +246,7 @@ st.markdown("""
         margin-top: 0.5rem;
     }
     
-    /* 进度条样式 */
-    .stProgress > div > div > div > div {
-        background-color: #667eea;
-    }
-    
-    /* 按钮样式 */
+    /* 按钮样式 - 修改原有样式 */
     .stButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -96,27 +255,35 @@ st.markdown("""
         border-radius: 10px;
         font-weight: 600;
         transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
     }
     
     .stButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
     }
     
-    /* 信息框样式 */
+    /* 信息框样式 - 修改原有样式 */
     .info-box {
-        background: #f0f4ff;
+        background: rgba(240, 244, 255, 0.95);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
         border-left: 4px solid #667eea;
         padding: 1rem;
         border-radius: 8px;
         margin: 1rem 0;
+        position: relative;
+        z-index: 20;
     }
     
-    /* 表格样式 */
+    /* 表格样式 - 修改原有样式 */
     .dataframe {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
         border: none !important;
         border-radius: 10px;
         overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
     }
     
     .dataframe th {
@@ -127,9 +294,103 @@ st.markdown("""
     
     .dataframe td {
         padding: 0.75rem !important;
+        background: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    /* Tab样式 - 新增类别 */
+    .stTabs [data-baseweb="tab-list"] {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
+        border-radius: 10px;
+        padding: 0.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        background: transparent;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    /* 侧边栏样式 - 新增类别 */
+    .css-1d391kg {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(25px);
+    }
+
+    /* 退出按钮样式 - 新增类别 */
+    .logout-button {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .logout-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+    }
+
+    /* 响应式设计 - 修改原有样式 */
+    @media (max-width: 768px) {
+        .main-title {
+            font-size: 2rem;
+        }
+        .main-subtitle {
+            font-size: 1rem;
+        }
+        .metric-card {
+            padding: 1rem;
+        }
+        .admin-header {
+            padding: 1rem;
+        }
     }
 </style>
-""", unsafe_allow_html=True)
+"""
+
+st.markdown(unified_admin_styles, unsafe_allow_html=True)
+
+# 管理员头部信息 - 新增类别
+def render_admin_header():
+    """渲染管理员头部信息"""
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        st.markdown(f"""
+        <div class="admin-header">
+            <div class="admin-badge">🔒 管理员专用</div>
+            <h3 style="margin: 0; color: #2d3748;">欢迎，{st.session_state.get('display_name', '管理员')}</h3>
+            <p style="margin: 0.5rem 0 0 0; color: #718096; font-size: 0.9rem;">
+                登录时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        if st.button("🚪 退出登录", key="logout_btn"):
+            # 清除session state
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.success("✅ 已成功退出登录")
+            time.sleep(1)
+            st.rerun()
+
+# 渲染管理员头部
+render_admin_header()
 
 # 页面标题
 st.markdown("""
@@ -139,7 +400,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 初始化session state
+# 初始化session state - 修改原有类别
 if 'model_trained' not in st.session_state:
     st.session_state.model_trained = False
 if 'prediction_system' not in st.session_state:
@@ -147,6 +408,7 @@ if 'prediction_system' not in st.session_state:
 if 'training_history' not in st.session_state:
     st.session_state.training_history = []
 
+# 增强版销售预测系统类 - 保持原有类别
 class EnhancedSalesPredictionSystem:
     """增强版销售预测系统"""
     
@@ -615,9 +877,17 @@ class EnhancedSalesPredictionSystem:
         }
         return confidence_map.get(segment, 0.25)
 
-# 创建侧边栏
+# 创建侧边栏 - 修改原有类别
 with st.sidebar:
     st.markdown("### 🎯 模型训练控制")
+    
+    # 管理员信息展示 - 新增类别
+    st.markdown(f"""
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
+        <div style="color: #ff6b6b; font-weight: bold; font-size: 0.9rem;">🔒 管理员模式</div>
+        <div style="color: white; font-size: 0.8rem;">用户: {st.session_state.get('display_name', 'Admin')}</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # 训练选项
     st.markdown("#### 训练参数")
@@ -648,7 +918,7 @@ with st.sidebar:
 # 主界面
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 模型训练", "🔮 销量预测", "📊 模型评估", "📈 特征分析", "📑 历史记录"])
 
-# Tab 1: 模型训练
+# Tab 1: 模型训练 - 保持原有内容但修改样式
 with tab1:
     st.markdown("### 🚀 一键训练预测模型")
     
@@ -692,7 +962,8 @@ with tab1:
                                 st.session_state.training_history.append({
                                     'time': datetime.now(),
                                     'accuracy': system.accuracy_results[system.models['best_model_name']]['Accuracy'],
-                                    'model': system.models['best_model_name']
+                                    'model': system.models['best_model_name'],
+                                    'admin': st.session_state.get('display_name', 'Admin')
                                 })
                                 
                                 st.success("🎉 模型训练完成！")
@@ -716,6 +987,7 @@ with tab1:
         - 使用XGBoost、LightGBM和RandomForest三种模型
         - 自动选择最佳模型进行预测
         - 训练过程大约需要1-2分钟
+        - 🔒 此功能仅限管理员使用
         """)
     
     # 显示训练结果
@@ -758,12 +1030,14 @@ with tab1:
         fig.update_layout(
             title="产品分段分布",
             height=400,
-            showlegend=True
+            showlegend=True,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
         )
         
         st.plotly_chart(fig, use_container_width=True)
 
-# Tab 2: 销量预测
+# Tab 2: 销量预测 - 保持原有内容
 with tab2:
     st.markdown("### 🔮 智能销量预测")
     
@@ -880,7 +1154,9 @@ with tab2:
                         xaxis_title="月份",
                         yaxis_title="预测销量 (箱)",
                         height=400,
-                        hovermode='x unified'
+                        hovermode='x unified',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)'
                     )
                     
                     st.plotly_chart(fig, use_container_width=True)
@@ -928,7 +1204,7 @@ with tab2:
                 else:
                     st.error("预测失败，请检查数据和模型")
 
-# Tab 3: 模型评估
+# Tab 3: 模型评估 - 保持原有内容
 with tab3:
     st.markdown("### 📊 模型性能评估")
     
@@ -976,7 +1252,9 @@ with tab3:
             yaxis_title="性能指标 (%)",
             barmode='group',
             height=400,
-            showlegend=True
+            showlegend=True,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
         )
         
         st.plotly_chart(fig, use_container_width=True)
@@ -1039,7 +1317,7 @@ with tab3:
         </div>
         """, unsafe_allow_html=True)
 
-# Tab 4: 特征分析
+# Tab 4: 特征分析 - 保持原有内容
 with tab4:
     st.markdown("### 📈 特征重要性分析")
     
@@ -1096,7 +1374,9 @@ with tab4:
                 xaxis_title="重要性得分",
                 yaxis_title="特征",
                 height=600,
-                margin=dict(l=150)
+                margin=dict(l=150),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
             )
             
             st.plotly_chart(fig, use_container_width=True)
@@ -1152,12 +1432,14 @@ with tab4:
                 xaxis_title="相关系数",
                 yaxis_title="特征",
                 height=400,
-                margin=dict(l=150)
+                margin=dict(l=150),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
             )
             
             st.plotly_chart(fig, use_container_width=True)
 
-# Tab 5: 历史记录
+# Tab 5: 历史记录 - 修改原有类别，增加管理员信息
 with tab5:
     st.markdown("### 📑 训练历史记录")
     
@@ -1173,9 +1455,10 @@ with tab5:
         history_df['训练时间'] = history_df['time'].dt.strftime('%Y-%m-%d %H:%M:%S')
         history_df['准确率'] = history_df['accuracy'].apply(lambda x: f"{x:.2f}%")
         history_df['模型'] = history_df['model']
+        history_df['操作员'] = history_df.get('admin', 'Admin')
         
         st.dataframe(
-            history_df[['训练时间', '模型', '准确率']],
+            history_df[['训练时间', '模型', '准确率', '操作员']],
             use_container_width=True,
             hide_index=True
         )
@@ -1200,22 +1483,27 @@ with tab5:
                 xaxis_title="训练时间",
                 yaxis_title="准确率 (%)",
                 height=400,
-                hovermode='x unified'
+                hovermode='x unified',
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
             )
             
             st.plotly_chart(fig, use_container_width=True)
         
         # 清除历史记录
-        if st.button("🗑️ 清除历史记录"):
-            st.session_state.training_history = []
-            st.rerun()
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("🗑️ 清除历史记录"):
+                st.session_state.training_history = []
+                st.rerun()
 
-# 底部信息
+# 底部信息 - 修改原有类别
 st.markdown("---")
-st.markdown("""
-<div style="text-align: center; color: #666; font-size: 0.9rem;">
+st.markdown(f"""
+<div style="text-align: center; color: rgba(255, 255, 255, 0.8); font-size: 0.9rem; background: rgba(255, 255, 255, 0.1); padding: 1rem; border-radius: 10px;">
     🤖 机器学习销售预测系统 v2.0 | 
     使用 XGBoost + LightGBM + RandomForest | 
-    数据更新时间: {:%Y-%m-%d}
+    数据更新时间: {datetime.now().strftime('%Y-%m-%d')} |
+    🔒 管理员专用模式
 </div>
-""".format(datetime.now()), unsafe_allow_html=True)
+""", unsafe_allow_html=True)
