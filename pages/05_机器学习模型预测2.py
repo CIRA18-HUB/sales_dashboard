@@ -580,11 +580,15 @@ class OptimizedSalesPredictionSystem:
         """创建全面的时间序列特征"""
         features = {'product_code': product_code}
         
-        if len(historical_data) < 6:
+        if len(historical_data) < 3:  # 至少需要3个月数据
             return features
         
         qty_values = historical_data['total_qty'].values
         dates = historical_data['year_month_date']
+        
+        # 额外的安全检查
+        if len(qty_values) == 0:
+            return features
         
         # 1. 基础统计特征
         features.update({
@@ -597,11 +601,13 @@ class OptimizedSalesPredictionSystem:
         })
         
         # 2. 扩展滞后特征 (1-12个月)
-        for lag in range(1, min(13, len(qty_values) + 1)):
-            if lag <= len(qty_values):
-                features[f'qty_lag_{lag}'] = qty_values[-lag]
-            else:
-                features[f'qty_lag_{lag}'] = 0
+        max_lag = min(12, len(qty_values))
+        for lag in range(1, max_lag + 1):
+            features[f'qty_lag_{lag}'] = qty_values[-lag]
+        
+        # 如果数据不足12个月，用0填充缺失的滞后特征
+        for lag in range(max_lag + 1, 13):
+            features[f'qty_lag_{lag}'] = 0
         
         # 3. 移动平均特征 (多个窗口)
         for window in [3, 6, 12]:
@@ -641,14 +647,19 @@ class OptimizedSalesPredictionSystem:
         })
         
         # 6. 季节性分解特征
-        if seasonal_comp and current_idx < len(seasonal_comp['trend']):
+        if seasonal_comp and len(seasonal_comp['trend']) > 0:
             try:
+                # 确保索引不会超出范围
+                trend_idx = min(current_idx, len(seasonal_comp['trend']) - 1)
+                seasonal_idx = current_idx % 12  # 季节性组件按12个月循环
+                residual_idx = min(current_idx, len(seasonal_comp['residual']) - 1)
+                
                 features.update({
-                    'seasonal_component': seasonal_comp['seasonal'].iloc[current_idx % 12],
-                    'trend_component': seasonal_comp['trend'].iloc[min(current_idx, len(seasonal_comp['trend'])-1)],
-                    'residual_component': seasonal_comp['residual'].iloc[min(current_idx, len(seasonal_comp['residual'])-1)]
+                    'seasonal_component': seasonal_comp['seasonal'].iloc[seasonal_idx],
+                    'trend_component': seasonal_comp['trend'].iloc[trend_idx],
+                    'residual_component': seasonal_comp['residual'].iloc[residual_idx]
                 })
-            except:
+            except (IndexError, KeyError):
                 features.update({
                     'seasonal_component': 0,
                     'trend_component': features['qty_mean_12m'],
@@ -672,13 +683,19 @@ class OptimizedSalesPredictionSystem:
         
         # 8. 增长率特征
         growth_rates = []
-        for i in range(1, min(4, len(qty_values))):
-            if qty_values[-i-1] > 0:
+        max_growth_periods = min(3, len(qty_values) - 1)  # 确保不会索引越界
+        
+        for i in range(1, max_growth_periods + 1):
+            if len(qty_values) > i and qty_values[-i-1] > 0:
                 growth_rate = (qty_values[-i] - qty_values[-i-1]) / qty_values[-i-1]
                 growth_rates.append(growth_rate)
                 features[f'growth_rate_{i}m'] = growth_rate
             else:
                 features[f'growth_rate_{i}m'] = 0
+        
+        # 填充缺失的增长率特征
+        for i in range(max_growth_periods + 1, 4):
+            features[f'growth_rate_{i}m'] = 0
         
         if growth_rates:
             features['avg_growth_rate_3m'] = np.mean(growth_rates)
@@ -686,8 +703,13 @@ class OptimizedSalesPredictionSystem:
             features['avg_growth_rate_3m'] = 0
         
         # 9. 相对特征（同比）
-        if len(qty_values) >= 12:
+        if len(qty_values) >= 13:
+            # 13个月或以上数据：比较当前月与12个月前
             yoy_growth = (qty_values[-1] - qty_values[-13]) / (qty_values[-13] + 1)
+            features['yoy_growth'] = yoy_growth
+        elif len(qty_values) >= 12:
+            # 12个月数据：比较当前月与11个月前（近似同比）
+            yoy_growth = (qty_values[-1] - qty_values[-12]) / (qty_values[-12] + 1)
             features['yoy_growth'] = yoy_growth
         else:
             features['yoy_growth'] = 0
