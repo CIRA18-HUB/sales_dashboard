@@ -9,6 +9,7 @@ import time
 import re
 from itertools import combinations
 import warnings
+from plotly.subplots import make_subplots  # 新增这一行导入
 
 # 新增：导入认证模块
 try:
@@ -795,13 +796,17 @@ def create_regional_penetration_analysis(data):
     # 创建图表
     fig = go.Figure()
 
+    # 获取文本显示配置
+    text_config = get_text_display_config(len(df))
+
     # 添加渗透率柱状图
     fig.add_trace(go.Bar(
         name='新品渗透率',
         x=df['region'],
         y=df['penetration_rate'],
-        text=[f"{rate:.1f}%" for rate in df['penetration_rate']],
-        textposition='auto',  # 改为auto防止重影
+        text=[f"{rate:.1f}%" for rate in df['penetration_rate']] if text_config['text'] else None,
+        textposition=text_config['textposition'],
+        textfont=text_config['textfont'],
         marker=dict(color='#4CAF50'),
         yaxis='y',
         offsetgroup=1,
@@ -960,7 +965,27 @@ def calculate_comprehensive_metrics(sales_df, star_products, new_products, dashb
         'current_year': current_year,
         'data_range': time_info['data_range']
     }
-
+def get_text_display_config(data_length):
+    """根据数据长度返回合适的文本显示配置"""
+    if data_length <= 10:
+        return {
+            'text': True,
+            'textposition': 'outside',
+            'textfont': dict(size=11, weight='bold')
+        }
+    elif data_length <= 20:
+        return {
+            'text': True,
+            'textposition': 'auto',
+            'textfont': dict(size=9)
+        }
+    else:
+        # 超过20个数据点时不显示文本标签
+        return {
+            'text': False,
+            'textposition': None,
+            'textfont': None
+        }
 def analyze_product_bcg_comprehensive(sales_df, dashboard_products, time_info):
     """分析产品BCG矩阵数据，使用动态时间范围"""
     if len(sales_df) == 0:
@@ -1207,52 +1232,70 @@ def create_regional_sales_structure(data):
     current_year = pd.Timestamp.now().year
     sales_current = sales_df[sales_df['发运月份'].dt.year == current_year]
 
-    regions = sales_current['区域'].unique()
+    regions = sorted(sales_current['区域'].unique())
 
-    # 创建子图
-    fig = make_subplots(
-        rows=len(regions),
-        cols=1,
-        subplot_titles=[f"{region}区域 TOP10 产品" for region in regions],
-        vertical_spacing=0.1,
-        specs=[[{'type': 'bar'}] for _ in regions]
-    )
+    # 创建汇总数据
+    all_region_data = []
 
-    # 为每个区域创建TOP10产品图表
-    for idx, region in enumerate(regions, 1):
+    for region in regions:
         region_data = sales_current[sales_current['区域'] == region]
 
         # 计算各产品销售额并排序
         product_sales = region_data.groupby(['产品代码', '产品简称'])['销售额'].sum().reset_index()
         product_sales = product_sales.sort_values('销售额', ascending=False).head(10)
 
-        # 添加柱状图
-        fig.add_trace(
-            go.Bar(
-                x=product_sales['销售额'],
-                y=product_sales['产品简称'],
-                orientation='h',
-                text=[f"¥{val / 10000:.1f}万" for val in product_sales['销售额']],
-                textposition='auto',
-                marker_color='rgba(102, 126, 234, 0.8)',
-                hovertemplate='<b>%{y}</b><br>销售额: ¥%{x:,.0f}<extra></extra>'
-            ),
-            row=idx, col=1
-        )
+        # 添加区域信息
+        product_sales['区域'] = region
+        product_sales['排名'] = range(1, len(product_sales) + 1)
+        all_region_data.append(product_sales)
 
-        # 更新子图布局
-        fig.update_xaxes(title_text="销售额", row=idx, col=1)
-        fig.update_yaxes(tickfont=dict(size=10), row=idx, col=1)
+    # 合并所有区域数据
+    combined_df = pd.concat(all_region_data, ignore_index=True)
 
-    # 更新整体布局
+    # 创建交互式图表 - 显示各区域TOP3产品对比
+    fig = go.Figure()
+
+    # 颜色列表
+    colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#DDA0DD']
+
+    # 为每个区域添加TOP3产品
+    for idx, region in enumerate(regions):
+        region_top3 = combined_df[combined_df['区域'] == region].head(3)
+
+        for rank, (_, product) in enumerate(region_top3.iterrows()):
+            fig.add_trace(go.Bar(
+                name=f"{region}-{product['产品简称']}",
+                x=[region],
+                y=[product['销售额']],
+                text=f"{product['产品简称'][:8]}...<br>¥{product['销售额'] / 10000:.1f}万" if len(
+                    product['产品简称']) > 8 else f"{product['产品简称']}<br>¥{product['销售额'] / 10000:.1f}万",
+                textposition='inside',
+                textfont=dict(size=10, color='white'),
+                marker_color=colors[idx % len(colors)],
+                hovertemplate=f"<b>{product['产品简称']}</b><br>区域: {region}<br>排名: 第{rank + 1}名<br>销售额: ¥{product['销售额']:,.0f}<extra></extra>",
+                showlegend=False
+            ))
+
     fig.update_layout(
-        title=dict(text=f"<b>区域产品销售结构分析（{current_year}年）</b>", font=dict(size=20)),
-        height=300 * len(regions),
-        showlegend=False,
-        template="plotly_white"
+        title=dict(text=f"<b>各区域TOP3产品销售对比（{current_year}年）</b>", font=dict(size=20)),
+        xaxis_title="销售区域",
+        yaxis_title="销售额",
+        barmode='stack',
+        height=600,
+        template="plotly_white",
+        hovermode='closest'
     )
 
+    # 添加详细数据表格
+    with st.expander("📋 查看各区域完整TOP10产品明细", expanded=False):
+        for region in regions:
+            st.subheader(f"{region}区域 TOP10 产品")
+            region_data = combined_df[combined_df['区域'] == region][['排名', '产品简称', '产品代码', '销售额']]
+            region_data['销售额'] = region_data['销售额'].apply(lambda x: f"¥{x:,.0f}")
+            st.dataframe(region_data, use_container_width=True, hide_index=True)
+
     return fig
+
 def optimize_smart_grid_positions(data, category):
     """智能网格布局优化"""
     # 定义每个象限的范围
@@ -2013,13 +2056,16 @@ def create_optimized_promotion_chart(promo_results, time_info):
     y_values = promo_results['daily_avg_sales'].fillna(0).values
     x_labels = promo_results['product'].values
 
+    # 获取文本显示配置
+    text_config = get_text_display_config(len(promo_results))
+
     fig.add_trace(go.Bar(
         x=x_labels,
         y=y_values,
         marker=dict(color=colors, line=dict(width=0)),
-        text=[f"¥{val:,.0f}/天" for val in y_values],
-        textposition='auto',  # 改为auto防止重影
-        textfont=dict(size=11, weight='bold'),
+        text=[f"¥{val:,.0f}/天" for val in y_values] if text_config['text'] else None,
+        textposition=text_config['textposition'],
+        textfont=text_config['textfont'],
         hovertemplate='%{customdata}<extra></extra>',
         customdata=hover_texts,
         width=0.6
@@ -2158,7 +2204,7 @@ def create_effective_products_chart(product_df, title="有效产品分析"):
     for _, row in display_df.iterrows():
         status = "✅ 有效" if row['is_effective'] else "❌ 无效"
         gap_text = f"距离标准还差: {row['effectiveness_gap']:.1f}箱" if not row[
-            'is_effective'] else "超出标准: {row['monthly_avg_boxes']-15:.1f}箱"
+            'is_effective'] else f"超出标准: {row['monthly_avg_boxes'] - 15:.1f}箱"
 
         hover_text = f"""<b>{row['product_name']} ({row['product_code']})</b><br>
 <b>月均销售:</b> {row['monthly_avg_boxes']:.1f}箱<br>
@@ -2172,13 +2218,16 @@ def create_effective_products_chart(product_df, title="有效产品分析"):
 {'继续保持良好势头，可作为主推产品' if row['is_effective'] else '需要加强市场推广，提升销售表现'}"""
         hover_texts.append(hover_text)
 
+    # 获取文本显示配置
+    text_config = get_text_display_config(len(display_df))
+
     fig.add_trace(go.Bar(
         x=display_df['product_name'],
         y=display_df['monthly_avg_boxes'],
         marker=dict(color=colors, line=dict(width=0)),
-        text=[f"{val:.1f}" for val in display_df['monthly_avg_boxes']],
-        textposition='auto',  # 改为auto防止重影
-        textfont=dict(size=10),
+        text=[f"{val:.1f}" for val in display_df['monthly_avg_boxes']] if text_config['text'] else None,
+        textposition=text_config['textposition'],
+        textfont=text_config['textfont'],
         hovertemplate='%{customdata}<extra></extra>',
         customdata=hover_texts
     ))
@@ -2213,6 +2262,15 @@ def create_effective_products_chart(product_df, title="有效产品分析"):
 
     return fig, effectiveness_rate
 
+@st.cache_data
+def create_regional_penetration_analysis_cached(sales_df, new_products):
+    """缓存版本的区域新品渗透率分析"""
+    # 使用非缓存版本的函数
+    data = {
+        'sales_df': sales_df,
+        'new_products': new_products
+    }
+    return create_regional_penetration_analysis(data)
 
 # 新增：产品环比同比分析函数
 def analyze_product_growth_rates(data, time_info):
@@ -2321,6 +2379,9 @@ def create_growth_rate_charts(growth_df, time_info):
     # 按销售额排序
     active_products = active_products.sort_values('current_sales', ascending=False)
 
+    # 获取文本显示配置
+    text_config = get_text_display_config(len(active_products))
+
     # 环比分析图
     fig_mom = go.Figure()
 
@@ -2352,9 +2413,9 @@ def create_growth_rate_charts(growth_df, time_info):
         x=active_products['product_name'],
         y=active_products['mom_sales_growth'],
         marker=dict(color=mom_colors, line=dict(width=0)),
-        text=[f"{val:.1f}%" for val in active_products['mom_sales_growth']],
-        textposition='auto',  # 改为auto防止重影
-        textfont=dict(size=10),
+        text=[f"{val:.1f}%" for val in active_products['mom_sales_growth']] if text_config['text'] else None,
+        textposition=text_config['textposition'],
+        textfont=text_config['textfont'],
         hovertemplate='%{customdata}<extra></extra>',
         customdata=hover_texts_mom,
         name='环比增长率'
@@ -2428,14 +2489,24 @@ def create_growth_rate_charts(growth_df, time_info):
 {'同比增长良好，产品生命力强' if row['yoy_sales_growth'] > 0 else '同比下滑，需要产品升级或调整'}"""
         hover_texts_yoy.append(hover_text)
 
+    # 处理同比显示文本
+    yoy_texts = []
+    for _, row in active_products.iterrows():
+        if text_config['text']:
+            if row['is_new_product']:
+                yoy_texts.append("新品")
+            else:
+                yoy_texts.append(f"{row['yoy_sales_growth']:.1f}%")
+        else:
+            yoy_texts.append(None)
+
     fig_yoy.add_trace(go.Bar(
         x=active_products['product_name'],
         y=active_products['yoy_sales_growth'],
         marker=dict(color=yoy_colors, line=dict(width=0)),
-        text=[f"{row['yoy_sales_growth']:.1f}%" if not row['is_new_product'] else "新品"
-              for _, row in active_products.iterrows()],
-        textposition='auto',  # 改为auto防止重影
-        textfont=dict(size=10),
+        text=yoy_texts if text_config['text'] else None,
+        textposition=text_config['textposition'],
+        textfont=text_config['textfont'],
         hovertemplate='%{customdata}<extra></extra>',
         customdata=hover_texts_yoy,
         name='同比增长率'
@@ -2820,6 +2891,7 @@ def main():
                 st.rerun()
 
     # Tab 4: 星品新品达成
+    # Tab 4: 星品新品达成
     with tabs[3]:
         # 选择控件
         view_type = st.radio("选择分析视角", ["按区域", "按销售员", "趋势分析"], horizontal=True, key="star_new_view")
@@ -2863,23 +2935,27 @@ def main():
             hover_texts = []
             for _, row in region_df.iterrows():
                 hover_text = f"""<b>{row['region']}</b><br>
-<b>占比:</b> {row['ratio']:.1f}%<br>
-<b>达成情况:</b> {'✅ 已达标' if row['achieved'] else '❌ 未达标'}<br>
-<br><b>销售分析:</b><br>
-- 总销售额: ¥{row['total_sales']:,.0f}<br>
-- 星品新品销售额: ¥{row['star_new_sales']:,.0f}<br>
-- 覆盖客户: {row['customers']}<br>
-- 客户渗透率: {row['penetration']:.1f}%<br>
-<br><b>行动建议:</b><br>
-{'继续保持，可作为其他区域标杆' if row['achieved'] else f"距离目标还差{20 - row['ratio']:.1f}%，需重点提升"}"""
+    <b>占比:</b> {row['ratio']:.1f}%<br>
+    <b>达成情况:</b> {'✅ 已达标' if row['achieved'] else '❌ 未达标'}<br>
+    <br><b>销售分析:</b><br>
+    - 总销售额: ¥{row['total_sales']:,.0f}<br>
+    - 星品新品销售额: ¥{row['star_new_sales']:,.0f}<br>
+    - 覆盖客户: {row['customers']}<br>
+    - 客户渗透率: {row['penetration']:.1f}%<br>
+    <br><b>行动建议:</b><br>
+    {'继续保持，可作为其他区域标杆' if row['achieved'] else f"距离目标还差{20 - row['ratio']:.1f}%，需重点提升"}"""
                 hover_texts.append(hover_text)
+
+            # 获取文本显示配置
+            text_config = get_text_display_config(len(region_df))
 
             fig.add_trace(go.Bar(
                 x=region_df['region'],
                 y=region_df['ratio'],
                 marker_color=colors,
-                text=[f"{r:.1f}%" for r in region_df['ratio']],
-                textposition='auto',  # 改为auto防止重影
+                text=[f"{r:.1f}%" for r in region_df['ratio']] if text_config['text'] else None,
+                textposition=text_config['textposition'],
+                textfont=text_config['textfont'],
                 hovertemplate='%{customdata}<extra></extra>',
                 customdata=hover_texts
             ))
@@ -2931,23 +3007,27 @@ def main():
             hover_texts = []
             for _, row in person_df.iterrows():
                 hover_text = f"""<b>{row['salesperson']}</b><br>
-<b>所属区域:</b> {row['region']}<br>
-<b>占比:</b> {row['ratio']:.1f}%<br>
-<b>达成情况:</b> {'✅ 已达标' if row['achieved'] else '❌ 未达标'}<br>
-<br><b>销售分析:</b><br>
-- 总销售额: ¥{row['total_sales']:,.0f}<br>
-- 星品新品销售额: ¥{row['star_new_sales']:,.0f}<br>
-- 覆盖客户: {row['customers']}<br>
-<br><b>绩效建议:</b><br>
-{'优秀销售员，可分享经验' if row['achieved'] else '需要培训和支持，提升产品知识'}"""
+    <b>所属区域:</b> {row['region']}<br>
+    <b>占比:</b> {row['ratio']:.1f}%<br>
+    <b>达成情况:</b> {'✅ 已达标' if row['achieved'] else '❌ 未达标'}<br>
+    <br><b>销售分析:</b><br>
+    - 总销售额: ¥{row['total_sales']:,.0f}<br>
+    - 星品新品销售额: ¥{row['star_new_sales']:,.0f}<br>
+    - 覆盖客户: {row['customers']}<br>
+    <br><b>绩效建议:</b><br>
+    {'优秀销售员，可分享经验' if row['achieved'] else '需要培训和支持，提升产品知识'}"""
                 hover_texts.append(hover_text)
+
+            # 获取文本显示配置
+            text_config = get_text_display_config(len(person_df))
 
             fig.add_trace(go.Bar(
                 x=person_df['salesperson'],
                 y=person_df['ratio'],
                 marker_color=colors,
-                text=[f"{r:.1f}%" for r in person_df['ratio']],
-                textposition='auto',  # 改为auto防止重影
+                text=[f"{r:.1f}%" for r in person_df['ratio']] if text_config['text'] else None,
+                textposition=text_config['textposition'],
+                textfont=text_config['textfont'],
                 hovertemplate='%{customdata}<extra></extra>',
                 customdata=hover_texts
             ))
@@ -3004,11 +3084,11 @@ def main():
             hover_texts = []
             for _, row in trend_df.iterrows():
                 hover_text = f"""<b>{row['month']}</b><br>
-<b>占比:</b> {row['ratio']:.1f}%<br>
-<b>总销售额:</b> ¥{row['total_sales']:,.0f}<br>
-<b>星品新品销售额:</b> ¥{row['star_new_sales']:,.0f}<br>
-<br><b>趋势分析:</b><br>
-{'保持良好势头' if row['ratio'] >= 20 else '需要加强推广'}"""
+    <b>占比:</b> {row['ratio']:.1f}%<br>
+    <b>总销售额:</b> ¥{row['total_sales']:,.0f}<br>
+    <b>星品新品销售额:</b> ¥{row['star_new_sales']:,.0f}<br>
+    <br><b>趋势分析:</b><br>
+    {'保持良好势头' if row['ratio'] >= 20 else '需要加强推广'}"""
                 hover_texts.append(hover_text)
 
             fig.add_trace(go.Scatter(
