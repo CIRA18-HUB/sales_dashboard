@@ -882,9 +882,15 @@ def create_mt_comprehensive_analysis(data):
         row=2, col=2
     )
 
+    # 设置第4个子图的Y轴范围，确保负数部分能够完整显示
+    fig.update_yaxes(
+        range=[-150, 150],  # 设置Y轴范围，给负数部分留出足够空间
+        row=2, col=2
+    )
+
     # 更新布局
     fig.update_layout(
-        height=750,
+        height=800,  # 增加高度以确保显示完整
         showlegend=True,
         title={
             'text': "<b>🏪 MT渠道综合分析</b>",
@@ -1257,9 +1263,15 @@ def create_tt_comprehensive_analysis(data):
         row=2, col=2
     )
 
+    # 设置第4个子图的Y轴范围，确保负数部分能够完整显示
+    fig.update_yaxes(
+        range=[-150, 150],  # 设置Y轴范围，给负数部分留出足够空间
+        row=2, col=2
+    )
+
     # 更新布局
     fig.update_layout(
-        height=750,
+        height=800,  # 增加高度以确保显示完整
         showlegend=True,
         title={
             'text': "<b>🏢 TT渠道综合分析</b>",
