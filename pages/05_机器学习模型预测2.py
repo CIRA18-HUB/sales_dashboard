@@ -16,16 +16,18 @@ warnings.filterwarnings('ignore')
 
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error, r2_score
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import RobustScaler, StandardScaler
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import StackingRegressor
 import xgboost as xgb
 import lightgbm as lgb
 import os
 import time
-# 移除不必要的import以加速加载
-# from scipy import stats
-# from scipy.stats import boxcox  
-# from statsmodels.tsa.seasonal import seasonal_decompose
+from scipy import stats
+from scipy.stats import boxcox
+from statsmodels.tsa.seasonal import seasonal_decompose
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
 # 页面配置
 st.set_page_config(
@@ -247,8 +249,8 @@ render_admin_header()
 # 页面标题
 st.markdown("""
 <div class="main-header">
-    <h1 class="main-title">⚡ 速度优化销售预测系统</h1>
-    <p class="main-subtitle">快速训练 + 科学方法 + 高精度预测 (目标准确率: 85-90%, 训练时间: 3-4分钟)</p>
+    <h1 class="main-title">🚀 重构优化销售预测系统</h1>
+    <p class="main-subtitle">科学的时间序列处理 + 增强特征工程 + 严格验证方法 (目标准确率: 85-90%)</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -503,45 +505,34 @@ class OptimizedSalesPredictionSystem:
         return pd.concat(complete_data, ignore_index=True)
     
     def enhanced_feature_engineering(self, progress_callback=None):
-        """优化的时间序列特征工程"""
+        """增强的时间序列特征工程"""
         if progress_callback:
-            progress_callback(0.6, "创建优化的时间序列特征...")
+            progress_callback(0.6, "创建高级时间序列特征...")
         
         all_features = []
-        total_products = len(self.processed_data['product_code'].unique())
-        processed_products = 0
         
         for product in self.processed_data['product_code'].unique():
-            processed_products += 1
-            if processed_products % 10 == 0 and progress_callback:  # 每处理10个产品更新一次进度
-                progress = 0.6 + 0.1 * (processed_products / total_products)
-                progress_callback(progress, f"处理产品特征: {processed_products}/{total_products}")
-            
             product_data = self.processed_data[
                 self.processed_data['product_code'] == product
             ].sort_values('year_month_date').reset_index(drop=True)
             
-            if len(product_data) < 8:  # 降低最小数据要求从12到8
+            if len(product_data) < 12:  # 至少需要12个月数据
                 continue
             
-            # 🚀 优化：只对有意义的产品进行季节性分解
-            seasonal_comp = None
-            if len(product_data) >= 24 and product_data['total_qty'].sum() > 100:  # 增加销量阈值
-                try:
-                    seasonal_comp = self._fast_seasonal_decomposition(product_data['total_qty'])
-                    self.seasonal_components[product] = seasonal_comp
-                except:
-                    seasonal_comp = None
+            # 进行季节性分解
+            if len(product_data) >= 24 and product_data['total_qty'].sum() > 0:
+                seasonal_comp = self._seasonal_decomposition(product_data['total_qty'])
+                self.seasonal_components[product] = seasonal_comp
+            else:
+                seasonal_comp = None
             
-            # 🚀 优化：从第8个月开始预测（降低from 12）
-            start_idx = max(8, len(product_data) - 24)  # 最多只看最近24个月
-            
-            for i in range(start_idx, len(product_data)):
-                features = self._create_fast_features(
+            # 为每个时间点创建特征（使用滑动窗口）
+            for i in range(12, len(product_data)):  # 从第12个月开始预测
+                features = self._create_comprehensive_features(
                     product, product_data.iloc[:i], seasonal_comp, i
                 )
                 
-                # 目标变量
+                # 目标变量（下个月的销量）
                 if i < len(product_data):
                     features['target'] = product_data.iloc[i]['total_qty']
                     features['target_date'] = product_data.iloc[i]['year_month_date']
@@ -553,164 +544,248 @@ class OptimizedSalesPredictionSystem:
         if len(self.feature_data) == 0:
             return False
         
-        # 🚀 优化：简化特征后处理
-        self._fast_feature_postprocessing()
+        # 特征后处理
+        self._advanced_feature_postprocessing()
         
         if progress_callback:
-            progress_callback(0.7, f"✅ 优化特征工程完成: {len(self.feature_data)} 样本, {len([c for c in self.feature_data.columns if c not in ['product_code', 'target', 'target_date']])} 特征")
+            progress_callback(0.7, f"✅ 特征工程完成: {len(self.feature_data)} 样本, {len([c for c in self.feature_data.columns if c not in ['product_code', 'target', 'target_date']])} 特征")
         
         return True
     
-    def _fast_seasonal_decomposition(self, time_series):
-        """快速季节性分解"""
+    def _seasonal_decomposition(self, time_series):
+        """时间序列季节性分解"""
         try:
             if len(time_series) >= 24 and time_series.std() > 0:
-                # 🚀 简化的季节性分解：只提取关键组件
+                # 确保没有负值（对于加法分解）
                 ts_positive = time_series + abs(time_series.min()) + 1
                 
-                # 简单的12月移动平均作为趋势
-                trend = ts_positive.rolling(window=12, center=True).mean()
-                trend = trend.fillna(method='bfill').fillna(method='ffill')
-                
-                # 去趋势后的季节性模式
-                detrended = ts_positive - trend
-                seasonal_pattern = detrended.groupby(detrended.index % 12).mean()
-                seasonal = pd.Series(index=detrended.index)
-                
-                for i in range(len(seasonal)):
-                    seasonal.iloc[i] = seasonal_pattern.iloc[i % 12]
-                
-                # 残差
-                residual = ts_positive - trend - seasonal
+                decomposition = seasonal_decompose(
+                    ts_positive, 
+                    model='additive', 
+                    period=12,
+                    extrapolate_trend='freq'
+                )
                 
                 return {
-                    'trend': trend,
-                    'seasonal': seasonal,
-                    'residual': residual.fillna(0)
+                    'trend': decomposition.trend.fillna(method='bfill').fillna(method='ffill'),
+                    'seasonal': decomposition.seasonal,
+                    'residual': decomposition.resid.fillna(0)
                 }
             else:
                 return None
         except:
             return None
     
-    def _create_fast_features(self, product_code, historical_data, seasonal_comp, current_idx):
-        """创建优化的时间序列特征（减少复杂计算）"""
+    def _create_comprehensive_features(self, product_code, historical_data, seasonal_comp, current_idx):
+        """创建全面的时间序列特征"""
         features = {'product_code': product_code}
         
-        if len(historical_data) < 3:
+        if len(historical_data) < 3:  # 至少需要3个月数据
             return features
         
         qty_values = historical_data['total_qty'].values
         dates = historical_data['year_month_date']
         
+        # 额外的安全检查
         if len(qty_values) == 0:
             return features
         
-        # 1. 核心统计特征（最重要的）
-        recent_6m = qty_values[-6:] if len(qty_values) >= 6 else qty_values
-        recent_12m = qty_values[-12:] if len(qty_values) >= 12 else qty_values
-        
+        # 1. 基础统计特征
         features.update({
-            'qty_mean_6m': np.mean(recent_6m),
-            'qty_mean_12m': np.mean(recent_12m),
-            'qty_std_6m': np.std(recent_6m),
-            'qty_cv_6m': np.std(recent_6m) / (np.mean(recent_6m) + 1),
+            'qty_mean_12m': np.mean(qty_values[-12:]),
+            'qty_median_12m': np.median(qty_values[-12:]),
+            'qty_std_12m': np.std(qty_values[-12:]),
+            'qty_cv_12m': np.std(qty_values[-12:]) / (np.mean(qty_values[-12:]) + 1),
+            'qty_min_12m': np.min(qty_values[-12:]),
+            'qty_max_12m': np.max(qty_values[-12:]),
         })
         
-        # 2. 关键滞后特征（只保留最重要的）
-        important_lags = [1, 2, 3, 6, 12]
-        for lag in important_lags:
-            if lag <= len(qty_values):
-                features[f'qty_lag_{lag}'] = qty_values[-lag]
-            else:
-                features[f'qty_lag_{lag}'] = 0
+        # 2. 扩展滞后特征 (1-12个月)
+        max_lag = min(12, len(qty_values))
+        for lag in range(1, max_lag + 1):
+            features[f'qty_lag_{lag}'] = qty_values[-lag]
         
-        # 3. 关键移动平均
-        for window in [3, 6]:
+        # 如果数据不足12个月，用0填充缺失的滞后特征
+        for lag in range(max_lag + 1, 13):
+            features[f'qty_lag_{lag}'] = 0
+        
+        # 3. 移动平均特征 (多个窗口)
+        for window in [3, 6, 12]:
             if len(qty_values) >= window:
                 features[f'qty_ma_{window}'] = np.mean(qty_values[-window:])
+                features[f'qty_ema_{window}'] = self._exponential_moving_average(qty_values, window)
             else:
                 features[f'qty_ma_{window}'] = 0
+                features[f'qty_ema_{window}'] = 0
         
-        # 4. 简化的趋势特征
-        if len(qty_values) >= 6:
-            recent_trend = qty_values[-6:]
-            x = np.arange(len(recent_trend))
-            
-            if np.std(recent_trend) > 0:
-                slope = np.polyfit(x, recent_trend, 1)[0]
-                features['trend_slope_6m'] = slope
-            else:
-                features['trend_slope_6m'] = 0
-        else:
-            features['trend_slope_6m'] = 0
+        # 4. 趋势特征（多个时间窗口）
+        for window in [6, 12]:
+            if len(qty_values) >= window:
+                trend_data = qty_values[-window:]
+                x = np.arange(len(trend_data))
+                
+                if len(trend_data) > 1 and np.std(trend_data) > 0:
+                    slope, intercept, r_value, p_value, std_err = stats.linregress(x, trend_data)
+                    features[f'trend_slope_{window}m'] = slope
+                    features[f'trend_r2_{window}m'] = r_value**2
+                    features[f'trend_pvalue_{window}m'] = p_value
+                else:
+                    features[f'trend_slope_{window}m'] = 0
+                    features[f'trend_r2_{window}m'] = 0
+                    features[f'trend_pvalue_{window}m'] = 1
         
-        # 5. 时间特征（简化）
+        # 5. 季节性特征
         current_month = dates.iloc[-1].month
         features.update({
             'month': current_month,
             'quarter': (current_month - 1) // 3 + 1,
             'month_sin': np.sin(2 * np.pi * current_month / 12),
             'month_cos': np.cos(2 * np.pi * current_month / 12),
+            'is_q4': 1 if current_month >= 10 else 0,
+            'is_q1': 1 if current_month <= 3 else 0,
             'is_peak_season': 1 if current_month in [3, 4, 10, 11, 12] else 0
         })
         
-        # 6. 简化的季节性特征
-        if seasonal_comp and len(seasonal_comp['seasonal']) > 0:
+        # 6. 季节性分解特征
+        if seasonal_comp and len(seasonal_comp['trend']) > 0:
             try:
-                seasonal_idx = current_idx % 12
-                features['seasonal_component'] = seasonal_comp['seasonal'].iloc[seasonal_idx]
-            except:
-                features['seasonal_component'] = 0
+                # 确保索引不会超出范围
+                trend_idx = min(current_idx, len(seasonal_comp['trend']) - 1)
+                seasonal_idx = current_idx % 12  # 季节性组件按12个月循环
+                residual_idx = min(current_idx, len(seasonal_comp['residual']) - 1)
+                
+                features.update({
+                    'seasonal_component': seasonal_comp['seasonal'].iloc[seasonal_idx],
+                    'trend_component': seasonal_comp['trend'].iloc[trend_idx],
+                    'residual_component': seasonal_comp['residual'].iloc[residual_idx]
+                })
+            except (IndexError, KeyError):
+                features.update({
+                    'seasonal_component': 0,
+                    'trend_component': features['qty_mean_12m'],
+                    'residual_component': 0
+                })
         else:
-            features['seasonal_component'] = 0
+            features.update({
+                'seasonal_component': 0,
+                'trend_component': features['qty_mean_12m'],
+                'residual_component': 0
+            })
         
-        # 7. 关键增长率
-        if len(qty_values) >= 2 and qty_values[-2] > 0:
-            features['growth_rate_1m'] = (qty_values[-1] - qty_values[-2]) / qty_values[-2]
+        # 7. 波动性特征
+        if len(qty_values) >= 6:
+            features.update({
+                'volatility_6m': np.std(qty_values[-6:]) / (np.mean(qty_values[-6:]) + 1),
+                'volatility_12m': np.std(qty_values[-12:]) / (np.mean(qty_values[-12:]) + 1),
+                'skewness_12m': stats.skew(qty_values[-12:]) if len(qty_values) >= 12 else 0,
+                'kurtosis_12m': stats.kurtosis(qty_values[-12:]) if len(qty_values) >= 12 else 0
+            })
+        
+        # 8. 增长率特征
+        growth_rates = []
+        max_growth_periods = min(3, len(qty_values) - 1)  # 确保不会索引越界
+        
+        for i in range(1, max_growth_periods + 1):
+            if len(qty_values) > i and qty_values[-i-1] > 0:
+                growth_rate = (qty_values[-i] - qty_values[-i-1]) / qty_values[-i-1]
+                growth_rates.append(growth_rate)
+                features[f'growth_rate_{i}m'] = growth_rate
+            else:
+                features[f'growth_rate_{i}m'] = 0
+        
+        # 填充缺失的增长率特征
+        for i in range(max_growth_periods + 1, 4):
+            features[f'growth_rate_{i}m'] = 0
+        
+        if growth_rates:
+            features['avg_growth_rate_3m'] = np.mean(growth_rates)
         else:
-            features['growth_rate_1m'] = 0
+            features['avg_growth_rate_3m'] = 0
         
-        # 8. 同比增长（简化）
+        # 9. 相对特征（同比）
         if len(qty_values) >= 13:
+            # 13个月或以上数据：比较当前月与12个月前
             yoy_growth = (qty_values[-1] - qty_values[-13]) / (qty_values[-13] + 1)
             features['yoy_growth'] = yoy_growth
         elif len(qty_values) >= 12:
+            # 12个月数据：比较当前月与11个月前（近似同比）
             yoy_growth = (qty_values[-1] - qty_values[-12]) / (qty_values[-12] + 1)
             features['yoy_growth'] = yoy_growth
         else:
             features['yoy_growth'] = 0
         
+        # 10. 交互特征
+        features.update({
+            'trend_seasonal_interaction': features.get('trend_slope_12m', 0) * features['seasonal_component'],
+            'volatility_trend_interaction': features.get('volatility_12m', 0) * features.get('trend_slope_12m', 0)
+        })
+        
         return features
     
-    def _fast_feature_postprocessing(self):
-        """快速特征后处理"""
+    def _exponential_moving_average(self, values, window):
+        """计算指数移动平均"""
+        if len(values) == 0:
+            return 0
+        alpha = 2.0 / (window + 1)
+        ema = values[0]
+        for value in values[1:]:
+            ema = alpha * value + (1 - alpha) * ema
+        return ema
+    
+    def _advanced_feature_postprocessing(self):
+        """高级特征后处理"""
         # 获取特征列
         feature_cols = [col for col in self.feature_data.columns 
                        if col not in ['product_code', 'target', 'target_date']]
         
-        # 🚀 只处理无穷值，用0填充NaN（更快）
+        # 处理无穷值和异常值
         for col in feature_cols:
-            self.feature_data[col] = self.feature_data[col].replace([np.inf, -np.inf], 0)
-            self.feature_data[col] = self.feature_data[col].fillna(0)
+            # 替换无穷值
+            self.feature_data[col] = self.feature_data[col].replace([np.inf, -np.inf], np.nan)
+            
+            # 用中位数填充异常值
+            if self.feature_data[col].isna().sum() > 0:
+                median_val = self.feature_data[col].median()
+                self.feature_data[col] = self.feature_data[col].fillna(median_val)
         
-        # 🚀 移除常数特征（简化版）
+        # 移除常数特征
         constant_features = []
         for col in feature_cols:
-            if self.feature_data[col].nunique() <= 1:
+            if self.feature_data[col].std() == 0:
                 constant_features.append(col)
         
         if constant_features:
             self.feature_data = self.feature_data.drop(columns=constant_features)
+            
+        # 特征相关性检查（移除高度相关的特征）
+        self._remove_highly_correlated_features()
     
-    # 删除原来复杂的方法，使用优化版本
-    # _create_comprehensive_features 已被 _create_fast_features 替代
-    # _advanced_feature_postprocessing 已被 _fast_feature_postprocessing 替代
+    def _remove_highly_correlated_features(self, threshold=0.95):
+        """移除高度相关的特征"""
+        feature_cols = [col for col in self.feature_data.columns 
+                       if col not in ['product_code', 'target', 'target_date']]
+        
+        if len(feature_cols) < 2:
+            return
+        
+        # 计算相关性矩阵
+        corr_matrix = self.feature_data[feature_cols].corr().abs()
+        
+        # 找到高度相关的特征对
+        upper_tri = corr_matrix.where(
+            np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)
+        )
+        
+        # 标记要删除的特征
+        to_drop = [column for column in upper_tri.columns if any(upper_tri[column] > threshold)]
+        
+        if to_drop:
+            self.feature_data = self.feature_data.drop(columns=to_drop)
     
     def time_series_cross_validation(self, n_splits=5, progress_callback=None):
-        """优化的时间序列交叉验证训练"""
+        """时间序列交叉验证训练"""
         if progress_callback:
-            progress_callback(0.8, "开始优化的时间序列交叉验证训练...")
+            progress_callback(0.8, "开始时间序列交叉验证训练...")
         
         if self.feature_data is None or len(self.feature_data) == 0:
             return False
@@ -722,51 +797,46 @@ class OptimizedSalesPredictionSystem:
         X = self.feature_data[feature_cols]
         y = self.feature_data['target']
         
-        # 🚀 优化1: 简化目标变量变换（log1p比Box-Cox快很多）
-        y_log = np.log1p(y)
+        # 对目标变量进行Box-Cox变换（如果可能）
+        y_transformed, lambda_param = self._box_cox_transform(y)
         
         # 按时间排序
         time_sorted_idx = self.feature_data['target_date'].argsort()
         X = X.iloc[time_sorted_idx]
         y = y.iloc[time_sorted_idx]
-        y_log = y_log.iloc[time_sorted_idx]
+        y_transformed = y_transformed[time_sorted_idx]
         
-        # 🚀 优化2: 预先计算scaler避免重复fit
-        global_scaler = RobustScaler()
-        X_scaled = global_scaler.fit_transform(X)
-        X_scaled = pd.DataFrame(X_scaled, columns=feature_cols, index=X.index)
+        # 时间序列分割
+        tscv = TimeSeriesSplit(n_splits=n_splits, test_size=len(X)//6)
         
-        # 🚀 优化3: 减少模型复杂度但保持精度
+        # 初始化模型
         models = {
             'XGBoost': xgb.XGBRegressor(
-                n_estimators=300,  # 从500减到300
+                n_estimators=500,
                 max_depth=6,
-                learning_rate=0.05,  # 稍微提高学习率补偿树的减少
+                learning_rate=0.03,
                 subsample=0.8,
                 colsample_bytree=0.8,
                 reg_alpha=0.1,
                 reg_lambda=0.1,
                 random_state=42,
-                n_jobs=-1,
-                early_stopping_rounds=50,  # 🚀 添加早停
-                eval_metric='rmse'
+                n_jobs=-1
             ),
             'LightGBM': lgb.LGBMRegressor(
-                n_estimators=300,  # 从500减到300
+                n_estimators=500,
                 max_depth=6,
-                learning_rate=0.05,
+                learning_rate=0.03,
                 subsample=0.8,
                 colsample_bytree=0.8,
                 reg_alpha=0.1,
                 reg_lambda=0.1,
                 random_state=42,
                 n_jobs=-1,
-                verbose=-1,
-                early_stopping_rounds=50  # 🚀 添加早停
+                verbose=-1
             ),
             'RandomForest': RandomForestRegressor(
-                n_estimators=200,  # 从300减到200
-                max_depth=10,      # 从12减到10
+                n_estimators=300,
+                max_depth=12,
                 min_samples_split=5,
                 min_samples_leaf=2,
                 random_state=42,
@@ -774,62 +844,31 @@ class OptimizedSalesPredictionSystem:
             )
         }
         
-        # 时间序列分割
-        tscv = TimeSeriesSplit(n_splits=n_splits, test_size=len(X)//6)
-        splits = list(tscv.split(X_scaled))
-        
-        # 🚀 优化4: 交叉验证评估（添加进度反馈）
+        # 交叉验证评估
         cv_results = {}
         fold_predictions = {}
         
-        total_models = len(models)
-        current_model = 0
-        
         for model_name, model in models.items():
-            current_model += 1
-            if progress_callback:
-                progress_callback(0.8 + 0.15 * (current_model - 1) / total_models, 
-                                f"训练 {model_name} ({current_model}/{total_models})")
-            
             fold_scores = []
             fold_preds = []
             
-            for fold, (train_idx, val_idx) in enumerate(splits):
-                X_train = X_scaled.iloc[train_idx]
-                X_val = X_scaled.iloc[val_idx]
-                y_train = y_log.iloc[train_idx]
-                y_val = y_log.iloc[val_idx]
+            for fold, (train_idx, val_idx) in enumerate(tscv.split(X)):
+                X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
+                y_train, y_val = y_transformed[train_idx], y_transformed[val_idx]
                 y_val_original = y.iloc[val_idx]
                 
-                # 🚀 优化5: 为梯度提升模型添加验证集用于早停
-                if model_name in ['XGBoost', 'LightGBM']:
-                    # 从训练集中分出10%作为验证集用于早停
-                    split_point = int(len(X_train) * 0.9)
-                    X_train_fit = X_train.iloc[:split_point]
-                    X_train_val = X_train.iloc[split_point:]
-                    y_train_fit = y_train.iloc[:split_point]
-                    y_train_val = y_train.iloc[split_point:]
-                    
-                    if model_name == 'XGBoost':
-                        model.fit(
-                            X_train_fit, y_train_fit,
-                            eval_set=[(X_train_val, y_train_val)],
-                            verbose=False
-                        )
-                    else:  # LightGBM
-                        model.fit(
-                            X_train_fit, y_train_fit,
-                            eval_set=[(X_train_val, y_train_val)],
-                            callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0)]
-                        )
-                else:
-                    # RandomForest不支持早停
-                    model.fit(X_train, y_train)
+                # 特征缩放
+                scaler = RobustScaler()
+                X_train_scaled = scaler.fit_transform(X_train)
+                X_val_scaled = scaler.transform(X_val)
+                
+                # 训练模型
+                model.fit(X_train_scaled, y_train)
                 
                 # 预测并逆变换
-                y_pred_log = model.predict(X_val)
-                y_pred = np.expm1(y_pred_log)  # 🚀 log1p的逆变换
-                y_pred = np.maximum(y_pred, 0)
+                y_pred_transformed = model.predict(X_val_scaled)
+                y_pred = self._inverse_box_cox_transform(y_pred_transformed, lambda_param)
+                y_pred = np.maximum(y_pred, 0)  # 确保非负
                 
                 # 计算评估指标
                 fold_score = self._calculate_robust_metrics(y_val_original.values, y_pred)
@@ -854,25 +893,20 @@ class OptimizedSalesPredictionSystem:
         best_model_name = max(cv_results.keys(), 
                              key=lambda x: cv_results[x]['mean_smape_accuracy'])
         
-        if progress_callback:
-            progress_callback(0.95, f"在全数据上训练最佳模型: {best_model_name}")
+        # 在全部数据上训练最佳模型
+        final_scaler = RobustScaler()
+        X_scaled = final_scaler.fit_transform(X)
         
-        # 🚀 优化6: 在全部数据上快速训练最佳模型
         final_model = models[best_model_name]
-        
-        if best_model_name in ['XGBoost', 'LightGBM']:
-            # 使用更少的树数在全数据上训练（因为数据更多，需要的树更少）
-            final_model.set_params(n_estimators=200)
-        
-        final_model.fit(X_scaled, y_log)
+        final_model.fit(X_scaled, y_transformed)
         
         # 保存模型和相关信息
         self.models = {
             'best_model': final_model,
             'best_model_name': best_model_name,
-            'scaler': global_scaler,
+            'scaler': final_scaler,
             'feature_cols': feature_cols,
-            'use_log_transform': True,  # 标记使用log变换
+            'box_cox_lambda': lambda_param,
             'all_models': models
         }
         
@@ -889,12 +923,33 @@ class OptimizedSalesPredictionSystem:
         
         if progress_callback:
             best_score = cv_results[best_model_name]['mean_smape_accuracy']
-            progress_callback(1.0, f"✅ 优化训练完成！最佳模型: {best_model_name} (SMAPE准确率: {best_score:.1f}% ± {cv_results[best_model_name]['std_smape_accuracy']:.1f}%)")
+            progress_callback(1.0, f"✅ 训练完成！最佳模型: {best_model_name} (SMAPE准确率: {best_score:.1f}% ± {cv_results[best_model_name]['std_smape_accuracy']:.1f}%)")
         
         return True
     
-    # 删除Box-Cox相关方法，使用更快的log变换
-    # _box_cox_transform 和 _inverse_box_cox_transform 已移除，使用 np.log1p 和 np.expm1
+    def _box_cox_transform(self, y):
+        """Box-Cox变换"""
+        try:
+            # Box-Cox变换要求正值
+            y_positive = y + abs(y.min()) + 1
+            y_transformed, lambda_param = boxcox(y_positive)
+            return y_transformed, lambda_param
+        except:
+            # 如果Box-Cox失败，使用log变换
+            y_log = np.log1p(y)
+            return y_log, None
+    
+    def _inverse_box_cox_transform(self, y_transformed, lambda_param):
+        """Box-Cox逆变换"""
+        if lambda_param is None:
+            # 逆log变换
+            return np.expm1(y_transformed)
+        else:
+            # 逆Box-Cox变换
+            if lambda_param == 0:
+                return np.exp(y_transformed) - 1
+            else:
+                return np.power(lambda_param * y_transformed + 1, 1/lambda_param) - 1
     
     def _calculate_robust_metrics(self, y_true, y_pred):
         """计算稳健的评估指标"""
@@ -927,7 +982,7 @@ class OptimizedSalesPredictionSystem:
         }
     
     def predict_future_sales(self, months_ahead=3):
-        """优化的未来销量预测"""
+        """预测未来销量"""
         if not self.models:
             return None
         
@@ -944,18 +999,11 @@ class OptimizedSalesPredictionSystem:
             X_scaled = self.models['scaler'].transform(X)
             
             # 预测
-            if self.models.get('use_log_transform', False):
-                # 使用log变换
-                pred_log = self.models['best_model'].predict(X_scaled)[0]
-                pred_value = np.expm1(pred_log)  # log1p的逆变换
-            else:
-                # 使用Box-Cox变换（向后兼容）
-                pred_transformed = self.models['best_model'].predict(X_scaled)[0]
-                pred_value = self._inverse_box_cox_transform(
-                    np.array([pred_transformed]), 
-                    self.models.get('box_cox_lambda')
-                )[0]
-            
+            pred_transformed = self.models['best_model'].predict(X_scaled)[0]
+            pred_value = self._inverse_box_cox_transform(
+                np.array([pred_transformed]), 
+                self.models['box_cox_lambda']
+            )[0]
             pred_value = max(0, pred_value)
             
             # 计算置信区间（基于历史误差）
@@ -994,15 +1042,14 @@ class OptimizedSalesPredictionSystem:
 
 # 创建侧边栏
 with st.sidebar:
-    st.markdown("### ⚡ 速度优化控制面板")
+    st.markdown("### 🚀 重构优化控制面板")
     
     # 管理员信息
     st.markdown(f"""
     <div style="background: rgba(255, 255, 255, 0.1); padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
-        <div style="color: #ff6b6b; font-weight: bold; font-size: 0.9rem;">⚡ 速度优化版</div>
+        <div style="color: #ff6b6b; font-weight: bold; font-size: 0.9rem;">🚀 重构优化版</div>
         <div style="color: white; font-size: 0.8rem;">用户: {st.session_state.get('display_name', 'Admin')}</div>
         <div style="color: white; font-size: 0.8rem;">目标: 85-90% 准确率</div>
-        <div style="color: white; font-size: 0.8rem;">训练时间: ~3-4分钟</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1036,16 +1083,16 @@ with st.sidebar:
                 st.warning(f"⚠️ 距离85%目标还差{85-best_score:.1f}%")
 
 # 主界面
-tab1, tab2, tab3, tab4 = st.tabs(["⚡ 速度优化训练", "🔮 销量预测", "📊 科学评估", "📈 特征分析"])
+tab1, tab2, tab3, tab4 = st.tabs(["🚀 重构训练", "🔮 销量预测", "📊 科学评估", "📈 特征分析"])
 
-# Tab 1: 速度优化训练
+# Tab 1: 重构训练
 with tab1:
-    st.markdown("### ⚡ 速度优化的时间序列预测模型训练")
+    st.markdown("### 🚀 科学的时间序列预测模型训练")
     
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        if st.button("⚡ 开始速度优化训练", type="primary", use_container_width=True):
+        if st.button("🔄 开始重构训练", type="primary", use_container_width=True):
             progress_bar = st.progress(0)
             status_text = st.empty()
             
@@ -1069,49 +1116,50 @@ with tab1:
                     best_score = system.evaluation_results[best_model]['mean_smape_accuracy']
                     
                     if best_score >= 90:
-                        st.success("⚡ 速度优化训练完成！已超越90%目标！")
+                        st.success("🏆 重构训练完成！已超越90%目标！")
                         st.balloons()
                     elif best_score >= 85:
-                        st.success("⚡ 速度优化训练完成！已达成85%目标！")
+                        st.success("🎯 重构训练完成！已达成85%目标！")
                         st.balloons()
                     else:
-                        st.success(f"✅ 速度优化训练完成！准确率：{best_score:.1f}%")
+                        st.success(f"✅ 重构训练完成！准确率：{best_score:.1f}%")
                 else:
-                    st.error("速度优化训练失败")
+                    st.error("重构训练失败")
                     
             except Exception as e:
-                st.error(f"速度优化训练过程出错: {str(e)}")
+                st.error(f"重构训练过程出错: {str(e)}")
                 st.exception(e)
     
     with col2:
         st.info("""
-        **⚡ 速度优化特性：**
+        **🚀 重构优化特性：**
         
-        **🔧 优化的时间序列处理:**
+        **🔧 科学的时间序列处理:**
         - ✅ 严格的时间序列分割（避免数据泄露）
         - ✅ TimeSeriesSplit交叉验证
-        - ✅ 快速季节性分解
-        - ✅ Log变换（替代复杂的Box-Cox）
+        - ✅ 季节性分解和趋势分析
+        - ✅ Box-Cox变换处理偏态分布
         
-        **🎯 精简特征工程:**
-        - ✅ 核心滞后特征（1,2,3,6,12月）
-        - ✅ 关键移动平均和趋势
-        - ✅ 简化的季节性组件
-        - ✅ 重要统计特征
+        **🎯 增强特征工程:**
+        - ✅ 12个月滞后特征
+        - ✅ 多窗口移动平均和指数平滑
+        - ✅ 季节性组件提取
+        - ✅ 高级统计特征（偏度、峰度）
+        - ✅ 同比增长率
         
-        **🚀 性能优化:**
-        - ✅ 早停机制（300→200棵树实际用更少）
-        - ✅ 预计算scaler避免重复
-        - ✅ 减少数据要求（12→8个月）
-        - ✅ 并行处理优化
+        **📊 科学评估方法:**
+        - ✅ SMAPE稳健准确率指标
+        - ✅ 5折时间序列交叉验证
+        - ✅ 置信区间估计
+        - ✅ 特征相关性去除
         
-        **预期效果：准确率85-90%，训练时间3-4分钟**
+        **预期效果：真实准确率85-90%+**
         """)
     
     # 显示训练结果
     if st.session_state.optimized_model_trained:
         st.markdown("---")
-        st.markdown("### 📊 速度优化训练结果")
+        st.markdown("### 📊 重构训练结果")
         
         system = st.session_state.optimized_prediction_system
         
@@ -1152,7 +1200,7 @@ with tab2:
     st.markdown("### 🔮 科学销量预测")
     
     if not st.session_state.optimized_model_trained:
-        st.warning("⚠️ 请先在'速度优化训练'页面训练模型")
+        st.warning("⚠️ 请先在'重构训练'页面训练模型")
     else:
         system = st.session_state.optimized_prediction_system
         
@@ -1196,7 +1244,7 @@ with tab2:
                         st.download_button(
                             "📥 下载预测结果",
                             data=csv,
-                            file_name=f'速度优化版销量预测_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv',
+                            file_name=f'重构版销量预测_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv',
                             mime='text/csv'
                         )
                     else:
@@ -1204,12 +1252,11 @@ with tab2:
         
         with col2:
             st.info("""
-            **🎯 速度优化预测特点：**
+            **🎯 科学预测特点：**
             - 基于时间序列交叉验证的可靠模型
             - 考虑季节性和趋势的综合预测
             - 基于历史误差的置信区间
             - 避免数据泄露的严格方法论
-            - 3-4分钟快速训练完成
             """)
 
 # Tab 3: 科学评估
@@ -1398,14 +1445,14 @@ with tab4:
 st.markdown("---")
 st.markdown(f"""
 <div style="text-align: center; color: rgba(255, 255, 255, 0.8); font-size: 0.9rem; background: rgba(255, 255, 255, 0.1); padding: 1rem; border-radius: 10px;">
-    ⚡ 速度优化销售预测系统 v5.0 | 
+    🚀 重构优化销售预测系统 v4.0 | 
     🎯 科学达成85-90%准确率 | 
-    使用速度优化方法 + 精简特征工程 + 早停机制 | 
+    使用严格时间序列方法 + 增强特征工程 + 交叉验证 | 
     数据更新时间: {datetime.now().strftime('%Y-%m-%d')} |
     🔒 管理员专用模式
     <br>
     <small style="opacity: 0.7;">
-    ⚡ 速度优化: 早停机制 | Log变换 | 精简特征 | 预计算优化 | 3-4分钟快速训练
+    ✨ 重构特性: 时间序列分割 | 季节性分解 | Box-Cox变换 | SMAPE指标 | 置信区间估计 | 高级特征工程
     </small>
 </div>
 """, unsafe_allow_html=True)
