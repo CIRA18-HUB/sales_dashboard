@@ -601,7 +601,7 @@ def create_mt_comprehensive_analysis(data):
             '<b>MT渠道月度销售额与达成率</b>',
             '<b>MT渠道区域销售分布</b>',
             '<b>MT渠道季度对比分析</b>',
-            '<b>MT渠道同比增长趋势</b>'
+            '<b>MT渠道环比增长趋势</b>'  # 改为环比
         ),
         specs=[
             [{"secondary_y": True}, {"type": "bar"}],
@@ -630,20 +630,19 @@ def create_mt_comprehensive_analysis(data):
 
         mt_achievement = (mt_month_sales / mt_month_target * 100) if mt_month_target > 0 else 0
 
-        # 去年同期数据 - 修复计算逻辑
-        last_year_start = pd.Timestamp(f'{current_year - 1}-{month:02d}-01')
-        last_year_end = last_year_start + pd.offsets.MonthEnd(0)
-        last_year_sales = sales_data[
-            (sales_data['渠道类型'] == 'MT') &
-            (sales_data['发运月份'] >= last_year_start) &
-            (sales_data['发运月份'] <= last_year_end)
-            ]['销售额'].sum()
+        # 计算环比增长（与上月对比）
+        if month > 1:
+            last_month_start = pd.Timestamp(f'{current_year}-{month - 1:02d}-01')
+            last_month_end = last_month_start + pd.offsets.MonthEnd(0)
+            last_month_sales = sales_data[
+                (sales_data['渠道类型'] == 'MT') &
+                (sales_data['发运月份'] >= last_month_start) &
+                (sales_data['发运月份'] <= last_month_end)
+                ]['销售额'].sum()
 
-        # 如果没有去年数据，使用模拟数据
-        if last_year_sales == 0:
-            last_year_sales = mt_month_sales * np.random.uniform(0.8, 1.2)
-
-        growth_rate = ((mt_month_sales - last_year_sales) / last_year_sales * 100) if last_year_sales > 0 else 0
+            growth_rate = ((mt_month_sales - last_month_sales) / last_month_sales * 100) if last_month_sales > 0 else 0
+        else:
+            growth_rate = 0  # 1月份没有环比数据
 
         monthly_data.append({
             '月份': f'{month}月',
@@ -651,8 +650,7 @@ def create_mt_comprehensive_analysis(data):
             'MT销售额': mt_month_sales,
             'MT目标额': mt_month_target,
             'MT达成率': mt_achievement,
-            '去年同期': last_year_sales,
-            '同比增长': growth_rate
+            '环比增长': growth_rate
         })
 
     df_monthly = pd.DataFrame(monthly_data)
@@ -676,15 +674,13 @@ def create_mt_comprehensive_analysis(data):
                     '销售额: ¥%{y:,.0f}<br>' +
                     '目标额: ¥%{customdata[0]:,.0f}<br>' +
                     '完成度: %{customdata[1]:.1f}%<br>' +
-                    '去年同期: ¥%{customdata[2]:,.0f}<br>' +
-                    '同比增长: %{customdata[3]:+.1f}%' +
+                    '环比增长: %{customdata[2]:+.1f}%' +
                     '<extra></extra>'
             ),
             customdata=list(zip(
                 df_monthly['MT目标额'],
                 df_monthly['MT达成率'],
-                df_monthly['去年同期'],
-                df_monthly['同比增长']
+                df_monthly['环比增长']
             ))
         ),
         row=1, col=1, secondary_y=False
@@ -763,12 +759,9 @@ def create_mt_comprehensive_analysis(data):
     # 3. 季度对比分析
     quarterly_data = df_monthly.groupby('季度').agg({
         'MT销售额': 'sum',
-        'MT目标额': 'sum',
-        '去年同期': 'sum'
+        'MT目标额': 'sum'
     }).reset_index()
     quarterly_data['达成率'] = (quarterly_data['MT销售额'] / quarterly_data['MT目标额'] * 100).fillna(0)
-    quarterly_data['同比增长'] = (
-                (quarterly_data['MT销售额'] - quarterly_data['去年同期']) / quarterly_data['去年同期'] * 100).fillna(0)
 
     fig.add_trace(
         go.Bar(
@@ -787,69 +780,97 @@ def create_mt_comprehensive_analysis(data):
                     '季度: %{x}<br>' +
                     '销售额: ¥%{y:,.0f}<br>' +
                     '目标额: ¥%{customdata[0]:,.0f}<br>' +
-                    '达成率: %{customdata[1]:.1f}%<br>' +
-                    '同比增长: %{customdata[2]:+.1f}%' +
+                    '达成率: %{customdata[1]:.1f}%' +
                     '<extra></extra>'
             ),
             customdata=list(zip(
                 quarterly_data['MT目标额'],
-                quarterly_data['达成率'],
-                quarterly_data['同比增长']
+                quarterly_data['达成率']
             ))
         ),
         row=2, col=1
     )
 
-    # 4. 同比增长趋势 - 修复空白问题
-    positive_growth = [max(0, v) for v in df_monthly['同比增长']]
-    negative_growth = [min(0, v) for v in df_monthly['同比增长']]
+    # 4. 环比增长趋势（替代同比）
+    positive_growth = [max(0, v) for v in df_monthly['环比增长']]
+    negative_growth = [min(0, v) for v in df_monthly['环比增长']]
 
+    # 1月份特殊处理
     fig.add_trace(
         go.Bar(
-            x=df_monthly['月份'],
-            y=positive_growth,
+            x=[df_monthly['月份'].iloc[0]],
+            y=[0],
+            name='无环比数据',
+            marker=dict(
+                color='#d1d5db',
+                line=dict(color='rgba(209, 213, 219, 0.8)', width=1)
+            ),
+            text=['无环比'],
+            textposition='inside',
+            textfont=dict(color='#6b7280', size=10, family="Arial Black"),
+            showlegend=True,
+            hovertemplate=(
+                    '<b>1月份</b><br>' +
+                    '无上月数据对比' +
+                    '<extra></extra>'
+            )
+        ),
+        row=2, col=2
+    )
+
+    # 其他月份的环比增长
+    fig.add_trace(
+        go.Bar(
+            x=df_monthly['月份'][1:],  # 从2月开始
+            y=positive_growth[1:],
             name='正增长',
             marker=dict(
                 color='#10b981',
                 line=dict(color='rgba(16, 185, 129, 0.8)', width=1)
             ),
-            text=[f'+{v:.0f}%' if v > 0 else '' for v in positive_growth],
+            text=[f'+{v:.0f}%' if v > 0 else '' for v in positive_growth[1:]],
             textposition='outside',
             textfont=dict(color='#10b981', size=10, family="Arial Black"),
             hovertemplate=(
-                    '<b>MT正增长</b><br>' +
+                    '<b>MT环比正增长</b><br>' +
                     '月份: %{x}<br>' +
                     '增长率: +%{y:.1f}%<br>' +
                     '当月销售: ¥%{customdata[0]:,.0f}<br>' +
-                    '去年同期: ¥%{customdata[1]:,.0f}' +
+                    '上月销售: ¥%{customdata[1]:,.0f}' +
                     '<extra></extra>'
             ),
-            customdata=list(zip(df_monthly['MT销售额'], df_monthly['去年同期']))
+            customdata=list(zip(
+                df_monthly['MT销售额'][1:],
+                [df_monthly['MT销售额'].iloc[i - 1] for i in range(1, len(df_monthly))]
+            ))
         ),
         row=2, col=2
     )
 
     fig.add_trace(
         go.Bar(
-            x=df_monthly['月份'],
-            y=negative_growth,
+            x=df_monthly['月份'][1:],  # 从2月开始
+            y=negative_growth[1:],
             name='负增长',
             marker=dict(
                 color='#ef4444',
                 line=dict(color='rgba(239, 68, 68, 0.8)', width=1)
             ),
-            text=[f'{v:.0f}%' if v < 0 else '' for v in negative_growth],
+            text=[f'{v:.0f}%' if v < 0 else '' for v in negative_growth[1:]],
             textposition='outside',
             textfont=dict(color='#ef4444', size=10, family="Arial Black"),
             hovertemplate=(
-                    '<b>MT负增长</b><br>' +
+                    '<b>MT环比负增长</b><br>' +
                     '月份: %{x}<br>' +
                     '增长率: %{y:.1f}%<br>' +
                     '当月销售: ¥%{customdata[0]:,.0f}<br>' +
-                    '去年同期: ¥%{customdata[1]:,.0f}' +
+                    '上月销售: ¥%{customdata[1]:,.0f}' +
                     '<extra></extra>'
             ),
-            customdata=list(zip(df_monthly['MT销售额'], df_monthly['去年同期']))
+            customdata=list(zip(
+                df_monthly['MT销售额'][1:],
+                [df_monthly['MT销售额'].iloc[i - 1] for i in range(1, len(df_monthly))]
+            ))
         ),
         row=2, col=2
     )
@@ -911,7 +932,7 @@ def create_mt_comprehensive_analysis(data):
         title_font=dict(size=12, color='#6b7280')
     )
     fig.update_yaxes(
-        title_text="<b>增长率 (%)</b>",
+        title_text="<b>环比增长率 (%)</b>",  # 改为环比
         row=2, col=2,
         gridcolor='rgba(0,0,0,0.1)',
         gridwidth=1,
@@ -941,7 +962,7 @@ def create_tt_comprehensive_analysis(data):
             '<b>TT渠道月度销售额与达成率</b>',
             '<b>TT渠道区域销售分布</b>',
             '<b>TT渠道季度对比分析</b>',
-            '<b>TT渠道同比增长趋势</b>'
+            '<b>TT渠道环比增长趋势</b>'  # 改为环比
         ),
         specs=[
             [{"secondary_y": True}, {"type": "bar"}],
@@ -970,20 +991,19 @@ def create_tt_comprehensive_analysis(data):
 
         tt_achievement = (tt_month_sales / tt_month_target * 100) if tt_month_target > 0 else 0
 
-        # 去年同期数据
-        last_year_start = pd.Timestamp(f'{current_year - 1}-{month:02d}-01')
-        last_year_end = last_year_start + pd.offsets.MonthEnd(0)
-        last_year_sales = sales_data[
-            (sales_data['渠道类型'] == 'TT') &
-            (sales_data['发运月份'] >= last_year_start) &
-            (sales_data['发运月份'] <= last_year_end)
-            ]['销售额'].sum()
+        # 计算环比增长（与上月对比）
+        if month > 1:
+            last_month_start = pd.Timestamp(f'{current_year}-{month - 1:02d}-01')
+            last_month_end = last_month_start + pd.offsets.MonthEnd(0)
+            last_month_sales = sales_data[
+                (sales_data['渠道类型'] == 'TT') &
+                (sales_data['发运月份'] >= last_month_start) &
+                (sales_data['发运月份'] <= last_month_end)
+                ]['销售额'].sum()
 
-        # 如果没有去年数据，使用模拟数据
-        if last_year_sales == 0:
-            last_year_sales = tt_month_sales * np.random.uniform(0.8, 1.2)
-
-        growth_rate = ((tt_month_sales - last_year_sales) / last_year_sales * 100) if last_year_sales > 0 else 0
+            growth_rate = ((tt_month_sales - last_month_sales) / last_month_sales * 100) if last_month_sales > 0 else 0
+        else:
+            growth_rate = 0  # 1月份没有环比数据
 
         monthly_data.append({
             '月份': f'{month}月',
@@ -991,8 +1011,7 @@ def create_tt_comprehensive_analysis(data):
             'TT销售额': tt_month_sales,
             'TT目标额': tt_month_target,
             'TT达成率': tt_achievement,
-            '去年同期': last_year_sales,
-            '同比增长': growth_rate
+            '环比增长': growth_rate
         })
 
     df_monthly = pd.DataFrame(monthly_data)
@@ -1016,15 +1035,13 @@ def create_tt_comprehensive_analysis(data):
                     '销售额: ¥%{y:,.0f}<br>' +
                     '目标额: ¥%{customdata[0]:,.0f}<br>' +
                     '完成度: %{customdata[1]:.1f}%<br>' +
-                    '去年同期: ¥%{customdata[2]:,.0f}<br>' +
-                    '同比增长: %{customdata[3]:+.1f}%' +
+                    '环比增长: %{customdata[2]:+.1f}%' +
                     '<extra></extra>'
             ),
             customdata=list(zip(
                 df_monthly['TT目标额'],
                 df_monthly['TT达成率'],
-                df_monthly['去年同期'],
-                df_monthly['同比增长']
+                df_monthly['环比增长']
             ))
         ),
         row=1, col=1, secondary_y=False
@@ -1067,7 +1084,7 @@ def create_tt_comprehensive_analysis(data):
         annotation_text="目标线 100%"
     )
 
-    # 2. 区域销售分布 - 修复customdata2错误
+    # 2. 区域销售分布
     regional_data = sales_data[sales_data['渠道类型'] == 'TT'].groupby('所属区域')['销售额'].sum().sort_values(
         ascending=True)
 
@@ -1103,12 +1120,9 @@ def create_tt_comprehensive_analysis(data):
     # 3. 季度对比分析
     quarterly_data = df_monthly.groupby('季度').agg({
         'TT销售额': 'sum',
-        'TT目标额': 'sum',
-        '去年同期': 'sum'
+        'TT目标额': 'sum'
     }).reset_index()
     quarterly_data['达成率'] = (quarterly_data['TT销售额'] / quarterly_data['TT目标额'] * 100).fillna(0)
-    quarterly_data['同比增长'] = (
-                (quarterly_data['TT销售额'] - quarterly_data['去年同期']) / quarterly_data['去年同期'] * 100).fillna(0)
 
     fig.add_trace(
         go.Bar(
@@ -1127,69 +1141,99 @@ def create_tt_comprehensive_analysis(data):
                     '季度: %{x}<br>' +
                     '销售额: ¥%{y:,.0f}<br>' +
                     '目标额: ¥%{customdata[0]:,.0f}<br>' +
-                    '达成率: %{customdata[1]:.1f}%<br>' +
-                    '同比增长: %{customdata[2]:+.1f}%' +
+                    '达成率: %{customdata[1]:.1f}%' +
                     '<extra></extra>'
             ),
             customdata=list(zip(
                 quarterly_data['TT目标额'],
-                quarterly_data['达成率'],
-                quarterly_data['同比增长']
+                quarterly_data['达成率']
             ))
         ),
         row=2, col=1
     )
 
-    # 4. 同比增长趋势
-    positive_growth = [max(0, v) for v in df_monthly['同比增长']]
-    negative_growth = [min(0, v) for v in df_monthly['同比增长']]
+    # 4. 环比增长趋势（替代同比）
+    positive_growth = [max(0, v) for v in df_monthly['环比增长']]
+    negative_growth = [min(0, v) for v in df_monthly['环比增长']]
 
+    # 1月份特殊处理 - 显示新渠道标识
     fig.add_trace(
         go.Bar(
-            x=df_monthly['月份'],
-            y=positive_growth,
+            x=[df_monthly['月份'].iloc[0]],
+            y=[0],
+            name='新增渠道',
+            marker=dict(
+                color='#9333ea',
+                line=dict(color='rgba(147, 51, 234, 0.8)', width=1)
+            ),
+            text=['新渠道'],
+            textposition='inside',
+            textfont=dict(color='white', size=10, family="Arial Black"),
+            showlegend=True,
+            hovertemplate=(
+                    '<b>TT渠道1月份</b><br>' +
+                    '新增渠道，无环比数据<br>' +
+                    '销售额: ¥%{customdata[0]:,.0f}' +
+                    '<extra></extra>'
+            ),
+            customdata=[[df_monthly['TT销售额'].iloc[0]]]
+        ),
+        row=2, col=2
+    )
+
+    # 其他月份的环比增长
+    fig.add_trace(
+        go.Bar(
+            x=df_monthly['月份'][1:],  # 从2月开始
+            y=positive_growth[1:],
             name='正增长',
             marker=dict(
                 color='#10b981',
                 line=dict(color='rgba(16, 185, 129, 0.8)', width=1)
             ),
-            text=[f'+{v:.0f}%' if v > 0 else '' for v in positive_growth],
+            text=[f'+{v:.0f}%' if v > 0 else '' for v in positive_growth[1:]],
             textposition='outside',
             textfont=dict(color='#10b981', size=10, family="Arial Black"),
             hovertemplate=(
-                    '<b>TT正增长</b><br>' +
+                    '<b>TT环比正增长</b><br>' +
                     '月份: %{x}<br>' +
                     '增长率: +%{y:.1f}%<br>' +
                     '当月销售: ¥%{customdata[0]:,.0f}<br>' +
-                    '去年同期: ¥%{customdata[1]:,.0f}' +
+                    '上月销售: ¥%{customdata[1]:,.0f}' +
                     '<extra></extra>'
             ),
-            customdata=list(zip(df_monthly['TT销售额'], df_monthly['去年同期']))
+            customdata=list(zip(
+                df_monthly['TT销售额'][1:],
+                [df_monthly['TT销售额'].iloc[i - 1] for i in range(1, len(df_monthly))]
+            ))
         ),
         row=2, col=2
     )
 
     fig.add_trace(
         go.Bar(
-            x=df_monthly['月份'],
-            y=negative_growth,
+            x=df_monthly['月份'][1:],  # 从2月开始
+            y=negative_growth[1:],
             name='负增长',
             marker=dict(
                 color='#ef4444',
                 line=dict(color='rgba(239, 68, 68, 0.8)', width=1)
             ),
-            text=[f'{v:.0f}%' if v < 0 else '' for v in negative_growth],
+            text=[f'{v:.0f}%' if v < 0 else '' for v in negative_growth[1:]],
             textposition='outside',
             textfont=dict(color='#ef4444', size=10, family="Arial Black"),
             hovertemplate=(
-                    '<b>TT负增长</b><br>' +
+                    '<b>TT环比负增长</b><br>' +
                     '月份: %{x}<br>' +
                     '增长率: %{y:.1f}%<br>' +
                     '当月销售: ¥%{customdata[0]:,.0f}<br>' +
-                    '去年同期: ¥%{customdata[1]:,.0f}' +
+                    '上月销售: ¥%{customdata[1]:,.0f}' +
                     '<extra></extra>'
             ),
-            customdata=list(zip(df_monthly['TT销售额'], df_monthly['去年同期']))
+            customdata=list(zip(
+                df_monthly['TT销售额'][1:],
+                [df_monthly['TT销售额'].iloc[i - 1] for i in range(1, len(df_monthly))]
+            ))
         ),
         row=2, col=2
     )
@@ -1198,6 +1242,18 @@ def create_tt_comprehensive_analysis(data):
     fig.add_hline(
         y=0,
         line=dict(color="gray", width=1),
+        row=2, col=2
+    )
+
+    # 添加新渠道说明
+    fig.add_annotation(
+        x=0.5,
+        y=1.05,
+        xref="x domain",
+        yref="y domain",
+        text="<b>注：TT为2025年新增渠道</b>",
+        showarrow=False,
+        font=dict(size=11, color='#9333ea'),
         row=2, col=2
     )
 
@@ -1251,7 +1307,7 @@ def create_tt_comprehensive_analysis(data):
         title_font=dict(size=12, color='#6b7280')
     )
     fig.update_yaxes(
-        title_text="<b>增长率 (%)</b>",
+        title_text="<b>环比增长率 (%)</b>",  # 改为环比
         row=2, col=2,
         gridcolor='rgba(0,0,0,0.1)',
         gridwidth=1,
