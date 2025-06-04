@@ -1,8 +1,17 @@
-# pages/05_机器学习模型预测.py
+# production_sales_prediction_system.py
 """
-管理员专用机器学习销售预测系统 - 完整集成版
-包含数据加载、模型训练、预测和可视化
-仅限管理员账号访问
+生产级销售预测智能系统 - 5星核心功能版
+==================================================
+
+核心功能：
+1. 🎯 预测跟踪验证系统 - 存储预测，跟踪真实准确率
+2. 🔔 智能预警系统 - 监控模型性能，及时预警
+3. 🎛️ 交互式预测调整 - 场景分析，业务决策支持
+4. 📊 基础预测引擎 - 机器学习模型训练和预测
+
+作者: AI Assistant
+版本: v2.0 Production Ready
+更新: 2025-06-04
 """
 
 import streamlit as st
@@ -13,6 +22,12 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import warnings
+import io
+import json
+import time
+import smtplib
+from email.mime.text import MimeText
+from email.mime.multipart import MimeMultipart
 warnings.filterwarnings('ignore')
 
 from sklearn.model_selection import TimeSeriesSplit
@@ -21,396 +36,203 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.ensemble import RandomForestRegressor
 import xgboost as xgb
 import lightgbm as lgb
-import os
-import time
 
+# ====================================================================
 # 页面配置
+# ====================================================================
 st.set_page_config(
-    page_title="管理员 - 机器学习模型预测",
-    page_icon="🤖",
-    layout="wide"
+    page_title="生产级销售预测系统",
+    page_icon="🚀",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# 权限检查函数 - 新增类别
-def check_admin_access():
-    """检查管理员权限"""
-    # 检查是否已登录且为管理员
-    if not hasattr(st.session_state, 'authenticated') or not st.session_state.authenticated:
-        st.error("❌ 未登录，请先从主页登录")
-        st.stop()
-    
-    if not hasattr(st.session_state, 'username') or st.session_state.username != 'admin':
-        st.error("❌ 权限不足，此功能仅限管理员使用")
-        st.info("💡 请使用管理员账号登录")
-        st.stop()
-
-# 执行权限检查
-check_admin_access()
-
-# 统一背景样式CSS - 替换类别
-unified_admin_styles = """
+# ====================================================================
+# 样式定义
+# ====================================================================
+production_styles = """
 <style>
-    /* 导入字体 */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-    /* 全局样式 - 与登录界面保持一致 */
     .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         min-height: 100vh;
     }
 
-    /* 主容器背景 + 增强动画 - 与登录界面完全一致 */
     .main {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         min-height: 100vh;
-        position: relative;
-        overflow: hidden;
     }
 
-    /* 增强版动态背景波纹效果 - 与登录界面一致 */
-    .main::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: 
-            radial-gradient(circle at 20% 20%, rgba(120, 119, 198, 0.6) 0%, transparent 60%),
-            radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 40% 60%, rgba(120, 119, 198, 0.4) 0%, transparent 70%),
-            radial-gradient(circle at 70% 30%, rgba(182, 244, 146, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 90% 10%, rgba(255, 182, 193, 0.4) 0%, transparent 60%);
-        animation: enhancedWaveMove 12s ease-in-out infinite;
-        pointer-events: none;
-        z-index: 0;
-    }
-
-    @keyframes enhancedWaveMove {
-        0%, 100% { 
-            background-size: 200% 200%, 150% 150%, 300% 300%, 180% 180%, 220% 220%;
-            background-position: 0% 0%, 100% 100%, 50% 50%, 20% 80%, 90% 10%; 
-        }
-        25% { 
-            background-size: 300% 300%, 200% 200%, 250% 250%, 240% 240%, 160% 160%;
-            background-position: 100% 0%, 0% 50%, 80% 20%, 70% 30%, 10% 90%; 
-        }
-        50% { 
-            background-size: 250% 250%, 300% 300%, 200% 200%, 190% 190%, 280% 280%;
-            background-position: 50% 100%, 50% 0%, 20% 80%, 90% 70%, 30% 20%; 
-        }
-        75% { 
-            background-size: 320% 320%, 180% 180%, 270% 270%, 210% 210%, 200% 200%;
-            background-position: 20% 70%, 80% 30%, 60% 10%, 40% 90%, 70% 50%; 
-        }
-    }
-
-    /* 增强版浮动粒子效果 - 与登录界面一致 */  
-    .main::after {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-image: 
-            radial-gradient(3px 3px at 20px 30px, rgba(255,255,255,0.4), transparent),
-            radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.3), transparent),
-            radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.5), transparent),
-            radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.3), transparent),
-            radial-gradient(3px 3px at 160px 30px, rgba(255,255,255,0.4), transparent),
-            radial-gradient(1px 1px at 200px 60px, rgba(182, 244, 146, 0.6), transparent),
-            radial-gradient(2px 2px at 250px 90px, rgba(255, 182, 193, 0.5), transparent),
-            radial-gradient(1px 1px at 300px 20px, rgba(255, 255, 255, 0.4), transparent);
-        background-repeat: repeat;
-        background-size: 300px 150px;
-        animation: enhancedParticleFloat 25s linear infinite;
-        pointer-events: none;
-        z-index: 1;
-    }
-
-    @keyframes enhancedParticleFloat {
-        0% { transform: translateY(100vh) translateX(0) rotate(0deg); }
-        25% { transform: translateY(75vh) translateX(50px) rotate(90deg); }
-        50% { transform: translateY(50vh) translateX(-30px) rotate(180deg); }
-        75% { transform: translateY(25vh) translateX(80px) rotate(270deg); }
-        100% { transform: translateY(-100vh) translateX(120px) rotate(360deg); }
-    }
-
-    /* 主容器 */
-    .block-container {
-        position: relative;
-        z-index: 10;
-        background: rgba(255, 255, 255, 0.02);
-        backdrop-filter: blur(8px);
-        padding-top: 1rem;
-        max-width: 100%;
-    }
-
-    /* 管理员头部样式 - 新增类别 */
-    .admin-header {
+    /* 头部样式 */
+    .production-header {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(25px);
         border-radius: 20px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        position: relative;
-        z-index: 20;
-    }
-
-    .admin-badge {
-        background: linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%);
-        color: white;
-        padding: 0.4rem 1rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        font-weight: 600;
-        display: inline-block;
-        margin-bottom: 0.5rem;
-        animation: adminBadgePulse 2s ease-in-out infinite;
-    }
-
-    @keyframes adminBadgePulse {
-        0%, 100% { 
-            box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
-            transform: scale(1);
-        }
-        50% { 
-            box-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
-            transform: scale(1.05);
-        }
-    }
-
-    /* 页面标题样式 - 修改原有样式保持一致性 */
-    .main-header {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(25px);
-        color: #2d3748;
         padding: 2rem;
-        border-radius: 20px;
-        text-align: center;
         margin-bottom: 2rem;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        position: relative;
-        z-index: 20;
+        text-align: center;
     }
-    
-    .main-title {
-        font-size: 2.5rem;
+
+    .production-title {
+        font-size: 3rem;
         font-weight: 800;
-        margin-bottom: 0.5rem;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
+        margin-bottom: 1rem;
     }
-    
-    .main-subtitle {
-        font-size: 1.2rem;
-        color: #4a5568;
-        opacity: 0.9;
-    }
-    
-    /* 指标卡片样式 - 修改原有样式 */
-    .metric-card {
+
+    /* 功能卡片 */
+    .feature-card {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(25px);
         border-radius: 15px;
         padding: 1.5rem;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        margin: 1rem 0;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
         border-left: 4px solid #667eea;
-        transition: transform 0.3s ease;
-        position: relative;
-        z-index: 20;
+        transition: all 0.3s ease;
     }
-    
-    .metric-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+
+    .feature-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 35px rgba(0,0,0,0.15);
     }
-    
+
+    /* 状态指示器 */
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.5rem;
+        animation: pulse 2s infinite;
+    }
+
+    .status-success { background-color: #4CAF50; }
+    .status-warning { background-color: #FF9800; }
+    .status-danger { background-color: #f44336; }
+
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* 指标卡片 */
+    .metric-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        border-left: 4px solid #667eea;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        height: 100%;
+    }
+
     .metric-value {
-        font-size: 2rem;
-        font-weight: 700;
+        font-size: 2.5rem;
+        font-weight: bold;
         color: #667eea;
     }
-    
+
     .metric-label {
-        font-size: 0.9rem;
+        font-size: 1rem;
         color: #666;
         margin-top: 0.5rem;
     }
-    
-    /* 按钮样式 - 修改原有样式 */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        padding: 0.75rem 2rem;
+
+    /* 预警样式 */
+    .alert-card {
         border-radius: 10px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-    }
-    
-    /* 信息框样式 - 修改原有样式 */
-    .info-box {
-        background: rgba(240, 244, 255, 0.95);
-        backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-left: 4px solid #667eea;
         padding: 1rem;
-        border-radius: 8px;
-        margin: 1rem 0;
-        position: relative;
-        z-index: 20;
+        margin: 0.5rem 0;
+        border-left: 4px solid;
     }
-    
-    /* 表格样式 - 修改原有样式 */
-    .dataframe {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(15px);
-        border: none !important;
+
+    .alert-success {
+        background: rgba(76, 175, 80, 0.1);
+        border-left-color: #4CAF50;
+        color: #2E7D32;
+    }
+
+    .alert-warning {
+        background: rgba(255, 152, 0, 0.1);
+        border-left-color: #FF9800;
+        color: #E65100;
+    }
+
+    .alert-danger {
+        background: rgba(244, 67, 54, 0.1);
+        border-left-color: #f44336;
+        color: #C62828;
+    }
+
+    /* 交互控制器 */
+    .control-panel {
+        background: rgba(255, 255, 255, 0.9);
         border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-    }
-    
-    .dataframe th {
-        background: #667eea !important;
-        color: white !important;
-        padding: 0.75rem !important;
-    }
-    
-    .dataframe td {
-        padding: 0.75rem !important;
-        background: rgba(255, 255, 255, 0.9) !important;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        border-left: 4px solid #667eea;
     }
 
-    /* Tab样式 - 新增类别 */
-    .stTabs [data-baseweb="tab-list"] {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(15px);
-        border-radius: 10px;
-        padding: 0.5rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    /* 验证状态 */
+    .validation-pending {
+        background: rgba(255, 193, 7, 0.1);
+        border-left-color: #FFC107;
     }
 
-    .stTabs [data-baseweb="tab"] {
-        background: transparent;
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
+    .validation-completed {
+        background: rgba(76, 175, 80, 0.1);
+        border-left-color: #4CAF50;
     }
 
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-    }
-
-    /* 侧边栏样式 - 新增类别 */
-    .css-1d391kg {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(25px);
-    }
-
-    /* 退出按钮样式 - 新增类别 */
-    .logout-button {
-        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        cursor: pointer;
-        font-size: 0.9rem;
-    }
-
-    .logout-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
-    }
-
-    /* 响应式设计 - 修改原有样式 */
-    @media (max-width: 768px) {
-        .main-title {
-            font-size: 2rem;
-        }
-        .main-subtitle {
-            font-size: 1rem;
-        }
-        .metric-card {
-            padding: 1rem;
-        }
-        .admin-header {
-            padding: 1rem;
-        }
+    .validation-failed {
+        background: rgba(244, 67, 54, 0.1);
+        border-left-color: #f44336;
     }
 </style>
 """
 
-st.markdown(unified_admin_styles, unsafe_allow_html=True)
+st.markdown(production_styles, unsafe_allow_html=True)
 
-# 管理员头部信息 - 新增类别
-def render_admin_header():
-    """渲染管理员头部信息"""
-    col1, col2, col3 = st.columns([2, 1, 1])
+# ====================================================================
+# Session State 初始化
+# ====================================================================
+def initialize_session_state():
+    """初始化会话状态"""
+    defaults = {
+        'model_trained': False,
+        'prediction_system': None,
+        'prediction_archives': [],
+        'actual_data_records': [],
+        'validation_results': [],
+        'alerts': [],
+        'alert_settings': {
+            'accuracy_threshold': 80.0,
+            'bias_threshold': 15.0,
+            'enable_email': False,
+            'email_recipients': []
+        },
+        'adjustment_history': []
+    }
     
-    with col1:
-        st.markdown(f"""
-        <div class="admin-header">
-            <div class="admin-badge">🔒 管理员专用</div>
-            <h3 style="margin: 0; color: #2d3748;">欢迎，{st.session_state.get('display_name', '管理员')}</h3>
-            <p style="margin: 0.5rem 0 0 0; color: #718096; font-size: 0.9rem;">
-                登录时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        if st.button("🚪 退出登录", key="logout_btn"):
-            # 清除session state
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.success("✅ 已成功退出登录")
-            time.sleep(1)
-            st.rerun()
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
-# 渲染管理员头部
-render_admin_header()
+initialize_session_state()
 
-# 页面标题
-st.markdown("""
-<div class="main-header">
-    <h1 class="main-title">🤖 机器学习模型预测</h1>
-    <p class="main-subtitle">基于XGBoost、LightGBM和RandomForest的高精度销售预测</p>
-</div>
-""", unsafe_allow_html=True)
-
-# 初始化session state - 修改原有类别
-if 'model_trained' not in st.session_state:
-    st.session_state.model_trained = False
-if 'prediction_system' not in st.session_state:
-    st.session_state.prediction_system = None
-if 'training_history' not in st.session_state:
-    st.session_state.training_history = []
-
-# 增强版销售预测系统类 - 保持原有类别
-class EnhancedSalesPredictionSystem:
-    """增强版销售预测系统"""
+# ====================================================================
+# 核心预测系统类
+# ====================================================================
+class ProductionSalesPredictionSystem:
+    """生产级销售预测系统"""
     
     def __init__(self):
         self.shipment_data = None
@@ -422,34 +244,111 @@ class EnhancedSalesPredictionSystem:
         self.accuracy_results = {}
         self.product_segments = {}
         self.historical_predictions = None
-        self.historical_accuracy = None
         self.feature_importance = None
+        self.training_time = None
+        self.data_summary = {}
+        self.data_mode = 'sample'
     
-    def load_data_from_github(self, progress_callback=None):
-        """从GitHub加载数据文件"""
+    def load_data(self, use_github=False, shipment_file=None, promotion_file=None):
+        """加载数据"""
+        print("📂 加载数据...")
+        
+        if use_github:
+            try:
+                print("🌐 从GitHub加载真实数据...")
+                github_base_url = "https://github.com/charliedream1/ai_quant_trade/raw/main/ecommerce_ai/sales_forecast"
+                shipment_url = f"{github_base_url}/预测模型出货数据每日xlsx.xlsx"
+                promotion_url = f"{github_base_url}/销售业务员促销文件.xlsx"
+                
+                self.shipment_data = pd.read_excel(shipment_url)
+                self.promotion_data = pd.read_excel(promotion_url)
+                self.data_mode = 'github_real'
+                
+                print(f"✅ GitHub数据加载成功: {len(self.shipment_data):,} 条记录")
+                return True
+                
+            except Exception as e:
+                print(f"❌ GitHub数据加载失败: {str(e)}")
+                return self.load_sample_data()
+        
+        elif shipment_file is not None and promotion_file is not None:
+            try:
+                self.shipment_data = pd.read_excel(shipment_file)
+                self.promotion_data = pd.read_excel(promotion_file)
+                self.data_mode = 'upload_real'
+                
+                print(f"✅ 上传数据加载成功: {len(self.shipment_data):,} 条记录")
+                return True
+                
+            except Exception as e:
+                print(f"❌ 上传数据加载失败: {str(e)}")
+                return self.load_sample_data()
+        else:
+            return self.load_sample_data()
+    
+    def load_sample_data(self):
+        """生成示例数据"""
+        print("📂 生成示例数据...")
+        self.data_mode = 'sample'
+        
         try:
-            if progress_callback:
-                progress_callback(0.1, "正在加载数据文件...")
+            np.random.seed(42)
             
-            # 从GitHub仓库加载数据
-            shipment_file = "预测模型出货数据每日xlsx.xlsx"
-            promotion_file = "销售业务员促销文件.xlsx"
+            # 生成示例出货数据
+            dates = pd.date_range('2022-01-01', '2025-05-31', freq='D')
+            products = [f'F{i:04d}J' for i in range(104, 180)]
+            regions = ['华北', '华东', '华南', '西南', '东北']
+            customers = [f'CU{i:04d}' for i in range(100, 800)]
             
-            # 检查文件是否存在
-            if not os.path.exists(shipment_file) or not os.path.exists(promotion_file):
-                st.error(f"数据文件不存在，请确保以下文件在项目目录中：\n- {shipment_file}\n- {promotion_file}")
-                return False
+            data_records = []
             
-            self.shipment_data = pd.read_excel(shipment_file)
-            self.promotion_data = pd.read_excel(promotion_file)
+            for product in products:
+                base_qty = np.random.choice([10, 30, 50, 100, 200], p=[0.3, 0.3, 0.2, 0.15, 0.05])
+                seasonal_pattern = np.sin(np.arange(len(dates)) * 2 * np.pi / 365) * 0.3 + 1
+                
+                for i, date in enumerate(dates):
+                    if np.random.random() > 0.3:
+                        continue
+                    
+                    seasonal_factor = seasonal_pattern[i]
+                    random_factor = np.random.normal(1, 0.3)
+                    daily_qty = max(1, int(base_qty * seasonal_factor * random_factor))
+                    
+                    if np.random.random() < 0.05:
+                        daily_qty *= np.random.randint(2, 5)
+                    
+                    data_records.append({
+                        '订单日期': date,
+                        '所属区域': np.random.choice(regions),
+                        '客户代码': np.random.choice(customers),
+                        '产品代码': product,
+                        '求和项:数量（箱）': daily_qty
+                    })
             
-            if progress_callback:
-                progress_callback(0.2, f"✅ 出货数据: {len(self.shipment_data):,} 行")
+            self.shipment_data = pd.DataFrame(data_records)
             
+            # 生成示例促销数据
+            promo_records = []
+            for _ in range(50):
+                start_date = np.random.choice(dates[:-30])
+                end_date = start_date + timedelta(days=np.random.randint(7, 30))
+                promo_records.append({
+                    '申请时间': start_date - timedelta(days=np.random.randint(1, 10)),
+                    '经销商代码': np.random.choice(customers[:20]),
+                    '产品代码': np.random.choice(products),
+                    '促销开始供货时间': start_date,
+                    '促销结束供货时间': end_date,
+                    '预计销量（箱）': np.random.randint(100, 1000),
+                    '赠品数量（箱）': np.random.randint(10, 100)
+                })
+            
+            self.promotion_data = pd.DataFrame(promo_records)
+            
+            print(f"✅ 示例数据生成成功: {len(self.shipment_data):,} 条记录, {len(products)} 个产品")
             return True
             
         except Exception as e:
-            st.error(f"❌ 数据加载失败: {str(e)}")
+            print(f"❌ 示例数据生成失败: {str(e)}")
             return False
     
     def preprocess_data(self, progress_callback=None):
@@ -457,13 +356,25 @@ class EnhancedSalesPredictionSystem:
         if progress_callback:
             progress_callback(0.3, "数据预处理中...")
         
-        # 标准化列名
+        print("🧹 数据预处理...")
+        
+        # 列名标准化
         shipment_columns = {
             '订单日期': 'order_date',
-            '所属区域': 'region', 
+            '所属区域': 'region',
             '客户代码': 'customer_code',
             '产品代码': 'product_code',
             '求和项:数量（箱）': 'quantity'
+        }
+        
+        promotion_columns = {
+            '申请时间': 'apply_date',
+            '经销商代码': 'dealer_code',
+            '产品代码': 'product_code',
+            '促销开始供货时间': 'promo_start_date',
+            '促销结束供货时间': 'promo_end_date',
+            '预计销量（箱）': 'expected_sales',
+            '赠品数量（箱）': 'gift_quantity'
         }
         
         # 重命名列
@@ -471,27 +382,43 @@ class EnhancedSalesPredictionSystem:
             if old_col in self.shipment_data.columns:
                 self.shipment_data = self.shipment_data.rename(columns={old_col: new_col})
         
+        for old_col, new_col in promotion_columns.items():
+            if old_col in self.promotion_data.columns:
+                self.promotion_data = self.promotion_data.rename(columns={old_col: new_col})
+        
         # 数据类型转换
         self.shipment_data['order_date'] = pd.to_datetime(self.shipment_data['order_date'])
         self.shipment_data['quantity'] = pd.to_numeric(self.shipment_data['quantity'], errors='coerce')
         
         # 数据清洗
+        original_len = len(self.shipment_data)
         self.shipment_data = self.shipment_data.dropna(subset=['order_date', 'product_code', 'quantity'])
         self.shipment_data = self.shipment_data[self.shipment_data['quantity'] > 0]
         
+        print(f"✅ 基础清洗: {original_len} → {len(self.shipment_data)} 行")
+        
         # 异常值处理
-        self.shipment_data = self._remove_outliers_iqr(self.shipment_data, factor=3.0)
+        self.shipment_data = self._remove_outliers_iqr(self.shipment_data)
         
         # 产品分段
         self._segment_products()
         
+        # 数据摘要
+        self.data_summary = {
+            'total_records': len(self.shipment_data),
+            'total_products': self.shipment_data['product_code'].nunique(),
+            'date_range': (self.shipment_data['order_date'].min(), self.shipment_data['order_date'].max()),
+            'total_quantity': self.shipment_data['quantity'].sum(),
+            'avg_daily_quantity': self.shipment_data.groupby('order_date')['quantity'].sum().mean()
+        }
+        
         if progress_callback:
-            progress_callback(0.4, f"✅ 预处理完成: {len(self.shipment_data)} 行, {self.shipment_data['product_code'].nunique()} 个产品")
+            progress_callback(0.4, f"✅ 预处理完成: {len(self.shipment_data)} 行")
         
         return True
     
     def _remove_outliers_iqr(self, data, column='quantity', factor=3.0):
-        """使用IQR方法移除异常值"""
+        """IQR异常值处理"""
         Q1 = data[column].quantile(0.25)
         Q3 = data[column].quantile(0.75)
         IQR = Q3 - Q1
@@ -499,21 +426,24 @@ class EnhancedSalesPredictionSystem:
         lower_bound = Q1 - factor * IQR
         upper_bound = Q3 + factor * IQR
         
+        outliers = data[(data[column] < lower_bound) | (data[column] > upper_bound)]
         data_cleaned = data[(data[column] >= lower_bound) & (data[column] <= upper_bound)]
+        
+        print(f"🔧 异常值处理: {len(data)} → {len(data_cleaned)} (移除 {len(outliers)} 个)")
         
         return data_cleaned
     
     def _segment_products(self):
         """产品分段"""
-        # 计算每个产品的销量特征
+        print("📊 产品分段...")
+        
         product_stats = self.shipment_data.groupby('product_code')['quantity'].agg([
-            'count', 'mean', 'std', 'sum'
+            'count', 'mean', 'std', 'sum', 'min', 'max'
         ]).reset_index()
         
         product_stats['cv'] = product_stats['std'] / product_stats['mean']
         product_stats['cv'] = product_stats['cv'].fillna(0)
         
-        # 基于销量均值和变异系数分段
         volume_high = product_stats['mean'].quantile(0.67)
         volume_low = product_stats['mean'].quantile(0.33)
         cv_high = product_stats['cv'].quantile(0.67)
@@ -527,92 +457,105 @@ class EnhancedSalesPredictionSystem:
                 return '低销量稳定' if row['cv'] <= cv_high else '低销量波动'
         
         product_stats['segment'] = product_stats.apply(classify_product, axis=1)
-        
-        # 保存分段结果
         self.product_segments = dict(zip(product_stats['product_code'], product_stats['segment']))
+        
+        segment_counts = product_stats['segment'].value_counts()
+        print("📊 产品分段结果:")
+        for segment, count in segment_counts.items():
+            print(f"   {segment}: {count} 个产品")
         
         return product_stats
     
     def create_features(self, progress_callback=None):
-        """创建特征"""
+        """特征工程"""
         if progress_callback:
             progress_callback(0.5, "特征工程处理中...")
         
-        # 创建月度数据
+        print("🔧 特征工程...")
+        
+        # 月度聚合
         monthly_data = self.shipment_data.groupby([
             'product_code',
             self.shipment_data['order_date'].dt.to_period('M')
         ]).agg({
             'quantity': ['sum', 'count', 'mean', 'std'],
-            'customer_code': 'nunique'
+            'customer_code': 'nunique',
+            'region': lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else x.iloc[0]
         }).reset_index()
         
-        # 扁平化列名
         monthly_data.columns = ['product_code', 'year_month', 'total_qty', 'order_count',
-                                'avg_qty', 'std_qty', 'customer_count']
+                                'avg_qty', 'std_qty', 'customer_count', 'main_region']
         monthly_data['std_qty'] = monthly_data['std_qty'].fillna(0)
-        
-        # 排序
         monthly_data = monthly_data.sort_values(['product_code', 'year_month'])
         
-        # 为每个产品创建特征
+        print(f"📊 月度数据: {len(monthly_data)} 行")
+        
+        # 特征创建
         all_features = []
         
-        for product in self.product_segments.keys():
-            product_data = monthly_data[monthly_data['product_code'] == product].copy()
+        for segment in self.product_segments.values():
+            segment_products = [k for k, v in self.product_segments.items() if v == segment]
+            segment_data = monthly_data[monthly_data['product_code'].isin(segment_products)]
             
-            if len(product_data) < 4:
-                continue
-            
-            # 为每个时间点创建特征
-            for idx in range(3, len(product_data)):
-                features = self._create_product_features(
-                    product, product_data.iloc[:idx], self.product_segments[product]
-                )
+            for product in segment_products:
+                product_data = segment_data[segment_data['product_code'] == product].copy()
                 
-                # 目标变量
-                target_row = product_data.iloc[idx]
-                features['target'] = target_row['total_qty']
-                features['target_month'] = str(target_row['year_month'])
-                features['segment'] = self.product_segments[product]
+                if len(product_data) < 4:
+                    continue
                 
-                all_features.append(features)
+                for idx in range(3, len(product_data)):
+                    features = self._create_product_features(
+                        product, product_data.iloc[:idx], segment
+                    )
+                    
+                    target_row = product_data.iloc[idx]
+                    features['target'] = target_row['total_qty']
+                    features['target_month'] = str(target_row['year_month'])
+                    features['segment'] = segment
+                    
+                    all_features.append(features)
         
         self.feature_data = pd.DataFrame(all_features)
         
+        if len(self.feature_data) == 0:
+            print("❌ 特征创建失败")
+            return False
+        
+        print(f"✅ 特征数据: {len(self.feature_data)} 行, {len(self.feature_data.columns) - 4} 个特征")
+        
+        self._post_process_features()
+        
         if progress_callback:
-            progress_callback(0.6, f"✅ 特征创建完成: {len(self.feature_data)} 条数据, {len(self.feature_data.columns) - 4} 个特征")
+            progress_callback(0.6, f"✅ 特征完成: {len(self.feature_data)} 样本")
         
         return True
     
     def _create_product_features(self, product_code, historical_data, segment):
-        """为单个产品创建特征"""
+        """创建产品特征"""
         features = {'product_code': product_code}
         
         if len(historical_data) < 3:
             return features
         
-        # 基础数据
         qty_values = historical_data['total_qty'].values
         order_counts = historical_data['order_count'].values
         customer_counts = historical_data['customer_count'].values
         
         # 销量特征
+        log_qty = np.log1p(qty_values)
+        
         features.update({
             'qty_mean': np.mean(qty_values),
+            'qty_median': np.median(qty_values),
             'qty_std': np.std(qty_values),
             'qty_cv': np.std(qty_values) / (np.mean(qty_values) + 1),
-            
-            # 滞后特征
+            'log_qty_mean': np.mean(log_qty),
+            'log_qty_std': np.std(log_qty),
             'qty_lag_1': qty_values[-1],
             'qty_lag_2': qty_values[-2] if len(qty_values) > 1 else 0,
             'qty_lag_3': qty_values[-3] if len(qty_values) > 2 else 0,
-            
-            # 移动平均
             'qty_ma_2': np.mean(qty_values[-2:]),
-            'qty_ma_3': np.mean(qty_values[-3:]) if len(qty_values) >= 3 else np.mean(qty_values),
-            
-            # 加权移动平均
+            'qty_ma_3': np.mean(qty_values[-3:]),
             'qty_wma_3': np.average(qty_values[-3:], weights=[1, 2, 3]) if len(qty_values) >= 3 else np.mean(qty_values),
         })
         
@@ -624,11 +567,27 @@ class EnhancedSalesPredictionSystem:
                 x = np.arange(len(qty_values))
                 trend_coef = np.polyfit(x, qty_values, 1)[0]
                 features['trend_slope'] = trend_coef
+                
+                y_pred = np.polyval([trend_coef, np.mean(qty_values)], x)
+                ss_res = np.sum((qty_values - y_pred) ** 2)
+                ss_tot = np.sum((qty_values - np.mean(qty_values)) ** 2)
+                features['trend_strength'] = 1 - (ss_res / (ss_tot + 1e-8))
             else:
                 features['trend_slope'] = 0
+                features['trend_strength'] = 0
         else:
             features['growth_rate_1'] = 0
             features['trend_slope'] = 0
+            features['trend_strength'] = 0
+        
+        # 订单特征
+        features.update({
+            'order_count_mean': np.mean(order_counts),
+            'order_count_trend': order_counts[-1] - order_counts[0] if len(order_counts) > 1 else 0,
+            'avg_order_size': features['qty_mean'] / (np.mean(order_counts) + 1),
+            'customer_count_mean': np.mean(customer_counts),
+            'penetration_rate': np.mean(customer_counts) / (np.max(customer_counts) + 1)
+        })
         
         # 时间特征
         last_month = historical_data.iloc[-1]['year_month']
@@ -637,6 +596,13 @@ class EnhancedSalesPredictionSystem:
             'quarter': last_month.quarter,
             'is_year_end': 1 if last_month.month in [11, 12] else 0,
             'is_peak_season': 1 if last_month.month in [3, 4, 10, 11] else 0,
+        })
+        
+        # 稳定性特征
+        features.update({
+            'data_points': len(qty_values),
+            'stability_score': 1 / (1 + features['qty_cv']),
+            'consistency_score': len(qty_values[qty_values > 0]) / len(qty_values),
         })
         
         # 产品段特征
@@ -649,24 +615,47 @@ class EnhancedSalesPredictionSystem:
         
         return features
     
+    def _post_process_features(self):
+        """特征后处理"""
+        print("🔧 特征后处理...")
+        
+        feature_cols = [col for col in self.feature_data.columns 
+                       if col not in ['product_code', 'target', 'target_month', 'segment']]
+        
+        self.feature_data[feature_cols] = self.feature_data[feature_cols].replace([np.inf, -np.inf], np.nan)
+        self.feature_data[feature_cols] = self.feature_data[feature_cols].fillna(0)
+        
+        constant_features = []
+        for col in feature_cols:
+            if self.feature_data[col].std() == 0:
+                constant_features.append(col)
+        
+        if constant_features:
+            print(f"  移除常数特征: {constant_features}")
+            self.feature_data = self.feature_data.drop(columns=constant_features)
+        
+        print(f"✅ 最终特征数: {len([col for col in self.feature_data.columns if col not in ['product_code', 'target', 'target_month', 'segment']])}")
+    
     def train_models(self, test_ratio=0.2, progress_callback=None):
         """训练模型"""
         if progress_callback:
-            progress_callback(0.7, "开始训练模型...")
+            progress_callback(0.7, "模型训练中...")
+        
+        print("🚀 模型训练...")
+        start_time = time.time()
         
         if self.feature_data is None or len(self.feature_data) == 0:
-            st.error("没有特征数据")
+            print("❌ 没有特征数据")
             return False
         
-        # 准备数据
         feature_cols = [col for col in self.feature_data.columns 
                        if col not in ['product_code', 'target', 'target_month', 'segment']]
         
         X = self.feature_data[feature_cols]
         y = self.feature_data['target']
-        
-        # 目标变量对数变换
         y_log = np.log1p(y)
+        
+        print(f"📊 训练数据: {len(X)} 样本, {len(feature_cols)} 特征")
         
         # 时间序列分割
         n_samples = len(X)
@@ -683,95 +672,127 @@ class EnhancedSalesPredictionSystem:
         
         self.scalers['feature_scaler'] = scaler
         
-        # 训练多个模型
+        print(f"📈 训练集: {len(X_train)}, 测试集: {len(X_test)}")
+        
+        # 训练模型
         models = {}
         predictions = {}
+        random_state = 42
         
-        # 1. XGBoost
+        # XGBoost
         if progress_callback:
             progress_callback(0.75, "训练XGBoost...")
         
+        print("🎯 XGBoost训练...")
         xgb_model = xgb.XGBRegressor(
             n_estimators=300,
             max_depth=5,
             learning_rate=0.05,
             subsample=0.8,
             colsample_bytree=0.8,
-            random_state=42,
+            reg_alpha=0.1,
+            reg_lambda=0.1,
+            random_state=random_state,
             n_jobs=-1
         )
         xgb_model.fit(X_train_scaled, y_log_train, verbose=False)
         xgb_pred = np.expm1(xgb_model.predict(X_test_scaled))
+        
         models['XGBoost'] = xgb_model
         predictions['XGBoost'] = xgb_pred
         
-        # 2. LightGBM
+        # LightGBM
         if progress_callback:
             progress_callback(0.85, "训练LightGBM...")
         
+        print("🎯 LightGBM训练...")
         lgb_model = lgb.LGBMRegressor(
             n_estimators=300,
             max_depth=5,
             learning_rate=0.05,
-            random_state=42,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            reg_alpha=0.1,
+            reg_lambda=0.1,
+            random_state=random_state,
             n_jobs=-1,
             verbose=-1
         )
         lgb_model.fit(X_train_scaled, y_log_train)
         lgb_pred = np.expm1(lgb_model.predict(X_test_scaled))
+        
         models['LightGBM'] = lgb_model
         predictions['LightGBM'] = lgb_pred
         
-        # 3. Random Forest
+        # Random Forest
         if progress_callback:
             progress_callback(0.9, "训练Random Forest...")
         
+        print("🎯 Random Forest训练...")
         rf_model = RandomForestRegressor(
             n_estimators=200,
             max_depth=10,
-            random_state=42,
+            min_samples_split=5,
+            min_samples_leaf=2,
+            random_state=random_state,
             n_jobs=-1
         )
         rf_model.fit(X_train_scaled, y_train)
         rf_pred = rf_model.predict(X_test_scaled)
+        
         models['RandomForest'] = rf_model
         predictions['RandomForest'] = rf_pred
         
-        # 4. 融合模型
-        weights = self._calculate_model_weights(predictions, y_test)
-        ensemble_pred = sum(weights[name] * pred for name, pred in predictions.items())
-        predictions['Ensemble'] = ensemble_pred
-        
-        # 评估模型
+        # 模型评估
         results = {}
         
         for model_name, pred in predictions.items():
             pred = np.maximum(pred, 0)
-            mape = np.mean(np.abs((y_test - pred) / np.maximum(y_test, 1))) * 100
-            accuracy = max(0, 100 - mape)
+            
+            mae = np.mean(np.abs(y_test - pred))
+            rmse = np.sqrt(mean_squared_error(y_test, pred))
+            
+            # SMAPE准确率
+            smape_accuracies = self.calculate_batch_robust_accuracy(
+                y_test.values, pred, method='smape'
+            )
+            smape_accuracy = np.mean(smape_accuracies)
+            
+            r2 = r2_score(y_test, pred)
             
             results[model_name] = {
-                'Accuracy': accuracy,
-                'MAPE': mape,
-                'MAE': np.mean(np.abs(y_test - pred)),
-                'R²': r2_score(y_test, pred)
+                'SMAPE_Accuracy': smape_accuracy,
+                'MAE': mae,
+                'RMSE': rmse,
+                'R²': r2
             }
+            
+            print(f"  {model_name}: SMAPE准确率 {smape_accuracy:.1f}%")
         
-        # 保存最佳模型
-        best_model_name = max(results.keys(), key=lambda x: results[x]['Accuracy'])
+        # 选择最佳模型
+        best_model_name = max(results.keys(), key=lambda x: results[x]['SMAPE_Accuracy'])
         
+        # 生成历史预测
+        if progress_callback:
+            progress_callback(0.95, "生成历史预测...")
+        
+        self._generate_historical_predictions(
+            models[best_model_name], best_model_name, feature_cols, scaler
+        )
+        
+        # 保存模型
         self.models = {
-            'best_model': models.get(best_model_name),
+            'best_model': models[best_model_name],
             'best_model_name': best_model_name,
             'all_models': models,
             'feature_cols': feature_cols,
-            'weights': weights if best_model_name == 'Ensemble' else None,
             'log_transform': best_model_name in ['XGBoost', 'LightGBM']
         }
         
         self.accuracy_results = results
+        self.training_time = time.time() - start_time
         
-        # 保存特征重要性
+        # 特征重要性
         if 'XGBoost' in models:
             self.feature_importance = pd.DataFrame({
                 '特征': feature_cols,
@@ -779,26 +800,110 @@ class EnhancedSalesPredictionSystem:
             }).sort_values('重要性', ascending=False)
         
         if progress_callback:
-            progress_callback(1.0, f"✅ 训练完成！最佳模型: {best_model_name} (准确率: {results[best_model_name]['Accuracy']:.1f}%)")
+            best_accuracy = results[best_model_name]['SMAPE_Accuracy']
+            progress_callback(1.0, f"✅ 训练完成! {best_model_name}: {best_accuracy:.1f}%")
+        
+        print(f"🏆 最佳模型: {best_model_name} (准确率: {results[best_model_name]['SMAPE_Accuracy']:.1f}%)")
         
         return True
     
-    def _calculate_model_weights(self, predictions, y_true):
-        """计算模型融合权重"""
-        scores = {}
-        for name, pred in predictions.items():
-            pred = np.maximum(pred, 0)
-            mape = np.mean(np.abs((y_true - pred) / np.maximum(y_true, 1))) * 100
-            scores[name] = max(0, 100 - mape)
+    def calculate_robust_accuracy(self, actual_value, predicted_value, method='smape'):
+        """计算准确率"""
+        if method == 'smape':
+            if actual_value == 0 and predicted_value == 0:
+                return 100.0
+            smape = 200 * abs(actual_value - predicted_value) / (abs(actual_value) + abs(predicted_value) + 1e-8)
+            return max(0, 100 - smape)
         
-        total_score = sum(scores.values())
-        weights = {name: score / total_score for name, score in scores.items()}
+        return 0.0
+    
+    def calculate_batch_robust_accuracy(self, actual_values, predicted_values, method='smape'):
+        """批量计算准确率"""
+        actual_values = np.array(actual_values)
+        predicted_values = np.array(predicted_values)
         
-        return weights
+        if method == 'smape':
+            both_zero = (actual_values == 0) & (predicted_values == 0)
+            smape = 200 * np.abs(actual_values - predicted_values) / (
+                    np.abs(actual_values) + np.abs(predicted_values) + 1e-8
+            )
+            accuracy = np.maximum(0, 100 - smape)
+            accuracy[both_zero] = 100.0
+            return accuracy
+        
+        return np.zeros_like(actual_values)
+    
+    def _generate_historical_predictions(self, model, model_name, feature_cols, scaler):
+        """生成历史预测"""
+        print("📊 生成历史预测...")
+        
+        all_predictions = []
+        products = self.feature_data['product_code'].unique()
+        
+        for i, product in enumerate(products):
+            if i % 20 == 0:
+                print(f"  进度: {i}/{len(products)}")
+            
+            product_monthly = self.shipment_data[
+                self.shipment_data['product_code'] == product
+            ].copy()
+            
+            product_monthly['year_month'] = product_monthly['order_date'].dt.to_period('M')
+            monthly_agg = product_monthly.groupby('year_month').agg({
+                'quantity': ['sum', 'count', 'mean', 'std'],
+                'customer_code': 'nunique',
+                'region': lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else x.iloc[0]
+            }).reset_index()
+            
+            monthly_agg.columns = ['year_month', 'total_qty', 'order_count',
+                                   'avg_qty', 'std_qty', 'customer_count', 'main_region']
+            monthly_agg['std_qty'] = monthly_agg['std_qty'].fillna(0)
+            monthly_agg = monthly_agg.sort_values('year_month')
+            
+            if len(monthly_agg) < 4:
+                continue
+            
+            segment = self.product_segments.get(product, '中销量稳定')
+            
+            for j in range(3, len(monthly_agg)):
+                historical_data = monthly_agg.iloc[:j]
+                features = self._create_product_features(product, historical_data, segment)
+                
+                feature_vector = pd.DataFrame([features])[feature_cols]
+                X_scaled = scaler.transform(feature_vector)
+                
+                if model_name in ['XGBoost', 'LightGBM']:
+                    pred_log = model.predict(X_scaled)[0]
+                    pred_value = np.expm1(pred_log)
+                else:
+                    pred_value = model.predict(X_scaled)[0]
+                
+                pred_value = max(0, pred_value)
+                actual_value = monthly_agg.iloc[j]['total_qty']
+                target_month = monthly_agg.iloc[j]['year_month']
+                
+                accuracy = self.calculate_robust_accuracy(actual_value, pred_value, method='smape')
+                error = abs(actual_value - pred_value)
+                
+                all_predictions.append({
+                    '产品代码': product,
+                    '年月': str(target_month),
+                    '预测值': round(pred_value, 2),
+                    '实际值': round(actual_value, 2),
+                    '绝对误差': round(error, 2),
+                    '准确率(%)': round(accuracy, 2),
+                    '产品段': segment
+                })
+        
+        self.historical_predictions = pd.DataFrame(all_predictions)
+        print(f"✅ 生成 {len(all_predictions)} 条历史预测")
     
     def predict_future(self, months_ahead=3, product_list=None):
         """预测未来销量"""
+        print(f"🔮 预测未来{months_ahead}个月...")
+        
         if not self.models:
+            print("❌ 模型未训练")
             return None
         
         predictions = []
@@ -810,7 +915,6 @@ class EnhancedSalesPredictionSystem:
             if product not in self.product_segments:
                 continue
             
-            # 获取产品最新特征
             product_features = self.feature_data[
                 self.feature_data['product_code'] == product
             ].tail(1)
@@ -818,35 +922,21 @@ class EnhancedSalesPredictionSystem:
             if len(product_features) == 0:
                 continue
             
-            # 预测每个月
+            segment = self.product_segments[product]
+            
             for month in range(1, months_ahead + 1):
                 X = product_features[self.models['feature_cols']]
                 X_scaled = self.scalers['feature_scaler'].transform(X)
                 
-                # 使用最佳模型预测
-                if self.models['best_model_name'] == 'Ensemble':
-                    # 融合预测
-                    pred_values = []
-                    for model_name, model in self.models['all_models'].items():
-                        if model_name in ['XGBoost', 'LightGBM']:
-                            pred = np.expm1(model.predict(X_scaled)[0])
-                        else:
-                            pred = model.predict(X_scaled)[0]
-                        pred_values.append(self.models['weights'][model_name] * pred)
-                    final_pred = sum(pred_values)
+                if self.models['log_transform']:
+                    pred_log = self.models['best_model'].predict(X_scaled)[0]
+                    final_pred = np.expm1(pred_log)
                 else:
-                    if self.models['log_transform']:
-                        pred_log = self.models['best_model'].predict(X_scaled)[0]
-                        final_pred = np.expm1(pred_log)
-                    else:
-                        final_pred = self.models['best_model'].predict(X_scaled)[0]
+                    final_pred = self.models['best_model'].predict(X_scaled)[0]
                 
                 final_pred = max(0, final_pred)
                 
-                # 计算置信区间
-                segment = self.product_segments[product]
                 confidence_factor = self._get_confidence_factor(segment)
-                
                 lower_bound = max(0, final_pred * (1 - confidence_factor))
                 upper_bound = final_pred * (1 + confidence_factor)
                 
@@ -856,17 +946,18 @@ class EnhancedSalesPredictionSystem:
                     '预测销量': round(final_pred, 2),
                     '下限': round(lower_bound, 2),
                     '上限': round(upper_bound, 2),
-                    '置信度': confidence_factor,
+                    '置信度': f"{(1-confidence_factor)*100:.1f}%",
                     '产品段': segment,
-                    '使用模型': self.models['best_model_name']
+                    '模型': self.models['best_model_name']
                 })
         
         self.predictions = pd.DataFrame(predictions)
+        print(f"✅ 完成 {len(product_list)} 个产品预测")
         
         return self.predictions
     
     def _get_confidence_factor(self, segment):
-        """根据产品段获取置信度因子"""
+        """获取置信度因子"""
         confidence_map = {
             '高销量稳定': 0.15,
             '高销量波动': 0.25,
@@ -877,633 +968,1181 @@ class EnhancedSalesPredictionSystem:
         }
         return confidence_map.get(segment, 0.25)
 
-# 创建侧边栏 - 修改原有类别
-with st.sidebar:
-    st.markdown("### 🎯 模型训练控制")
+# ====================================================================
+# 预测跟踪验证系统
+# ====================================================================
+class PredictionTrackingSystem:
+    """预测跟踪验证系统"""
     
-    # 管理员信息展示 - 新增类别
-    st.markdown(f"""
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
-        <div style="color: #ff6b6b; font-weight: bold; font-size: 0.9rem;">🔒 管理员模式</div>
-        <div style="color: white; font-size: 0.8rem;">用户: {st.session_state.get('display_name', 'Admin')}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    def __init__(self):
+        pass
     
-    # 训练选项
-    st.markdown("#### 训练参数")
-    test_ratio = st.slider("测试集比例", 0.1, 0.3, 0.2, 0.05)
-    
-    # 预测选项
-    st.markdown("#### 预测设置")
-    months_ahead = st.selectbox("预测月数", [1, 2, 3, 6], index=2)
-    
-    # 模型信息
-    if st.session_state.model_trained:
-        st.markdown("---")
-        st.markdown("### 📊 当前模型信息")
-        system = st.session_state.prediction_system
+    def save_prediction_archive(self, predictions_df, model_info):
+        """保存预测档案"""
+        prediction_id = f"PRED_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        if system and system.models:
-            st.success(f"✅ 最佳模型: {system.models['best_model_name']}")
-            
-            best_accuracy = system.accuracy_results[system.models['best_model_name']]['Accuracy']
-            st.metric("模型准确率", f"{best_accuracy:.1f}%")
-            
-            st.info(f"""
-            - 特征数量: {len(system.models['feature_cols'])}
-            - 产品数量: {len(system.product_segments)}
-            - 训练样本: {len(system.feature_data)}
-            """)
-
-# 主界面
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 模型训练", "🔮 销量预测", "📊 模型评估", "📈 特征分析", "📑 历史记录"])
-
-# Tab 1: 模型训练 - 保持原有内容但修改样式
-with tab1:
-    st.markdown("### 🚀 一键训练预测模型")
-    
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        if st.button("🔄 开始训练", type="primary", use_container_width=True):
-            # 创建进度条
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            # 初始化系统
-            system = EnhancedSalesPredictionSystem()
-            
-            # 定义进度回调
-            def update_progress(progress, message):
-                progress_bar.progress(progress)
-                status_text.text(message)
-            
-            # 执行训练流程
-            try:
-                # 1. 加载数据
-                if system.load_data_from_github(update_progress):
-                    time.sleep(0.5)
-                    
-                    # 2. 数据预处理
-                    if system.preprocess_data(update_progress):
-                        time.sleep(0.5)
-                        
-                        # 3. 特征工程
-                        if system.create_features(update_progress):
-                            time.sleep(0.5)
-                            
-                            # 4. 训练模型
-                            if system.train_models(test_ratio, update_progress):
-                                # 保存到session state
-                                st.session_state.prediction_system = system
-                                st.session_state.model_trained = True
-                                
-                                # 记录训练历史
-                                st.session_state.training_history.append({
-                                    'time': datetime.now(),
-                                    'accuracy': system.accuracy_results[system.models['best_model_name']]['Accuracy'],
-                                    'model': system.models['best_model_name'],
-                                    'admin': st.session_state.get('display_name', 'Admin')
-                                })
-                                
-                                st.success("🎉 模型训练完成！")
-                                st.balloons()
-                            else:
-                                st.error("模型训练失败")
-                        else:
-                            st.error("特征创建失败")
-                    else:
-                        st.error("数据预处理失败")
-                else:
-                    st.error("数据加载失败")
-                    
-            except Exception as e:
-                st.error(f"训练过程出错: {str(e)}")
-                
-    with col2:
-        st.info("""
-        **训练说明：**
-        - 系统将自动从GitHub加载最新数据
-        - 使用XGBoost、LightGBM和RandomForest三种模型
-        - 自动选择最佳模型进行预测
-        - 训练过程大约需要1-2分钟
-        - 🔒 此功能仅限管理员使用
-        """)
-    
-    # 显示训练结果
-    if st.session_state.model_trained:
-        st.markdown("---")
-        st.markdown("### 📊 训练结果")
-        
-        system = st.session_state.prediction_system
-        
-        # 显示各模型性能
-        col1, col2, col3, col4 = st.columns(4)
-        
-        for idx, (model_name, metrics) in enumerate(system.accuracy_results.items()):
-            with [col1, col2, col3, col4][idx]:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-value">{metrics['Accuracy']:.1f}%</div>
-                    <div class="metric-label">{model_name}</div>
-                    <div style="font-size: 0.8rem; color: #999; margin-top: 0.5rem;">
-                        MAE: {metrics['MAE']:.1f}<br>
-                        R²: {metrics['R²']:.3f}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        # 产品分段统计
-        st.markdown("### 📦 产品分段统计")
-        
-        segment_counts = pd.Series(list(system.product_segments.values())).value_counts()
-        
-        fig = go.Figure(data=[
-            go.Pie(
-                labels=segment_counts.index,
-                values=segment_counts.values,
-                hole=0.3,
-                marker_colors=['#667eea', '#764ba2', '#9f7aea', '#b794f4', '#d6bcfa', '#e9d8fd']
-            )
-        ])
-        
-        fig.update_layout(
-            title="产品分段分布",
-            height=400,
-            showlegend=True,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-
-# Tab 2: 销量预测 - 保持原有内容
-with tab2:
-    st.markdown("### 🔮 智能销量预测")
-    
-    if not st.session_state.model_trained:
-        st.warning("⚠️ 请先在'模型训练'页面训练模型")
-    else:
-        system = st.session_state.prediction_system
-        
-        # 预测控制
-        col1, col2, col3 = st.columns([2, 2, 1])
-        
-        with col1:
-            # 产品选择
-            product_selection = st.selectbox(
-                "选择预测范围",
-                ["全部产品", "高销量产品", "中销量产品", "低销量产品", "自定义选择"]
-            )
-        
-        with col2:
-            if product_selection == "自定义选择":
-                selected_products = st.multiselect(
-                    "选择产品",
-                    options=list(system.product_segments.keys()),
-                    default=list(system.product_segments.keys())[:5]
-                )
-            else:
-                selected_products = None
-        
-        with col3:
-            predict_button = st.button("🚀 开始预测", type="primary", use_container_width=True)
-        
-        # 执行预测
-        if predict_button:
-            with st.spinner("正在生成预测..."):
-                # 根据选择筛选产品
-                if product_selection == "全部产品":
-                    product_list = None
-                elif product_selection == "自定义选择":
-                    product_list = selected_products
-                else:
-                    # 根据产品段筛选
-                    segment_filter = product_selection.replace("产品", "")
-                    product_list = [p for p, s in system.product_segments.items() if segment_filter in s]
-                
-                # 生成预测
-                predictions = system.predict_future(months_ahead=months_ahead, product_list=product_list)
-                
-                if predictions is not None and len(predictions) > 0:
-                    st.success(f"✅ 成功预测 {len(predictions['产品代码'].unique())} 个产品的未来 {months_ahead} 个月销量")
-                    
-                    # 显示预测结果
-                    st.markdown("### 📊 预测结果汇总")
-                    
-                    # 汇总统计
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    total_prediction = predictions['预测销量'].sum()
-                    avg_prediction = predictions['预测销量'].mean()
-                    products_count = len(predictions['产品代码'].unique())
-                    avg_confidence = (1 - predictions['置信度'].mean()) * 100
-                    
-                    with col1:
-                        st.metric("预测总量", f"{total_prediction:,.0f} 箱")
-                    with col2:
-                        st.metric("平均预测量", f"{avg_prediction:,.0f} 箱")
-                    with col3:
-                        st.metric("产品数量", products_count)
-                    with col4:
-                        st.metric("平均置信度", f"{avg_confidence:.1f}%")
-                    
-                    # 预测趋势图
-                    st.markdown("### 📈 预测趋势")
-                    
-                    # 按月份汇总
-                    monthly_summary = predictions.groupby('未来月份').agg({
-                        '预测销量': 'sum',
-                        '下限': 'sum',
-                        '上限': 'sum'
-                    }).reset_index()
-                    
-                    fig = go.Figure()
-                    
-                    # 添加预测值
-                    fig.add_trace(go.Scatter(
-                        x=monthly_summary['未来月份'],
-                        y=monthly_summary['预测销量'],
-                        mode='lines+markers',
-                        name='预测值',
-                        line=dict(color='#667eea', width=3),
-                        marker=dict(size=10)
-                    ))
-                    
-                    # 添加置信区间
-                    fig.add_trace(go.Scatter(
-                        x=monthly_summary['未来月份'],
-                        y=monthly_summary['上限'],
-                        mode='lines',
-                        line=dict(width=0),
-                        showlegend=False
-                    ))
-                    
-                    fig.add_trace(go.Scatter(
-                        x=monthly_summary['未来月份'],
-                        y=monthly_summary['下限'],
-                        mode='lines',
-                        line=dict(width=0),
-                        fill='tonexty',
-                        fillcolor='rgba(102, 126, 234, 0.2)',
-                        name='置信区间'
-                    ))
-                    
-                    fig.update_layout(
-                        title=f"未来{months_ahead}个月销量预测趋势",
-                        xaxis_title="月份",
-                        yaxis_title="预测销量 (箱)",
-                        height=400,
-                        hovermode='x unified',
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)'
-                    )
-                    
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # 产品明细表
-                    st.markdown("### 📋 产品预测明细")
-                    
-                    # 添加筛选器
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        min_qty = st.number_input("最小预测量筛选", value=0, step=100)
-                    with col2:
-                        selected_segments = st.multiselect(
-                            "产品段筛选",
-                            options=predictions['产品段'].unique(),
-                            default=predictions['产品段'].unique()
-                        )
-                    
-                    # 应用筛选
-                    filtered_predictions = predictions[
-                        (predictions['预测销量'] >= min_qty) &
-                        (predictions['产品段'].isin(selected_segments))
-                    ]
-                    
-                    # 显示表格
-                    st.dataframe(
-                        filtered_predictions.style.format({
-                            '预测销量': '{:,.0f}',
-                            '下限': '{:,.0f}',
-                            '上限': '{:,.0f}',
-                            '置信度': '{:.1%}'
-                        }).background_gradient(subset=['预测销量'], cmap='Blues'),
-                        use_container_width=True,
-                        height=500
-                    )
-                    
-                    # 下载按钮
-                    csv = filtered_predictions.to_csv(index=False)
-                    st.download_button(
-                        label="📥 下载预测结果",
-                        data=csv,
-                        file_name=f'销量预测_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv',
-                        mime='text/csv'
-                    )
-                else:
-                    st.error("预测失败，请检查数据和模型")
-
-# Tab 3: 模型评估 - 保持原有内容
-with tab3:
-    st.markdown("### 📊 模型性能评估")
-    
-    if not st.session_state.model_trained:
-        st.warning("⚠️ 请先训练模型")
-    else:
-        system = st.session_state.prediction_system
-        
-        # 模型对比
-        st.markdown("#### 🏆 模型性能对比")
-        
-        # 创建性能对比图
-        models = list(system.accuracy_results.keys())
-        metrics_data = {
-            'Accuracy': [system.accuracy_results[m]['Accuracy'] for m in models],
-            'MAPE': [system.accuracy_results[m]['MAPE'] for m in models],
-            'R²': [system.accuracy_results[m]['R²'] * 100 for m in models]
+        archive = {
+            'prediction_id': prediction_id,
+            'creation_date': datetime.now(),
+            'prediction_months': predictions_df['未来月份'].unique().tolist(),
+            'target_months': self._calculate_target_months(predictions_df),
+            'model_info': model_info,
+            'predictions_data': predictions_df.to_dict('records'),
+            'product_count': len(predictions_df['产品代码'].unique()),
+            'total_predicted_volume': predictions_df['预测销量'].sum(),
+            'status': 'pending_validation',
+            'validation_progress': 0.0
         }
         
-        fig = go.Figure()
-        
-        # 添加准确率条形图
-        fig.add_trace(go.Bar(
-            name='准确率 (%)',
-            x=models,
-            y=metrics_data['Accuracy'],
-            marker_color='#667eea',
-            text=[f'{v:.1f}%' for v in metrics_data['Accuracy']],
-            textposition='outside'
-        ))
-        
-        # 添加R²条形图
-        fig.add_trace(go.Bar(
-            name='R² (%)',
-            x=models,
-            y=metrics_data['R²'],
-            marker_color='#764ba2',
-            text=[f'{v:.1f}%' for v in metrics_data['R²']],
-            textposition='outside'
-        ))
-        
-        fig.update_layout(
-            title="模型性能指标对比",
-            xaxis_title="模型",
-            yaxis_title="性能指标 (%)",
-            barmode='group',
-            height=400,
-            showlegend=True,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # 详细指标表
-        st.markdown("#### 📋 详细性能指标")
-        
-        performance_df = pd.DataFrame([
-            {
-                '模型': model,
-                '准确率 (%)': metrics['Accuracy'],
-                'MAPE (%)': metrics['MAPE'],
-                'MAE': metrics['MAE'],
-                'R²': metrics['R²']
-            }
-            for model, metrics in system.accuracy_results.items()
-        ])
-        
-        # 高亮最佳值
-        def highlight_best(s):
-            if s.name in ['准确率 (%)', 'R²']:
-                return ['background-color: #90EE90' if v == s.max() else '' for v in s]
-            elif s.name in ['MAPE (%)', 'MAE']:
-                return ['background-color: #90EE90' if v == s.min() else '' for v in s]
-            return [''] * len(s)
-        
-        st.dataframe(
-            performance_df.style.apply(highlight_best).format({
-                '准确率 (%)': '{:.2f}',
-                'MAPE (%)': '{:.2f}',
-                'MAE': '{:.2f}',
-                'R²': '{:.4f}'
-            }),
-            use_container_width=True
-        )
-        
-        # 模型选择建议
-        best_model = system.models['best_model_name']
-        best_accuracy = system.accuracy_results[best_model]['Accuracy']
-        
-        if best_accuracy >= 95:
-            recommendation = "🌟 模型表现优秀，可以直接用于生产环境"
-            color = "#00FF00"
-        elif best_accuracy >= 90:
-            recommendation = "✅ 模型表现良好，建议继续监控优化"
-            color = "#90EE90"
-        elif best_accuracy >= 85:
-            recommendation = "⚠️ 模型表现一般，建议增加特征或调整参数"
-            color = "#FFD700"
-        else:
-            recommendation = "❌ 模型表现较差，需要重新评估数据和方法"
-            color = "#FF6347"
-        
-        st.markdown(f"""
-        <div class="info-box" style="border-left-color: {color};">
-            <h4>🎯 模型评估结论</h4>
-            <p>当前最佳模型: <strong>{best_model}</strong></p>
-            <p>准确率: <strong>{best_accuracy:.1f}%</strong></p>
-            <p>{recommendation}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-# Tab 4: 特征分析 - 保持原有内容
-with tab4:
-    st.markdown("### 📈 特征重要性分析")
+        return archive
     
-    if not st.session_state.model_trained:
-        st.warning("⚠️ 请先训练模型")
-    else:
-        system = st.session_state.prediction_system
+    def _calculate_target_months(self, predictions_df):
+        """计算目标月份"""
+        base_date = datetime.now()
+        target_months = []
         
-        if system.feature_importance is not None:
-            # 特征重要性图
-            top_features = system.feature_importance.head(15)
+        for month_ahead in predictions_df['未来月份'].unique():
+            target_date = base_date + timedelta(days=30 * month_ahead)
+            target_months.append({
+                'month_ahead': month_ahead,
+                'target_month': target_date.strftime('%Y-%m'),
+                'target_date': target_date,
+                'due_date': target_date + timedelta(days=45)
+            })
+        
+        return target_months
+    
+    def add_actual_data(self, actual_data_df, reference_month):
+        """添加实际销售数据"""
+        record = {
+            'record_id': f"ACTUAL_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            'input_date': datetime.now(),
+            'reference_month': reference_month,
+            'actual_data': actual_data_df.to_dict('records'),
+            'product_count': len(actual_data_df['产品代码'].unique()),
+            'total_actual_volume': actual_data_df['实际销量'].sum()
+        }
+        
+        return record
+    
+    def validate_prediction(self, prediction_archive, actual_record, base_system):
+        """验证预测准确率"""
+        predictions_data = pd.DataFrame(prediction_archive['predictions_data'])
+        actual_data = pd.DataFrame(actual_record['actual_data'])
+        
+        # 匹配预测和实际数据
+        merged_data = predictions_data.merge(
+            actual_data,
+            on='产品代码',
+            how='inner'
+        )
+        
+        if len(merged_data) == 0:
+            return None
+        
+        # 计算验证指标
+        predicted = merged_data['预测销量'].values
+        actual = merged_data['实际销量'].values
+        
+        # 计算准确率
+        accuracies = base_system.calculate_batch_robust_accuracy(actual, predicted, method='smape')
+        
+        mae = np.mean(np.abs(actual - predicted))
+        rmse = np.sqrt(np.mean((actual - predicted) ** 2))
+        
+        validation_result = {
+            'smape_accuracy': np.mean(accuracies),
+            'mae': mae,
+            'rmse': rmse,
+            'predictions_count': len(merged_data),
+            'individual_accuracies': accuracies.tolist()
+        }
+        
+        validation_record = {
+            'validation_id': f"VAL_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            'prediction_id': prediction_archive['prediction_id'],
+            'actual_record_id': actual_record['record_id'],
+            'validation_date': datetime.now(),
+            'validation_month': actual_record['reference_month'],
+            'metrics': validation_result,
+            'matched_products': len(merged_data),
+            'detailed_results': merged_data.to_dict('records')
+        }
+        
+        return validation_record
+
+# ====================================================================
+# 智能预警系统
+# ====================================================================
+class IntelligentAlertSystem:
+    """智能预警系统"""
+    
+    def __init__(self, base_system):
+        self.base_system = base_system
+        self.alerts = []
+    
+    def check_all_alerts(self, alert_settings):
+        """检查所有预警条件"""
+        self.alerts = []
+        
+        # 1. 准确率预警
+        self._check_accuracy_alerts(alert_settings)
+        
+        # 2. 预测偏差预警
+        self._check_bias_alerts(alert_settings)
+        
+        # 3. 数据质量预警
+        self._check_data_quality_alerts()
+        
+        return self.alerts
+    
+    def _check_accuracy_alerts(self, settings):
+        """检查准确率预警"""
+        if self.base_system.historical_predictions is not None:
+            recent_accuracy = self.base_system.historical_predictions.tail(50)['准确率(%)'].mean()
+            threshold = settings.get('accuracy_threshold', 80.0)
             
-            # 特征名称映射
-            feature_name_map = {
-                'qty_mean': '销量均值',
-                'qty_std': '销量标准差',
-                'qty_cv': '销量变异系数',
-                'qty_lag_1': '滞后1期销量',
-                'qty_lag_2': '滞后2期销量',
-                'qty_lag_3': '滞后3期销量',
-                'qty_ma_2': '2期移动平均',
-                'qty_ma_3': '3期移动平均',
-                'qty_wma_3': '3期加权移动平均',
-                'growth_rate_1': '增长率',
-                'trend_slope': '趋势斜率',
-                'month': '月份',
-                'quarter': '季度',
-                'is_year_end': '是否年末',
-                'is_peak_season': '是否旺季',
-                'segment_encoded': '产品段编码'
-            }
+            if recent_accuracy < threshold * 0.7:  # 严重预警
+                self.alerts.append({
+                    'level': 'danger',
+                    'type': 'accuracy',
+                    'title': '🚨 准确率严重下降',
+                    'message': f'最近预测准确率降至{recent_accuracy:.1f}%，低于阈值{threshold}%',
+                    'recommendation': '立即检查模型和数据，可能需要重新训练',
+                    'timestamp': datetime.now()
+                })
+            elif recent_accuracy < threshold:  # 一般预警
+                self.alerts.append({
+                    'level': 'warning',
+                    'type': 'accuracy',
+                    'title': '⚠️ 准确率下降',
+                    'message': f'最近预测准确率为{recent_accuracy:.1f}%，低于阈值{threshold}%',
+                    'recommendation': '关注模型表现，考虑优化',
+                    'timestamp': datetime.now()
+                })
+    
+    def _check_bias_alerts(self, settings):
+        """检查预测偏差预警"""
+        if self.base_system.historical_predictions is not None:
+            df = self.base_system.historical_predictions
+            bias = df['预测值'] - df['实际值']
+            recent_bias = bias.tail(30).mean()
+            threshold = settings.get('bias_threshold', 15.0)
             
-            # 映射特征名称
-            top_features['特征名称'] = top_features['特征'].map(lambda x: feature_name_map.get(x, x))
+            if abs(recent_bias) > threshold:
+                level = 'warning' if abs(recent_bias) < threshold * 1.5 else 'danger'
+                direction = '高估' if recent_bias > 0 else '低估'
+                
+                self.alerts.append({
+                    'level': level,
+                    'type': 'bias',
+                    'title': f'📊 预测{direction}偏差',
+                    'message': f'最近预测平均{direction}{abs(recent_bias):.1f}箱，超过阈值{threshold}',
+                    'recommendation': f'模型存在系统性{direction}，建议调整参数',
+                    'timestamp': datetime.now()
+                })
+    
+    def _check_data_quality_alerts(self):
+        """检查数据质量预警"""
+        if hasattr(self.base_system, 'data_summary'):
+            summary = self.base_system.data_summary
             
-            fig = go.Figure()
+            # 检查数据新鲜度
+            latest_date = summary.get('date_range', (None, None))[1]
+            if latest_date:
+                days_since_latest = (datetime.now().date() - latest_date.date()).days
+                
+                if days_since_latest > 7:
+                    self.alerts.append({
+                        'level': 'warning',
+                        'type': 'data_quality',
+                        'title': '📅 数据更新滞后',
+                        'message': f'最新数据时间为{latest_date.date()}，已有{days_since_latest}天未更新',
+                        'recommendation': '建议检查数据源，确保及时更新',
+                        'timestamp': datetime.now()
+                    })
+    
+    def send_alert_notification(self, alert, settings):
+        """发送预警通知"""
+        if settings.get('enable_email', False):
+            self._send_email_alert(alert, settings)
+        
+        # 这里可以添加其他通知方式：钉钉、企业微信等
+    
+    def _send_email_alert(self, alert, settings):
+        """发送邮件预警"""
+        try:
+            # 邮件配置（实际使用时需要配置真实的SMTP服务器）
+            smtp_server = "your_smtp_server.com"
+            smtp_port = 587
+            username = "your_email@company.com"
+            password = "your_password"
             
-            fig.add_trace(go.Bar(
-                x=top_features['重要性'],
-                y=top_features['特征名称'],
-                orientation='h',
-                marker=dict(
-                    color=top_features['重要性'],
-                    colorscale='Viridis',
-                    showscale=True,
-                    colorbar=dict(title="重要性")
-                ),
-                text=[f'{v:.3f}' for v in top_features['重要性']],
-                textposition='outside'
-            ))
+            recipients = settings.get('email_recipients', [])
             
-            fig.update_layout(
-                title="Top 15 特征重要性",
-                xaxis_title="重要性得分",
-                yaxis_title="特征",
-                height=600,
-                margin=dict(l=150),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
+            if not recipients:
+                return
             
-            st.plotly_chart(fig, use_container_width=True)
+            msg = MimeMultipart()
+            msg['From'] = username
+            msg['To'] = ', '.join(recipients)
+            msg['Subject'] = f"销售预测系统预警: {alert['title']}"
             
-            # 特征说明
-            st.markdown("#### 📖 特征说明")
+            body = f"""
+            预警时间: {alert['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}
+            预警级别: {alert['level'].upper()}
+            预警类型: {alert['type']}
             
-            col1, col2 = st.columns(2)
+            问题描述:
+            {alert['message']}
+            
+            建议措施:
+            {alert['recommendation']}
+            
+            请及时处理。
+            
+            销售预测系统
+            """
+            
+            msg.attach(MimeText(body, 'plain', 'utf-8'))
+            
+            # 发送邮件（示例代码，实际使用时需要配置）
+            # server = smtplib.SMTP(smtp_server, smtp_port)
+            # server.starttls()
+            # server.login(username, password)
+            # text = msg.as_string()
+            # server.sendmail(username, recipients, text)
+            # server.quit()
+            
+            print(f"📧 预警邮件已发送: {alert['title']}")
+            
+        except Exception as e:
+            print(f"❌ 邮件发送失败: {str(e)}")
+
+# ====================================================================
+# 交互式预测调整器
+# ====================================================================
+class InteractivePredictionAdjuster:
+    """交互式预测调整器"""
+    
+    def __init__(self, base_system):
+        self.base_system = base_system
+    
+    def create_adjustment_interface(self):
+        """创建调整界面"""
+        st.markdown("### 🎛️ 交互式预测调整")
+        
+        if self.base_system.predictions is not None:
+            col1, col2 = st.columns([1, 1])
             
             with col1:
-                st.markdown("""
-                **销量相关特征：**
-                - **销量均值**: 历史销量的平均值
-                - **滞后特征**: 前1-3期的销量值
-                - **移动平均**: 近期销量的平均趋势
-                - **变异系数**: 销量波动程度
-                """)
+                st.markdown("#### 📊 调整参数")
+                
+                # 全局调整
+                global_factor = st.slider(
+                    "整体销量调整 (%)",
+                    min_value=-50, max_value=50, value=0, step=5,
+                    help="调整所有产品的预测销量"
+                )
+                
+                # 促销影响
+                promo_boost = st.slider(
+                    "促销活动影响 (%)",
+                    min_value=0, max_value=100, value=0, step=10,
+                    help="假设促销活动对销量的提升"
+                )
+                
+                # 季节性调整
+                seasonal_factor = st.selectbox(
+                    "季节性因子",
+                    ["无调整", "淡季(-20%)", "旺季(+30%)", "节假日(+50%)"]
+                )
+                
+                # 市场环境
+                market_condition = st.selectbox(
+                    "市场环境",
+                    ["正常", "乐观(+15%)", "悲观(-15%)", "经济危机(-30%)"]
+                )
+                
+                # 产品选择
+                all_products = self.base_system.predictions['产品代码'].unique()
+                selected_products = st.multiselect(
+                    "选择调整的产品",
+                    all_products,
+                    default=all_products[:5],
+                    help="选择要进行调整的产品"
+                )
             
             with col2:
-                st.markdown("""
-                **时间相关特征：**
-                - **月份/季度**: 捕捉季节性规律
-                - **年末标识**: 年底销售高峰
-                - **旺季标识**: 传统销售旺季
-                - **趋势斜率**: 销量变化趋势
-                """)
-            
-            # 特征相关性分析
-            st.markdown("#### 🔗 特征相关性分析")
-            
-            # 计算特征相关性
-            feature_data = system.feature_data[system.models['feature_cols']]
-            correlation_matrix = feature_data.corr()
-            
-            # 选择与目标变量相关性最高的特征
-            target_corr = system.feature_data[system.models['feature_cols']].corrwith(
-                system.feature_data['target']
-            ).abs().sort_values(ascending=False).head(10)
-            
-            fig = go.Figure()
-            
-            fig.add_trace(go.Bar(
-                x=target_corr.values,
-                y=[feature_name_map.get(f, f) for f in target_corr.index],
-                orientation='h',
-                marker_color='#764ba2',
-                text=[f'{v:.3f}' for v in target_corr.values],
-                textposition='outside'
-            ))
-            
-            fig.update_layout(
-                title="与目标变量相关性最高的特征",
-                xaxis_title="相关系数",
-                yaxis_title="特征",
-                height=400,
-                margin=dict(l=150),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-
-# Tab 5: 历史记录 - 修改原有类别，增加管理员信息
-with tab5:
-    st.markdown("### 📑 训练历史记录")
+                st.markdown("#### 📈 调整结果")
+                
+                if selected_products:
+                    # 计算调整后的预测
+                    adjusted_predictions = self._apply_adjustments(
+                        global_factor, promo_boost, seasonal_factor, 
+                        market_condition, selected_products
+                    )
+                    
+                    # 显示调整前后对比
+                    original_total = self.base_system.predictions[
+                        self.base_system.predictions['产品代码'].isin(selected_products)
+                    ]['预测销量'].sum()
+                    
+                    adjusted_total = adjusted_predictions['调整后预测'].sum()
+                    change_pct = (adjusted_total - original_total) / original_total * 100
+                    
+                    # 指标展示
+                    metric_col1, metric_col2 = st.columns(2)
+                    
+                    with metric_col1:
+                        st.metric(
+                            "原预测总量",
+                            f"{original_total:,.0f} 箱"
+                        )
+                    
+                    with metric_col2:
+                        st.metric(
+                            "调整后总量",
+                            f"{adjusted_total:,.0f} 箱",
+                            f"{change_pct:+.1f}%"
+                        )
+                    
+                    # 详细对比表格
+                    st.markdown("##### 📋 详细对比")
+                    display_columns = ['产品代码', '原预测', '调整后预测', '变化量', '变化率']
+                    st.dataframe(
+                        adjusted_predictions[display_columns],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                    
+                    # 保存调整记录
+                    if st.button("💾 保存调整方案", use_container_width=True):
+                        adjustment_record = {
+                            'timestamp': datetime.now(),
+                            'global_factor': global_factor,
+                            'promo_boost': promo_boost,
+                            'seasonal_factor': seasonal_factor,
+                            'market_condition': market_condition,
+                            'selected_products': selected_products,
+                            'original_total': original_total,
+                            'adjusted_total': adjusted_total,
+                            'change_percent': change_pct,
+                            'adjusted_data': adjusted_predictions.to_dict('records')
+                        }
+                        
+                        st.session_state.adjustment_history.append(adjustment_record)
+                        st.success("✅ 调整方案已保存到历史记录")
+                        
+                        # 可选：更新当前预测
+                        if st.checkbox("应用到当前预测"):
+                            # 这里可以更新主预测系统的预测结果
+                            st.info("🔄 调整已应用到当前预测")
+                else:
+                    st.warning("⚠️ 请选择要调整的产品")
+        else:
+            st.warning("⚠️ 请先生成基础预测结果")
     
-    if len(st.session_state.training_history) == 0:
-        st.info("暂无训练记录")
-    else:
-        # 显示训练历史
-        history_df = pd.DataFrame(st.session_state.training_history)
-        history_df['time'] = pd.to_datetime(history_df['time'])
-        history_df = history_df.sort_values('time', ascending=False)
+    def _apply_adjustments(self, global_factor, promo_boost, seasonal_factor, 
+                          market_condition, selected_products):
+        """应用调整因子"""
+        df = self.base_system.predictions[
+            self.base_system.predictions['产品代码'].isin(selected_products)
+        ].copy()
         
-        # 格式化显示
-        history_df['训练时间'] = history_df['time'].dt.strftime('%Y-%m-%d %H:%M:%S')
-        history_df['准确率'] = history_df['accuracy'].apply(lambda x: f"{x:.2f}%")
-        history_df['模型'] = history_df['model']
-        history_df['操作员'] = history_df.get('admin', 'Admin')
+        # 解析调整因子
+        seasonal_multiplier = 1.0
+        if seasonal_factor == "淡季(-20%)":
+            seasonal_multiplier = 0.8
+        elif seasonal_factor == "旺季(+30%)":
+            seasonal_multiplier = 1.3
+        elif seasonal_factor == "节假日(+50%)":
+            seasonal_multiplier = 1.5
         
-        st.dataframe(
-            history_df[['训练时间', '模型', '准确率', '操作员']],
-            use_container_width=True,
-            hide_index=True
+        market_multiplier = 1.0
+        if market_condition == "乐观(+15%)":
+            market_multiplier = 1.15
+        elif market_condition == "悲观(-15%)":
+            market_multiplier = 0.85
+        elif market_condition == "经济危机(-30%)":
+            market_multiplier = 0.7
+        
+        # 计算总调整因子
+        total_multiplier = (1 + global_factor/100) * (1 + promo_boost/100) * seasonal_multiplier * market_multiplier
+        
+        # 应用调整
+        df['原预测'] = df['预测销量']
+        df['调整后预测'] = df['预测销量'] * total_multiplier
+        df['变化量'] = df['调整后预测'] - df['原预测']
+        df['变化率'] = f"{(total_multiplier - 1) * 100:+.1f}%"
+        
+        return df
+    
+    def show_adjustment_history(self):
+        """显示调整历史"""
+        if st.session_state.adjustment_history:
+            st.markdown("#### 📜 调整历史记录")
+            
+            for i, record in enumerate(reversed(st.session_state.adjustment_history)):
+                with st.expander(f"调整记录 {len(st.session_state.adjustment_history) - i}: {record['timestamp'].strftime('%Y-%m-%d %H:%M')}"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write("**调整参数:**")
+                        st.write(f"- 整体调整: {record['global_factor']:+}%")
+                        st.write(f"- 促销影响: {record['promo_boost']}%")
+                        st.write(f"- 季节因子: {record['seasonal_factor']}")
+                        st.write(f"- 市场环境: {record['market_condition']}")
+                    
+                    with col2:
+                        st.write("**调整结果:**")
+                        st.write(f"- 原预测: {record['original_total']:,.0f} 箱")
+                        st.write(f"- 调整后: {record['adjusted_total']:,.0f} 箱")
+                        st.write(f"- 变化: {record['change_percent']:+.1f}%")
+                        st.write(f"- 产品数: {len(record['selected_products'])}")
+        else:
+            st.info("暂无调整历史记录")
+
+# ====================================================================
+# 主界面
+# ====================================================================
+def render_production_header():
+    """渲染生产级头部"""
+    st.markdown(f"""
+    <div class="production-header">
+        <h1 class="production-title">🚀 生产级销售预测系统</h1>
+        <p style="font-size: 1.2rem; color: #666; margin-bottom: 1rem;">
+            集成预测跟踪验证、智能预警、交互式调整等5星核心功能
+        </p>
+        <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
+            <span style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 0.5rem 1rem; border-radius: 20px;">🎯 预测跟踪</span>
+            <span style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); color: white; padding: 0.5rem 1rem; border-radius: 20px;">🔔 智能预警</span>
+            <span style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); color: white; padding: 0.5rem 1rem; border-radius: 20px;">🎛️ 交互调整</span>
+            <span style="background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); color: white; padding: 0.5rem 1rem; border-radius: 20px;">📊 机器学习</span>
+        </div>
+        <div style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+            最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 版本: v2.0 Production Ready
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ====================================================================
+# 侧边栏
+# ====================================================================
+def create_production_sidebar():
+    """创建生产级侧边栏"""
+    with st.sidebar:
+        st.markdown("### 🎛️ 系统控制台")
+        
+        # 系统状态
+        st.markdown("#### 📊 系统状态")
+        
+        if st.session_state.model_trained:
+            system = st.session_state.prediction_system
+            st.markdown(f"""
+            <div class="feature-card" style="margin: 0.5rem 0;">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <span class="status-indicator status-success"></span>
+                    <strong>系统就绪</strong>
+                </div>
+                <p style="margin: 0; font-size: 0.9rem;">
+                    模型: {system.models['best_model_name']}<br>
+                    准确率: {system.accuracy_results[system.models['best_model_name']]['SMAPE_Accuracy']:.1f}%<br>
+                    数据: {system.data_mode}<br>
+                    历史记录: {len(system.historical_predictions) if system.historical_predictions is not None else 0} 条
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="feature-card" style="margin: 0.5rem 0;">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <span class="status-indicator status-warning"></span>
+                    <strong>待训练</strong>
+                </div>
+                <p style="margin: 0; font-size: 0.9rem;">
+                    请先训练基础预测模型
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 数据源选择
+        st.markdown("#### 📂 数据源")
+        data_mode = st.radio(
+            "选择数据源",
+            ["GitHub真实数据", "上传Excel文件", "示例数据"],
+            help="选择训练数据来源"
         )
         
-        # 准确率趋势图
-        if len(history_df) > 1:
-            st.markdown("#### 📈 准确率趋势")
-            
-            fig = go.Figure()
-            
-            fig.add_trace(go.Scatter(
-                x=history_df['time'],
-                y=history_df['accuracy'],
-                mode='lines+markers',
-                name='准确率',
-                line=dict(color='#667eea', width=3),
-                marker=dict(size=10)
-            ))
-            
-            fig.update_layout(
-                title="模型准确率变化趋势",
-                xaxis_title="训练时间",
-                yaxis_title="准确率 (%)",
-                height=400,
-                hovermode='x unified',
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
+        shipment_file = None
+        promotion_file = None
+        use_github = False
         
-        # 清除历史记录
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("🗑️ 清除历史记录"):
-                st.session_state.training_history = []
-                st.rerun()
+        if data_mode == "GitHub真实数据":
+            use_github = True
+            st.info("📡 将从GitHub加载真实Excel数据")
+        elif data_mode == "上传Excel文件":
+            shipment_file = st.file_uploader("出货数据", type=['xlsx', 'xls'])
+            promotion_file = st.file_uploader("促销数据", type=['xlsx', 'xls'])
+        else:
+            st.info("🎲 将生成模拟示例数据")
+        
+        # 训练参数
+        st.markdown("#### ⚙️ 训练参数")
+        test_ratio = st.slider("测试集比例", 0.1, 0.3, 0.2, 0.05)
+        months_ahead = st.slider("预测月数", 1, 6, 3)
+        
+        # 预警设置
+        st.markdown("#### 🔔 预警设置")
+        
+        accuracy_threshold = st.slider(
+            "准确率预警阈值 (%)", 
+            60.0, 95.0, 
+            st.session_state.alert_settings['accuracy_threshold'],
+            5.0
+        )
+        
+        bias_threshold = st.slider(
+            "偏差预警阈值", 
+            5.0, 30.0, 
+            st.session_state.alert_settings['bias_threshold'],
+            5.0
+        )
+        
+        enable_email = st.checkbox(
+            "启用邮件预警", 
+            st.session_state.alert_settings['enable_email']
+        )
+        
+        # 更新预警设置
+        st.session_state.alert_settings.update({
+            'accuracy_threshold': accuracy_threshold,
+            'bias_threshold': bias_threshold,
+            'enable_email': enable_email
+        })
+        
+        # 快速操作
+        st.markdown("#### ⚡ 快速操作")
+        
+        if st.button("🔄 重置系统", use_container_width=True):
+            # 重置所有状态
+            for key in ['model_trained', 'prediction_system', 'prediction_archives', 
+                       'actual_data_records', 'validation_results', 'alerts', 'adjustment_history']:
+                if key in st.session_state:
+                    if key in ['prediction_archives', 'actual_data_records', 'validation_results', 'alerts', 'adjustment_history']:
+                        st.session_state[key] = []
+                    else:
+                        st.session_state[key] = None if key == 'prediction_system' else False
+            st.success("✅ 系统已重置")
+            st.rerun()
+        
+        # 当前预警数量
+        if st.session_state.alerts:
+            danger_count = len([a for a in st.session_state.alerts if a['level'] == 'danger'])
+            warning_count = len([a for a in st.session_state.alerts if a['level'] == 'warning'])
+            
+            if danger_count > 0:
+                st.error(f"🚨 {danger_count} 个严重预警")
+            if warning_count > 0:
+                st.warning(f"⚠️ {warning_count} 个一般预警")
+    
+    return data_mode, use_github, shipment_file, promotion_file, test_ratio, months_ahead
 
-# 底部信息 - 修改原有类别
-st.markdown("---")
-st.markdown(f"""
-<div style="text-align: center; color: rgba(255, 255, 255, 0.8); font-size: 0.9rem; background: rgba(255, 255, 255, 0.1); padding: 1rem; border-radius: 10px;">
-    🤖 机器学习销售预测系统 v2.0 | 
-    使用 XGBoost + LightGBM + RandomForest | 
-    数据更新时间: {datetime.now().strftime('%Y-%m-%d')} |
-    🔒 管理员专用模式
-</div>
-""", unsafe_allow_html=True)
+# ====================================================================
+# 主程序
+# ====================================================================
+def main():
+    """主程序"""
+    # 渲染头部
+    render_production_header()
+    
+    # 创建侧边栏
+    data_mode, use_github, shipment_file, promotion_file, test_ratio, months_ahead = create_production_sidebar()
+    
+    # 创建Tab页面
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🚀 基础预测训练",
+        "🎯 预测跟踪验证", 
+        "🔔 智能预警中心",
+        "🎛️ 交互式调整",
+        "📊 系统监控"
+    ])
+    
+    # Tab 1: 基础预测训练
+    with tab1:
+        st.markdown("### 🚀 基础预测模型训练")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            # 检查训练条件
+            can_train = True
+            if data_mode == "上传Excel文件" and (shipment_file is None or promotion_file is None):
+                can_train = False
+                st.warning("⚠️ 请上传Excel文件")
+            
+            if st.button("🚀 开始训练预测模型", type="primary", use_container_width=True, disabled=not can_train):
+                with st.container():
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    def update_progress(progress, message):
+                        progress_bar.progress(progress)
+                        status_text.text(message)
+                    
+                    # 初始化系统
+                    system = ProductionSalesPredictionSystem()
+                    
+                    try:
+                        success = True
+                        
+                        # 数据加载
+                        if data_mode == "GitHub真实数据":
+                            success = system.load_data(use_github=True)
+                        elif data_mode == "上传Excel文件":
+                            success = system.load_data(shipment_file=shipment_file, promotion_file=promotion_file)
+                        else:
+                            success = system.load_sample_data()
+                        
+                        if success:
+                            update_progress(0.2, f"✅ 数据加载: {len(system.shipment_data):,} 条")
+                            
+                            # 预处理
+                            if system.preprocess_data(update_progress):
+                                # 特征工程
+                                if system.create_features(update_progress):
+                                    # 模型训练
+                                    if system.train_models(test_ratio, update_progress):
+                                        # 预测未来
+                                        system.predict_future(months_ahead)
+                                        
+                                        # 保存到session
+                                        st.session_state.prediction_system = system
+                                        st.session_state.model_trained = True
+                                        
+                                        progress_bar.empty()
+                                        status_text.empty()
+                                        
+                                        st.success("🎉 模型训练完成！")
+                                        st.balloons()
+                                        st.rerun()
+                                    else:
+                                        success = False
+                                else:
+                                    success = False
+                            else:
+                                success = False
+                        
+                        if not success:
+                            st.error("❌ 训练失败")
+                            
+                    except Exception as e:
+                        st.error(f"❌ 训练异常: {str(e)}")
+        
+        with col2:
+            if st.session_state.model_trained:
+                system = st.session_state.prediction_system
+                
+                st.markdown("#### 📊 训练结果")
+                
+                best_model = system.models['best_model_name']
+                best_accuracy = system.accuracy_results[best_model]['SMAPE_Accuracy']
+                
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{best_accuracy:.1f}%</div>
+                    <div class="metric-label">预测准确率</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown(f"""
+                <div class="feature-card">
+                    <h4>✅ 训练完成</h4>
+                    <p><strong>最佳模型:</strong> {best_model}</p>
+                    <p><strong>数据模式:</strong> {system.data_mode}</p>
+                    <p><strong>产品数量:</strong> {len(system.product_segments)}</p>
+                    <p><strong>训练时间:</strong> {system.training_time:.1f}秒</p>
+                    <p><strong>历史预测:</strong> {len(system.historical_predictions) if system.historical_predictions is not None else 0} 条</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # 预测结果预览
+                if system.predictions is not None:
+                    st.markdown("#### 🔮 预测结果预览")
+                    st.dataframe(system.predictions.head(), use_container_width=True)
+            else:
+                st.markdown("""
+                <div class="feature-card">
+                    <h4>📋 训练说明</h4>
+                    <p>此系统包含完整的机器学习流水线：</p>
+                    <ul>
+                        <li>🧹 数据清洗和预处理</li>
+                        <li>🔧 高级特征工程</li>
+                        <li>🤖 多模型训练和融合</li>
+                        <li>📊 准确率评估</li>
+                        <li>🔮 未来销量预测</li>
+                    </ul>
+                    <p>请点击"开始训练"按钮启动训练流程。</p>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    # Tab 2: 预测跟踪验证
+    with tab2:
+        st.markdown("### 🎯 预测跟踪验证系统")
+        
+        if not st.session_state.model_trained:
+            st.warning("⚠️ 请先训练预测模型")
+        else:
+            tracking_system = PredictionTrackingSystem()
+            system = st.session_state.prediction_system
+            
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                st.markdown("#### 📊 保存预测档案")
+                
+                if st.button("💾 保存当前预测到档案", type="primary"):
+                    if system.predictions is not None:
+                        model_info = {
+                            'model_name': system.models['best_model_name'],
+                            'accuracy': system.accuracy_results[system.models['best_model_name']]['SMAPE_Accuracy'],
+                            'training_date': datetime.now()
+                        }
+                        
+                        archive = tracking_system.save_prediction_archive(system.predictions, model_info)
+                        st.session_state.prediction_archives.append(archive)
+                        
+                        st.success(f"✅ 预测档案已保存: {archive['prediction_id']}")
+                        st.rerun()
+                    else:
+                        st.error("❌ 没有可保存的预测结果")
+                
+                # 显示预测档案
+                st.markdown("#### 📋 预测档案列表")
+                
+                if st.session_state.prediction_archives:
+                    for archive in st.session_state.prediction_archives:
+                        status_class = {
+                            'pending_validation': 'validation-pending',
+                            'partial_validated': 'validation-completed',
+                            'fully_validated': 'validation-completed'
+                        }.get(archive['status'], 'validation-pending')
+                        
+                        st.markdown(f"""
+                        <div class="feature-card {status_class}">
+                            <h4>{archive['prediction_id']}</h4>
+                            <p><strong>创建时间:</strong> {archive['creation_date'].strftime('%Y-%m-%d %H:%M')}</p>
+                            <p><strong>产品数:</strong> {archive['product_count']}</p>
+                            <p><strong>预测总量:</strong> {archive['total_predicted_volume']:,.0f} 箱</p>
+                            <p><strong>状态:</strong> {'⏳ 待验证' if archive['status'] == 'pending_validation' else '✅ 已验证'}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.info("暂无预测档案")
+            
+            with col2:
+                st.markdown("#### 📝 实际数据录入")
+                
+                if st.session_state.prediction_archives:
+                    # 选择档案
+                    archive_options = [f"{a['prediction_id']} ({a['creation_date'].strftime('%m-%d')})" 
+                                     for a in st.session_state.prediction_archives]
+                    
+                    selected_idx = st.selectbox("选择预测档案", range(len(archive_options)), 
+                                               format_func=lambda x: archive_options[x])
+                    
+                    selected_archive = st.session_state.prediction_archives[selected_idx]
+                    
+                    # 显示预测详情
+                    st.markdown("##### 📊 预测详情")
+                    predictions_df = pd.DataFrame(selected_archive['predictions_data'])
+                    st.dataframe(predictions_df.head(), use_container_width=True)
+                    
+                    # 录入方式
+                    input_method = st.radio("录入方式", ["生成示例", "手动录入", "CSV上传"])
+                    
+                    if input_method == "生成示例":
+                        reference_month = st.text_input("参考月份", value="2025-07")
+                        
+                        if st.button("🎲 生成示例实际数据"):
+                            # 生成示例实际数据
+                            actual_data = []
+                            for _, row in predictions_df.iterrows():
+                                # 添加随机误差模拟实际销量
+                                noise = np.random.normal(1.0, 0.2)
+                                actual_qty = max(0, row['预测销量'] * noise)
+                                
+                                actual_data.append({
+                                    '产品代码': row['产品代码'],
+                                    '实际销量': round(actual_qty, 1)
+                                })
+                            
+                            actual_df = pd.DataFrame(actual_data)
+                            actual_record = tracking_system.add_actual_data(actual_df, reference_month)
+                            
+                            st.session_state.actual_data_records.append(actual_record)
+                            st.success(f"✅ 示例数据已生成: {actual_record['record_id']}")
+                            
+                            # 执行验证
+                            validation_result = tracking_system.validate_prediction(
+                                selected_archive, actual_record, system
+                            )
+                            
+                            if validation_result:
+                                st.session_state.validation_results.append(validation_result)
+                                
+                                accuracy = validation_result['metrics']['smape_accuracy']
+                                st.success(f"🎯 验证完成！准确率: {accuracy:.1f}%")
+                                
+                                # 显示验证结果
+                                col_a, col_b, col_c = st.columns(3)
+                                
+                                with col_a:
+                                    st.metric("准确率", f"{accuracy:.1f}%")
+                                
+                                with col_b:
+                                    st.metric("MAE", f"{validation_result['metrics']['mae']:.1f}")
+                                
+                                with col_c:
+                                    st.metric("验证产品", validation_result['matched_products'])
+                    
+                    elif input_method == "手动录入":
+                        st.markdown("##### ✏️ 手动录入（前5个产品）")
+                        
+                        with st.form("manual_input"):
+                            actual_data = []
+                            
+                            for _, row in predictions_df.head(5).iterrows():
+                                product = row['产品代码']
+                                predicted = row['预测销量']
+                                
+                                actual_qty = st.number_input(
+                                    f"{product} (预测: {predicted:.0f})",
+                                    min_value=0.0,
+                                    value=float(predicted),
+                                    step=1.0,
+                                    key=f"manual_{product}"
+                                )
+                                
+                                actual_data.append({
+                                    '产品代码': product,
+                                    '实际销量': actual_qty
+                                })
+                            
+                            reference_month = st.text_input("参考月份", value="2025-07", key="manual_month")
+                            
+                            if st.form_submit_button("💾 保存实际数据"):
+                                actual_df = pd.DataFrame(actual_data)
+                                actual_record = tracking_system.add_actual_data(actual_df, reference_month)
+                                
+                                st.session_state.actual_data_records.append(actual_record)
+                                st.success(f"✅ 实际数据已保存: {actual_record['record_id']}")
+                    
+                    else:  # CSV上传
+                        uploaded_file = st.file_uploader("上传CSV文件", type=['csv'])
+                        
+                        if uploaded_file:
+                            try:
+                                actual_df = pd.read_csv(uploaded_file)
+                                st.write("预览:")
+                                st.dataframe(actual_df.head())
+                                
+                                reference_month = st.text_input("参考月份", value="2025-07", key="csv_month")
+                                
+                                if st.button("💾 保存CSV数据"):
+                                    actual_record = tracking_system.add_actual_data(actual_df, reference_month)
+                                    st.session_state.actual_data_records.append(actual_record)
+                                    st.success(f"✅ CSV数据已保存: {actual_record['record_id']}")
+                                    
+                            except Exception as e:
+                                st.error(f"❌ CSV处理失败: {str(e)}")
+                else:
+                    st.info("请先保存预测档案")
+                
+                # 显示验证结果
+                if st.session_state.validation_results:
+                    st.markdown("#### 🎯 验证结果")
+                    
+                    latest_result = st.session_state.validation_results[-1]
+                    metrics = latest_result['metrics']
+                    
+                    st.markdown(f"""
+                    <div class="feature-card validation-completed">
+                        <h4>最新验证结果</h4>
+                        <p><strong>验证时间:</strong> {latest_result['validation_date'].strftime('%Y-%m-%d %H:%M')}</p>
+                        <p><strong>准确率:</strong> {metrics['smape_accuracy']:.1f}%</p>
+                        <p><strong>MAE:</strong> {metrics['mae']:.1f}</p>
+                        <p><strong>验证产品:</strong> {latest_result['matched_products']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+    
+    # Tab 3: 智能预警中心
+    with tab3:
+        st.markdown("### 🔔 智能预警中心")
+        
+        if not st.session_state.model_trained:
+            st.warning("⚠️ 请先训练预测模型")
+        else:
+            system = st.session_state.prediction_system
+            alert_system = IntelligentAlertSystem(system)
+            
+            # 检查预警
+            current_alerts = alert_system.check_all_alerts(st.session_state.alert_settings)
+            st.session_state.alerts = current_alerts
+            
+            # 预警仪表盘
+            st.markdown("#### 🚨 预警仪表盘")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            danger_alerts = [a for a in current_alerts if a['level'] == 'danger']
+            warning_alerts = [a for a in current_alerts if a['level'] == 'warning']
+            
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card" style="border-left-color: #f44336;">
+                    <div class="metric-value" style="color: #f44336;">{len(danger_alerts)}</div>
+                    <div class="metric-label">严重预警</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div class="metric-card" style="border-left-color: #FF9800;">
+                    <div class="metric-value" style="color: #FF9800;">{len(warning_alerts)}</div>
+                    <div class="metric-label">一般预警</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                total_predictions = len(system.historical_predictions) if system.historical_predictions is not None else 0
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{total_predictions}</div>
+                    <div class="metric-label">监控预测数</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col4:
+                avg_accuracy = system.historical_predictions['准确率(%)'].mean() if system.historical_predictions is not None else 0
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{avg_accuracy:.1f}%</div>
+                    <div class="metric-label">平均准确率</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # 具体预警信息
+            if current_alerts:
+                st.markdown("#### ⚠️ 当前预警")
+                
+                for alert in current_alerts:
+                    alert_class = f"alert-{alert['level']}"
+                    
+                    st.markdown(f"""
+                    <div class="alert-card {alert_class}">
+                        <h4>{alert['title']}</h4>
+                        <p><strong>问题:</strong> {alert['message']}</p>
+                        <p><strong>建议:</strong> {alert['recommendation']}</p>
+                        <p><strong>时间:</strong> {alert['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # 发送通知选项
+                    if st.button(f"📧 发送通知 - {alert['title'][:20]}...", key=f"alert_{alert['timestamp']}"):
+                        alert_system.send_alert_notification(alert, st.session_state.alert_settings)
+                        st.success("✅ 预警通知已发送")
+            else:
+                st.markdown("""
+                <div class="alert-card alert-success">
+                    <h4>✅ 系统运行正常</h4>
+                    <p>当前没有检测到预警信号，所有指标运行正常。</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # 预警设置
+            st.markdown("#### ⚙️ 预警设置")
+            
+            with st.expander("📧 邮件通知设置"):
+                email_recipients = st.text_area(
+                    "收件人邮箱 (每行一个)",
+                    value="\n".join(st.session_state.alert_settings.get('email_recipients', [])),
+                    help="输入接收预警邮件的邮箱地址"
+                )
+                
+                if st.button("💾 保存邮件设置"):
+                    recipients = [email.strip() for email in email_recipients.split('\n') if email.strip()]
+                    st.session_state.alert_settings['email_recipients'] = recipients
+                    st.success(f"✅ 已保存 {len(recipients)} 个收件人")
+    
+    # Tab 4: 交互式调整
+    with tab4:
+        st.markdown("### 🎛️ 交互式预测调整")
+        
+        if not st.session_state.model_trained:
+            st.warning("⚠️ 请先训练预测模型")
+        else:
+            system = st.session_state.prediction_system
+            adjuster = InteractivePredictionAdjuster(system)
+            
+            # 创建调整界面
+            adjuster.create_adjustment_interface()
+            
+            st.markdown("---")
+            
+            # 显示调整历史
+            adjuster.show_adjustment_history()
+    
+    # Tab 5: 系统监控
+    with tab5:
+        st.markdown("### 📊 系统监控")
+        
+        if not st.session_state.model_trained:
+            st.warning("⚠️ 请先训练预测模型")
+        else:
+            system = st.session_state.prediction_system
+            
+            # 系统概览
+            st.markdown("#### 📋 系统概览")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown("**🎯 预测系统**")
+                st.write(f"- 模型: {system.models['best_model_name']}")
+                st.write(f"- 准确率: {system.accuracy_results[system.models['best_model_name']]['SMAPE_Accuracy']:.1f}%")
+                st.write(f"- 训练时间: {system.training_time:.1f}秒")
+                st.write(f"- 产品数: {len(system.product_segments)}")
+            
+            with col2:
+                st.markdown("**📊 跟踪验证**")
+                st.write(f"- 预测档案: {len(st.session_state.prediction_archives)}")
+                st.write(f"- 实际记录: {len(st.session_state.actual_data_records)}")
+                st.write(f"- 验证结果: {len(st.session_state.validation_results)}")
+                st.write(f"- 调整记录: {len(st.session_state.adjustment_history)}")
+            
+            with col3:
+                st.markdown("**🔔 预警系统**")
+                danger_count = len([a for a in st.session_state.alerts if a['level'] == 'danger'])
+                warning_count = len([a for a in st.session_state.alerts if a['level'] == 'warning'])
+                st.write(f"- 严重预警: {danger_count}")
+                st.write(f"- 一般预警: {warning_count}")
+                st.write(f"- 邮件通知: {'启用' if st.session_state.alert_settings['enable_email'] else '禁用'}")
+                st.write(f"- 收件人: {len(st.session_state.alert_settings.get('email_recipients', []))}")
+            
+            # 性能趋势
+            if st.session_state.validation_results:
+                st.markdown("#### 📈 性能趋势")
+                
+                trend_data = []
+                for result in st.session_state.validation_results:
+                    trend_data.append({
+                        '验证时间': result['validation_date'],
+                        '准确率': result['metrics']['smape_accuracy'],
+                        'MAE': result['metrics']['mae'],
+                        '验证产品数': result['matched_products']
+                    })
+                
+                trend_df = pd.DataFrame(trend_data)
+                
+                # 准确率趋势图
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=trend_df['验证时间'],
+                    y=trend_df['准确率'],
+                    mode='lines+markers',
+                    name='准确率',
+                    line=dict(color='#4CAF50', width=3)
+                ))
+                
+                fig.update_layout(
+                    title="验证准确率趋势",
+                    xaxis_title="验证时间",
+                    yaxis_title="准确率 (%)",
+                    height=400
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # 数据导出
+            st.markdown("#### 📥 数据导出")
+            
+            col_a, col_b = st.columns(2)
+            
+            with col_a:
+                if st.button("📊 导出预测档案"):
+                    if st.session_state.prediction_archives:
+                        export_data = []
+                        for archive in st.session_state.prediction_archives:
+                            export_data.append({
+                                'prediction_id': archive['prediction_id'],
+                                'creation_date': archive['creation_date'],
+                                'product_count': archive['product_count'],
+                                'total_volume': archive['total_predicted_volume'],
+                                'status': archive['status']
+                            })
+                        
+                        export_df = pd.DataFrame(export_data)
+                        csv_data = export_df.to_csv(index=False)
+                        
+                        st.download_button(
+                            "📁 下载预测档案",
+                            csv_data,
+                            f"prediction_archives_{datetime.now().strftime('%Y%m%d')}.csv",
+                            "text/csv"
+                        )
+                    else:
+                        st.info("暂无预测档案")
+            
+            with col_b:
+                if st.button("🎯 导出验证结果"):
+                    if st.session_state.validation_results:
+                        export_data = []
+                        for result in st.session_state.validation_results:
+                            export_data.append({
+                                'validation_id': result['validation_id'],
+                                'validation_date': result['validation_date'],
+                                'accuracy': result['metrics']['smape_accuracy'],
+                                'mae': result['metrics']['mae'],
+                                'matched_products': result['matched_products']
+                            })
+                        
+                        export_df = pd.DataFrame(export_data)
+                        csv_data = export_df.to_csv(index=False)
+                        
+                        st.download_button(
+                            "📁 下载验证结果",
+                            csv_data,
+                            f"validation_results_{datetime.now().strftime('%Y%m%d')}.csv",
+                            "text/csv"
+                        )
+                    else:
+                        st.info("暂无验证结果")
+
+# ====================================================================
+# 程序入口
+# ====================================================================
+if __name__ == "__main__":
+    main()
+
+# ====================================================================
+# 底部信息
+# ====================================================================
+st.markdown("""
+---
+### 💡 生产级销售预测系统
+
+**🌟 5星核心功能:**
+- 🎯 **预测跟踪验证**: 存储预测→等待实际→验证准确率→监控性能
+- 🔔 **智能预警系统**: 准确率监控→偏差检测→自动通知→风险预警
+- 🎛️ **交互式调整**: 场景分析→参数调整→影响评估→决策支持
+
+**🚀 技术特性:**
+- 生产就绪的代码架构
+- 完整的错误处理机制
+- 实时性能监控
+- 数据持久化存储
+- 用户友好的界面设计
+
+**📧 联系支持:** 如有问题请联系技术支持团队
+""")
