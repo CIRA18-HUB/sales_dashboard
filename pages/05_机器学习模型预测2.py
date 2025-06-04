@@ -1,4 +1,4 @@
-# 5_机器学习模型预测.py - 基于GitHub数据的机器学习预测系统
+# 机器学习模型预测.py - 智能预测分析系统
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,1477 +8,1307 @@ from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import warnings
 import time
-import io
-import json
-import pickle
-import hashlib
-from data_storage import storage
 
 warnings.filterwarnings('ignore')
 
-# 机器学习库
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error, r2_score
-from sklearn.preprocessing import RobustScaler, StandardScaler
-from sklearn.ensemble import RandomForestRegressor
-import xgboost as xgb
-import lightgbm as lgb
-
-# ====================================================================
 # 页面配置
-# ====================================================================
 st.set_page_config(
-    page_title="🤖 机器学习模型预测",
+    page_title="机器学习模型预测",
     page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# 隐藏Streamlit默认元素
-hide_elements = """
-<style>
-    #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
-    header {visibility: hidden !important;}
-    .stAppHeader {display: none !important;}
-    .stDeployButton {display: none !important;}
-    .stToolbar {display: none !important;}
-</style>
-"""
-st.markdown(hide_elements, unsafe_allow_html=True)
+# 检查登录状态
+if 'authenticated' not in st.session_state or not st.session_state.authenticated:
+    st.error("请先登录系统")
+    st.switch_page("登陆界面haha.py")
+    st.stop()
 
-# ====================================================================
-# 样式定义
-# ====================================================================
-modern_ml_styles = """
+# 统一的增强CSS样式 - 修复指标卡片显示问题
+st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    /* 导入Google字体 */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
+    /* 全局字体和背景 */
     .stApp {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        font-family: 'Inter', sans-serif;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
+        background-attachment: fixed;
     }
 
-    .main {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-    }
-
-    /* 头部样式 */
-    .ml-header {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(25px);
+    /* 主容器背景 */
+    .main .block-container {
+        background: rgba(255,255,255,1) !important;
         border-radius: 20px;
         padding: 2rem;
+        margin-top: 2rem;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+    }
+
+    /* 页面标题样式 */
+    .page-header {
+        text-align: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+        background-size: 200% 200%;
+        color: white;
+        padding: 3rem 2rem;
+        border-radius: 25px;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        text-align: center;
+        animation: gradientShift 4s ease infinite;
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
     }
 
-    .ml-title {
-        font-size: 3rem;
+    @keyframes gradientShift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+
+    .page-title {
+        font-size: 3.2rem;
         font-weight: 800;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
         margin-bottom: 1rem;
+        line-height: 1.1;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
-    .ml-subtitle {
-        font-size: 1.2rem;
-        color: #666;
-        margin-bottom: 1rem;
-    }
-
-    /* 功能卡片 */
-    .feature-card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(25px);
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        border-left: 4px solid #667eea;
-        transition: all 0.3s ease;
-    }
-
-    .feature-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 12px 35px rgba(0,0,0,0.15);
-    }
-
-    /* 指标卡片 */
-    .metric-card {
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 15px;
-        padding: 1.5rem;
-        text-align: center;
-        border-left: 4px solid #667eea;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        height: 100%;
-    }
-
-    .metric-value {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #667eea;
-    }
-
-    .metric-label {
-        font-size: 1rem;
-        color: #666;
+    .page-subtitle {
+        font-size: 1.3rem;
+        font-weight: 400;
+        opacity: 0.9;
         margin-top: 0.5rem;
     }
 
-    /* 状态指示器 */
-    .status-indicator {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        display: inline-block;
-        margin-right: 0.5rem;
-        animation: pulse 2s infinite;
+    /* 修复指标卡片样式 */
+    .metric-card {
+        background: white !important;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+        border: 1px solid rgba(255,255,255,0.3);
+        height: 180px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: visible !important;
     }
 
-    .status-success { background-color: #4CAF50; }
-    .status-warning { background-color: #FF9800; }
-    .status-danger { background-color: #f44336; }
-
-    @keyframes pulse {
-        0% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.1); opacity: 0.8; }
-        100% { transform: scale(1); opacity: 1; }
+    .metric-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 25px 50px rgba(0,0,0,0.12);
     }
 
-    /* 进度条样式 */
-    .stProgress > div > div > div > div {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* 数值样式 - 确保显示 */
+    .metric-value {
+        font-size: 2.5rem !important;
+        font-weight: 800;
+        color: #667eea !important;
+        margin-bottom: 0.5rem;
+        line-height: 1.2;
+        text-align: center;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 10 !important;
     }
 
-    /* 按钮样式 */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 10px;
+    .metric-label {
+        color: #374151 !important;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        text-align: center;
+        display: block !important;
+    }
+
+    .metric-description {
+        color: #6b7280 !important;
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
         font-weight: 500;
+        font-style: italic;
+        text-align: center;
+        display: block !important;
+    }
+
+    /* 准确率等级颜色 */
+    .accuracy-excellent { border-left: 5px solid #00FF00 !important; }
+    .accuracy-good { border-left: 5px solid #90EE90 !important; }
+    .accuracy-medium { border-left: 5px solid #FFA500 !important; }
+    .accuracy-low { border-left: 5px solid #FF6347 !important; }
+    .accuracy-poor { border-left: 5px solid #FF0000 !important; }
+
+    /* 统一的卡片容器样式 */
+    .content-container, .chart-container, .insight-box {
+        background: white !important;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+        border: 1px solid rgba(255,255,255,0.3);
         transition: all 0.3s ease;
     }
 
-    .stButton > button:hover {
+    /* 图表标题样式 */
+    .chart-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #333 !important;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    /* 洞察框样式 */
+    .insight-box {
+        background: white !important;
+        border-left: 4px solid #667eea;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .insight-title {
+        font-weight: 700;
+        color: #333 !important;
+        margin-bottom: 0.8rem;
+        font-size: 1.1rem;
+    }
+
+    .insight-content {
+        color: #666 !important;
+        line-height: 1.6;
+        font-size: 1rem;
+    }
+
+    /* 标签页样式 */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        background: rgba(248, 250, 252, 1) !important;
+        padding: 0.8rem;
+        border-radius: 20px;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 55px;
+        padding: 0 25px;
+        background: white !important;
+        border-radius: 15px;
+        border: 1px solid rgba(102, 126, 234, 0.15);
+        font-weight: 700;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        color: #333 !important;
+    }
+
+    .stTabs [data-baseweb="tab"]:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.2);
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        border: none;
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
     }
 
-    .error-card {
-        background: rgba(255, 82, 82, 0.1);
-        border: 1px solid #ff5252;
+    /* 阈值说明样式 */
+    .threshold-notice {
+        background: rgba(102, 126, 234, 0.1) !important;
+        border: 1px solid rgba(102, 126, 234, 0.3);
         border-radius: 10px;
         padding: 1rem;
         margin: 1rem 0;
+        font-size: 0.9rem;
+        color: #333;
     }
 
-    .warning-card {
-        background: rgba(255, 193, 7, 0.1);
-        border: 1px solid #ffc107;
-        border-radius: 10px;
-        padding: 1rem;
-        margin: 1rem 0;
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .metric-value { font-size: 2rem !important; }
+        .metric-card { padding: 1.5rem 1rem; height: 150px; }
+        .page-header { padding: 2rem 1rem; }
+        .page-title { font-size: 2.2rem; }
     }
 
-    .success-card {
-        background: rgba(76, 175, 80, 0.1);
-        border: 1px solid #4caf50;
-        border-radius: 10px;
-        padding: 1rem;
-        margin: 1rem 0;
+    /* Plotly图表圆角样式 */
+    .js-plotly-plot {
+        border-radius: 25px !important;
+        overflow: hidden !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+    }
+
+    /* 确保所有图表容器都有圆角 */
+    .stPlotlyChart {
+        border-radius: 25px !important;
+        overflow: hidden !important;
+    }
+
+    .stPlotlyChart > div {
+        border-radius: 25px !important;
+        overflow: hidden !important;
     }
 </style>
-"""
+""", unsafe_allow_html=True)
 
-st.markdown(modern_ml_styles, unsafe_allow_html=True)
+# 配色方案
+COLOR_SCHEME = {
+    'primary': '#667eea',
+    'secondary': '#764ba2',
+    'excellent': '#00FF00',
+    'good': '#90EE90',
+    'medium': '#FFA500',
+    'low': '#FF6347',
+    'poor': '#FF0000',
+    'chart_colors': ['#667eea', '#ff6b9d', '#c44569', '#ffc75f', '#f8b500', '#845ec2', '#4e8397', '#00c9a7']
+}
 
-# ====================================================================
-# 认证检查
-# ====================================================================
-def check_authentication():
-    """检查用户认证状态"""
-    return (
-        'authenticated' in st.session_state and 
-        st.session_state.authenticated and
-        'username' in st.session_state and
-        st.session_state.username != ""
-    )
 
-# 如果未认证，重定向到登录页面
-if not check_authentication():
-    st.markdown("""
-    <div class="error-card">
-        <h3>🔒 访问受限</h3>
-        <p>您需要先登录才能访问机器学习预测系统。</p>
-        <p>请返回登录页面完成身份验证。</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if st.button("🔑 返回登录页面"):
-        st.session_state.clear()
-        st.rerun()
-    
-    st.stop()
+# 全局准确率计算函数 - 与0509模型保持一致
+def calculate_accuracy(predicted, actual):
+    """
+    使用与0509模型完全相同的准确率计算方法
 
-# ====================================================================
-# Session State 初始化
-# ====================================================================
-def initialize_ml_session_state():
-    """初始化机器学习会话状态"""
-    defaults = {
-        'ml_model_trained': False,
-        'ml_prediction_system': None,
-        'ml_training_progress': 0.0,
-        'ml_training_status': "等待开始",
-        'ml_prediction_results': None,
-        'ml_historical_analysis': None,
-        'ml_accuracy_stats': None,
-        'ml_feature_importance': None,
-        'ml_model_comparison': None,
-        'ml_data_loaded': False,
-        'ml_data_validation_passed': False,
-        # 训练参数
-        'ml_test_ratio': 0.2,
-        'ml_months_ahead': 3,
-        'ml_outlier_factor': 3.0,
-        'ml_min_data_points': 4,
-        'ml_n_estimators': 300,
-        'ml_max_depth': 5,
-        'ml_learning_rate': 0.05,
-        # GitHub配置
-        'github_repo': 'CIRA18-HUB/sales_dashboard',
-        'github_branch': 'main',
-        'data_file_path': 'pages/2409-2502出货数据集.xlsx'
-    }
-    
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+    参数:
+        predicted: 预测值
+        actual: 实际值
 
-initialize_ml_session_state()
+    返回:
+        accuracy: 准确率(0-100)
+    """
+    # 设置固定的绝对误差阈值
+    absolute_threshold = 20  # 箱
 
-# ====================================================================
-# GitHub数据加载系统
-# ====================================================================
-class GitHubDataLoader:
-    """GitHub数据加载器"""
-    
-    def __init__(self, repo, branch='main'):
-        self.repo = repo
-        self.branch = branch
-        self.base_url = f"https://raw.githubusercontent.com/{repo}/{branch}/"
-    
-    def load_excel_from_github(self, file_path, progress_callback=None):
-        """从GitHub加载Excel文件"""
-        try:
-            if progress_callback:
-                progress_callback(0.1, "🔗 连接GitHub仓库...")
-            
-            url = self.base_url + file_path
-            
-            if progress_callback:
-                progress_callback(0.3, f"📥 下载文件: {file_path}")
-            
-            # 读取Excel文件
-            df = pd.read_excel(url)
-            
-            if progress_callback:
-                progress_callback(0.5, f"✅ 成功加载: {len(df)} 行数据")
-            
-            return df, {
-                'source': 'GitHub',
-                'repo': self.repo,
-                'branch': self.branch,
-                'file_path': file_path,
-                'url': url,
-                'rows': len(df),
-                'columns': len(df.columns),
-                'load_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            }
-            
-        except Exception as e:
-            error_msg = f"从GitHub加载数据失败: {str(e)}"
-            if progress_callback:
-                progress_callback(0.1, f"❌ {error_msg}")
-            raise Exception(error_msg)
+    # 处理实际值为0的情况
+    if actual == 0:
+        return 100 if predicted <= absolute_threshold else 0
 
-# ====================================================================
-# 机器学习预测系统类
-# ====================================================================
-class GitHubMLPredictionSystem:
-    """基于GitHub数据的机器学习预测系统"""
-    
-    def __init__(self):
-        self.shipment_data = None
-        self.feature_data = None
-        self.models = {}
-        self.scalers = {}
-        self.predictions = None
-        self.accuracy_results = {}
-        self.product_segments = {}
-        self.historical_predictions = None
-        self.historical_accuracy = None
-        self.data_summary = {}
-        self.training_time = None
-        self.data_source_info = {}
-        
-    def load_data_from_github(self, progress_callback=None):
-        """从GitHub加载数据"""
-        try:
-            loader = GitHubDataLoader(
-                st.session_state.github_repo, 
-                st.session_state.github_branch
-            )
-            
-            # 加载数据
-            self.shipment_data, self.data_source_info = loader.load_excel_from_github(
-                st.session_state.data_file_path,
-                progress_callback
-            )
-            
-            if progress_callback:
-                progress_callback(0.6, "🧹 数据清理中...")
-            
-            # 验证和清理数据
-            self.shipment_data = self._validate_and_clean_data(self.shipment_data)
-            
-            if progress_callback:
-                progress_callback(0.8, f"✅ 数据准备完成: {len(self.shipment_data)} 条记录")
-            
-            return True
-            
-        except Exception as e:
-            error_msg = f"GitHub数据加载失败: {str(e)}"
-            if progress_callback:
-                progress_callback(0.1, f"❌ {error_msg}")
-            raise Exception(error_msg)
-    
-    def _validate_and_clean_data(self, raw_data):
-        """验证和清理数据"""
-        if len(raw_data) == 0:
-            raise Exception("GitHub数据文件为空")
-        
-        # 列名标准化
-        column_mapping = {
-            '订单日期': 'order_date', '出货日期': 'order_date', '日期': 'order_date',
-            '区域': 'region', '地区': 'region',
-            '客户代码': 'customer_code', '客户编码': 'customer_code', '经销商代码': 'customer_code',
-            '产品代码': 'product_code', '产品编码': 'product_code', '货号': 'product_code',
-            '数量': 'quantity', '销量': 'quantity', '出货量': 'quantity', '箱数': 'quantity',
+    # 计算绝对误差
+    absolute_error = abs(predicted - actual)
+
+    # 如果绝对误差小于阈值，准确率为100%
+    if absolute_error <= absolute_threshold:
+        return 100
+
+    # 计算相对误差(百分比)
+    relative_error = (absolute_error / actual) * 100
+
+    # 最终准确率 = 100 - 相对误差百分比(最小为0)
+    accuracy = max(0, 100 - relative_error)
+
+    return accuracy
+
+
+# 数据加载函数
+@st.cache_data
+def load_and_process_data():
+    """加载和处理预测数据"""
+    try:
+        # 读取数据文件
+        df = pd.read_excel('预测与销量记录数据仪表盘.xlsx')
+
+        # 转换月份为日期格式
+        df['月份'] = pd.to_datetime(df['月份'])
+
+        # 过滤掉实际销量为0或空的记录
+        df_valid = df[(df['实际销量'].notna()) & (df['实际销量'] > 0)].copy()
+
+        # 使用与0509模型相同的准确率计算方法
+        df_valid['准确率'] = df_valid.apply(lambda row:
+                                            calculate_accuracy(row['预测销量'], row['实际销量']) / 100,  # 转换为0-1范围
+                                            axis=1
+                                            )
+
+        # 添加误差信息
+        df_valid['误差箱数'] = (df_valid['预测销量'] - df_valid['实际销量']).abs()
+        df_valid['误差类型'] = df_valid['误差箱数'].apply(lambda x: '容错范围内' if x <= 20 else '超出容错范围')
+
+        # 添加准确率计算详情
+        df_valid['计算详情'] = df_valid.apply(lambda row:
+                                              f"误差{row['误差箱数']:.0f}箱 ≤ 20箱，准确率100%" if row[
+                                                                                                      '误差箱数'] <= 20 else
+                                              f"误差{row['误差箱数']:.0f}箱 > 20箱，相对误差{(row['误差箱数'] / row['实际销量'] * 100):.1f}%，准确率{row['准确率'] * 100:.1f}%",
+                                              axis=1
+                                              )
+
+        return df, df_valid
+
+    except Exception as e:
+        st.error(f"数据加载失败: {str(e)}")
+        return pd.DataFrame(), pd.DataFrame()
+
+
+def calculate_metrics(df_valid):
+    """计算所有关键指标 - 统一统计口径"""
+    if df_valid.empty:
+        return {
+            'overall_avg_accuracy': 0,
+            'overall_weighted_accuracy': 0,
+            'recent_accuracy': 0,
+            'recent_month': None,
+            'total_products': 0,
+            'high_accuracy_products': 0,
+            'high_accuracy_ratio': 0,
+            'most_used_model': 'N/A',
+            'model_count': 0,
+            'product_metrics': pd.DataFrame(),
+            'products_with_records': 0,
+            'high_accuracy_count': 0,
+            'medium_accuracy_count': 0,
+            'low_accuracy_count': 0,
+            'trend': 0,
+            'products_above_85': 0,
+            'products_above_90': 0
         }
-        
-        cleaned_data = raw_data.copy()
-        
-        # 应用列名映射
-        for original_col in raw_data.columns:
-            col_lower = str(original_col).lower().strip()
-            for pattern, target in column_mapping.items():
-                if pattern in col_lower or col_lower in pattern:
-                    cleaned_data = cleaned_data.rename(columns={original_col: target})
-                    break
-        
-        # 检查必要字段
-        required_fields = ['order_date', 'product_code', 'quantity']
-        missing_fields = [field for field in required_fields if field not in cleaned_data.columns]
-        
-        if missing_fields:
-            raise Exception(f"GitHub数据缺少必要字段: {missing_fields}")
-        
-        # 添加默认字段
-        if 'customer_code' not in cleaned_data.columns:
-            cleaned_data['customer_code'] = 'DEFAULT_CUSTOMER'
-        if 'region' not in cleaned_data.columns:
-            cleaned_data['region'] = 'DEFAULT_REGION'
-        
-        # 数据类型转换
-        cleaned_data['order_date'] = pd.to_datetime(cleaned_data['order_date'], errors='coerce')
-        cleaned_data['quantity'] = pd.to_numeric(cleaned_data['quantity'], errors='coerce')
-        
-        # 清理无效数据
-        cleaned_data = cleaned_data.dropna(subset=['order_date', 'product_code', 'quantity'])
-        cleaned_data = cleaned_data[cleaned_data['quantity'] > 0]
-        
-        return cleaned_data
-    
-    def preprocess_data(self, progress_callback=None):
-        """数据预处理"""
-        if progress_callback:
-            progress_callback(0.1, "🧹 数据预处理中...")
-        
-        # 异常值处理
-        original_len = len(self.shipment_data)
-        self.shipment_data = self._remove_outliers_iqr(self.shipment_data)
-        
-        # 产品分段
-        self._segment_products()
-        
-        # 数据摘要
-        self.data_summary = {
-            'total_records': len(self.shipment_data),
-            'total_products': self.shipment_data['product_code'].nunique(),
-            'total_customers': self.shipment_data['customer_code'].nunique(),
-            'date_range': (self.shipment_data['order_date'].min(), self.shipment_data['order_date'].max()),
-            'total_quantity': self.shipment_data['quantity'].sum(),
-            'avg_daily_quantity': self.shipment_data.groupby('order_date')['quantity'].sum().mean(),
-            'data_source': self.data_source_info,
-            'outliers_removed': original_len - len(self.shipment_data),
-            'data_quality_score': self._calculate_data_quality_score()
+
+    try:
+        # 1. 整体平均准确率：每个产品的历史平均，再求平均
+        product_avg_accuracy = df_valid.groupby('产品简称')['准确率'].mean()
+        overall_avg_accuracy = product_avg_accuracy.mean()
+
+        # 2. 加权整体准确率：基于销量加权
+        total_weighted = np.sum(df_valid['准确率'] * df_valid['实际销量'])
+        total_sales = df_valid['实际销量'].sum()
+        overall_weighted_accuracy = total_weighted / total_sales if total_sales > 0 else 0
+
+        # 3. 最近准确率：每个产品最近一次的预测
+        latest_records = df_valid.sort_values('月份').groupby('产品简称').last()
+        recent_accuracy = latest_records['准确率'].mean()
+        recent_month = df_valid['月份'].max()
+
+        # 4. 产品统计
+        total_products = len(product_avg_accuracy)
+        products_with_records = total_products
+
+        # 5. 准确率分布统计（基于产品的历史平均）
+        high_accuracy_count = (product_avg_accuracy > 0.8).sum()
+        medium_accuracy_count = ((product_avg_accuracy >= 0.6) & (product_avg_accuracy <= 0.8)).sum()
+        low_accuracy_count = (product_avg_accuracy < 0.6).sum()
+
+        # 6. 不同阈值的产品统计
+        products_above_85 = (product_avg_accuracy > 0.85).sum()
+        products_above_90 = (product_avg_accuracy > 0.9).sum()
+        high_accuracy_ratio = products_above_85 / total_products * 100 if total_products > 0 else 0
+
+        # 7. 最常用模型
+        model_counts = df_valid['选择模型'].value_counts()
+        most_used_model = model_counts.index[0] if len(model_counts) > 0 else 'N/A'
+        model_count = model_counts.iloc[0] if len(model_counts) > 0 else 0
+
+        # 8. 准确率趋势
+        trend = (recent_accuracy - overall_avg_accuracy) * 100
+
+        # 9. 创建产品指标汇总
+        product_metrics = pd.DataFrame({
+            '产品简称': product_avg_accuracy.index,
+            '平均准确率': product_avg_accuracy.values,
+            '平均销量': df_valid.groupby('产品简称')['实际销量'].mean().values,
+            '常用模型': df_valid.groupby('产品简称')['选择模型'].agg(
+                lambda x: x.mode()[0] if len(x) > 0 else 'N/A').values,
+            '平均误差箱数': df_valid.groupby('产品简称')['误差箱数'].mean().values
+        })
+
+        # 添加加权准确率
+        product_weighted = df_valid.groupby('产品简称').apply(
+            lambda x: np.average(x['准确率'], weights=x['实际销量'])
+        ).reset_index(name='加权准确率')
+        product_metrics = product_metrics.merge(product_weighted, on='产品简称')
+
+        return {
+            'overall_avg_accuracy': overall_avg_accuracy,
+            'overall_weighted_accuracy': overall_weighted_accuracy,
+            'recent_accuracy': recent_accuracy,
+            'recent_month': recent_month,
+            'total_products': total_products,
+            'high_accuracy_products': products_above_85,
+            'high_accuracy_ratio': high_accuracy_ratio,
+            'most_used_model': most_used_model,
+            'model_count': model_count,
+            'product_metrics': product_metrics,
+            'products_with_records': products_with_records,
+            'high_accuracy_count': high_accuracy_count,
+            'medium_accuracy_count': medium_accuracy_count,
+            'low_accuracy_count': low_accuracy_count,
+            'trend': trend,
+            'products_above_85': products_above_85,
+            'products_above_90': products_above_90
         }
-        
-        if progress_callback:
-            progress_callback(0.5, f"✅ 预处理完成: {len(self.shipment_data)} 行优质数据")
-        
-        return True
-    
-    def _remove_outliers_iqr(self, data, column='quantity', factor=3.0):
-        """使用IQR方法移除异常值"""
-        Q1 = data[column].quantile(0.25)
-        Q3 = data[column].quantile(0.75)
-        IQR = Q3 - Q1
-        
-        lower_bound = Q1 - factor * IQR
-        upper_bound = Q3 + factor * IQR
-        
-        return data[(data[column] >= lower_bound) & (data[column] <= upper_bound)]
-    
-    def _segment_products(self):
-        """产品分段"""
-        product_stats = self.shipment_data.groupby('product_code')['quantity'].agg([
-            'count', 'mean', 'std', 'min', 'max', 'sum'
-        ]).reset_index()
-        
-        product_stats['cv'] = product_stats['std'] / product_stats['mean']
-        product_stats['cv'] = product_stats['cv'].fillna(0)
-        
-        # 分段逻辑
-        volume_high = product_stats['mean'].quantile(0.67)
-        volume_low = product_stats['mean'].quantile(0.33)
-        cv_high = product_stats['cv'].quantile(0.67)
-        
-        def classify_product(row):
-            if row['mean'] >= volume_high:
-                return '高销量稳定' if row['cv'] <= cv_high else '高销量波动'
-            elif row['mean'] >= volume_low:
-                return '中销量稳定' if row['cv'] <= cv_high else '中销量波动'
-            else:
-                return '低销量稳定' if row['cv'] <= cv_high else '低销量波动'
-        
-        product_stats['segment'] = product_stats.apply(classify_product, axis=1)
-        self.product_segments = dict(zip(product_stats['product_code'], product_stats['segment']))
-        
-        return product_stats
-    
-    def _calculate_data_quality_score(self):
-        """计算数据质量评分"""
-        score = 100
-        
-        # 时间跨度检查
-        days_span = (self.data_summary['date_range'][1] - self.data_summary['date_range'][0]).days
-        if days_span < 90:
-            score -= 20
-        elif days_span < 180:
-            score -= 10
-        
-        # 产品数量检查
-        if self.data_summary['total_products'] < 5:
-            score -= 20
-        elif self.data_summary['total_products'] < 10:
-            score -= 10
-        
-        # 数据量检查
-        if self.data_summary['total_records'] < 100:
-            score -= 20
-        elif self.data_summary['total_records'] < 500:
-            score -= 10
-        
-        return max(0, score)
-    
-    def create_features(self, progress_callback=None):
-        """创建特征"""
-        if progress_callback:
-            progress_callback(0.1, "🔧 特征工程中...")
-        
-        # 创建月度数据
-        monthly_data = self.shipment_data.groupby([
-            'product_code',
-            self.shipment_data['order_date'].dt.to_period('M')
-        ]).agg({
-            'quantity': ['sum', 'count', 'mean', 'std'],
-            'customer_code': 'nunique',
-            'region': lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else x.iloc[0]
+    except Exception as e:
+        st.sidebar.error(f"指标计算失败: {str(e)}")
+        return {
+            'overall_avg_accuracy': 0,
+            'overall_weighted_accuracy': 0,
+            'recent_accuracy': 0,
+            'recent_month': None,
+            'total_products': 0,
+            'high_accuracy_products': 0,
+            'high_accuracy_ratio': 0,
+            'most_used_model': 'N/A',
+            'model_count': 0,
+            'product_metrics': pd.DataFrame(),
+            'products_with_records': 0,
+            'high_accuracy_count': 0,
+            'medium_accuracy_count': 0,
+            'low_accuracy_count': 0,
+            'trend': 0,
+            'products_above_85': 0,
+            'products_above_90': 0
+        }
+
+
+def create_accuracy_trend_chart(df_valid):
+    """创建准确率趋势图表"""
+    try:
+        # 按月份计算准确率
+        monthly_stats = df_valid.groupby('月份').agg({
+            '准确率': 'mean',
+            '实际销量': 'sum',
+            '预测销量': 'sum',
+            '误差箱数': 'mean'
         }).reset_index()
-        
-        monthly_data.columns = ['product_code', 'year_month', 'total_qty', 'order_count',
-                               'avg_qty', 'std_qty', 'customer_count', 'main_region']
-        monthly_data['std_qty'] = monthly_data['std_qty'].fillna(0)
-        monthly_data = monthly_data.sort_values(['product_code', 'year_month'])
-        
-        # 创建特征
-        all_features = []
-        
-        for product in self.product_segments.keys():
-            product_data = monthly_data[monthly_data['product_code'] == product].copy()
-            
-            if len(product_data) < st.session_state.ml_min_data_points:
-                continue
-            
-            # 时间序列特征创建
-            for idx in range(3, len(product_data)):
-                historical_data = product_data.iloc[:idx].copy()
-                
-                features = self._create_time_series_features(
-                    product, historical_data, self.product_segments[product]
+
+        # 计算加权准确率
+        monthly_weighted = df_valid.groupby('月份').apply(
+            lambda x: np.average(x['准确率'], weights=x['实际销量'])
+        ).reset_index(name='加权准确率')
+
+        monthly_stats = monthly_stats.merge(monthly_weighted, on='月份')
+
+        # 创建图表
+        fig = go.Figure()
+
+        # 平均准确率线
+        fig.add_trace(go.Scatter(
+            x=monthly_stats['月份'],
+            y=monthly_stats['准确率'] * 100,
+            mode='lines+markers',
+            name='平均准确率',
+            line=dict(color=COLOR_SCHEME['primary'], width=3),
+            marker=dict(size=10),
+            customdata=np.column_stack((
+                monthly_stats['实际销量'],
+                monthly_stats['预测销量'],
+                monthly_stats['准确率'] * 100,
+                monthly_stats['误差箱数']
+            )),
+            hovertemplate="<b>%{x|%Y-%m}</b><br>" +
+                          "平均准确率: %{y:.1f}%<br>" +
+                          "平均误差: %{customdata[3]:.1f}箱<br>" +
+                          "总实际销量: %{customdata[0]:.0f}箱<br>" +
+                          "总预测销量: %{customdata[1]:.0f}箱<br>" +
+                          "<extra></extra>"
+        ))
+
+        # 加权准确率线
+        fig.add_trace(go.Scatter(
+            x=monthly_stats['月份'],
+            y=monthly_stats['加权准确率'] * 100,
+            mode='lines+markers',
+            name='加权准确率',
+            line=dict(color=COLOR_SCHEME['secondary'], width=3, dash='dash'),
+            marker=dict(size=10),
+            customdata=np.column_stack((
+                monthly_stats['实际销量'],
+                monthly_stats['预测销量'],
+                monthly_stats['加权准确率'] * 100
+            )),
+            hovertemplate="<b>%{x|%Y-%m}</b><br>" +
+                          "加权准确率: %{y:.1f}%<br>" +
+                          "总实际销量: %{customdata[0]:.0f}箱<br>" +
+                          "总预测销量: %{customdata[1]:.0f}箱<br>" +
+                          "<extra></extra>"
+        ))
+
+        # 添加85%目标线
+        fig.add_hline(
+            y=85,
+            line_dash="dot",
+            line_color="gray",
+            annotation_text="目标准确率: 85%",
+            annotation_position="right"
+        )
+
+        fig.update_layout(
+            title="预测准确率趋势分析",
+            xaxis_title="月份",
+            yaxis_title="准确率 (%)",
+            height=600,
+            hovermode='x unified',
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="right",
+                x=0.98,
+                bgcolor='white',
+                bordercolor='gray',
+                borderwidth=1
+            ),
+            paper_bgcolor='white',
+            plot_bgcolor='rgba(255,255,255,0.9)',
+            margin=dict(l=50, r=50, t=80, b=50)
+        )
+
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+
+        return fig
+
+    except Exception as e:
+        st.error(f"准确率趋势图表创建失败: {str(e)}")
+        return go.Figure()
+
+
+def create_all_products_trend_chart(df_valid):
+    """创建全部产品准确率趋势图"""
+    try:
+        # 获取所有产品列表
+        all_products = df_valid['产品简称'].unique()
+
+        # 创建图表
+        fig = go.Figure()
+
+        # 为每个产品添加趋势线
+        for i, product in enumerate(all_products):
+            product_data = df_valid[df_valid['产品简称'] == product].sort_values('月份')
+
+            fig.add_trace(
+                go.Scatter(
+                    x=product_data['月份'],
+                    y=product_data['准确率'] * 100,
+                    mode='lines+markers',
+                    name=product,
+                    line=dict(width=2, color=COLOR_SCHEME['chart_colors'][i % len(COLOR_SCHEME['chart_colors'])]),
+                    marker=dict(size=6),
+                    customdata=np.column_stack((
+                        product_data['实际销量'],
+                        product_data['预测销量'],
+                        product_data['选择模型'],
+                        product_data['计算详情'],
+                        product_data['误差箱数'],
+                        product_data['误差类型']
+                    )),
+                    hovertemplate="<b>%{fullData.name}</b><br>" +
+                                  "月份: %{x|%Y-%m}<br>" +
+                                  "准确率: %{y:.1f}%<br>" +
+                                  "误差: %{customdata[4]:.0f}箱 (%{customdata[5]})<br>" +
+                                  "实际销量: %{customdata[0]:.0f}箱<br>" +
+                                  "预测销量: %{customdata[1]:.0f}箱<br>" +
+                                  "使用模型: %{customdata[2]}<br>" +
+                                  "<extra></extra>",
+                    visible='legendonly' if i >= 10 else True  # 默认只显示前10个产品
                 )
-                
-                # 目标变量
-                target_row = product_data.iloc[idx]
-                features['target'] = target_row['total_qty']
-                features['target_month'] = str(target_row['year_month'])
-                features['segment'] = self.product_segments[product]
-                
-                all_features.append(features)
-        
-        self.feature_data = pd.DataFrame(all_features)
-        
-        if len(self.feature_data) == 0:
-            raise Exception("无法创建特征数据，请检查GitHub数据质量和完整性")
-        
-        # 特征后处理
-        self._post_process_features()
-        
-        if progress_callback:
-            progress_callback(0.8, f"✅ 特征完成: {len(self.feature_data)} 时间序列样本")
-        
-        return True
-    
-    def _create_time_series_features(self, product_code, historical_data, segment):
-        """创建时间序列特征"""
-        features = {'product_code': product_code}
-        
-        if len(historical_data) < 3:
-            return features
-        
-        qty_values = historical_data['total_qty'].values
-        
-        # 基础统计特征
-        features.update({
-            'qty_mean': np.mean(qty_values),
-            'qty_median': np.median(qty_values),
-            'qty_std': np.std(qty_values),
-            'qty_cv': np.std(qty_values) / (np.mean(qty_values) + 1),
-            
-            # 滞后特征
-            'qty_lag_1': qty_values[-1],
-            'qty_lag_2': qty_values[-2] if len(qty_values) > 1 else 0,
-            'qty_lag_3': qty_values[-3] if len(qty_values) > 2 else 0,
-            
-            # 移动平均
-            'qty_ma_2': np.mean(qty_values[-2:]),
-            'qty_ma_3': np.mean(qty_values[-3:]) if len(qty_values) >= 3 else np.mean(qty_values),
-        })
-        
-        # 趋势特征
-        if len(qty_values) > 2:
-            x = np.arange(len(qty_values))
-            trend_coef = np.polyfit(x, qty_values, 1)[0]
-            features['trend_slope'] = trend_coef
-            
-            recent_growth = (qty_values[-1] - qty_values[-2]) / (qty_values[-2] + 1)
-            features['recent_growth'] = recent_growth
-            
-            features['stability_score'] = 1 / (1 + features['qty_cv'])
-        else:
-            features.update({
-                'trend_slope': 0,
-                'recent_growth': 0,
-                'stability_score': 0.5
-            })
-        
-        # 时间特征
-        last_period = historical_data.iloc[-1]['year_month']
-        features.update({
-            'month': last_period.month,
-            'quarter': last_period.quarter,
-            'is_year_end': 1 if last_period.month in [11, 12] else 0,
-            'is_peak_season': 1 if last_period.month in [3, 4, 10, 11] else 0,
-        })
-        
-        # 产品段特征
-        segment_map = {
-            '高销量稳定': 1, '高销量波动': 2, '中销量稳定': 3,
-            '中销量波动': 4, '低销量稳定': 5, '低销量波动': 6
-        }
-        features['segment_encoded'] = segment_map.get(segment, 0)
-        
-        # 数据质量特征
-        features.update({
-            'data_points': len(qty_values),
-            'consistency_score': len(qty_values[qty_values > 0]) / len(qty_values)
-        })
-        
-        return features
-    
-    def _post_process_features(self):
-        """特征后处理"""
-        feature_cols = [col for col in self.feature_data.columns 
-                       if col not in ['product_code', 'target', 'target_month', 'segment']]
-        
-        # 处理异常值
-        self.feature_data[feature_cols] = self.feature_data[feature_cols].replace([np.inf, -np.inf], np.nan)
-        self.feature_data[feature_cols] = self.feature_data[feature_cols].fillna(0)
-        
-        # 移除常数特征
-        constant_features = [col for col in feature_cols if self.feature_data[col].std() == 0]
-        if constant_features:
-            self.feature_data = self.feature_data.drop(columns=constant_features)
-    
-    def train_models(self, progress_callback=None):
-        """训练机器学习模型"""
-        if progress_callback:
-            progress_callback(0.1, "🚀 开始训练机器学习模型...")
-        
-        start_time = time.time()
-        
-        # 准备数据
-        feature_cols = [col for col in self.feature_data.columns 
-                       if col not in ['product_code', 'target', 'target_month', 'segment']]
-        
-        X = self.feature_data[feature_cols]
-        y = self.feature_data['target']
-        
-        # 时间序列分割
-        self.feature_data['target_month_dt'] = pd.to_datetime(self.feature_data['target_month'])
-        sorted_indices = self.feature_data.sort_values('target_month_dt').index
-        
-        X = X.loc[sorted_indices]
-        y = y.loc[sorted_indices]
-        
-        # 训练测试分割
-        n_samples = len(X)
-        split_point = int(n_samples * (1 - st.session_state.ml_test_ratio))
-        
-        X_train, X_test = X.iloc[:split_point], X.iloc[split_point:]
-        y_train, y_test = y.iloc[:split_point], y.iloc[split_point:]
-        
-        # 特征缩放
-        scaler = RobustScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
-        
-        self.scalers['feature_scaler'] = scaler
-        
-        # 训练模型
-        models = {}
-        predictions = {}
-        
-        # XGBoost
-        if progress_callback:
-            progress_callback(0.3, "🎯 训练XGBoost模型...")
-        
-        xgb_model = xgb.XGBRegressor(
-            n_estimators=st.session_state.ml_n_estimators,
-            max_depth=st.session_state.ml_max_depth,
-            learning_rate=st.session_state.ml_learning_rate,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            reg_alpha=0.1,
-            reg_lambda=0.1,
-            random_state=42,
-            n_jobs=-1
-        )
-        
-        xgb_model.fit(X_train_scaled, y_train, verbose=False)
-        xgb_pred = np.maximum(xgb_model.predict(X_test_scaled), 0)
-        
-        models['XGBoost'] = xgb_model
-        predictions['XGBoost'] = xgb_pred
-        
-        # LightGBM
-        if progress_callback:
-            progress_callback(0.5, "🎯 训练LightGBM模型...")
-        
-        lgb_model = lgb.LGBMRegressor(
-            n_estimators=st.session_state.ml_n_estimators,
-            max_depth=st.session_state.ml_max_depth,
-            learning_rate=st.session_state.ml_learning_rate,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            reg_alpha=0.1,
-            reg_lambda=0.1,
-            random_state=42,
-            n_jobs=-1,
-            verbose=-1
-        )
-        
-        lgb_model.fit(X_train_scaled, y_train)
-        lgb_pred = np.maximum(lgb_model.predict(X_test_scaled), 0)
-        
-        models['LightGBM'] = lgb_model
-        predictions['LightGBM'] = lgb_pred
-        
-        # Random Forest
-        if progress_callback:
-            progress_callback(0.7, "🎯 训练Random Forest模型...")
-        
-        rf_model = RandomForestRegressor(
-            n_estimators=int(st.session_state.ml_n_estimators * 0.7),
-            max_depth=st.session_state.ml_max_depth + 5,
-            min_samples_split=5,
-            min_samples_leaf=2,
-            random_state=42,
-            n_jobs=-1
-        )
-        
-        rf_model.fit(X_train_scaled, y_train)
-        rf_pred = np.maximum(rf_model.predict(X_test_scaled), 0)
-        
-        models['RandomForest'] = rf_model
-        predictions['RandomForest'] = rf_pred
-        
-        # 模型融合
-        weights = self._calculate_model_weights(predictions, y_test)
-        ensemble_pred = (weights['XGBoost'] * predictions['XGBoost'] + 
-                        weights['LightGBM'] * predictions['LightGBM'] + 
-                        weights['RandomForest'] * predictions['RandomForest'])
-        
-        predictions['Ensemble'] = ensemble_pred
-        
-        # 模型评估
-        results = {}
-        for model_name, pred in predictions.items():
-            smape_accuracies = self.calculate_batch_robust_accuracy(y_test.values, pred)
-            smape_accuracy = np.mean(smape_accuracies)
-            
-            mae = np.mean(np.abs(y_test - pred))
-            rmse = np.sqrt(mean_squared_error(y_test, pred))
-            r2 = r2_score(y_test, pred)
-            
-            results[model_name] = {
-                'SMAPE_Accuracy': smape_accuracy,
-                'MAE': mae,
-                'RMSE': rmse,
-                'R²': r2
-            }
-        
-        # 选择最佳模型
-        best_model_name = max(results.keys(), key=lambda x: results[x]['SMAPE_Accuracy'])
-        
-        self.models = {
-            'best_model': models[best_model_name],
-            'best_model_name': best_model_name,
-            'all_models': models,
-            'feature_cols': feature_cols,
-            'weights': weights if best_model_name == 'Ensemble' else None
-        }
-        
-        self.accuracy_results = results
-        self.training_time = time.time() - start_time
-        
-        if progress_callback:
-            best_accuracy = results[best_model_name]['SMAPE_Accuracy']
-            progress_callback(1.0, f"✅ 训练完成! {best_model_name}: {best_accuracy:.1f}%")
-        
-        return True
-    
-    def calculate_batch_robust_accuracy(self, actual_values, predicted_values):
-        """批量计算SMAPE准确率"""
-        actual_values = np.array(actual_values)
-        predicted_values = np.array(predicted_values)
-        
-        both_zero = (actual_values == 0) & (predicted_values == 0)
-        
-        smape = 200 * np.abs(actual_values - predicted_values) / (
-            np.abs(actual_values) + np.abs(predicted_values) + 1e-8
-        )
-        accuracy = np.maximum(0, 100 - smape)
-        accuracy[both_zero] = 100.0
-        
-        return accuracy
-    
-    def _calculate_model_weights(self, predictions, y_true):
-        """计算模型融合权重"""
-        scores = {}
-        for name, pred in predictions.items():
-            smape_accuracies = self.calculate_batch_robust_accuracy(y_true.values, pred)
-            scores[name] = np.mean(smape_accuracies)
-        
-        total_score = sum(scores.values())
-        if total_score > 0:
-            weights = {name: score / total_score for name, score in scores.items()}
-        else:
-            weights = {name: 1/len(scores) for name in scores.keys()}
-        
-        return weights
-    
-    def predict_future(self, months_ahead=None):
-        """预测未来销量"""
-        if months_ahead is None:
-            months_ahead = st.session_state.ml_months_ahead
-        
-        predictions = []
-        products = self.feature_data['product_code'].unique()
-        
-        for product in products:
-            product_features = self.feature_data[
-                self.feature_data['product_code'] == product
-            ].tail(1)
-            
-            if len(product_features) == 0:
-                continue
-            
-            for month in range(1, months_ahead + 1):
-                X = product_features[self.models['feature_cols']]
-                X_scaled = self.scalers['feature_scaler'].transform(X)
-                
-                # 预测
-                if self.models['best_model_name'] == 'Ensemble':
-                    xgb_pred = self.models['all_models']['XGBoost'].predict(X_scaled)[0]
-                    lgb_pred = self.models['all_models']['LightGBM'].predict(X_scaled)[0]
-                    rf_pred = self.models['all_models']['RandomForest'].predict(X_scaled)[0]
-                    
-                    weights = self.models['weights']
-                    final_pred = (weights['XGBoost'] * xgb_pred + 
-                                 weights['LightGBM'] * lgb_pred + 
-                                 weights['RandomForest'] * rf_pred)
-                else:
-                    final_pred = self.models['best_model'].predict(X_scaled)[0]
-                
-                final_pred = max(0, final_pred)
-                
-                # 置信区间
-                segment = product_features['segment'].iloc[0]
-                confidence_factor = self._get_confidence_factor(segment)
-                lower_bound = max(0, final_pred * (1 - confidence_factor))
-                upper_bound = final_pred * (1 + confidence_factor)
-                
-                # 目标月份
-                target_month = datetime.now().replace(day=1) + timedelta(days=32*month)
-                target_month_str = target_month.strftime('%Y-%m')
-                
-                predictions.append({
-                    '产品代码': product,
-                    '未来月份': month,
-                    '目标月份': target_month_str,
-                    '预测销量': round(final_pred, 2),
-                    '下限': round(lower_bound, 2),
-                    '上限': round(upper_bound, 2),
-                    '置信度': confidence_factor,
-                    '产品段': segment,
-                    '使用模型': self.models['best_model_name']
-                })
-        
-        self.predictions = pd.DataFrame(predictions)
-        return self.predictions
-    
-    def _get_confidence_factor(self, segment):
-        """获取置信度因子"""
-        confidence_map = {
-            '高销量稳定': 0.15,
-            '高销量波动': 0.25,
-            '中销量稳定': 0.20,
-            '中销量波动': 0.30,
-            '低销量稳定': 0.25,
-            '低销量波动': 0.35
-        }
-        return confidence_map.get(segment, 0.25)
-
-# ====================================================================
-# 界面函数
-# ====================================================================
-
-def render_ml_header():
-    """渲染机器学习头部"""
-    user_display = st.session_state.get('display_name', st.session_state.get('username', '用户'))
-    
-    st.markdown(f"""
-    <div class="ml-header">
-        <h1 class="ml-title">🤖 机器学习模型预测</h1>
-        <p class="ml-subtitle">
-            基于GitHub数据的智能销量预测系统 | 欢迎 {user_display}
-        </p>
-        <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
-            <span style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 0.5rem 1rem; border-radius: 20px;">✅ GitHub数据源</span>
-            <span style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); color: white; padding: 0.5rem 1rem; border-radius: 20px;">🤖 多模型融合</span>
-            <span style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); color: white; padding: 0.5rem 1rem; border-radius: 20px;">📊 时序分析</span>
-            <span style="background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); color: white; padding: 0.5rem 1rem; border-radius: 20px;">🎯 智能预测</span>
-        </div>
-        <div style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
-            数据源: {st.session_state.github_repo} | 文件: {st.session_state.data_file_path}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-def show_data_loading_tab():
-    """数据加载标签页"""
-    st.markdown("### 📁 GitHub数据加载")
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.markdown("#### 🔗 GitHub数据源配置")
-        
-        # GitHub配置
-        st.session_state.github_repo = st.text_input(
-            "GitHub仓库", 
-            value=st.session_state.github_repo,
-            help="格式: 用户名/仓库名"
-        )
-        
-        st.session_state.github_branch = st.text_input(
-            "分支名称", 
-            value=st.session_state.github_branch
-        )
-        
-        st.session_state.data_file_path = st.text_input(
-            "数据文件路径", 
-            value=st.session_state.data_file_path,
-            help="相对于仓库根目录的文件路径"
-        )
-        
-        # 数据加载按钮
-        if st.button("🔍 加载GitHub数据", type="primary", use_container_width=True):
-            try:
-                with st.spinner("正在从GitHub加载数据..."):
-                    # 初始化系统
-                    system = GitHubMLPredictionSystem()
-                    
-                    # 创建进度显示
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
-                    
-                    def update_progress(progress, message):
-                        progress_bar.progress(progress)
-                        status_text.text(message)
-                    
-                    # 加载和预处理数据
-                    if system.load_data_from_github(update_progress):
-                        system.preprocess_data(update_progress)
-                        
-                        # 保存到session state
-                        st.session_state.ml_prediction_system = system
-                        st.session_state.ml_data_loaded = True
-                        st.session_state.ml_data_validation_passed = True
-                        
-                        progress_bar.empty()
-                        status_text.empty()
-                        
-                        # 显示数据摘要
-                        st.success("✅ GitHub数据加载成功！")
-                        
-                        summary = system.data_summary
-                        
-                        st.markdown(f"""
-                        <div class="success-card">
-                            <h4>📊 GitHub数据摘要</h4>
-                            <p><strong>仓库:</strong> {summary['data_source']['repo']}</p>
-                            <p><strong>文件:</strong> {summary['data_source']['file_path']}</p>
-                            <p><strong>数据记录:</strong> {summary['total_records']:,} 条</p>
-                            <p><strong>产品数量:</strong> {summary['total_products']} 个</p>
-                            <p><strong>客户数量:</strong> {summary['total_customers']} 个</p>
-                            <p><strong>时间跨度:</strong> {summary['date_range'][0].strftime('%Y-%m-%d')} 至 {summary['date_range'][1].strftime('%Y-%m-%d')}</p>
-                            <p><strong>总销量:</strong> {summary['total_quantity']:,.0f} 箱</p>
-                            <p><strong>数据质量:</strong> {summary['data_quality_score']}/100</p>
-                            <p><strong>加载时间:</strong> {summary['data_source']['load_time']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # 数据预览
-                        st.markdown("##### 📋 GitHub数据预览")
-                        st.dataframe(system.shipment_data.head(10), use_container_width=True)
-                        
-            except Exception as e:
-                st.error(f"❌ GitHub数据加载失败: {str(e)}")
-                st.markdown(f"""
-                <div class="error-card">
-                    <h4>💡 GitHub数据加载建议</h4>
-                    <p>请检查以下设置:</p>
-                    <ul>
-                        <li>GitHub仓库名称是否正确</li>
-                        <li>分支名称是否存在</li>
-                        <li>数据文件路径是否正确</li>
-                        <li>文件是否为Excel格式(.xlsx)</li>
-                        <li>仓库是否为公开仓库</li>
-                    </ul>
-                    <p><strong>当前配置:</strong></p>
-                    <p>仓库: {st.session_state.github_repo}</p>
-                    <p>分支: {st.session_state.github_branch}</p>
-                    <p>文件: {st.session_state.data_file_path}</p>
-                </div>
-                """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("#### 📋 GitHub配置说明")
-        
-        requirements = f"""
-        <div class="feature-card">
-            <h4>✅ 当前配置</h4>
-            <p><strong>仓库:</strong> {st.session_state.github_repo}</p>
-            <p><strong>分支:</strong> {st.session_state.github_branch}</p>
-            <p><strong>文件:</strong> {st.session_state.data_file_path}</p>
-            
-            <h4>🔧 配置要求</h4>
-            <ul>
-                <li>公开GitHub仓库</li>
-                <li>Excel格式(.xlsx)文件</li>
-                <li>包含销售数据列</li>
-                <li>正确的文件路径</li>
-            </ul>
-            
-            <h4>📊 数据要求</h4>
-            <ul>
-                <li>日期列（订单日期）</li>
-                <li>产品代码列</li>
-                <li>销量/数量列</li>
-                <li>至少3个月数据</li>
-            </ul>
-        </div>
-        """
-        
-        st.markdown(requirements, unsafe_allow_html=True)
-        
-        # GitHub URL预览
-        if st.session_state.github_repo and st.session_state.data_file_path:
-            github_url = f"https://raw.githubusercontent.com/{st.session_state.github_repo}/{st.session_state.github_branch}/{st.session_state.data_file_path}"
-            
-            st.markdown("#### 🔗 数据源URL")
-            st.code(github_url, language="text")
-
-def show_ml_training_tab():
-    """机器学习训练标签页"""
-    st.markdown("### 🚀 机器学习模型训练")
-    
-    if not st.session_state.ml_data_loaded:
-        st.warning("⚠️ 请先加载GitHub数据")
-        return
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.markdown("#### 🎯 多模型融合训练")
-        
-        # 训练说明
-        st.markdown("""
-        <div class="feature-card">
-            <h4>🤖 机器学习模型</h4>
-            <ul>
-                <li>🟦 <strong>XGBoost:</strong> 梯度提升树模型，处理非线性关系</li>
-                <li>🟩 <strong>LightGBM:</strong> 轻量级梯度提升，快速训练</li>
-                <li>🟨 <strong>Random Forest:</strong> 随机森林模型，鲁棒性强</li>
-                <li>🟪 <strong>Ensemble:</strong> 多模型融合，提升预测精度</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 训练按钮
-        if st.button("🚀 开始机器学习训练", type="primary", use_container_width=True):
-            try:
-                system = st.session_state.ml_prediction_system
-                
-                with st.container():
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
-                    
-                    def update_progress(progress, message):
-                        progress_bar.progress(progress)
-                        status_text.text(message)
-                    
-                    # 特征工程
-                    if system.create_features(update_progress):
-                        # 模型训练
-                        if system.train_models(update_progress):
-                            # 预测未来
-                            system.predict_future()
-                            
-                            # 保存系统
-                            st.session_state.ml_prediction_system = system
-                            st.session_state.ml_model_trained = True
-                            
-                            progress_bar.empty()
-                            status_text.empty()
-                            
-                            st.success("🎉 机器学习模型训练完成！")
-                            st.balloons()
-                            st.rerun()
-                
-            except Exception as e:
-                st.error(f"❌ 训练失败: {str(e)}")
-    
-    with col2:
-        if st.session_state.ml_model_trained and st.session_state.ml_prediction_system:
-            system = st.session_state.ml_prediction_system
-            
-            st.markdown("#### 🏆 训练结果")
-            
-            best_model = system.models['best_model_name']
-            best_accuracy = system.accuracy_results[best_model]['SMAPE_Accuracy']
-            
-            # 准确率卡片
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{best_accuracy:.1f}%</div>
-                <div class="metric-label">SMAPE准确率</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # 训练摘要
-            st.markdown(f"""
-            <div class="feature-card">
-                <h4>✅ 训练完成</h4>
-                <p><strong>最佳模型:</strong> {best_model}</p>
-                <p><strong>训练时间:</strong> {system.training_time:.1f}秒</p>
-                <p><strong>特征数:</strong> {len(system.models['feature_cols'])}</p>
-                <p><strong>训练样本:</strong> {len(system.feature_data)}</p>
-                <p><strong>数据质量:</strong> {system.data_summary['data_quality_score']}/100</p>
-                <p><strong>数据源:</strong> GitHub</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # 模型对比
-            st.markdown("#### 📊 模型对比")
-            comparison_data = []
-            for model_name, results in system.accuracy_results.items():
-                comparison_data.append({
-                    '模型': model_name,
-                    'SMAPE准确率': f"{results['SMAPE_Accuracy']:.1f}%",
-                    'MAE': f"{results['MAE']:.1f}",
-                    'R²': f"{results['R²']:.3f}"
-                })
-            
-            comparison_df = pd.DataFrame(comparison_data)
-            st.dataframe(comparison_df, use_container_width=True, hide_index=True)
-        
-        else:
-            system = st.session_state.ml_prediction_system
-            summary = system.data_summary
-            
-            st.markdown("#### 📊 训练准备就绪")
-            st.markdown(f"""
-            <div class="feature-card">
-                <h4>🎯 GitHub数据就绪</h4>
-                <p><strong>数据源:</strong> {summary['data_source']['repo']}</p>
-                <p><strong>记录数:</strong> {summary['total_records']:,}</p>
-                <p><strong>产品数:</strong> {summary['total_products']}</p>
-                <p><strong>质量评分:</strong> {summary['data_quality_score']}/100</p>
-                <p><strong>时间跨度:</strong> {(summary['date_range'][1] - summary['date_range'][0]).days} 天</p>
-                
-                <h5>🔧 训练特点:</h5>
-                <ul>
-                    <li>多模型融合训练</li>
-                    <li>时间序列特征工程</li>
-                    <li>SMAPE准确率评估</li>
-                    <li>自适应权重优化</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-
-def show_ml_prediction_tab():
-    """机器学习预测结果标签页"""
-    st.markdown("### 🔮 智能预测结果")
-    
-    if not st.session_state.ml_model_trained:
-        st.warning("⚠️ 请先完成机器学习模型训练")
-        return
-    
-    system = st.session_state.ml_prediction_system
-    
-    # 预测结果展示
-    if system.predictions is not None:
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            # 预测汇总图
-            monthly_summary = system.predictions.groupby('未来月份').agg({
-                '预测销量': 'sum',
-                '下限': 'sum',
-                '上限': 'sum'
-            }).reset_index()
-            
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                x=[f"第{m}个月" for m in monthly_summary['未来月份']],
-                y=monthly_summary['预测销量'],
-                name='预测销量',
-                marker_color='#667eea'
-            ))
-            
-            fig.add_trace(go.Scatter(
-                x=[f"第{m}个月" for m in monthly_summary['未来月份']],
-                y=monthly_summary['上限'],
-                mode='lines',
-                name='上限',
-                line=dict(color='red', dash='dash')
-            ))
-            
-            fig.add_trace(go.Scatter(
-                x=[f"第{m}个月" for m in monthly_summary['未来月份']],
-                y=monthly_summary['下限'],
-                mode='lines',
-                name='下限',
-                line=dict(color='green', dash='dash')
-            ))
-            
-            fig.update_layout(
-                title="🤖 机器学习智能预测汇总",
-                xaxis_title="月份",
-                yaxis_title="预测销量",
-                height=400
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with col2:
-            total_pred = system.predictions['预测销量'].sum()
-            
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{total_pred:,.0f}</div>
-                <div class="metric-label">总预测销量(箱)</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown(f"""
-            <div class="feature-card">
-                <h4>🤖 智能预测摘要</h4>
-                <p><strong>预测产品:</strong> {system.predictions['产品代码'].nunique()} 个</p>
-                <p><strong>预测月数:</strong> {system.predictions['未来月份'].max()} 个月</p>
-                <p><strong>最佳模型:</strong> {system.models['best_model_name']}</p>
-                <p><strong>预测记录:</strong> {len(system.predictions)} 条</p>
-                <p><strong>数据来源:</strong> GitHub</p>
-                <p><strong>置信区间:</strong> 已计算</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # 产品段预测分析
-        st.markdown("#### 📊 产品段预测分析")
-        
-        segment_summary = system.predictions.groupby('产品段').agg({
-            '预测销量': ['sum', 'mean', 'count']
-        }).round(2)
-        
-        segment_summary.columns = ['总预测量', '平均预测量', '产品数']
-        segment_summary = segment_summary.reset_index()
-        
-        fig_segment = px.pie(
-            segment_summary, 
-            values='总预测量', 
-            names='产品段',
-            title="📈 各产品段预测销量分布"
-        )
-        st.plotly_chart(fig_segment, use_container_width=True)
-        
-        # 详细预测表格
-        st.markdown("#### 📋 详细预测记录")
-        
-        display_columns = ['产品代码', '未来月份', '目标月份', '预测销量', '下限', '上限', '产品段', '使用模型']
-        st.dataframe(
-            system.predictions[display_columns],
-            use_container_width=True,
-            hide_index=True
-        )
-        
-        # 导出功能
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            csv = system.predictions.to_csv(index=False, encoding='utf-8-sig')
-            st.download_button(
-                label="📥 下载CSV格式",
-                data=csv,
-                file_name=f"ML预测结果_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv"
-            )
-        
-        with col2:
-            # 创建Excel文件
-            excel_buffer = io.BytesIO()
-            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                system.predictions.to_excel(writer, sheet_name='预测结果', index=False)
-                segment_summary.to_excel(writer, sheet_name='产品段汇总', index=False)
-            excel_data = excel_buffer.getvalue()
-            
-            st.download_button(
-                label="📊 下载Excel格式",
-                data=excel_data,
-                file_name=f"ML预测结果_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        
-        with col3:
-            # 预测摘要JSON
-            prediction_summary = {
-                'prediction_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'model_used': system.models['best_model_name'],
-                'total_prediction': float(total_pred),
-                'products_count': int(system.predictions['产品代码'].nunique()),
-                'months_ahead': int(system.predictions['未来月份'].max()),
-                'data_source': system.data_source_info,
-                'accuracy': system.accuracy_results[system.models['best_model_name']]
-            }
-            
-            st.download_button(
-                label="📋 下载预测摘要",
-                data=json.dumps(prediction_summary, ensure_ascii=False, indent=2),
-                file_name=f"ML预测摘要_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                mime="application/json"
             )
 
-def create_ml_sidebar():
-    """创建机器学习侧边栏"""
+        # 添加85%参考线
+        fig.add_hline(
+            y=85,
+            line_dash="dot",
+            line_color="gray",
+            annotation_text="目标: 85%"
+        )
+
+        fig.update_layout(
+            title=f"全部产品准确率趋势分析（共{len(all_products)}个产品）<br><sub>点击图例可显示/隐藏产品，默认显示前10个产品</sub>",
+            xaxis_title="月份",
+            yaxis_title="准确率 (%)",
+            height=800,
+            hovermode='x unified',
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=1.02,
+                bgcolor='white',
+                bordercolor='gray',
+                borderwidth=1,
+                itemsizing='constant'
+            ),
+            paper_bgcolor='white',
+            plot_bgcolor='rgba(255,255,255,0.9)',
+            margin=dict(l=50, r=250, t=100, b=50),
+            font=dict(color='black')
+        )
+
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+        fig.update_yaxes(range=[0, 105], showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+
+        return fig
+
+    except Exception as e:
+        st.error(f"全部产品趋势图表创建失败: {str(e)}")
+        return go.Figure()
+
+
+def create_product_ranking_chart(df_valid, metrics):
+    """创建产品准确率排行榜 - 显示全部产品"""
+    try:
+        product_metrics = metrics['product_metrics']
+
+        # 按平均准确率排序，显示全部产品
+        product_metrics = product_metrics.sort_values('平均准确率', ascending=False)
+
+        # 创建图表
+        fig = go.Figure()
+
+        # 添加平均准确率条形图
+        fig.add_trace(go.Bar(
+            y=product_metrics['产品简称'],
+            x=product_metrics['平均准确率'] * 100,
+            orientation='h',
+            name='平均准确率',
+            marker=dict(
+                color=product_metrics['平均准确率'] * 100,
+                colorscale='RdYlGn',
+                cmin=60,
+                cmax=100,
+                colorbar=dict(
+                    title="准确率(%)",
+                    x=1.1
+                )
+            ),
+            text=product_metrics.apply(lambda x: f"{x['平均准确率'] * 100:.1f}%", axis=1),
+            textposition='outside',
+            textfont=dict(size=12),  # 增大字体
+            customdata=np.column_stack((
+                product_metrics['平均销量'],
+                product_metrics['加权准确率'],
+                product_metrics['常用模型'],
+                product_metrics['平均误差箱数']
+            )),
+            hovertemplate="<b>%{y}</b><br>" +
+                          "平均准确率: %{x:.1f}%<br>" +
+                          "加权准确率: %{customdata[1]:.1f}%<br>" +
+                          "平均误差: %{customdata[3]:.1f}箱<br>" +
+                          "平均销量: %{customdata[0]:.0f}箱<br>" +
+                          "常用模型: %{customdata[2]}<br>" +
+                          "<extra></extra>"
+        ))
+
+        # 添加85%参考线
+        fig.add_vline(x=85, line_dash="dash", line_color="gray", annotation_text="目标: 85%")
+
+        # 计算需要的高度 - 确保所有产品都能显示
+        height = max(800, len(product_metrics) * 25)
+
+        fig.update_layout(
+            title=f"产品预测准确率排行榜（全部{len(product_metrics)}个产品）",
+            xaxis_title="预测准确率 (%)",
+            yaxis_title="",
+            height=height,
+            showlegend=False,
+            margin=dict(l=250, r=150, t=100, b=50),
+            paper_bgcolor='white',
+            plot_bgcolor='rgba(255,255,255,0.9)',
+            font=dict(color='black', size=14)  # 增大整体字体
+        )
+
+        # 更新Y轴字体大小
+        fig.update_yaxes(tickfont=dict(size=13))
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+
+        return fig
+
+    except Exception as e:
+        st.error(f"产品排行榜创建失败: {str(e)}")
+        return go.Figure()
+
+
+def create_accuracy_distribution_chart(df_valid):
+    """创建准确率分布图表 - 修复标签重叠"""
+    try:
+        # 定义准确率区间
+        bins = [0, 0.6, 0.8, 0.85, 0.9, 0.95, 1.0]
+        labels = ['<60%', '60-80%', '80-85%', '85-90%', '90-95%', '>95%']
+
+        # 基于所有记录计算分布
+        df_valid['区间'] = pd.cut(df_valid['准确率'], bins=bins, labels=labels, include_lowest=True)
+        dist_counts = df_valid['区间'].value_counts().sort_index()
+
+        # 计算占比
+        total_records = len(df_valid)
+        dist_percentages = (dist_counts / total_records * 100).round(1)
+
+        # 计算累计百分比
+        cumulative_pct = (dist_counts.cumsum() / total_records * 100).round(1)
+
+        # 创建组合图
+        fig = make_subplots(
+            rows=1, cols=2,
+            subplot_titles=("准确率分布", "误差箱数分布"),
+            specs=[[{"secondary_y": True}, {"type": "pie"}]]
+        )
+
+        # 1. 准确率分布柱状图
+        fig.add_trace(
+            go.Bar(
+                x=dist_counts.index,
+                y=dist_counts.values,
+                name='记录数量',
+                marker=dict(
+                    color=['#FF0000', '#FF6347', '#FFA500', '#90EE90', '#00FF00', '#006400'],
+                    opacity=0.8,
+                    line=dict(color='white', width=2)
+                ),
+                text=[f"{v}<br>({p:.1f}%)" for v, p in zip(dist_counts.values, dist_percentages.values)],
+                textposition='auto',  # 改为auto避免重叠
+                hovertemplate="<b>%{x}</b><br>" +
+                              "记录数量: %{y}条<br>" +
+                              "占比: %{customdata:.1f}%<br>" +
+                              "<extra></extra>",
+                customdata=dist_percentages.values
+            ),
+            secondary_y=False,
+            row=1, col=1
+        )
+
+        # 添加累计百分比线
+        fig.add_trace(
+            go.Scatter(
+                x=cumulative_pct.index,
+                y=cumulative_pct.values,
+                mode='lines+markers+text',
+                name='累计占比',
+                line=dict(color='#667eea', width=3),
+                marker=dict(size=10),
+                text=[f"{x:.1f}%" for x in cumulative_pct.values],
+                textposition='top center',
+                textfont=dict(size=10),  # 减小字体避免重叠
+                hovertemplate="<b>%{x}</b><br>" +
+                              "累计占比: %{y:.1f}%<br>" +
+                              "<extra></extra>"
+            ),
+            secondary_y=True,
+            row=1, col=1
+        )
+
+        # 2. 误差箱数分布饼图
+        error_dist = df_valid['误差类型'].value_counts()
+        fig.add_trace(
+            go.Pie(
+                labels=error_dist.index,
+                values=error_dist.values,
+                hole=0.3,
+                marker_colors=['#90EE90', '#FF6347'],
+                textinfo='label+percent',
+                hovertemplate="<b>%{label}</b><br>" +
+                              "数量: %{value}条<br>" +
+                              "占比: %{percent}<br>" +
+                              "<extra></extra>"
+            ),
+            row=1, col=2
+        )
+
+        # 添加统计信息 - 调整位置
+        high_accuracy_count = dist_counts[['85-90%', '90-95%', '>95%']].sum()
+        high_accuracy_pct = high_accuracy_count / total_records * 100
+
+        # 误差统计
+        avg_error = df_valid['误差箱数'].mean()
+        within_threshold = (df_valid['误差箱数'] <= 20).sum()
+        within_threshold_pct = within_threshold / total_records * 100
+
+        # 按产品统计
+        product_stats = df_valid.groupby('产品简称')['准确率'].mean()
+        products_above_85 = (product_stats > 0.85).sum()
+        total_products = len(product_stats)
+
+        fig.add_annotation(
+            x=0.5, y=-0.15,  # 调整到图表下方
+            xref='paper', yref='paper',
+            text=f"""<b>📊 统计汇总</b>  |  总记录数: {total_records}条  |  总产品数: {total_products}个  |  平均误差: {avg_error:.1f}箱  |  容错范围内: {within_threshold}条({within_threshold_pct:.1f}%)  |  准确率>85%的产品: {products_above_85}个({products_above_85 / total_products * 100:.1f}%)""",
+            showarrow=False,
+            align='center',
+            bgcolor='white',
+            bordercolor='rgba(102, 126, 234, 0.3)',
+            borderwidth=2,
+            font=dict(size=12, color='black')
+        )
+
+        fig.update_xaxes(title_text="准确率区间", row=1, col=1)
+        fig.update_yaxes(title_text="记录数量", secondary_y=False, row=1, col=1, showgrid=True,
+                         range=[0, max(dist_counts.values) * 1.3])  # 增加Y轴范围
+        fig.update_yaxes(title_text="累计占比 (%)", secondary_y=True, row=1, col=1, range=[0, 110])  # 增加Y轴范围
+
+        fig.update_layout(
+            title="预测准确率与误差分布分析",
+            height=600,
+            hovermode='x unified',
+            paper_bgcolor='white',
+            plot_bgcolor='rgba(255,255,255,0.9)',
+            margin=dict(l=50, r=100, t=100, b=100),
+            font=dict(color='black'),
+            showlegend=True,
+            bargap=0.2  # 增加柱间距
+        )
+
+        return fig
+
+    except Exception as e:
+        st.error(f"准确率分布图表创建失败: {str(e)}")
+        return go.Figure()
+
+
+def create_model_analysis_charts(df_valid):
+    """创建模型分析图表"""
+    try:
+        # 模型使用频率统计
+        model_counts = df_valid['选择模型'].value_counts()
+
+        # 模型准确率统计
+        model_accuracy = df_valid.groupby('选择模型').agg({
+            '准确率': 'mean',
+            '误差箱数': 'mean'
+        }).reset_index()
+        model_accuracy['使用次数'] = df_valid['选择模型'].value_counts().values
+        model_accuracy.columns = ['模型', '平均准确率', '平均误差箱数', '使用次数']
+        model_accuracy = model_accuracy.sort_values('使用次数', ascending=False)
+
+        # 创建子图
+        fig = make_subplots(
+            rows=1, cols=2,
+            subplot_titles=("模型使用频率", "模型性能分析"),
+            specs=[[{"type": "bar"}, {"type": "scatter"}]],
+            horizontal_spacing=0.15
+        )
+
+        # 1. 条形图 - 模型使用频率
+        fig.add_trace(go.Bar(
+            x=model_counts.index[:8],
+            y=model_counts.values[:8],
+            marker_color=COLOR_SCHEME['chart_colors'][:8],
+            text=model_counts.values[:8],
+            textposition='outside',
+            hovertemplate="<b>%{x}</b><br>" +
+                          "使用次数: %{y}<br>" +
+                          "<extra></extra>"
+        ), row=1, col=1)
+
+        # 2. 散点图 - 模型准确率vs误差箱数
+        fig.add_trace(go.Scatter(
+            x=model_accuracy['平均误差箱数'],
+            y=model_accuracy['平均准确率'] * 100,
+            mode='markers+text',
+            marker=dict(
+                size=model_accuracy['使用次数'] / 5,
+                sizemin=10,
+                color=model_accuracy['平均准确率'] * 100,
+                colorscale='RdYlGn',
+                cmin=70,
+                cmax=100,
+                showscale=True,
+                colorbar=dict(title="准确率(%)", x=1.15)
+            ),
+            text=model_accuracy['模型'].apply(lambda x: x[:10] + '...' if len(x) > 10 else x),
+            textposition="top center",
+            customdata=np.column_stack((
+                model_accuracy['模型'],
+                model_accuracy['使用次数'],
+                model_accuracy['平均准确率'] * 100
+            )),
+            hovertemplate="<b>%{customdata[0]}</b><br>" +
+                          "平均误差: %{x:.1f}箱<br>" +
+                          "平均准确率: %{y:.1f}%<br>" +
+                          "使用次数: %{customdata[1]}<br>" +
+                          "<extra></extra>"
+        ), row=1, col=2)
+
+        # 添加20箱参考线
+        fig.add_vline(x=20, line_dash="dash", line_color="gray",
+                      annotation_text="20箱阈值", row=1, col=2)
+
+        # 添加85%参考线
+        fig.add_hline(y=85, line_dash="dash", line_color="gray",
+                      annotation_text="目标: 85%", row=1, col=2)
+
+        # 设置坐标轴
+        fig.update_xaxes(title_text="模型名称", row=1, col=1)
+        fig.update_yaxes(title_text="使用次数", row=1, col=1)
+        fig.update_xaxes(title_text="平均误差箱数", row=1, col=2, showgrid=True)
+        fig.update_yaxes(title_text="平均准确率 (%)", row=1, col=2, showgrid=True)
+
+        fig.update_layout(
+            title="机器学习模型使用与性能分析",
+            height=600,
+            showlegend=False,
+            paper_bgcolor='white',
+            plot_bgcolor='white',
+            margin=dict(l=50, r=150, t=100, b=50),
+            font=dict(color='black')
+        )
+
+        return fig
+
+    except Exception as e:
+        st.error(f"模型分析图表创建失败: {str(e)}")
+        return go.Figure()
+
+
+# 加载数据
+with st.spinner('🔄 正在加载数据...'):
+    df_all, df_valid = load_and_process_data()
+
+    # 在侧边栏显示数据加载信息
     with st.sidebar:
-        st.markdown("### 🎛️ ML控制台")
-        
-        # 用户信息
-        user_display = st.session_state.get('display_name', st.session_state.get('username', '用户'))
-        st.markdown(f"👋 欢迎, {user_display}")
-        
-        # 系统状态
-        st.markdown("#### 📊 系统状态")
-        
-        if st.session_state.ml_data_loaded:
-            data_color = "success"
-            data_text = "GitHub数据已加载"
-        else:
-            data_color = "warning"
-            data_text = "等待加载数据"
-        
-        if st.session_state.ml_model_trained:
-            model_color = "success"
-            model_text = "ML模型已训练"
-        else:
-            model_color = "warning"
-            model_text = "等待模型训练"
-        
-        st.markdown(f"""
-        <div class="feature-card">
-            <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                <span class="status-indicator status-{data_color}"></span>
-                <strong>{data_text}</strong>
+        st.write("### 📊 数据加载信息")
+        st.write(f"原始数据行数: {len(df_all) if not df_all.empty else 0}")
+        st.write(f"有效数据行数: {len(df_valid) if not df_valid.empty else 0}")
+
+        if not df_valid.empty:
+            st.write(f"产品数量: {df_valid['产品简称'].nunique()}")
+            st.write(
+                f"月份范围: {df_valid['月份'].min().strftime('%Y-%m')} 至 {df_valid['月份'].max().strftime('%Y-%m')}")
+
+            # 显示产品准确率详情
+            if st.checkbox("显示产品准确率详情"):
+                product_accuracy = df_valid.groupby('产品简称').agg({
+                    '准确率': 'mean',
+                    '误差箱数': 'mean'
+                }).round(4)
+                product_accuracy.columns = ['平均准确率', '平均误差箱数']
+                product_accuracy['准确率百分比'] = (product_accuracy['平均准确率'] * 100).round(2)
+                st.dataframe(product_accuracy.sort_values('平均准确率', ascending=False))
+
+                # 导出按钮
+                csv = product_accuracy.to_csv()
+                st.download_button(
+                    label="下载产品准确率数据",
+                    data=csv,
+                    file_name='产品准确率统计.csv',
+                    mime='text/csv'
+                )
+
+    metrics = calculate_metrics(df_valid)
+
+# 页面标题
+st.markdown("""
+<div class="page-header">
+    <h1 class="page-title">🤖 机器学习模型预测</h1>
+    <p class="page-subtitle">基于机器学习的销售预测准确性分析与优化平台</p>
+</div>
+""", unsafe_allow_html=True)
+
+# 添加20箱阈值说明
+st.markdown("""
+<div class="threshold-notice">
+    <b>📏 准确率计算方法说明</b><br>
+    本系统采用<b>20箱容错阈值</b>计算准确率：<br>
+    • 如果绝对误差 ≤ 20箱，准确率为 <b>100%</b><br>
+    • 如果实际值为0，且预测值 ≤ 20箱，准确率为 <b>100%</b><br>
+    • 否则，准确率 = 100 - (绝对误差/实际值)×100<br><br>
+    <b>📊 指标说明</b><br>
+    • <b>整体平均准确率</b>：简单平均，每个产品权重相同，考虑所有历史准确率<br>
+    • <b>加权整体准确率</b>：加权平均，销量大的产品影响更大<br>
+    • <b>最近准确率</b>：只考虑最近一次预测结果的简单平均
+</div>
+""", unsafe_allow_html=True)
+
+# 创建标签页
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "🎯 预测准确性核心指标",
+    "📈 准确率趋势分析",
+    "🏆 产品准确率排行",
+    "📊 准确率分布统计",
+    "🔬 模型性能分析"
+])
+
+# 标签1：核心指标总览
+with tab1:
+    if not df_valid.empty:
+        # 第一行：整体指标
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            accuracy_class = "accuracy-excellent" if metrics['overall_avg_accuracy'] > 0.85 else \
+                "accuracy-good" if metrics['overall_avg_accuracy'] > 0.8 else \
+                    "accuracy-medium" if metrics['overall_avg_accuracy'] > 0.7 else "accuracy-low"
+            st.markdown(f"""
+            <div class="metric-card {accuracy_class}">
+                <div class="metric-value">{metrics['overall_avg_accuracy'] * 100:.1f}%</div>
+                <div class="metric-label">📊 整体平均准确率</div>
+                <div class="metric-description">所有产品的算术平均</div>
             </div>
-            <div style="display: flex; align-items: center;">
-                <span class="status-indicator status-{model_color}"></span>
-                <strong>{model_text}</strong>
+            """, unsafe_allow_html=True)
+
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card {accuracy_class}">
+                <div class="metric-value">{metrics['overall_weighted_accuracy'] * 100:.1f}%</div>
+                <div class="metric-label">⚖️ 加权整体准确率</div>
+                <div class="metric-description">基于销量加权</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{metrics['total_products']}</div>
+                <div class="metric-label">📦 产品总数</div>
+                <div class="metric-description">参与预测的产品</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col4:
+            ratio_class = "accuracy-excellent" if metrics['high_accuracy_ratio'] > 60 else \
+                "accuracy-good" if metrics['high_accuracy_ratio'] > 40 else \
+                    "accuracy-medium" if metrics['high_accuracy_ratio'] > 20 else "accuracy-low"
+            st.markdown(f"""
+            <div class="metric-card {ratio_class}">
+                <div class="metric-value">{metrics['high_accuracy_ratio']:.1f}%</div>
+                <div class="metric-label">🎯 高准确率占比</div>
+                <div class="metric-description">>85%的产品</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # 第二行：最近一个月指标
+        col5, col6, col7, col8 = st.columns(4)
+
+        with col5:
+            recent_class = "accuracy-excellent" if metrics['recent_accuracy'] > 0.85 else \
+                "accuracy-good" if metrics['recent_accuracy'] > 0.8 else \
+                    "accuracy-medium" if metrics['recent_accuracy'] > 0.7 else "accuracy-low"
+            st.markdown(f"""
+            <div class="metric-card {recent_class}">
+                <div class="metric-value">{metrics['recent_accuracy'] * 100:.1f}%</div>
+                <div class="metric-label">📊 最近准确率</div>
+                <div class="metric-description">各产品最新值</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col6:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value" style="font-size: 2rem !important;">{metrics['recent_month'].strftime('%Y-%m') if metrics['recent_month'] else 'N/A'}</div>
+                <div class="metric-label">📅 最新数据月份</div>
+                <div class="metric-description">数据更新时间</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col7:
+            trend = metrics['trend']
+            trend_class = "accuracy-excellent" if trend > 5 else \
+                "accuracy-good" if trend > 0 else \
+                    "accuracy-medium" if trend > -5 else "accuracy-low"
+            trend_icon = "📈" if trend > 0 else "📉" if trend < 0 else "➡️"
+            st.markdown(f"""
+            <div class="metric-card {trend_class}">
+                <div class="metric-value">{trend:+.1f}%</div>
+                <div class="metric-label">{trend_icon} 准确率趋势</div>
+                <div class="metric-description">{'改善中' if trend > 0 else '下降中' if trend < 0 else '持平'}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col8:
+            model_name = metrics['most_used_model']
+            if len(model_name) > 12:
+                model_name = model_name[:10] + '..'
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value" style="font-size: 1.8rem !important;">{model_name}</div>
+                <div class="metric-label">🏆 最常用模型</div>
+                <div class="metric-description">使用{metrics['model_count']}次</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # 第三部分：准确率分布统计
+        st.markdown("### 📊 准确率分布统计")
+        col9, col10, col11, col12 = st.columns(4)
+
+        with col9:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{metrics['total_products']}</div>
+                <div class="metric-label">📊 总产品数</div>
+                <div class="metric-description">系统中的产品</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col10:
+            st.markdown(f"""
+            <div class="metric-card accuracy-excellent">
+                <div class="metric-value">{metrics['high_accuracy_count']}</div>
+                <div class="metric-label">🟢 高准确率</div>
+                <div class="metric-description">>80%</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col11:
+            st.markdown(f"""
+            <div class="metric-card accuracy-medium">
+                <div class="metric-value">{metrics['medium_accuracy_count']}</div>
+                <div class="metric-label">🟡 中等准确率</div>
+                <div class="metric-description">60-80%</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col12:
+            st.markdown(f"""
+            <div class="metric-card accuracy-low">
+                <div class="metric-value">{metrics['low_accuracy_count']}</div>
+                <div class="metric-label">🔴 低准确率</div>
+                <div class="metric-description"><60%</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # 显示数据概览
+        st.markdown("### 📊 数据概览")
+        st.info(
+            f"数据时间范围：{df_valid['月份'].min().strftime('%Y-%m')} 至 {df_valid['月份'].max().strftime('%Y-%m')}")
+        st.info(f"总记录数：{len(df_valid)} 条")
+    else:
+        st.warning("暂无有效数据可供分析")
+
+# 标签2：准确率趋势分析
+with tab2:
+    if not df_valid.empty:
+        # 创建准确率趋势图表
+        trend_fig = create_accuracy_trend_chart(df_valid)
+        st.plotly_chart(trend_fig, use_container_width=True, key="trend_chart")
+
+        # 全部产品准确率趋势
+        st.markdown("### 📈 全部产品准确率趋势")
+        all_products_fig = create_all_products_trend_chart(df_valid)
+        st.plotly_chart(all_products_fig, use_container_width=True, key="all_products_chart")
+
+        # 洞察分析
+        avg_error = df_valid['误差箱数'].mean()
+        within_threshold_pct = (df_valid['误差箱数'] <= 20).sum() / len(df_valid) * 100
+
+        st.markdown(f"""
+        <div class="insight-box">
+            <div class="insight-title">💡 趋势分析洞察</div>
+            <div class="insight-content">
+                • <b>整体表现:</b> 预测系统整体平均准确率{metrics['overall_avg_accuracy'] * 100:.1f}%，
+                {'已达到优秀水平(>85%)' if metrics['overall_avg_accuracy'] > 0.85 else
+        '达到良好水平(>80%)' if metrics['overall_avg_accuracy'] > 0.8 else
+        '有待提升'}<br>
+                • <b>容错表现:</b> 平均误差{avg_error:.1f}箱，{within_threshold_pct:.1f}%的预测在20箱容错范围内<br>
+                • <b>加权vs平均:</b> 加权准确率
+                {'高于' if metrics['overall_weighted_accuracy'] > metrics['overall_avg_accuracy'] else '低于'}
+                整体平均{abs(metrics['overall_weighted_accuracy'] - metrics['overall_avg_accuracy']) * 100:.1f}%，
+                说明{'销量大的产品预测更准确' if metrics['overall_weighted_accuracy'] > metrics['overall_avg_accuracy'] else '销量大的产品预测有待改进'}<br>
+                • <b>最新表现:</b> 最近准确率为{metrics['recent_accuracy'] * 100:.1f}%，
+                {'持续改善' if metrics['recent_accuracy'] > metrics['overall_avg_accuracy'] else '需要关注'}<br>
+                • <b>改进建议:</b> 
+                {'保持当前预测策略，继续优化' if metrics['overall_avg_accuracy'] > 0.85 else
+        '重点关注误差超过20箱的产品，分析原因并改进模型' if avg_error > 20 else
+        '全面审查预测模型，提升整体准确率'}
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
-        # ML训练参数
-        st.markdown("#### ⚙️ ML参数")
-        st.session_state.ml_test_ratio = st.slider("测试集比例", 0.1, 0.3, st.session_state.ml_test_ratio, 0.05)
-        st.session_state.ml_months_ahead = st.slider("预测月数", 1, 6, st.session_state.ml_months_ahead)
-        
-        with st.expander("高级ML参数"):
-            st.session_state.ml_outlier_factor = st.slider("异常值因子", 2.0, 5.0, st.session_state.ml_outlier_factor, 0.5)
-            st.session_state.ml_min_data_points = st.slider("最小数据点", 3, 6, st.session_state.ml_min_data_points)
-            st.session_state.ml_n_estimators = st.slider("树的数量", 100, 500, st.session_state.ml_n_estimators, 50)
-            st.session_state.ml_max_depth = st.slider("最大深度", 3, 15, st.session_state.ml_max_depth)
-            st.session_state.ml_learning_rate = st.slider("学习率", 0.01, 0.2, st.session_state.ml_learning_rate, 0.01)
-        
-        # 快捷操作
-        st.markdown("#### ⚡ 快捷操作")
-        
-        if st.button("📊 返回主页", use_container_width=True):
-            # 清除当前页面状态，返回主登录后页面
-            for key in list(st.session_state.keys()):
-                if key.startswith('ml_'):
-                    del st.session_state[key]
-            st.rerun()
-        
-        if st.button("🔄 重置ML系统", use_container_width=True):
-            for key in ['ml_model_trained', 'ml_prediction_system', 'ml_data_loaded', 
-                       'ml_data_validation_passed']:
-                if key in st.session_state:
-                    if key in ['ml_model_trained', 'ml_data_loaded', 'ml_data_validation_passed']:
-                        st.session_state[key] = False
-                    else:
-                        st.session_state[key] = None
-            st.success("✅ ML系统已重置")
-            st.rerun()
-        
-        if st.button("🚪 退出登录", use_container_width=True):
-            st.session_state.clear()
-            st.success("👋 已退出登录")
-            st.rerun()
+    else:
+        st.warning("暂无有效数据可供分析")
 
-# ====================================================================
-# 主程序
-# ====================================================================
+# 标签3：产品准确率排行
+with tab3:
+    if not df_valid.empty:
+        # 创建产品排行榜
+        ranking_fig = create_product_ranking_chart(df_valid, metrics)
+        st.plotly_chart(ranking_fig, use_container_width=True, key="ranking_chart")
 
-def main():
-    """主程序"""
-    render_ml_header()
-    create_ml_sidebar()
-    
-    # 创建标签页
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📁 GitHub数据",
-        "🚀 ML训练", 
-        "🔮 智能预测",
-        "🔍 系统信息"
-    ])
-    
-    with tab1:
-        show_data_loading_tab()
-    
-    with tab2:
-        show_ml_training_tab()
-    
-    with tab3:
-        show_ml_prediction_tab()
-    
-    with tab4:
-        if st.session_state.ml_model_trained:
-            system = st.session_state.ml_prediction_system
-            
-            st.markdown("### 🔍 机器学习系统信息")
-            
-            # GitHub数据源信息
-            st.markdown("#### 📊 GitHub数据源")
-            source_info = system.data_summary['data_source']
-            st.json(source_info)
-            
-            # ML模型信息
-            st.markdown("#### 🤖 ML模型信息")
-            model_info = {
-                'best_model': system.models['best_model_name'],
-                'feature_count': len(system.models['feature_cols']),
-                'training_time': f"{system.training_time:.2f}秒",
-                'data_quality_score': system.data_summary['data_quality_score'],
-                'github_repo': st.session_state.github_repo,
-                'data_file': st.session_state.data_file_path
-            }
-            st.json(model_info)
-            
-            # 准确率详情
-            st.markdown("#### 🎯 模型准确率详情")
-            st.json(system.accuracy_results)
-            
-            # 特征重要性（如果可用）
-            if hasattr(system.models['best_model'], 'feature_importances_'):
-                st.markdown("#### 📈 特征重要性")
-                feature_importance = pd.DataFrame({
-                    'feature': system.models['feature_cols'],
-                    'importance': system.models['best_model'].feature_importances_
-                }).sort_values('importance', ascending=False)
-                
-                fig_importance = px.bar(
-                    feature_importance.head(10), 
-                    x='importance', 
-                    y='feature',
-                    orientation='h',
-                    title="Top 10 特征重要性"
-                )
-                st.plotly_chart(fig_importance, use_container_width=True)
-            
+        # 重点产品分析
+        if 'product_metrics' in metrics and not metrics['product_metrics'].empty:
+            low_accuracy_high_error = metrics['product_metrics'][
+                (metrics['product_metrics']['平均准确率'] < 0.85) &
+                (metrics['product_metrics']['平均误差箱数'] > 20)
+                ]
+
+        st.markdown(f"""
+        <div class="insight-box">
+            <div class="insight-title">🏆 重点产品分析</div>
+            <div class="insight-content">
+                • <b>优秀产品:</b> 共有{metrics['products_above_85']}个产品准确率超过85%，占比{metrics['high_accuracy_ratio']:.1f}%<br>
+                • <b>表现最佳:</b> {metrics['products_above_90']}个产品准确率超过90%<br>
+                • <b>重点关注:</b> {len(low_accuracy_high_error) if 'low_accuracy_high_error' in locals() else 0}个产品准确率低于85%且平均误差超过20箱，需要重点优化<br>
+                • <b>优化建议:</b> 优先改进误差大且销量大的产品，可带来更大的整体提升
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.warning("暂无有效数据可供分析")
+
+# 标签4：准确率分布统计
+with tab4:
+    if not df_valid.empty:
+        # 创建分布图表
+        dist_fig = create_accuracy_distribution_chart(df_valid)
+        st.plotly_chart(dist_fig, use_container_width=True, key="distribution_chart")
+
+        # 分布洞察
+        product_metrics = metrics['product_metrics']
+        if not product_metrics.empty:
+            excellent_count = (product_metrics['平均准确率'] > 0.9).sum()
+            poor_count = (product_metrics['平均准确率'] < 0.6).sum()
+            small_volume_high_acc = product_metrics[
+                (product_metrics['平均销量'] < 100) &
+                (product_metrics['平均准确率'] > 0.85)
+                ]
         else:
-            st.info("请先完成机器学习模型训练以查看系统信息")
+            excellent_count = 0
+            poor_count = 0
+            small_volume_high_acc = pd.DataFrame()
 
-if __name__ == "__main__":
-    main()
+        st.markdown(f"""
+        <div class="insight-box">
+            <div class="insight-title">📊 准确率分布洞察</div>
+            <div class="insight-content">
+                • <b>优秀表现(>90%):</b> {excellent_count}个产品，占比{excellent_count / metrics['total_products'] * 100:.1f}%<br>
+                • <b>需要改进(<60%):</b> {poor_count}个产品，占比{poor_count / metrics['total_products'] * 100:.1f}%<br>
+                • <b>容错阈值影响:</b> {len(small_volume_high_acc) if not small_volume_high_acc.empty else 0}个小销量产品因容错阈值获得高准确率<br>
+                • <b>分布特征:</b> {'大部分产品表现优秀' if metrics['high_accuracy_ratio'] > 50 else
+        '准确率分布较为分散' if metrics['high_accuracy_ratio'] > 20 else
+        '多数产品需要优化'}<br>
+                • <b>行动建议:</b> {'继续保持，关注个别低准确率产品' if poor_count < 5 else
+        '分析误差超过20箱的原因，优化预测模型'}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.warning("暂无有效数据可供分析")
+
+# 标签5：模型性能分析
+with tab5:
+    if not df_valid.empty:
+        # 创建模型分析图表
+        model_fig = create_model_analysis_charts(df_valid)
+        st.plotly_chart(model_fig, use_container_width=True, key="model_chart")
+
+        # 模型洞察
+        model_error_analysis = df_valid.groupby('选择模型')['误差箱数'].agg(['mean', 'std', 'count'])
+        low_error_models = model_error_analysis[model_error_analysis['mean'] <= 20]
+
+        st.markdown(f"""
+        <div class="insight-box">
+            <div class="insight-title">🔬 模型使用洞察</div>
+            <div class="insight-content">
+                • <b>最常用模型:</b> {metrics['most_used_model']}，使用{metrics['model_count']}次<br>
+                • <b>低误差模型:</b> {len(low_error_models)}个模型平均误差在20箱以内<br>
+                • <b>模型多样性:</b> 系统使用了多种模型进行预测，体现了智能选择策略<br>
+                • <b>性能表现:</b> 大部分模型的平均准确率都在80%以上<br>
+                • <b>优化方向:</b> 扩大低误差模型的应用范围，继续优化高误差模型
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.warning("暂无有效数据可供分析")
+
+# 页脚
+st.markdown("---")
+st.markdown(
+    f"""
+    <div style="text-align: center; color: rgba(102, 126, 234, 0.8); font-family: 'Inter', sans-serif; font-size: 0.9rem; margin-top: 2rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 10px;">
+        🤖 Powered by Machine Learning & Streamlit | 机器学习模型预测分析平台 | 最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
