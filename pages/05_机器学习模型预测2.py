@@ -1,6 +1,6 @@
 # production_sales_prediction_system.py
 """
-生产级销售预测智能系统 - 5星核心功能版
+生产级销售预测智能系统 - 5星核心功能版 (真实数据版)
 ==================================================
 
 核心功能：
@@ -9,8 +9,10 @@
 3. 🎛️ 交互式预测调整 - 场景分析，业务决策支持
 4. 📊 基础预测引擎 - 机器学习模型训练和预测
 
+要求：仅使用真实数据，移除所有模拟功能
+
 作者: AI Assistant
-版本: v2.0 Production Ready
+版本: v2.0 Production Ready - Real Data Only
 更新: 2025-06-04
 """
 
@@ -25,8 +27,6 @@ import warnings
 import io
 import json
 import time
-import smtplib
-
 
 warnings.filterwarnings('ignore')
 
@@ -216,9 +216,7 @@ def initialize_session_state():
         'alerts': [],
         'alert_settings': {
             'accuracy_threshold': 80.0,
-            'bias_threshold': 15.0,
-            'enable_email': False,
-            'email_recipients': []
+            'bias_threshold': 15.0
         },
         'adjustment_history': []
     }
@@ -250,11 +248,11 @@ class ProductionSalesPredictionSystem:
         self.feature_importance = None
         self.training_time = None
         self.data_summary = {}
-        self.data_mode = 'sample'
+        self.data_mode = 'real'
 
     def load_data(self, use_github=False, shipment_file=None, promotion_file=None):
-        """加载数据"""
-        print("📂 加载数据...")
+        """加载真实数据"""
+        print("📂 加载真实数据...")
 
         if use_github:
             try:
@@ -267,12 +265,12 @@ class ProductionSalesPredictionSystem:
                 self.promotion_data = pd.read_excel(promotion_url)
                 self.data_mode = 'github_real'
 
-                print(f"✅ GitHub数据加载成功: {len(self.shipment_data):,} 条记录")
+                print(f"✅ GitHub真实数据加载成功: {len(self.shipment_data):,} 条记录")
                 return True
 
             except Exception as e:
                 print(f"❌ GitHub数据加载失败: {str(e)}")
-                return self.load_sample_data()
+                return False
 
         elif shipment_file is not None and promotion_file is not None:
             try:
@@ -280,78 +278,14 @@ class ProductionSalesPredictionSystem:
                 self.promotion_data = pd.read_excel(promotion_file)
                 self.data_mode = 'upload_real'
 
-                print(f"✅ 上传数据加载成功: {len(self.shipment_data):,} 条记录")
+                print(f"✅ 上传真实数据加载成功: {len(self.shipment_data):,} 条记录")
                 return True
 
             except Exception as e:
                 print(f"❌ 上传数据加载失败: {str(e)}")
-                return self.load_sample_data()
+                return False
         else:
-            return self.load_sample_data()
-
-    def load_sample_data(self):
-        """生成示例数据"""
-        print("📂 生成示例数据...")
-        self.data_mode = 'sample'
-
-        try:
-            np.random.seed(42)
-
-            # 生成示例出货数据
-            dates = pd.date_range('2022-01-01', '2025-05-31', freq='D')
-            products = [f'F{i:04d}J' for i in range(104, 180)]
-            regions = ['华北', '华东', '华南', '西南', '东北']
-            customers = [f'CU{i:04d}' for i in range(100, 800)]
-
-            data_records = []
-
-            for product in products:
-                base_qty = np.random.choice([10, 30, 50, 100, 200], p=[0.3, 0.3, 0.2, 0.15, 0.05])
-                seasonal_pattern = np.sin(np.arange(len(dates)) * 2 * np.pi / 365) * 0.3 + 1
-
-                for i, date in enumerate(dates):
-                    if np.random.random() > 0.3:
-                        continue
-
-                    seasonal_factor = seasonal_pattern[i]
-                    random_factor = np.random.normal(1, 0.3)
-                    daily_qty = max(1, int(base_qty * seasonal_factor * random_factor))
-
-                    if np.random.random() < 0.05:
-                        daily_qty *= np.random.randint(2, 5)
-
-                    data_records.append({
-                        '订单日期': date,
-                        '所属区域': np.random.choice(regions),
-                        '客户代码': np.random.choice(customers),
-                        '产品代码': product,
-                        '求和项:数量（箱）': daily_qty
-                    })
-
-            self.shipment_data = pd.DataFrame(data_records)
-
-            # 生成示例促销数据
-            promo_records = []
-            for _ in range(50):
-                start_date = np.random.choice(dates[:-30])
-                end_date = start_date + timedelta(days=np.random.randint(7, 30))
-                promo_records.append({
-                    '申请时间': start_date - timedelta(days=np.random.randint(1, 10)),
-                    '经销商代码': np.random.choice(customers[:20]),
-                    '产品代码': np.random.choice(products),
-                    '促销开始供货时间': start_date,
-                    '促销结束供货时间': end_date,
-                    '预计销量（箱）': np.random.randint(100, 1000),
-                    '赠品数量（箱）': np.random.randint(10, 100)
-                })
-
-            self.promotion_data = pd.DataFrame(promo_records)
-
-            print(f"✅ 示例数据生成成功: {len(self.shipment_data):,} 条记录, {len(products)} 个产品")
-            return True
-
-        except Exception as e:
-            print(f"❌ 示例数据生成失败: {str(e)}")
+            print("❌ 必须提供真实数据源")
             return False
 
     def preprocess_data(self, progress_callback=None):
@@ -1079,7 +1013,7 @@ class PredictionTrackingSystem:
 
 
 # ====================================================================
-# 智能预警系统
+# 智能预警系统 (无邮件版本)
 # ====================================================================
 class IntelligentAlertSystem:
     """智能预警系统"""
@@ -1168,63 +1102,6 @@ class IntelligentAlertSystem:
                         'recommendation': '建议检查数据源，确保及时更新',
                         'timestamp': datetime.now()
                     })
-
-    def send_alert_notification(self, alert, settings):
-        """发送预警通知"""
-        if settings.get('enable_email', False):
-            self._send_email_alert(alert, settings)
-
-        # 这里可以添加其他通知方式：钉钉、企业微信等
-
-    def _send_email_alert(self, alert, settings):
-        """发送邮件预警"""
-        try:
-            # 邮件配置（实际使用时需要配置真实的SMTP服务器）
-            smtp_server = "your_smtp_server.com"
-            smtp_port = 587
-            username = "your_email@company.com"
-            password = "your_password"
-
-            recipients = settings.get('email_recipients', [])
-
-            if not recipients:
-                return
-
-            msg = MimeMultipart()
-            msg['From'] = username
-            msg['To'] = ', '.join(recipients)
-            msg['Subject'] = f"销售预测系统预警: {alert['title']}"
-
-            body = f"""
-            预警时间: {alert['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}
-            预警级别: {alert['level'].upper()}
-            预警类型: {alert['type']}
-
-            问题描述:
-            {alert['message']}
-
-            建议措施:
-            {alert['recommendation']}
-
-            请及时处理。
-
-            销售预测系统
-            """
-
-            msg.attach(MimeText(body, 'plain', 'utf-8'))
-
-            # 发送邮件（示例代码，实际使用时需要配置）
-            # server = smtplib.SMTP(smtp_server, smtp_port)
-            # server.starttls()
-            # server.login(username, password)
-            # text = msg.as_string()
-            # server.sendmail(username, recipients, text)
-            # server.quit()
-
-            print(f"📧 预警邮件已发送: {alert['title']}")
-
-        except Exception as e:
-            print(f"❌ 邮件发送失败: {str(e)}")
 
 
 # ====================================================================
@@ -1422,7 +1299,7 @@ def render_production_header():
     <div class="production-header">
         <h1 class="production-title">🚀 生产级销售预测系统</h1>
         <p style="font-size: 1.2rem; color: #666; margin-bottom: 1rem;">
-            集成预测跟踪验证、智能预警、交互式调整等5星核心功能
+            集成预测跟踪验证、智能预警、交互式调整等5星核心功能 - 仅使用真实数据
         </p>
         <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
             <span style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 0.5rem 1rem; border-radius: 20px;">🎯 预测跟踪</span>
@@ -1431,7 +1308,7 @@ def render_production_header():
             <span style="background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); color: white; padding: 0.5rem 1rem; border-radius: 20px;">📊 机器学习</span>
         </div>
         <div style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
-            最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 版本: v2.0 Production Ready
+            最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 版本: v2.0 Production Ready - Real Data Only
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1477,12 +1354,12 @@ def create_production_sidebar():
             </div>
             """, unsafe_allow_html=True)
 
-        # 数据源选择
+        # 数据源选择 - 仅真实数据
         st.markdown("#### 📂 数据源")
         data_mode = st.radio(
-            "选择数据源",
-            ["GitHub真实数据", "上传Excel文件", "示例数据"],
-            help="选择训练数据来源"
+            "选择真实数据源",
+            ["GitHub真实数据", "上传Excel文件"],
+            help="仅支持真实数据，不允许使用模拟数据"
         )
 
         shipment_file = None
@@ -1493,10 +1370,8 @@ def create_production_sidebar():
             use_github = True
             st.info("📡 将从GitHub加载真实Excel数据")
         elif data_mode == "上传Excel文件":
-            shipment_file = st.file_uploader("出货数据", type=['xlsx', 'xls'])
-            promotion_file = st.file_uploader("促销数据", type=['xlsx', 'xls'])
-        else:
-            st.info("🎲 将生成模拟示例数据")
+            shipment_file = st.file_uploader("出货数据Excel", type=['xlsx', 'xls'])
+            promotion_file = st.file_uploader("促销数据Excel", type=['xlsx', 'xls'])
 
         # 训练参数
         st.markdown("#### ⚙️ 训练参数")
@@ -1520,16 +1395,10 @@ def create_production_sidebar():
             5.0
         )
 
-        enable_email = st.checkbox(
-            "启用邮件预警",
-            st.session_state.alert_settings['enable_email']
-        )
-
         # 更新预警设置
         st.session_state.alert_settings.update({
             'accuracy_threshold': accuracy_threshold,
-            'bias_threshold': bias_threshold,
-            'enable_email': enable_email
+            'bias_threshold': bias_threshold
         })
 
         # 快速操作
@@ -1592,7 +1461,7 @@ def main():
             can_train = True
             if data_mode == "上传Excel文件" and (shipment_file is None or promotion_file is None):
                 can_train = False
-                st.warning("⚠️ 请上传Excel文件")
+                st.warning("⚠️ 请上传出货数据和促销数据的Excel文件")
 
             if st.button("🚀 开始训练预测模型", type="primary", use_container_width=True, disabled=not can_train):
                 with st.container():
@@ -1614,11 +1483,9 @@ def main():
                             success = system.load_data(use_github=True)
                         elif data_mode == "上传Excel文件":
                             success = system.load_data(shipment_file=shipment_file, promotion_file=promotion_file)
-                        else:
-                            success = system.load_sample_data()
 
                         if success:
-                            update_progress(0.2, f"✅ 数据加载: {len(system.shipment_data):,} 条")
+                            update_progress(0.2, f"✅ 真实数据加载: {len(system.shipment_data):,} 条")
 
                             # 预处理
                             if system.preprocess_data(update_progress):
@@ -1647,7 +1514,7 @@ def main():
                                 success = False
 
                         if not success:
-                            st.error("❌ 训练失败")
+                            st.error("❌ 训练失败，请检查数据源")
 
                     except Exception as e:
                         st.error(f"❌ 训练异常: {str(e)}")
@@ -1687,15 +1554,15 @@ def main():
                 st.markdown("""
                 <div class="feature-card">
                     <h4>📋 训练说明</h4>
-                    <p>此系统包含完整的机器学习流水线：</p>
+                    <p>此系统仅使用真实数据进行预测：</p>
                     <ul>
-                        <li>🧹 数据清洗和预处理</li>
+                        <li>🧹 真实数据清洗和预处理</li>
                         <li>🔧 高级特征工程</li>
                         <li>🤖 多模型训练和融合</li>
                         <li>📊 准确率评估</li>
                         <li>🔮 未来销量预测</li>
                     </ul>
-                    <p>请点击"开始训练"按钮启动训练流程。</p>
+                    <p>请选择数据源并点击"开始训练"。</p>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -1771,56 +1638,11 @@ def main():
                     predictions_df = pd.DataFrame(selected_archive['predictions_data'])
                     st.dataframe(predictions_df.head(), use_container_width=True)
 
-                    # 录入方式
-                    input_method = st.radio("录入方式", ["生成示例", "手动录入", "CSV上传"])
+                    # 录入方式 - 仅真实数据
+                    input_method = st.radio("录入方式", ["手动录入", "CSV上传"])
 
-                    if input_method == "生成示例":
-                        reference_month = st.text_input("参考月份", value="2025-07")
-
-                        if st.button("🎲 生成示例实际数据"):
-                            # 生成示例实际数据
-                            actual_data = []
-                            for _, row in predictions_df.iterrows():
-                                # 添加随机误差模拟实际销量
-                                noise = np.random.normal(1.0, 0.2)
-                                actual_qty = max(0, row['预测销量'] * noise)
-
-                                actual_data.append({
-                                    '产品代码': row['产品代码'],
-                                    '实际销量': round(actual_qty, 1)
-                                })
-
-                            actual_df = pd.DataFrame(actual_data)
-                            actual_record = tracking_system.add_actual_data(actual_df, reference_month)
-
-                            st.session_state.actual_data_records.append(actual_record)
-                            st.success(f"✅ 示例数据已生成: {actual_record['record_id']}")
-
-                            # 执行验证
-                            validation_result = tracking_system.validate_prediction(
-                                selected_archive, actual_record, system
-                            )
-
-                            if validation_result:
-                                st.session_state.validation_results.append(validation_result)
-
-                                accuracy = validation_result['metrics']['smape_accuracy']
-                                st.success(f"🎯 验证完成！准确率: {accuracy:.1f}%")
-
-                                # 显示验证结果
-                                col_a, col_b, col_c = st.columns(3)
-
-                                with col_a:
-                                    st.metric("准确率", f"{accuracy:.1f}%")
-
-                                with col_b:
-                                    st.metric("MAE", f"{validation_result['metrics']['mae']:.1f}")
-
-                                with col_c:
-                                    st.metric("验证产品", validation_result['matched_products'])
-
-                    elif input_method == "手动录入":
-                        st.markdown("##### ✏️ 手动录入（前5个产品）")
+                    if input_method == "手动录入":
+                        st.markdown("##### ✏️ 手动录入实际销量（前5个产品）")
 
                         with st.form("manual_input"):
                             actual_data = []
@@ -1851,8 +1673,31 @@ def main():
                                 st.session_state.actual_data_records.append(actual_record)
                                 st.success(f"✅ 实际数据已保存: {actual_record['record_id']}")
 
+                                # 执行验证
+                                validation_result = tracking_system.validate_prediction(
+                                    selected_archive, actual_record, system
+                                )
+
+                                if validation_result:
+                                    st.session_state.validation_results.append(validation_result)
+
+                                    accuracy = validation_result['metrics']['smape_accuracy']
+                                    st.success(f"🎯 验证完成！准确率: {accuracy:.1f}%")
+
+                                    # 显示验证结果
+                                    col_a, col_b, col_c = st.columns(3)
+
+                                    with col_a:
+                                        st.metric("准确率", f"{accuracy:.1f}%")
+
+                                    with col_b:
+                                        st.metric("MAE", f"{validation_result['metrics']['mae']:.1f}")
+
+                                    with col_c:
+                                        st.metric("验证产品", validation_result['matched_products'])
+
                     else:  # CSV上传
-                        uploaded_file = st.file_uploader("上传CSV文件", type=['csv'])
+                        uploaded_file = st.file_uploader("上传实际销量CSV文件", type=['csv'])
 
                         if uploaded_file:
                             try:
@@ -1962,11 +1807,6 @@ def main():
                         <p><strong>时间:</strong> {alert['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}</p>
                     </div>
                     """, unsafe_allow_html=True)
-
-                    # 发送通知选项
-                    if st.button(f"📧 发送通知 - {alert['title'][:20]}...", key=f"alert_{alert['timestamp']}"):
-                        alert_system.send_alert_notification(alert, st.session_state.alert_settings)
-                        st.success("✅ 预警通知已发送")
             else:
                 st.markdown("""
                 <div class="alert-card alert-success">
@@ -1974,21 +1814,6 @@ def main():
                     <p>当前没有检测到预警信号，所有指标运行正常。</p>
                 </div>
                 """, unsafe_allow_html=True)
-
-            # 预警设置
-            st.markdown("#### ⚙️ 预警设置")
-
-            with st.expander("📧 邮件通知设置"):
-                email_recipients = st.text_area(
-                    "收件人邮箱 (每行一个)",
-                    value="\n".join(st.session_state.alert_settings.get('email_recipients', [])),
-                    help="输入接收预警邮件的邮箱地址"
-                )
-
-                if st.button("💾 保存邮件设置"):
-                    recipients = [email.strip() for email in email_recipients.split('\n') if email.strip()]
-                    st.session_state.alert_settings['email_recipients'] = recipients
-                    st.success(f"✅ 已保存 {len(recipients)} 个收件人")
 
     # Tab 4: 交互式调整
     with tab4:
@@ -2043,8 +1868,8 @@ def main():
                 warning_count = len([a for a in st.session_state.alerts if a['level'] == 'warning'])
                 st.write(f"- 严重预警: {danger_count}")
                 st.write(f"- 一般预警: {warning_count}")
-                st.write(f"- 邮件通知: {'启用' if st.session_state.alert_settings['enable_email'] else '禁用'}")
-                st.write(f"- 收件人: {len(st.session_state.alert_settings.get('email_recipients', []))}")
+                st.write(f"- 数据源: 仅真实数据")
+                st.write(f"- 状态: 生产就绪")
 
             # 性能趋势
             if st.session_state.validation_results:
@@ -2147,19 +1972,24 @@ if __name__ == "__main__":
 # ====================================================================
 st.markdown("""
 ---
-### 💡 生产级销售预测系统
+### 💡 生产级销售预测系统 (真实数据版)
 
 **🌟 5星核心功能:**
 - 🎯 **预测跟踪验证**: 存储预测→等待实际→验证准确率→监控性能
-- 🔔 **智能预警系统**: 准确率监控→偏差检测→自动通知→风险预警
+- 🔔 **智能预警系统**: 准确率监控→偏差检测→风险预警
 - 🎛️ **交互式调整**: 场景分析→参数调整→影响评估→决策支持
 
 **🚀 技术特性:**
-- 生产就绪的代码架构
-- 完整的错误处理机制
-- 实时性能监控
-- 数据持久化存储
-- 用户友好的界面设计
+- ✅ 仅使用真实数据，不允许模拟数据
+- ✅ 生产就绪的代码架构
+- ✅ 完整的错误处理机制
+- ✅ 实时性能监控
+- ✅ 数据持久化存储
+
+**📊 数据要求:**
+- GitHub真实Excel数据
+- 本地上传真实Excel文件
+- 不支持任何模拟或示例数据
 
 **📧 联系支持:** 如有问题请联系技术支持团队
 """)
