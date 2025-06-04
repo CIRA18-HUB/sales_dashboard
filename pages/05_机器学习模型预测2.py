@@ -209,7 +209,15 @@ def initialize_session_state():
         'historical_analysis': None,
         'accuracy_stats': None,
         'feature_importance': None,
-        'model_comparison': None
+        'model_comparison': None,
+        # 添加训练参数到session state
+        'test_ratio': 0.2,
+        'months_ahead': 3,
+        'outlier_factor': 3.0,
+        'min_data_points': 4,
+        'n_estimators': 300,
+        'max_depth': 5,
+        'learning_rate': 0.05
     }
     
     for key, value in defaults.items():
@@ -574,7 +582,7 @@ class EnhancedSalesPredictionSystem:
         print(f"✅ 基础数据清洗: {original_len} → {len(self.shipment_data)} 行")
         
         # 异常值处理
-        self.shipment_data = self._remove_outliers_iqr(self.shipment_data, factor=3.0)
+        self.shipment_data = self._remove_outliers_iqr(self.shipment_data, factor=st.session_state.outlier_factor)
         
         # 产品分段
         self._segment_products()
@@ -687,7 +695,7 @@ class EnhancedSalesPredictionSystem:
             for product in segment_products:
                 product_data = segment_data[segment_data['product_code'] == product].copy()
                 
-                if len(product_data) < 4:  # 至少需要4个月数据
+                if len(product_data) < st.session_state.min_data_points:  # 使用session state参数
                     continue
                 
                 # 为每个时间点创建特征
@@ -846,7 +854,7 @@ class EnhancedSalesPredictionSystem:
         
         print(f"✅ 最终特征数: {len([col for col in self.feature_data.columns if col not in ['product_code', 'target', 'target_month', 'segment']])}")
     
-    def train_advanced_models(self, test_ratio=0.2, progress_callback=None):
+    def train_advanced_models(self, progress_callback=None):
         """训练高级机器学习模型"""
         if progress_callback:
             progress_callback(0.7, "🚀 模型训练中...")
@@ -856,6 +864,12 @@ class EnhancedSalesPredictionSystem:
         
         if self.feature_data is None or len(self.feature_data) == 0:
             raise Exception("没有特征数据，无法训练模型")
+        
+        # 从session state获取参数
+        test_ratio = st.session_state.test_ratio
+        n_estimators = st.session_state.n_estimators
+        max_depth = st.session_state.max_depth
+        learning_rate = st.session_state.learning_rate
         
         # 准备数据
         feature_cols = [col for col in self.feature_data.columns 
@@ -901,9 +915,9 @@ class EnhancedSalesPredictionSystem:
         
         print("🎯 训练XGBoost...")
         xgb_model = xgb.XGBRegressor(
-            n_estimators=300,
-            max_depth=5,
-            learning_rate=0.05,
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            learning_rate=learning_rate,
             subsample=0.8,
             colsample_bytree=0.8,
             reg_alpha=0.1,
@@ -925,9 +939,9 @@ class EnhancedSalesPredictionSystem:
         
         print("🎯 训练LightGBM...")
         lgb_model = lgb.LGBMRegressor(
-            n_estimators=300,
-            max_depth=5,
-            learning_rate=0.05,
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            learning_rate=learning_rate,
             subsample=0.8,
             colsample_bytree=0.8,
             reg_alpha=0.1,
@@ -950,8 +964,8 @@ class EnhancedSalesPredictionSystem:
         
         print("🎯 训练Random Forest...")
         rf_model = RandomForestRegressor(
-            n_estimators=200,
-            max_depth=10,
+            n_estimators=int(n_estimators * 0.7),  # 使用较少的树以平衡速度
+            max_depth=max_depth + 5,  # RF通常需要更深的树
             min_samples_split=5,
             min_samples_leaf=2,
             random_state=42,
@@ -1117,7 +1131,7 @@ class EnhancedSalesPredictionSystem:
             monthly_agg['std_qty'] = monthly_agg['std_qty'].fillna(0)
             monthly_agg = monthly_agg.sort_values('year_month')
             
-            if len(monthly_agg) < 4:
+            if len(monthly_agg) < st.session_state.min_data_points:
                 continue
             
             # 获取产品段
@@ -1228,8 +1242,11 @@ class EnhancedSalesPredictionSystem:
         
         return weights
     
-    def predict_future(self, months_ahead=3):
+    def predict_future(self, months_ahead=None):
         """预测未来销量"""
+        if months_ahead is None:
+            months_ahead = st.session_state.months_ahead
+            
         print(f"🔮 预测未来{months_ahead}个月销量...")
         
         if not self.models:
@@ -1376,20 +1393,22 @@ def create_sidebar():
         
         # 训练参数
         st.markdown("#### ⚙️ 训练参数")
-        test_ratio = st.slider("测试集比例", 0.1, 0.3, 0.2, 0.05, key="test_ratio_slider")
-        months_ahead = st.slider("预测月数", 1, 6, 3, key="months_ahead_slider")
+        
+        # 更新session state的参数
+        st.session_state.test_ratio = st.slider("测试集比例", 0.1, 0.3, st.session_state.test_ratio, 0.05, key="sidebar_test_ratio")
+        st.session_state.months_ahead = st.slider("预测月数", 1, 6, st.session_state.months_ahead, key="sidebar_months_ahead")
         
         # 高级设置
         st.markdown("#### 🔧 高级设置")
         
         with st.expander("数据处理"):
-            outlier_factor = st.slider("异常值因子", 2.0, 5.0, 3.0, 0.5, key="outlier_factor_slider")
-            min_data_points = st.slider("最小数据点", 3, 6, 4, key="min_data_points_slider")
+            st.session_state.outlier_factor = st.slider("异常值因子", 2.0, 5.0, st.session_state.outlier_factor, 0.5, key="sidebar_outlier_factor")
+            st.session_state.min_data_points = st.slider("最小数据点", 3, 6, st.session_state.min_data_points, key="sidebar_min_data_points")
         
         with st.expander("模型参数"):
-            n_estimators = st.slider("树的数量", 100, 500, 300, 50, key="n_estimators_slider")
-            max_depth = st.slider("最大深度", 3, 15, 5, key="max_depth_slider") 
-            learning_rate = st.slider("学习率", 0.01, 0.2, 0.05, 0.01, key="learning_rate_slider")
+            st.session_state.n_estimators = st.slider("树的数量", 100, 500, st.session_state.n_estimators, 50, key="sidebar_n_estimators")
+            st.session_state.max_depth = st.slider("最大深度", 3, 15, st.session_state.max_depth, key="sidebar_max_depth") 
+            st.session_state.learning_rate = st.slider("学习率", 0.01, 0.2, st.session_state.learning_rate, 0.01, key="sidebar_learning_rate")
         
         # 快速操作
         st.markdown("#### ⚡ 快速操作")
@@ -1409,8 +1428,6 @@ def create_sidebar():
                         st.session_state[key] = None
             st.success("✅ 系统已重置")
             st.rerun()
-    
-    return test_ratio, months_ahead, outlier_factor, min_data_points, n_estimators, max_depth, learning_rate
 
 def show_training_tab():
     """显示训练标签页"""
@@ -1460,10 +1477,9 @@ def show_training_tab():
                             # 3. 特征工程
                             if system.create_advanced_features(update_progress):
                                 # 4. 模型训练
-                                test_ratio, months_ahead, _, _, _, _, _ = create_sidebar()
-                                if system.train_advanced_models(test_ratio, update_progress):
+                                if system.train_advanced_models(update_progress):
                                     # 5. 未来预测
-                                    system.predict_future(months_ahead)
+                                    system.predict_future()
                                     
                                     # 保存到session
                                     st.session_state.prediction_system = system
@@ -1721,7 +1737,8 @@ def show_prediction_tab():
     system = st.session_state.prediction_system
     
     if system.predictions is not None:
-        st.markdown("#### 📊 未来3个月销量预测")
+        months_ahead = st.session_state.months_ahead
+        st.markdown(f"#### 📊 未来{months_ahead}个月销量预测")
         
         # 预测汇总
         col1, col2 = st.columns([2, 1])
@@ -1763,7 +1780,7 @@ def show_prediction_tab():
             ))
             
             fig_monthly.update_layout(
-                title="未来3个月销量预测汇总",
+                title=f"未来{months_ahead}个月销量预测汇总",
                 xaxis_title="月份",
                 yaxis_title="预测销量 (箱)",
                 height=400
@@ -1778,11 +1795,11 @@ def show_prediction_tab():
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-value">{total_prediction:,.0f}</div>
-                <div class="metric-label">3个月预测总量(箱)</div>
+                <div class="metric-label">{months_ahead}个月预测总量(箱)</div>
             </div>
             """, unsafe_allow_html=True)
             
-            avg_monthly = total_prediction / 3
+            avg_monthly = total_prediction / months_ahead
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-value">{avg_monthly:,.0f}</div>
@@ -2144,7 +2161,7 @@ def main():
     render_header()
     
     # 创建侧边栏
-    test_ratio, months_ahead, outlier_factor, min_data_points, n_estimators, max_depth, learning_rate = create_sidebar()
+    create_sidebar()
     
     # 创建标签页
     tab1, tab2, tab3, tab4 = st.tabs([
