@@ -1,4 +1,4 @@
-# 基于真实数据的完整预测系统 - 集成认证系统版本（优化UI）
+# 基于真实数据的完整预测系统 - 集成认证系统版本
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -61,360 +61,47 @@ def check_authentication():
 # 执行认证检查
 check_authentication()
 
-# 优化的CSS样式 - 结合两个系统的优点
+# 统一的CSS样式
 st.markdown("""
 <style>
-    /* 导入Google字体 */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
-    /* 全局字体和背景 */
-    .stApp {
-        font-family: 'Inter', sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        background-attachment: fixed;
-    }
-
-    /* 主容器背景 */
     .main .block-container {
-        background: rgba(255,255,255,1) !important;
-        border-radius: 20px;
-        padding: 2rem;
-        margin-top: 2rem;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        padding-top: 2rem;
         max-width: 1200px;
     }
-
-    /* 页面标题样式 */
-    .page-header {
-        text-align: center;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
-        background-size: 200% 200%;
-        color: white;
-        padding: 3rem 2rem;
-        border-radius: 25px;
-        margin-bottom: 2rem;
-        animation: gradientShift 4s ease infinite;
-        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
-    }
-
-    @keyframes gradientShift {
-        0%, 100% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-    }
-
-    .page-title {
-        font-size: 3.2rem;
-        font-weight: 800;
-        margin-bottom: 1rem;
-        line-height: 1.1;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    .page-subtitle {
-        font-size: 1.3rem;
-        font-weight: 400;
-        opacity: 0.9;
-        margin-top: 0.5rem;
-    }
-
-    /* 指标卡片样式 */
     .metric-card {
-        background: white !important;
-        border-radius: 25px;
-        padding: 2rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.08);
-        border: 1px solid rgba(255,255,255,0.3);
-        height: 180px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: visible !important;
-    }
-
-    .metric-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 25px 50px rgba(0,0,0,0.12);
-    }
-
-    /* 数值样式 */
-    .metric-value {
-        font-size: 2.5rem !important;
-        font-weight: 800;
-        color: #667eea !important;
-        margin-bottom: 0.5rem;
-        line-height: 1.2;
-        text-align: center;
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        position: relative !important;
-        z-index: 10 !important;
-    }
-
-    .metric-label {
-        color: #374151 !important;
-        font-size: 1.1rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        text-align: center;
-        display: block !important;
-    }
-
-    .metric-description {
-        color: #6b7280 !important;
-        font-size: 0.9rem;
-        margin-top: 0.5rem;
-        font-weight: 500;
-        font-style: italic;
-        text-align: center;
-        display: block !important;
-    }
-
-    /* 准确率等级颜色 */
-    .accuracy-excellent { border-left: 5px solid #00FF00 !important; }
-    .accuracy-good { border-left: 5px solid #90EE90 !important; }
-    .accuracy-medium { border-left: 5px solid #FFA500 !important; }
-    .accuracy-low { border-left: 5px solid #FF6347 !important; }
-    .accuracy-poor { border-left: 5px solid #FF0000 !important; }
-
-    /* 统一的卡片容器样式 */
-    .content-container, .chart-container, .insight-box {
-        background: white !important;
-        border-radius: 25px;
-        padding: 2rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.08);
-        border: 1px solid rgba(255,255,255,0.3);
-        transition: all 0.3s ease;
-    }
-
-    .chart-container:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 25px 50px rgba(0,0,0,0.12);
-    }
-
-    /* 图表标题样式 */
-    .chart-title {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #333 !important;
-        margin-bottom: 1.5rem;
-        text-align: center;
-    }
-
-    /* 洞察框样式 */
-    .insight-box {
-        background: white !important;
+        background: white;
+        padding: 1rem;
+        border-radius: 10px;
         border-left: 4px solid #667eea;
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin-top: 1rem;
+        margin: 0.5rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-
-    .insight-title {
-        font-weight: 700;
-        color: #333 !important;
-        margin-bottom: 0.8rem;
-        font-size: 1.1rem;
-    }
-
-    .insight-content {
-        color: #666 !important;
-        line-height: 1.6;
-        font-size: 1rem;
-    }
-
-    /* 标签页样式 */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background: rgba(248, 250, 252, 1) !important;
-        padding: 0.8rem;
-        border-radius: 20px;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        height: 55px;
-        padding: 0 25px;
-        background: white !important;
-        border-radius: 15px;
-        border: 1px solid rgba(102, 126, 234, 0.15);
-        font-weight: 700;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
-        color: #333 !important;
-    }
-
-    .stTabs [data-baseweb="tab"]:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.2);
-    }
-
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: white !important;
-        border: none;
-        transform: translateY(-2px);
-        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
-    }
-
-    /* 信息框样式 */
     .success-box {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        background: #d4edda;
         border: 1px solid #c3e6cb;
         color: #155724;
-        padding: 1.5rem;
-        border-radius: 15px;
+        padding: 1rem;
+        border-radius: 5px;
         margin: 1rem 0;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
     }
-
     .info-box {
-        background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+        background: #d1ecf1;
         border: 1px solid #bee5eb;
         color: #0c5460;
-        padding: 1.5rem;
-        border-radius: 15px;
+        padding: 1rem;
+        border-radius: 5px;
         margin: 1rem 0;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
     }
-
     .warning-box {
-        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        background: #fff3cd;
         border: 1px solid #ffeaa7;
         color: #856404;
-        padding: 1.5rem;
-        border-radius: 15px;
+        padding: 1rem;
+        border-radius: 5px;
         margin: 1rem 0;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-    }
-
-    /* SMAPE说明框样式 */
-    .smape-notice {
-        background: rgba(102, 126, 234, 0.1) !important;
-        border: 1px solid rgba(102, 126, 234, 0.3);
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        font-size: 1rem;
-        color: #333;
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.1);
-    }
-
-    /* 按钮样式 */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 15px;
-        padding: 0.8rem 2rem;
-        font-weight: 700;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-    }
-
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-    }
-
-    /* 下载链接样式 */
-    .download-link {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white !important;
-        padding: 12px 24px;
-        border-radius: 15px;
-        text-decoration: none;
-        display: inline-block;
-        margin: 10px 0;
-        font-weight: 700;
-        transition: all 0.3s ease;
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-    }
-
-    .download-link:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-        color: white !important;
-        text-decoration: none;
-    }
-
-    /* 响应式设计 */
-    @media (max-width: 768px) {
-        .metric-value { font-size: 2rem !important; }
-        .metric-card { padding: 1.5rem 1rem; height: 150px; }
-        .page-header { padding: 2rem 1rem; }
-        .page-title { font-size: 2.2rem; }
-        .main .block-container { margin-top: 1rem; padding: 1rem; }
-    }
-
-    /* Plotly图表圆角样式 */
-    .js-plotly-plot {
-        border-radius: 25px !important;
-        overflow: hidden !important;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
-    }
-
-    .stPlotlyChart {
-        border-radius: 25px !important;
-        overflow: hidden !important;
-    }
-
-    .stPlotlyChart > div {
-        border-radius: 25px !important;
-        overflow: hidden !important;
-    }
-
-    /* 侧边栏样式 */
-    .css-1d391kg {
-        background: rgba(255,255,255,0.95);
-        border-radius: 15px;
-        margin-top: 2rem;
-    }
-
-    /* 进度条样式 */
-    .stProgress .st-bo {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 10px;
-    }
-
-    /* 欢迎框样式 */
-    .welcome-box {
-        text-align: center;
-        padding: 4rem 2rem;
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border-radius: 25px;
-        border: 3px dashed #28a745;
-        margin: 2rem 0;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.08);
-        transition: all 0.3s ease;
-    }
-
-    .welcome-box:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 25px 50px rgba(0,0,0,0.12);
     }
 </style>
 """, unsafe_allow_html=True)
-
-# 配色方案
-COLOR_SCHEME = {
-    'primary': '#667eea',
-    'secondary': '#764ba2',
-    'excellent': '#00FF00',
-    'good': '#90EE90',
-    'medium': '#FFA500',
-    'low': '#FF6347',
-    'poor': '#FF0000',
-    'chart_colors': ['#667eea', '#ff6b9d', '#c44569', '#ffc75f', '#f8b500', '#845ec2', '#4e8397', '#00c9a7']
-}
 
 class RealDataPredictionSystem:
     """基于真实数据的完整预测系统"""
@@ -996,12 +683,8 @@ class RealDataPredictionSystem:
     
     def run_complete_pipeline(self, shipment_url, promotion_url):
         """运行完整的预测流程"""
-        st.markdown("""
-        <div class="page-header">
-            <h1 class="page-title">🚀 基于真实数据的增强预测系统</h1>
-            <p class="page-subtitle">与附件一完全一致的SMAPE准确率分析</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("## 🚀 基于真实数据的增强预测系统")
+        st.markdown("### 📊 与附件一完全一致的SMAPE准确率分析")
         
         progress_bar = st.progress(0)
         status_text = st.empty()
@@ -1080,96 +763,47 @@ class RealDataPredictionSystem:
         # 5. 显示指标
         col1, col2, col3, col4 = st.columns(4)
         
-        accuracy_class_overall = "accuracy-excellent" if overall_avg_accuracy > 85 else \
-            "accuracy-good" if overall_avg_accuracy > 80 else \
-            "accuracy-medium" if overall_avg_accuracy > 70 else "accuracy-low"
-        
-        accuracy_class_weighted = "accuracy-excellent" if overall_weighted_accuracy > 85 else \
-            "accuracy-good" if overall_weighted_accuracy > 80 else \
-            "accuracy-medium" if overall_weighted_accuracy > 70 else "accuracy-low"
-        
-        ratio_class = "accuracy-excellent" if high_accuracy_ratio > 60 else \
-            "accuracy-good" if high_accuracy_ratio > 40 else \
-            "accuracy-medium" if high_accuracy_ratio > 20 else "accuracy-low"
-        
         with col1:
-            st.markdown(f"""
-            <div class="metric-card {accuracy_class_overall}">
-                <div class="metric-value">{overall_avg_accuracy:.1f}%</div>
-                <div class="metric-label">📊 整体平均准确率</div>
-                <div class="metric-description">每个产品历史平均准确率的算术平均</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                "整体平均准确率",
+                f"{overall_avg_accuracy:.1f}%",
+                help="每个产品历史平均准确率的算术平均"
+            )
         
         with col2:
-            st.markdown(f"""
-            <div class="metric-card {accuracy_class_weighted}">
-                <div class="metric-value">{overall_weighted_accuracy:.1f}%</div>
-                <div class="metric-label">⚖️ 加权整体准确率</div>
-                <div class="metric-description">基于销量加权的整体准确率</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                "加权整体准确率", 
+                f"{overall_weighted_accuracy:.1f}%",
+                help="基于销量加权的整体准确率"
+            )
         
         with col3:
-            st.markdown(f"""
-            <div class="metric-card {ratio_class}">
-                <div class="metric-value">{products_above_85}/{total_products}</div>
-                <div class="metric-label">🎯 高准确率产品(>85%)</div>
-                <div class="metric-description">{high_accuracy_ratio:.1f}%</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                "高准确率产品(>85%)",
+                f"{products_above_85}/{total_products}",
+                f"{high_accuracy_ratio:.1f}%"
+            )
         
         with col4:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{products_above_90}</div>
-                <div class="metric-label">🏆 优秀产品(>90%)</div>
-                <div class="metric-description">{products_above_90/total_products*100:.1f}%</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                "优秀产品(>90%)",
+                f"{products_above_90}",
+                f"{products_above_90/total_products*100:.1f}%"
+            )
         
         # 详细统计
         col5, col6, col7, col8 = st.columns(4)
         
-        recent_class = "accuracy-excellent" if recent_accuracy > 85 else \
-            "accuracy-good" if recent_accuracy > 80 else \
-            "accuracy-medium" if recent_accuracy > 70 else "accuracy-low"
-        
         with col5:
-            st.markdown(f"""
-            <div class="metric-card {recent_class}">
-                <div class="metric-value">{recent_accuracy:.1f}%</div>
-                <div class="metric-label">📈 最近准确率</div>
-                <div class="metric-description">最新预测表现</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric("最近准确率", f"{recent_accuracy:.1f}%")
         with col6:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{len(df_valid)}</div>
-                <div class="metric-label">📋 总预测记录</div>
-                <div class="metric-description">历史预测次数</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric("总预测记录", len(df_valid))
         with col7:
             avg_smape = 200 * df_valid['绝对误差'].mean() / (df_valid['实际值'].mean() + df_valid['预测值'].mean())
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{avg_smape:.1f}</div>
-                <div class="metric-label">📐 平均SMAPE值</div>
-                <div class="metric-description">对称平均绝对百分比误差</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric("平均SMAPE值", f"{avg_smape:.1f}")
         with col8:
             most_used_model = df_valid['使用模型'].mode()[0] if len(df_valid) > 0 else 'N/A'
-            model_name = most_used_model[:8] + '..' if len(most_used_model) > 10 else most_used_model
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value" style="font-size: 1.8rem !important;">{model_name}</div>
-                <div class="metric-label">🤖 最常用模型</div>
-                <div class="metric-description">机器学习算法</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric("最常用模型", most_used_model)
 
 
 def create_enhanced_visualization(system):
@@ -1210,11 +844,7 @@ def create_enhanced_visualization(system):
 
 def create_accuracy_trend_chart(df_viz, system):
     """创建准确率趋势图"""
-    st.markdown("""
-    <div class="chart-container">
-        <h3 class="chart-title">📈 SMAPE准确率趋势分析（基于真实数据）</h3>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("### 📈 SMAPE准确率趋势分析（基于真实数据）")
     
     # 按月份计算统计
     monthly_stats = df_viz.groupby('月份').agg({
@@ -1240,7 +870,7 @@ def create_accuracy_trend_chart(df_viz, system):
         y=monthly_stats['SMAPE准确率'] * 100,
         mode='lines+markers',
         name='SMAPE平均准确率',
-        line=dict(color=COLOR_SCHEME['primary'], width=3),
+        line=dict(color='#667eea', width=3),
         marker=dict(size=8),
         hovertemplate="<b>%{x|%Y-%m}</b><br>" +
                       "SMAPE平均准确率: %{y:.1f}%<br>" +
@@ -1253,7 +883,7 @@ def create_accuracy_trend_chart(df_viz, system):
         y=monthly_stats['加权准确率'] * 100,
         mode='lines+markers',
         name='SMAPE加权准确率',
-        line=dict(color=COLOR_SCHEME['secondary'], width=3, dash='dash'),
+        line=dict(color='#764ba2', width=3, dash='dash'),
         marker=dict(size=8),
         hovertemplate="<b>%{x|%Y-%m}</b><br>" +
                       "SMAPE加权准确率: %{y:.1f}%<br>" +
@@ -1265,15 +895,14 @@ def create_accuracy_trend_chart(df_viz, system):
     fig.add_hline(y=90, line_dash="dot", line_color="green", annotation_text="优秀: 90%")
     
     fig.update_layout(
-        title="",
+        title="SMAPE准确率趋势分析（基于真实GitHub数据）",
         xaxis_title="月份",
         yaxis_title="SMAPE准确率 (%)",
         height=500,
         showlegend=True,
         hovermode='x unified',
         paper_bgcolor='white',
-        plot_bgcolor='rgba(255,255,255,0.9)',
-        font=dict(color='black')
+        plot_bgcolor='rgba(255,255,255,0.9)'
     )
     
     st.plotly_chart(fig, use_container_width=True)
@@ -1291,11 +920,7 @@ def create_accuracy_trend_chart(df_viz, system):
 
 def create_product_ranking_chart(df_viz):
     """创建产品准确率排行榜"""
-    st.markdown("""
-    <div class="chart-container">
-        <h3 class="chart-title">🏆 产品SMAPE准确率排行榜（基于真实数据）</h3>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("### 🏆 产品SMAPE准确率排行榜（基于真实数据）")
     
     # 计算产品统计
     product_stats = df_viz.groupby('产品代码').agg({
@@ -1325,7 +950,7 @@ def create_product_ranking_chart(df_viz):
         text=[f"{x*100:.1f}%" for x in product_stats['SMAPE准确率']],
         textposition='outside',
         customdata=np.column_stack((
-            product_stats['实际值'],
+            product_stats['平均实际值'] if '平均实际值' in product_stats.columns else product_stats['实际值'],
             product_stats['使用模型'],
             product_stats['产品段']
         )),
@@ -1342,14 +967,11 @@ def create_product_ranking_chart(df_viz):
     fig.add_vline(x=90, line_dash="dash", line_color="green", annotation_text="优秀: 90%")
     
     fig.update_layout(
-        title="",
+        title=f"产品SMAPE准确率排行榜（共{len(product_stats)}个产品）",
         xaxis_title="SMAPE准确率 (%)",
         height=max(400, len(product_stats) * 25),
         showlegend=False,
-        margin=dict(l=150, r=50, t=50, b=50),
-        paper_bgcolor='white',
-        plot_bgcolor='rgba(255,255,255,0.9)',
-        font=dict(color='black')
+        margin=dict(l=150, r=50, t=100, b=50)
     )
     
     st.plotly_chart(fig, use_container_width=True)
@@ -1364,11 +986,7 @@ def create_product_ranking_chart(df_viz):
 
 def create_accuracy_distribution_chart(df_viz):
     """创建准确率分布图"""
-    st.markdown("""
-    <div class="chart-container">
-        <h3 class="chart-title">📊 SMAPE准确率分布统计（基于真实数据）</h3>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("### 📊 SMAPE准确率分布统计（基于真实数据）")
     
     # 定义区间
     bins = [0, 0.6, 0.8, 0.85, 0.9, 0.95, 1.0]
@@ -1394,8 +1012,7 @@ def create_accuracy_distribution_chart(df_viz):
         labels=dist_counts.index,
         values=dist_counts.values,
         hole=0.3,
-        marker_colors=[COLOR_SCHEME['poor'], COLOR_SCHEME['low'], COLOR_SCHEME['medium'], 
-                      COLOR_SCHEME['good'], COLOR_SCHEME['excellent'], '#006400'],
+        marker_colors=['#FF0000', '#FF6347', '#FFA500', '#90EE90', '#00FF00', '#006400'],
         textinfo='label+percent',
         hovertemplate="<b>%{label}</b><br>" +
                       "产品数: %{value}<br>" +
@@ -1407,18 +1024,15 @@ def create_accuracy_distribution_chart(df_viz):
     fig.add_trace(go.Histogram(
         x=df_viz['SMAPE准确率'] * 100,
         nbinsx=20,
-        marker_color=COLOR_SCHEME['primary'],
+        marker_color='#667eea',
         opacity=0.7,
         name='记录分布'
     ), row=1, col=2)
     
     fig.update_layout(
-        title="",
+        title="SMAPE准确率分布分析",
         height=500,
-        showlegend=False,
-        paper_bgcolor='white',
-        plot_bgcolor='rgba(255,255,255,0.9)',
-        font=dict(color='black')
+        showlegend=False
     )
     
     fig.update_xaxes(title_text="SMAPE准确率 (%)", row=1, col=2)
@@ -1445,11 +1059,7 @@ def create_accuracy_distribution_chart(df_viz):
 
 def create_model_analysis_chart(df_viz):
     """创建模型分析图"""
-    st.markdown("""
-    <div class="chart-container">
-        <h3 class="chart-title">🔬 模型SMAPE性能分析（基于真实数据）</h3>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("### 🔬 模型SMAPE性能分析（基于真实数据）")
     
     # 模型统计
     model_stats = df_viz.groupby('使用模型').agg({
@@ -1472,7 +1082,7 @@ def create_model_analysis_chart(df_viz):
     fig.add_trace(go.Bar(
         x=model_stats['模型'],
         y=model_stats['使用次数'],
-        marker_color=COLOR_SCHEME['primary'],
+        marker_color='#667eea',
         text=model_stats['使用次数'],
         textposition='outside',
         name='使用次数'
@@ -1503,12 +1113,9 @@ def create_model_analysis_chart(df_viz):
     fig.update_yaxes(title_text="SMAPE平均准确率 (%)", row=1, col=2)
     
     fig.update_layout(
-        title="",
+        title="模型性能综合分析",
         height=500,
-        showlegend=False,
-        paper_bgcolor='white',
-        plot_bgcolor='rgba(255,255,255,0.9)',
-        font=dict(color='black')
+        showlegend=False
     )
     
     st.plotly_chart(fig, use_container_width=True)
@@ -1629,7 +1236,7 @@ def create_download_link(df, filename):
     href = f'''
     <a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" 
        download="{filename}" 
-       class="download-link">
+       style="background-color:#667eea;color:white;padding:10px 20px;border-radius:5px;text-decoration:none;display:inline-block;margin:10px 0;">
        📥 下载完整Excel分析报告
     </a>
     '''
@@ -1640,9 +1247,25 @@ def create_download_link(df, filename):
 def main():
     """主应用"""
     
+    # 页面标题 - 认证后版本
+    st.markdown(f"""
+    <div style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                color: white; padding: 3rem; border-radius: 20px; margin-bottom: 2rem;">
+        <h1 style="margin: 0; font-size: 3rem; font-weight: 800;">🤖 机器学习模型预测系统</h1>
+        <p style="margin: 1rem 0 0 0; font-size: 1.3rem; opacity: 0.9;">
+            欢迎 {st.session_state.get('display_name', '用户')}！基于真实GitHub数据的SMAPE准确率分析平台
+        </p>
+        <div style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.8;">
+            🔐 已通过认证 | 🎭 {st.session_state.get('user_role', '未知角色')} | 
+            ⏰ 登录时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     # SMAPE方法说明
     st.markdown("""
-    <div class="smape-notice">
+    <div style="background: rgba(102, 126, 234, 0.1); border-left: 5px solid #667eea; 
+                padding: 1.5rem; border-radius: 10px; margin-bottom: 2rem;">
         <h4 style="color: #667eea; margin-top: 0;">📏 SMAPE准确率计算方法（与附件一完全一致）</h4>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
             <div>
@@ -1663,7 +1286,7 @@ def main():
     
     # 数据源信息
     st.markdown("""
-    <div class="info-box">
+    <div style="background: #e8f4fd; border: 1px solid #bee5eb; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
         <h4 style="color: #0c5460; margin-top: 0;">📂 数据源信息</h4>
         <p><strong>出货数据：</strong> https://raw.githubusercontent.com/CIRA18-HUB/sales_dashboard/refs/heads/main/预测模型出货数据每日xlsx.xlsx</p>
         <p><strong>促销数据：</strong> https://raw.githubusercontent.com/CIRA18-HUB/sales_dashboard/refs/heads/main/销售业务员促销文件.xlsx</p>
@@ -1695,7 +1318,7 @@ def main():
     
     with col2:
         st.markdown("""
-        <div class="warning-box">
+        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 1rem; border-radius: 8px;">
             <h5 style="color: #856404; margin-top: 0;">📝 分析流程说明</h5>
             <ol style="color: #856404; font-size: 0.9rem;">
                 <li>从GitHub下载真实数据</li>
@@ -1825,9 +1448,10 @@ def main():
         user_role = st.session_state.get('user_role', '用户')
         
         st.markdown(f"""
-        <div class="welcome-box">
-            <h3 style="color: #28a745; margin-bottom: 1rem;">🎯 欢迎 {current_user}！系统已就绪</h3>
-            <p style="color: #6c757d; margin-top: 1rem; font-size: 1.1rem; line-height: 1.6;">
+        <div style="text-align: center; padding: 4rem; background: #f8f9fa; 
+                    border-radius: 20px; border: 2px dashed #28a745; margin: 2rem 0;">
+            <h3 style="color: #28a745;">🎯 欢迎 {current_user}！系统已就绪</h3>
+            <p style="color: #6c757d; margin-top: 1rem; font-size: 1.1rem;">
                 ✅ 身份验证通过 ({user_role})<br>
                 🚀 点击上方按钮开始分析<br><br>
                 系统将自动从GitHub仓库下载真实数据，运行完整的预测分析流程，<br>
@@ -1851,10 +1475,9 @@ def main():
     st.markdown(
         f"""
         <div style="text-align: center; color: #6c757d; font-size: 0.9rem; margin-top: 2rem; 
-                    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
-                    padding: 1.5rem; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
-            🤖 <strong>机器学习模型预测系统</strong> | 基于真实GitHub数据 | 使用SMAPE准确率计算<br>
-            🔐 当前用户：<strong style="color: #667eea;">{current_user}</strong> ({user_role}) | 
+                    background: #f8f9fa; padding: 1rem; border-radius: 10px;">
+            🤖 机器学习模型预测系统 | 基于真实GitHub数据 | 使用SMAPE准确率计算<br>
+            🔐 当前用户：<strong>{current_user}</strong> ({user_role}) | 
             ⏰ 访问时间：{login_time} | 
             📊 与附件一输出结果完全一致<br>
             🎯 数据源：CIRA18-HUB/sales_dashboard | 
