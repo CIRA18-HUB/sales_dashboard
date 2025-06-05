@@ -1554,7 +1554,7 @@ def main():
                 <div style="background: rgba(255,255,255,0.8); padding: 1rem; border-radius: 10px; margin: 1rem 0;">
                     <p style="color: #721c24; margin: 0;"><strong>🔑 管理员登录信息：</strong></p>
                     <p style="color: #721c24; margin: 0.5rem 0; font-family: monospace;">
-                        用户名：<code>admin</code> | 密码：<code>cira18</code>
+                        用户名：<code>admin</code> |
                     </p>
                 </div>
                 <p style="color: #721c24; font-size: 0.9rem; margin-bottom: 0;">
