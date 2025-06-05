@@ -1,4 +1,4 @@
-# 基于真实数据的完整预测系统 - 与附件一输出结果完全一致
+# 基于真实数据的完整预测系统 - 集成认证系统版本
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -10,19 +10,56 @@ import warnings
 import io
 import base64
 import requests
+import time
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error, r2_score
 from sklearn.preprocessing import RobustScaler
 import zipfile
 
+# 导入认证模块
+try:
+    from data_storage import storage
+except ImportError:
+    st.error("❌ 无法导入认证模块，请确保 data_storage.py 文件存在")
+    st.stop()
+
 warnings.filterwarnings('ignore')
 
 # 页面配置
 st.set_page_config(
-    page_title="真实数据预测系统",
-    page_icon="🎯",
+    page_title="机器学习模型预测系统",
+    page_icon="🤖",
     layout="wide"
 )
+
+# ========================================
+# 🔐 认证检查 - 必须先登录
+# ========================================
+
+def check_authentication():
+    """检查用户认证状态"""
+    if 'authenticated' not in st.session_state or not st.session_state.authenticated:
+        st.error("🔐 访问被拒绝：请先登录系统")
+        st.markdown("""
+        <div style="text-align: center; padding: 3rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    color: white; border-radius: 15px; margin: 2rem 0;">
+            <h2>🚀 机器学习模型预测系统</h2>
+            <p style="font-size: 1.2rem; margin: 1rem 0;">您需要先登录才能访问此功能</p>
+            <p style="opacity: 0.9;">管理员密码：<code>cira18</code></p>
+            <p style="opacity: 0.9;">普通用户密码：<code>SAL!2025</code></p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🔗 前往登录页面", type="primary"):
+            st.switch_page("初始登陆界面.py")
+        st.stop()
+    
+    # 显示当前登录用户信息
+    st.sidebar.success(f"👤 当前用户：{st.session_state.get('display_name', '未知用户')}")
+    st.sidebar.info(f"🎭 用户角色：{st.session_state.get('user_role', '未知角色')}")
+
+# 执行认证检查
+check_authentication()
 
 # 统一的CSS样式
 st.markdown("""
@@ -1210,14 +1247,18 @@ def create_download_link(df, filename):
 def main():
     """主应用"""
     
-    # 页面标题
-    st.markdown("""
+    # 页面标题 - 认证后版本
+    st.markdown(f"""
     <div style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                 color: white; padding: 3rem; border-radius: 20px; margin-bottom: 2rem;">
-        <h1 style="margin: 0; font-size: 3rem; font-weight: 800;">🎯 基于真实数据的完整预测系统</h1>
+        <h1 style="margin: 0; font-size: 3rem; font-weight: 800;">🤖 机器学习模型预测系统</h1>
         <p style="margin: 1rem 0 0 0; font-size: 1.3rem; opacity: 0.9;">
-            直接从GitHub读取真实数据 | 运行附件一完整流程 | 生成附件二可视化界面 | 确保结果完全一致
+            欢迎 {st.session_state.get('display_name', '用户')}！基于真实GitHub数据的SMAPE准确率分析平台
         </p>
+        <div style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.8;">
+            🔐 已通过认证 | 🎭 {st.session_state.get('user_role', '未知角色')} | 
+            ⏰ 登录时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1288,6 +1329,39 @@ def main():
             </ol>
         </div>
         """, unsafe_allow_html=True)
+    
+    # 侧边栏 - 用户管理和系统控制
+    with st.sidebar:
+        st.markdown("---")
+        st.markdown("### ⚙️ 系统控制")
+        
+        # 注销按钮
+        if st.button("🚪 退出登录", type="secondary", use_container_width=True):
+            # 清除认证状态
+            for key in ['authenticated', 'username', 'user_role', 'display_name']:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.success("👋 已成功退出登录")
+            time.sleep(1)
+            st.switch_page("初始登陆界面.py")
+        
+        st.markdown("---")
+        st.markdown("### 📊 数据源信息")
+        st.info("""
+        **出货数据源：**  
+        CIRA18-HUB/sales_dashboard  
+        
+        **文件：**  
+        - 预测模型出货数据每日xlsx.xlsx  
+        - 销售业务员促销文件.xlsx
+        """)
+        
+        # 权限信息
+        user_role = st.session_state.get('user_role', '未知')
+        if user_role == '管理员':
+            st.success("👑 管理员权限：完全访问")
+        else:
+            st.info("👤 普通用户权限：分析功能")
     
     # 显示分析结果
     if system.historical_predictions is not None and not system.historical_predictions.empty:
@@ -1369,26 +1443,45 @@ def main():
             """)
     
     else:
-        # 初始状态提示
-        st.markdown("""
+        # 初始状态提示 - 认证后版本
+        current_user = st.session_state.get('display_name', '用户')
+        user_role = st.session_state.get('user_role', '用户')
+        
+        st.markdown(f"""
         <div style="text-align: center; padding: 4rem; background: #f8f9fa; 
-                    border-radius: 20px; border: 2px dashed #dee2e6; margin: 2rem 0;">
-            <h3 style="color: #6c757d;">🎯 点击上方按钮开始分析</h3>
+                    border-radius: 20px; border: 2px dashed #28a745; margin: 2rem 0;">
+            <h3 style="color: #28a745;">🎯 欢迎 {current_user}！系统已就绪</h3>
             <p style="color: #6c757d; margin-top: 1rem; font-size: 1.1rem;">
-                系统将自动从你的GitHub仓库下载真实数据，运行完整的预测分析流程，<br>
+                ✅ 身份验证通过 ({user_role})<br>
+                🚀 点击上方按钮开始分析<br><br>
+                系统将自动从GitHub仓库下载真实数据，运行完整的预测分析流程，<br>
                 并生成与附件一完全一致的SMAPE准确率分析结果。
             </p>
+            <div style="margin-top: 2rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); 
+                        border-radius: 10px; color: #667eea;">
+                <strong>🔐 安全提示：</strong><br>
+                您的会话是安全的，所有数据分析都在受保护的环境中进行。<br>
+                如需退出，请使用侧边栏的"退出登录"按钮。
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
-    # 页脚
+    # 页脚 - 包含认证信息
     st.markdown("---")
+    current_user = st.session_state.get('display_name', '未知用户')
+    user_role = st.session_state.get('user_role', '未知角色')
+    login_time = datetime.now().strftime('%Y-%m-%d %H:%M')
+    
     st.markdown(
         f"""
         <div style="text-align: center; color: #6c757d; font-size: 0.9rem; margin-top: 2rem; 
                     background: #f8f9fa; padding: 1rem; border-radius: 10px;">
-            🎯 基于真实数据的完整预测系统 | 从GitHub直接读取数据 | 确保与附件一输出结果完全一致 | 
-            使用SMAPE准确率计算 | 最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+            🤖 机器学习模型预测系统 | 基于真实GitHub数据 | 使用SMAPE准确率计算<br>
+            🔐 当前用户：<strong>{current_user}</strong> ({user_role}) | 
+            ⏰ 访问时间：{login_time} | 
+            📊 与附件一输出结果完全一致<br>
+            🎯 数据源：CIRA18-HUB/sales_dashboard | 
+            ✨ 最后更新：{datetime.now().strftime('%Y-%m-%d %H:%M')}
         </div>
         """,
         unsafe_allow_html=True
